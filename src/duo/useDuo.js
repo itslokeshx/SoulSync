@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useCallback } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "./socket.js";
-import { useDuoStore } from "./duoStore.js";
+import { useDuoStore, getPersistedSession } from "./duoStore.js";
 
 const BACKEND_URL = import.meta.env.VITE_DUO_BACKEND || "http://localhost:4000";
 
@@ -146,6 +146,20 @@ export function useDuo({
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     addToast("Duo session ended", "info");
   }, [addToast]);
+
+  // ── Auto-rejoin after page reload ──
+  useEffect(() => {
+    const saved = getPersistedSession();
+    if (saved?.roomCode && saved?.myName && saved?.role) {
+      const socket = connectSocket();
+      socket.emit("duo:join", {
+        code: saved.roomCode,
+        name: saved.myName,
+        role: saved.role,
+      });
+      addToast("Reconnecting to Duo session…", "info");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Socket event listeners ──
   useEffect(() => {

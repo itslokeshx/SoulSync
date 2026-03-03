@@ -3,14 +3,38 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { create } from "zustand";
 
+const SESSION_KEY = "duo_session";
+
+const persistSession = (data) => {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+  } catch {}
+};
+const clearPersistedSession = () => {
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {}
+};
+export const getPersistedSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+// Restore from sessionStorage if available
+const saved = getPersistedSession();
+
 export const useDuoStore = create((set, get) => ({
   // Connection state
-  active: false, // Whether a Duo session is active
-  role: null, // "host" | "guest"
-  roomCode: null,
-  myName: "",
-  partnerName: "",
-  partnerConnected: false,
+  active: !!saved, // Whether a Duo session is active
+  role: saved?.role || null, // "host" | "guest"
+  roomCode: saved?.roomCode || null,
+  myName: saved?.myName || "",
+  partnerName: saved?.partnerName || "",
+  partnerConnected: false, // always start disconnected, will get updated on rejoin
 
   // UI state
   modalOpen: false, // Create/Join modal
@@ -27,7 +51,8 @@ export const useDuoStore = create((set, get) => ({
   setPanelOpen: (open) => set({ panelOpen: open }),
   setEndCardOpen: (open) => set({ endCardOpen: open }),
 
-  startSession: ({ role, roomCode, myName }) =>
+  startSession: ({ role, roomCode, myName }) => {
+    persistSession({ role, roomCode, myName });
     set({
       active: true,
       role,
@@ -37,10 +62,15 @@ export const useDuoStore = create((set, get) => ({
       partnerConnected: false,
       songHistory: [],
       messages: [],
-    }),
+    });
+  },
 
-  partnerJoined: ({ name }) =>
-    set({ partnerName: name, partnerConnected: true }),
+  partnerJoined: ({ name }) => {
+    // Persist partner name so rejoin knows who partner is
+    const s = getPersistedSession();
+    if (s) persistSession({ ...s, partnerName: name });
+    set({ partnerName: name, partnerConnected: true });
+  },
 
   partnerDisconnected: () => set({ partnerConnected: false }),
 
@@ -60,15 +90,18 @@ export const useDuoStore = create((set, get) => ({
 
   updateHeartbeat: () => set({ lastHeartbeat: Date.now() }),
 
-  endSession: (songHistory = []) =>
+  endSession: (songHistory = []) => {
+    clearPersistedSession();
     set({
       active: false,
       partnerConnected: false,
       endCardOpen: true,
       songHistory: songHistory.length ? songHistory : get().songHistory,
-    }),
+    });
+  },
 
-  fullReset: () =>
+  fullReset: () => {
+    clearPersistedSession();
     set({
       active: false,
       role: null,
@@ -82,5 +115,6 @@ export const useDuoStore = create((set, get) => ({
       songHistory: [],
       messages: [],
       lastHeartbeat: null,
-    }),
+    });
+  },
 }));
