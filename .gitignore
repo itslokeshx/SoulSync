@@ -1,49 +1,27 @@
-<<<<<<< HEAD
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-=======
 # Dependencies
 node_modules/
 
 # Build output
 dist/
+dist-ssr/
 
 # Environment files
 .env
 .env.local
 .env.*.local
->>>>>>> 126b106 (feat: initialize project with Tailwind CSS and Vite setup)
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-<<<<<<< HEAD
-.idea
-.DS_Store
-=======
 .idea/
->>>>>>> 126b106 (feat: initialize project with Tailwind CSS and Vite setup)
+.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< HEAD
-=======
 
 # OS files
-.DS_Store
 Thumbs.db
 
 # Logs
@@ -52,4 +30,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
->>>>>>> 126b106 (feat: initialize project with Tailwind CSS and Vite setup)
+lerna-debug.log*

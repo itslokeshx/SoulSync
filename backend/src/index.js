@@ -24,12 +24,26 @@ import { redis } from "./services/redis.js";
 const PORT = process.env.PORT || 4000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
+const CORS_ORIGINS = [
+  FRONTEND_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
 // ── Express ──
 const app = express();
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(
   cors({
-    origin: [FRONTEND_URL, "http://localhost:5173", "http://localhost:5174"],
+    origin: (origin, cb) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return cb(null, true);
+      // Allow exact matches + any .vercel.app subdomain
+      if (CORS_ORIGINS.includes(origin) || /\.vercel\.app$/.test(origin)) {
+        return cb(null, true);
+      }
+      cb(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
@@ -49,7 +63,13 @@ app.use("/api/session", sessionRoutes);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: [FRONTEND_URL, "http://localhost:5173", "http://localhost:5174"],
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (CORS_ORIGINS.includes(origin) || /\.vercel\.app$/.test(origin)) {
+        return cb(null, true);
+      }
+      cb(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST"],
     credentials: true,
   },
