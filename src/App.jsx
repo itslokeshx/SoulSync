@@ -881,6 +881,7 @@ const HomePage = ({
   useEffect(() => {
     let cancelled = false;
     const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+    const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
     // Deduplicate songs: keep only the first occurrence of each song name
     const dedup = (songs) => {
       const seen = new Set();
@@ -894,34 +895,60 @@ const HomePage = ({
         return true;
       });
     };
+    const getCached = (key) => {
+      try {
+        const raw = sessionStorage.getItem(`ss_${key}`);
+        if (!raw) return null;
+        const { data, ts } = JSON.parse(raw);
+        if (Date.now() - ts > CACHE_TTL) {
+          sessionStorage.removeItem(`ss_${key}`);
+          return null;
+        }
+        return data;
+      } catch {
+        return null;
+      }
+    };
+    const setCache = (key, data) => {
+      try {
+        sessionStorage.setItem(
+          `ss_${key}`,
+          JSON.stringify({ data, ts: Date.now() }),
+        );
+      } catch {}
+    };
+    const fetchWithBackoff = async (url, maxRetries = 3) => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const r = await fetch(url);
+        if (r.ok) return r.json();
+        if (r.status === 429 && attempt < maxRetries) {
+          await delay(1000 * Math.pow(2, attempt)); // 1s, 2s, 4s
+          continue;
+        }
+        return null;
+      }
+      return null;
+    };
     const fetchSequential = async () => {
       for (let i = 0; i < HOME_SECTIONS.length; i++) {
         if (cancelled) return;
         const { key, query } = HOME_SECTIONS[i];
+        // Try cache first
+        const cached = getCached(key);
+        if (cached) {
+          if (!cancelled) setSections((p) => ({ ...p, [key]: cached }));
+          continue;
+        }
         setLoadings((p) => ({ ...p, [key]: true }));
         try {
-          if (i > 0) await delay(350);
-          const r = await fetch(
-            `${API}/search/songs?q=${encodeURIComponent(query)}&n=40&page=1`,
+          if (i > 0) await delay(600);
+          const d = await fetchWithBackoff(
+            `${API}/search/songs?q=${encodeURIComponent(query)}&n=25&page=1`,
           );
-          if (!r.ok && r.status === 429) {
-            await delay(1000);
-            const retry = await fetch(
-              `${API}/search/songs?q=${encodeURIComponent(query)}&n=40&page=1`,
-            );
-            const rd = await retry.json();
-            if (!cancelled)
-              setSections((p) => ({
-                ...p,
-                [key]: dedup(rd?.data?.results || []),
-              }));
-          } else {
-            const d = await r.json();
-            if (!cancelled)
-              setSections((p) => ({
-                ...p,
-                [key]: dedup(d?.data?.results || []),
-              }));
+          if (!cancelled) {
+            const songs = dedup(d?.data?.results || []);
+            setSections((p) => ({ ...p, [key]: songs }));
+            if (songs.length) setCache(key, songs);
           }
         } catch {
           if (!cancelled) setSections((p) => ({ ...p, [key]: [] }));
@@ -2180,18 +2207,19 @@ export default function App() {
         audio.pause();
         audio.src = url;
         audio.volume = vlRef.current;
-        await audio.play();
-        setCurrentSong(target);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        addRecent(target);
 
-        // Duo sync: tell partner about song change
+        // Duo sync: tell partner BEFORE we await play so they start loading simultaneously
         duoRef.current.syncSongChange(
           target,
           newQueue.length > 0 ? newQueue : [target],
           newQueue.length > 0 ? newQueue.findIndex((s) => s.id === song.id) : 0,
         );
+
+        setCurrentSong(target);
+        setIsPlaying(true);
+        setCurrentTime(0);
+        addRecent(target);
+        audio.play().catch(() => {});
 
         if (newQueue.length > 0) {
           setQueue(newQueue);
