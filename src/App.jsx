@@ -356,8 +356,8 @@ const EqBars = ({ size = "sm" }) => {
 const GreenBtn = ({ children, onClick, className = "", small = false }) => (
   <button
     onClick={onClick}
-    className={`bg-sp-green hover:bg-sp-green-light text-black font-bold rounded-full flex items-center gap-2 transition-all duration-150 hover:scale-105 ${small ? "px-5 py-2 text-sm" : "px-7 py-3.5 text-sm"} ${className}`}
-    style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.35)" }}
+    className={`bg-sp-green hover:bg-sp-green-light text-black font-bold rounded-full flex items-center gap-2 transition-all duration-200 hover:scale-[1.04] active:scale-100 ${small ? "px-5 py-2 text-[13px]" : "px-6 py-3 text-[13px]"} ${className}`}
+    style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.3)" }}
   >
     {children}
   </button>
@@ -367,27 +367,28 @@ const GreenBtn = ({ children, onClick, className = "", small = false }) => (
 // TOAST CONTAINER
 // ─────────────────────────────────────────────────────────────────────────────
 const Toasts = ({ toasts, dismiss }) => (
-  <div className="fixed bottom-36 md:bottom-28 right-4 md:right-5 z-[60] flex flex-col gap-2 pointer-events-none">
+  <div className="fixed bottom-36 md:bottom-24 right-4 md:right-5 z-[60] flex flex-col gap-2 pointer-events-none">
     {toasts.map((t) => (
       <div
         key={t.id}
-        className={`pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-2xl text-sm font-medium animate-fadeIn backdrop-blur-md border border-white/10 ${
+        className={`pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-[13px] font-medium animate-fadeIn backdrop-blur-2xl border ${
           t.type === "error"
-            ? "bg-red-900/90 text-red-100"
+            ? "bg-red-900/80 text-red-100 border-red-500/20"
             : t.type === "success"
-              ? "bg-sp-green/90 text-black"
-              : "bg-[#282828]/90 text-white"
+              ? "bg-sp-green/90 text-black border-sp-green/30"
+              : "bg-white/[0.08] text-white border-white/[0.06]"
         }`}
+        style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
       >
-        <span>
+        <span className="text-[11px]">
           {t.type === "success" ? "✓" : t.type === "error" ? "✕" : "ℹ"}
         </span>
         <span>{t.message}</span>
         <button
           onClick={() => dismiss(t.id)}
-          className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
+          className="ml-1 opacity-40 hover:opacity-100 transition-opacity"
         >
-          <X size={12} />
+          <X size={11} />
         </button>
       </div>
     ))}
@@ -1886,21 +1887,22 @@ const Player = ({
       }}
     >
       {/* Left: song info */}
-      <div className="flex items-center gap-2 md:gap-3 flex-1 md:flex-none md:w-[28%] min-w-0">
+      <div className="flex items-center gap-2.5 md:gap-3 flex-1 md:flex-none md:w-[28%] min-w-0">
         {currentSong ? (
           <>
             <button onClick={onOpenFullscreen} className="flex-shrink-0 group">
               <img
                 src={img}
                 onError={onImgErr}
-                className="w-11 h-11 md:w-14 md:h-14 rounded-lg object-cover shadow-md group-hover:brightness-75 transition-all"
+                className="w-11 h-11 md:w-12 md:h-12 rounded-xl object-cover group-hover:brightness-75 transition-all duration-200"
+                style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}
               />
             </button>
             <div className="min-w-0 flex-1" onClick={onOpenFullscreen}>
-              <p className="text-sm font-semibold text-white truncate cursor-pointer hover:underline">
+              <p className="text-[13px] font-semibold text-white truncate cursor-pointer hover:underline leading-tight">
                 {currentSong.name}
               </p>
-              <p className="text-xs text-sp-sub truncate">
+              <p className="text-[11px] text-white/40 truncate mt-0.5">
                 {getArtists(currentSong)}
               </p>
             </div>
@@ -1909,11 +1911,11 @@ const Player = ({
               className="ml-1 p-1 flex-shrink-0 hidden md:block"
             >
               <Heart
-                size={16}
+                size={14}
                 className={
                   likedSongs?.[currentSong.id]
                     ? "text-sp-green fill-sp-green"
-                    : "text-sp-sub hover:text-white transition-colors"
+                    : "text-white/25 hover:text-white/50 transition-colors duration-200"
                 }
               />
             </button>
