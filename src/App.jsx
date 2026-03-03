@@ -430,9 +430,11 @@ const DuoMobileBar = ({ currentSong, onEndSession, onOpenPanel }) => {
         }}
       >
         {/* Now Playing in Duo */}
-        <button
+        <div
           onClick={onOpenPanel}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 active:bg-white/[0.03] transition-colors"
+          role="button"
+          tabIndex={0}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 active:bg-white/[0.03] transition-colors cursor-pointer"
         >
           {/* Song artwork or duo icon */}
           {currentSong ? (
@@ -494,7 +496,7 @@ const DuoMobileBar = ({ currentSong, onEndSession, onOpenPanel }) => {
           >
             <span className="text-[11px] font-bold text-red-400">END</span>
           </button>
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -2280,8 +2282,9 @@ export default function App() {
   }, [currentSong?.id]); // eslint-disable-line
 
   // ── playSong ──
+  // _fromDuo: when true, skip emitting sync back (prevents infinite A↔B loop)
   const playSong = useCallback(
-    async (song, newQueue = []) => {
+    async (song, newQueue = [], _fromDuo = false) => {
       if (!song) return;
       const audio = audioRef.current;
       try {
@@ -2304,12 +2307,16 @@ export default function App() {
         audio.src = url;
         audio.volume = vlRef.current;
 
-        // Duo sync: tell partner BEFORE we await play so they start loading simultaneously
-        duoRef.current.syncSongChange(
-          target,
-          newQueue.length > 0 ? newQueue : [target],
-          newQueue.length > 0 ? newQueue.findIndex((s) => s.id === song.id) : 0,
-        );
+        // Duo sync: only emit when user-initiated (not from partner sync)
+        if (!_fromDuo) {
+          duoRef.current.syncSongChange(
+            target,
+            newQueue.length > 0 ? newQueue : [target],
+            newQueue.length > 0
+              ? newQueue.findIndex((s) => s.id === song.id)
+              : 0,
+          );
+        }
 
         setCurrentSong(target);
         setIsPlaying(true);

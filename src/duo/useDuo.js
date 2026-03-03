@@ -170,7 +170,7 @@ export function useDuo({
       store.getState().setSessionState(room);
       // If there's a current song playing in the room, force sync to it
       if (room.currentSong) {
-        playSongRef.current?.(room.currentSong, [room.currentSong]);
+        playSongRef.current?.(room.currentSong, [room.currentSong], true);
       }
     };
 
@@ -207,9 +207,9 @@ export function useDuo({
     };
 
     const onReceiveSongChange = ({ song, queue, queueIndex }) => {
-      // Force partner to switch to the same song
+      // Force partner to switch to the same song (_fromDuo=true prevents sync loop)
       if (song) {
-        playSongRef.current?.(song, queue || [song]);
+        playSongRef.current?.(song, queue || [song], true);
       }
     };
 
