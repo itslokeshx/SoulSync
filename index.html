@@ -21,6 +21,11 @@
     <style>
       * {
         font-family: "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body {
+        background: #060606;
       }
       input[type="range"] {
         -webkit-appearance: none;
@@ -29,7 +34,7 @@
         cursor: pointer;
       }
       input[type="range"]::-webkit-slider-runnable-track {
-        background: #535353;
+        background: rgba(255, 255, 255, 0.12);
         border-radius: 9999px;
         height: 4px;
       }
@@ -39,16 +44,20 @@
         margin-top: -5px;
         background: #fff;
         border-radius: 50%;
-        height: 14px;
-        width: 14px;
+        height: 12px;
+        width: 12px;
         opacity: 0;
-        transition: opacity 0.15s;
+        transition:
+          opacity 0.2s,
+          transform 0.15s;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
       }
       input[type="range"]:hover::-webkit-slider-thumb {
         opacity: 1;
+        transform: scale(1.15);
       }
       input[type="range"]::-moz-range-track {
-        background: #535353;
+        background: rgba(255, 255, 255, 0.12);
         border-radius: 9999px;
         height: 4px;
       }
@@ -56,10 +65,11 @@
         background: #fff;
         border: none;
         border-radius: 50%;
-        height: 14px;
-        width: 14px;
+        height: 12px;
+        width: 12px;
         opacity: 0;
-        transition: opacity 0.15s;
+        transition: opacity 0.2s;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
       }
       input[type="range"]:hover::-moz-range-thumb {
         opacity: 1;
@@ -68,14 +78,14 @@
         background: linear-gradient(
           to right,
           #1db954 var(--progress, 0%),
-          #535353 var(--progress, 0%)
+          rgba(255, 255, 255, 0.12) var(--progress, 0%)
         );
       }
       input[type="range"].progress-bar::-moz-range-track {
         background: linear-gradient(
           to right,
           #1db954 var(--progress, 0%),
-          #535353 var(--progress, 0%)
+          rgba(255, 255, 255, 0.12) var(--progress, 0%)
         );
       }
       input[type="range"].progress-bar::-moz-range-progress {
@@ -85,26 +95,26 @@
       input[type="range"].volume-bar::-webkit-slider-runnable-track {
         background: linear-gradient(
           to right,
-          #fff var(--volume, 100%),
-          #535353 var(--volume, 100%)
+          rgba(255, 255, 255, 0.7) var(--volume, 100%),
+          rgba(255, 255, 255, 0.12) var(--volume, 100%)
         );
       }
       input[type="range"].volume-bar:hover::-webkit-slider-runnable-track {
         background: linear-gradient(
           to right,
           #1db954 var(--volume, 100%),
-          #535353 var(--volume, 100%)
+          rgba(255, 255, 255, 0.12) var(--volume, 100%)
         );
       }
       input[type="range"].volume-bar::-moz-range-track {
         background: linear-gradient(
           to right,
-          #fff var(--volume, 100%),
-          #535353 var(--volume, 100%)
+          rgba(255, 255, 255, 0.7) var(--volume, 100%),
+          rgba(255, 255, 255, 0.12) var(--volume, 100%)
         );
       }
       input[type="range"].volume-bar::-moz-range-progress {
-        background: #fff;
+        background: rgba(255, 255, 255, 0.7);
         border-radius: 9999px;
       }
       input[type="range"].volume-bar:hover::-moz-range-progress {
@@ -117,18 +127,18 @@
         z-index: 2;
       }
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #535353;
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #b3b3b3;
+        background: rgba(255, 255, 255, 0.2);
       }
       .hide-scrollbar::-webkit-scrollbar {
         display: none;

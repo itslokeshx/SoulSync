@@ -399,10 +399,10 @@ const Toasts = ({ toasts, dismiss }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 const MobileNav = ({ view, onHome, onSearch, onLiked }) => (
   <nav
-    className="fixed bottom-0 left-0 right-0 h-14 md:hidden z-50 flex items-center justify-around select-none"
+    className="fixed bottom-0 left-0 right-0 h-[3.5rem] md:hidden z-50 flex items-center justify-around select-none backdrop-blur-xl"
     style={{
-      background: "linear-gradient(to top,#0a0a0a 0%,#181818 100%)",
-      borderTop: "1px solid #282828",
+      background: "rgba(6,6,6,0.88)",
+      borderTop: "1px solid rgba(255,255,255,0.06)",
     }}
   >
     {[
@@ -413,12 +413,12 @@ const MobileNav = ({ view, onHome, onSearch, onLiked }) => (
       <button
         key={id}
         onClick={action}
-        className={`flex flex-col items-center gap-0.5 py-2 px-8 transition-colors ${
-          view === id ? "text-sp-green" : "text-sp-sub"
+        className={`flex flex-col items-center gap-0.5 py-2 px-8 transition-all duration-200 ${
+          view === id ? "text-sp-green" : "text-sp-sub/60 active:text-white"
         }`}
       >
-        <Icon size={21} />
-        <span className="text-[10px] font-semibold">{label}</span>
+        <Icon size={20} strokeWidth={view === id ? 2.5 : 1.8} />
+        <span className="text-[10px] font-medium">{label}</span>
       </button>
     ))}
   </nav>
@@ -435,17 +435,23 @@ const Sidebar = ({
   recentlyPlayed,
   onSongPlay,
 }) => (
-  <aside className="hidden md:flex md:flex-col fixed left-0 top-0 bottom-24 w-60 bg-sp-black z-30 select-none">
-    <div className="px-5 pt-6 pb-5 flex items-center gap-2.5">
-      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-sp-green/20">
-        <Music2 size={17} className="text-black" strokeWidth={2.5} />
+  <aside
+    className="hidden md:flex md:flex-col fixed left-0 top-0 bottom-24 w-[17rem] z-30 select-none border-r border-white/[0.06]"
+    style={{ background: "linear-gradient(180deg,#0e0e0e 0%,#080808 100%)" }}
+  >
+    <div className="px-5 pt-6 pb-5 flex items-center gap-3">
+      <div
+        className="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center flex-shrink-0"
+        style={{ boxShadow: "0 0 20px rgba(29,185,84,0.25)" }}
+      >
+        <Music2 size={16} className="text-black" strokeWidth={2.5} />
       </div>
-      <span className="text-lg font-extrabold tracking-tight text-white">
+      <span className="text-[17px] font-extrabold tracking-tight text-white">
         Soul<span className="text-sp-green">Sync</span>
       </span>
     </div>
 
-    <nav className="px-3 space-y-0.5 mb-3">
+    <nav className="px-3 space-y-0.5 mb-4">
       {[
         { id: "home", label: "Home", Icon: Home },
         { id: "search", label: "Search", Icon: Search },
@@ -454,16 +460,20 @@ const Sidebar = ({
         <button
           key={id}
           onClick={() => setView(id)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
+          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 ${
             view === id
-              ? "bg-white/10 text-white"
-              : "text-sp-sub hover:text-white hover:bg-white/5"
+              ? "bg-white/[0.08] text-white backdrop-blur-sm"
+              : "text-sp-sub hover:text-white hover:bg-white/[0.04]"
           }`}
         >
-          <Icon size={18} className={view === id ? "text-sp-green" : ""} />
+          <Icon
+            size={17}
+            className={view === id ? "text-sp-green" : ""}
+            strokeWidth={view === id ? 2.5 : 2}
+          />
           <span className="flex-1 text-left">{label}</span>
           {view === id && (
-            <span className="w-1.5 h-1.5 rounded-full bg-sp-green" />
+            <span className="w-1.5 h-1.5 rounded-full bg-sp-green animate-pulse" />
           )}
         </button>
       ))}
@@ -521,11 +531,8 @@ const Sidebar = ({
       )}
     </div>
 
-    <div className="px-6 pb-4 pt-3 border-t border-white/5">
-      <p className="text-[10px] text-sp-muted">Powered by JioSaavn</p>
-      <p className="text-[10px] text-sp-muted/50 mt-0.5">
-        SoulSync v3.0 — Tamil & National
-      </p>
+    <div className="px-6 pb-4 pt-3 border-t border-white/[0.04]">
+      <p className="text-[10px] text-sp-muted/60 font-medium">SoulSync</p>
     </div>
   </aside>
 );
@@ -541,41 +548,43 @@ const SongCard = ({ song, isCurrent, isPlaying, onPlay }) => {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={onPlay}
-      className="flex-shrink-0 w-44 p-3 rounded-xl bg-sp-card hover:bg-sp-hover cursor-pointer transition-all duration-200"
-      style={{ boxShadow: hov ? "0 8px 32px rgba(0,0,0,0.5)" : "none" }}
+      className="flex-shrink-0 w-[10.5rem] p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] cursor-pointer transition-all duration-300 group"
+      style={{ boxShadow: hov ? "0 8px 40px rgba(0,0,0,0.4)" : "none" }}
     >
-      <div className="relative mb-3">
+      <div className="relative mb-3 rounded-xl overflow-hidden">
         <img
           src={img}
           onError={onImgErr}
           loading="lazy"
-          className={`w-full aspect-square object-cover rounded-lg transition-all duration-300 ${hov ? "scale-[1.04] brightness-50" : ""}`}
+          className={`w-full aspect-square object-cover transition-all duration-500 ${hov ? "scale-105 brightness-[0.4]" : ""}`}
         />
         <div
-          className={`absolute inset-0 rounded-lg flex items-center justify-center transition-opacity duration-200 ${hov || (isCurrent && isPlaying) ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${hov || (isCurrent && isPlaying) ? "opacity-100" : "opacity-0"}`}
         >
           {isCurrent && isPlaying && !hov ? (
             <EqBars size="lg" />
           ) : (
             <button
-              className="w-12 h-12 rounded-full bg-sp-green flex items-center justify-center hover:bg-sp-green-light hover:scale-110 transition-all duration-150"
-              style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.55)" }}
+              className="w-11 h-11 rounded-full bg-sp-green flex items-center justify-center hover:scale-110 transition-transform duration-200"
+              style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.5)" }}
             >
               {isCurrent && isPlaying ? (
-                <Pause size={18} className="text-black fill-black" />
+                <Pause size={16} className="text-black fill-black" />
               ) : (
-                <Play size={18} className="text-black fill-black ml-0.5" />
+                <Play size={16} className="text-black fill-black ml-0.5" />
               )}
             </button>
           )}
         </div>
       </div>
       <p
-        className={`text-sm font-semibold truncate leading-tight ${isCurrent ? "text-sp-green" : "text-white"}`}
+        className={`text-[13px] font-semibold truncate leading-tight ${isCurrent ? "text-sp-green" : "text-white"}`}
       >
         {song.name}
       </p>
-      <p className="text-xs text-sp-sub truncate mt-0.5">{getArtists(song)}</p>
+      <p className="text-[11px] text-sp-sub truncate mt-1">
+        {getArtists(song)}
+      </p>
     </div>
   );
 };
@@ -591,29 +600,31 @@ const AlbumCard = ({ album, onClick }) => {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={onClick}
-      className="flex-shrink-0 w-44 p-3 rounded-xl bg-sp-card hover:bg-sp-hover transition-all duration-200 text-left"
-      style={{ boxShadow: hov ? "0 8px 32px rgba(0,0,0,0.5)" : "none" }}
+      className="flex-shrink-0 w-[10.5rem] p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-300 text-left group"
+      style={{ boxShadow: hov ? "0 8px 40px rgba(0,0,0,0.4)" : "none" }}
     >
-      <div className="relative mb-3">
+      <div className="relative mb-3 rounded-xl overflow-hidden">
         <img
           src={img}
           onError={onImgErr}
           loading="lazy"
-          className={`w-full aspect-square object-cover rounded-lg transition-all duration-300 ${hov ? "scale-[1.04] brightness-50" : ""}`}
+          className={`w-full aspect-square object-cover transition-all duration-500 ${hov ? "scale-105 brightness-[0.4]" : ""}`}
         />
         <div
-          className={`absolute inset-0 rounded-lg flex items-center justify-center transition-opacity duration-200 ${hov ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${hov ? "opacity-100" : "opacity-0"}`}
         >
           <div
-            className="w-12 h-12 rounded-full bg-sp-green flex items-center justify-center"
-            style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.55)" }}
+            className="w-11 h-11 rounded-full bg-sp-green flex items-center justify-center"
+            style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.5)" }}
           >
-            <Play size={18} className="text-black fill-black ml-0.5" />
+            <Play size={16} className="text-black fill-black ml-0.5" />
           </div>
         </div>
       </div>
-      <p className="text-sm font-semibold text-white truncate">{album.name}</p>
-      <p className="text-xs text-sp-sub truncate mt-0.5">
+      <p className="text-[13px] font-semibold text-white truncate">
+        {album.name}
+      </p>
+      <p className="text-[11px] text-sp-sub truncate mt-1">
         {album.description || album.year || ""}
       </p>
     </button>
@@ -631,25 +642,30 @@ const ArtistCard = ({ artist, onClick }) => {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={onClick}
-      className="flex-shrink-0 flex flex-col items-center gap-2 w-28 group"
+      className="flex-shrink-0 flex flex-col items-center gap-2.5 w-[7rem] group"
     >
-      <div className="relative w-24 h-24 rounded-full overflow-hidden">
+      <div
+        className="relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden"
+        style={{ boxShadow: hov ? "0 8px 32px rgba(0,0,0,0.4)" : "none" }}
+      >
         <img
           src={img}
           onError={onImgErr}
           loading="lazy"
-          className={`w-full h-full object-cover transition-all duration-250 ${hov ? "brightness-60 scale-110" : ""}`}
+          className={`w-full h-full object-cover transition-all duration-400 ${hov ? "brightness-[0.5] scale-110" : ""}`}
         />
         <div
-          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hov ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${hov ? "opacity-100" : "opacity-0"}`}
         >
-          <Play size={24} className="text-white fill-white drop-shadow-lg" />
+          <Play size={22} className="text-white fill-white drop-shadow-lg" />
         </div>
       </div>
-      <p className="text-xs font-semibold text-white truncate w-full text-center">
-        {artist.name}
-      </p>
-      <p className="text-[10px] text-sp-muted -mt-1">Artist</p>
+      <div className="text-center w-full">
+        <p className="text-[12px] font-semibold text-white truncate">
+          {artist.name}
+        </p>
+        <p className="text-[10px] text-white/25 mt-0.5">Artist</p>
+      </div>
     </button>
   );
 };
@@ -673,8 +689,8 @@ const SongRow = ({
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={onPlay}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 ${
-        isCurrent ? "bg-white/[0.07]" : "hover:bg-white/[0.05]"
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
+        isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"
       }`}
     >
       <div className="w-5 flex-shrink-0 flex items-center justify-center">
@@ -744,22 +760,22 @@ const HSection = ({
   onAlbumClick,
   onSeeAll,
 }) => (
-  <div className="mb-8 animate-fadeIn">
+  <div className="mb-10 animate-fadeIn">
     <div className="flex items-center justify-between mb-4">
-      <h2 className="text-xl font-bold text-white flex items-center gap-2">
-        {icon && <span>{icon}</span>}
+      <h2 className="text-lg font-bold text-white flex items-center gap-2">
+        {icon && <span className="text-base">{icon}</span>}
         {title}
       </h2>
       {onSeeAll && (
         <button
           onClick={onSeeAll}
-          className="text-[11px] font-bold text-sp-sub hover:text-white tracking-widest uppercase transition-colors"
+          className="text-[11px] font-semibold text-sp-sub hover:text-white tracking-wider uppercase transition-colors duration-200"
         >
           See all
         </button>
       )}
     </div>
-    <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+    <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
       {loading
         ? Array.from({ length: 7 }).map((_, i) => (
             <div
@@ -797,31 +813,34 @@ const HSection = ({
 // ─────────────────────────────────────────────────────────────────────────────
 const BrowsePage = ({ onSearch }) => (
   <div className="animate-fadeIn">
-    <h1 className="text-2xl font-bold text-white mb-1">Browse</h1>
-    <p className="text-sp-sub text-sm mb-6">
+    <h1 className="text-2xl font-bold text-white mb-1 tracking-tight">
+      Browse
+    </h1>
+    <p className="text-sp-sub/60 text-sm mb-6">
       Explore Tamil hits & global viral tracks
     </p>
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-10">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 mb-10">
       {GENRE_CATEGORIES.map(({ label, q, color }) => (
         <button
           key={label}
           onClick={() => onSearch(q)}
-          className="relative h-24 rounded-xl overflow-hidden text-left px-4 py-3 font-bold text-white text-sm hover:scale-[1.02] active:scale-100 transition-transform duration-150"
+          className="relative h-[5.5rem] rounded-2xl overflow-hidden text-left px-4 py-3 font-bold text-white text-[13px] hover:scale-[1.03] active:scale-100 transition-all duration-200"
           style={{
-            background: `linear-gradient(135deg,${color} 0%,${color}55 100%)`,
+            background: `linear-gradient(135deg,${color}dd 0%,${color}44 100%)`,
           }}
         >
-          {label}
+          <span className="relative z-10">{label}</span>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         </button>
       ))}
     </div>
-    <h2 className="text-xl font-bold text-white mb-4">Popular Artists</h2>
+    <h2 className="text-lg font-bold text-white mb-3">Popular Artists</h2>
     <div className="flex flex-wrap gap-2">
       {POPULAR_ARTISTS.map((name) => (
         <button
           key={name}
           onClick={() => onSearch(name)}
-          className="px-4 py-2 rounded-full bg-sp-hover hover:bg-sp-green hover:text-black text-white text-sm font-semibold transition-all duration-200"
+          className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-sp-green hover:text-black text-white text-[13px] font-medium transition-all duration-200 border border-white/[0.06] hover:border-sp-green"
         >
           {name}
         </button>
@@ -905,14 +924,16 @@ const HomePage = ({
 
   return (
     <div className="animate-fadeIn">
-      <h1 className="text-3xl font-black text-white mb-1">{getGreeting()}</h1>
-      <p className="text-sp-sub text-sm mb-6">
-        Fresh Tamil hits & international viral bangers — curated for you
+      <h1 className="text-3xl md:text-4xl font-black text-white mb-1.5 tracking-tight">
+        {getGreeting()}
+      </h1>
+      <p className="text-sp-sub/70 text-sm mb-8">
+        Your mix of Tamil hits & international bangers
       </p>
 
       {recentlyPlayed.length > 0 && (
-        <div className="mb-8 mt-5">
-          <h2 className="text-xl font-bold text-white mb-4">Recently Played</h2>
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-white mb-3">Recently Played</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
             {recentlyPlayed.slice(0, 8).map((s) => {
               const img = bestImg(s.image, "50x50") || FALLBACK_IMG;
@@ -921,20 +942,20 @@ const HomePage = ({
                 <button
                   key={s.id}
                   onClick={() => onPlay(s, recentlyPlayed)}
-                  className="flex items-center gap-3 bg-sp-hover/60 hover:bg-sp-hover rounded-lg overflow-hidden transition-all duration-200 h-14"
+                  className="flex items-center gap-3 bg-white/[0.04] hover:bg-white/[0.08] rounded-xl overflow-hidden transition-all duration-200 h-[3.25rem] group"
                 >
                   <img
                     src={img}
                     onError={onImgErr}
-                    className="w-14 h-14 object-cover flex-shrink-0"
+                    className="w-[3.25rem] h-[3.25rem] object-cover flex-shrink-0 rounded-l-xl"
                   />
                   <span
-                    className={`flex-1 text-sm font-semibold text-left truncate pr-3 leading-tight ${isCur ? "text-sp-green" : "text-white"}`}
+                    className={`flex-1 text-[13px] font-semibold text-left truncate pr-3 leading-tight ${isCur ? "text-sp-green" : "text-white"}`}
                   >
                     {s.name}
                   </span>
                   {isCur && isPlaying && (
-                    <span className="pr-2">
+                    <span className="pr-3">
                       <EqBars />
                     </span>
                   )}
@@ -1047,12 +1068,14 @@ const SearchPage = ({
   if (none)
     return (
       <div className="flex flex-col items-center justify-center h-72 gap-4 animate-fadeIn text-center">
-        <div className="w-16 h-16 rounded-full bg-sp-hover flex items-center justify-center">
-          <Search size={28} className="text-sp-muted" />
+        <div className="w-14 h-14 rounded-2xl bg-white/[0.06] flex items-center justify-center">
+          <Search size={22} className="text-sp-muted" />
         </div>
         <div>
-          <p className="text-white font-bold text-lg">No results found</p>
-          <p className="text-sp-sub text-sm mt-1">for &ldquo;{query}&rdquo;</p>
+          <p className="text-white font-semibold text-base">No results found</p>
+          <p className="text-sp-sub/60 text-sm mt-1">
+            for &ldquo;{query}&rdquo;
+          </p>
         </div>
       </div>
     );
@@ -1072,10 +1095,10 @@ const SearchPage = ({
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-150 ${
+            className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all duration-200 border ${
               tab === t
-                ? "bg-white text-black"
-                : "bg-sp-hover text-white hover:bg-white/20"
+                ? "bg-white text-black border-white"
+                : "bg-white/[0.04] text-white/80 border-white/[0.06] hover:bg-white/[0.08] hover:border-white/[0.12]"
             }`}
           >
             {t}
@@ -1090,24 +1113,25 @@ const SearchPage = ({
             <h2 className="text-xl font-bold text-white mb-4">Top Result</h2>
             <div
               onClick={() => onPlay(top, results.songs)}
-              className="p-6 rounded-xl bg-sp-card hover:bg-sp-hover cursor-pointer transition-all duration-200 group relative overflow-hidden"
+              className="p-6 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] cursor-pointer transition-all duration-300 group relative overflow-hidden border border-white/[0.04]"
             >
               <img
                 src={bestImg(top.image) || FALLBACK_IMG}
                 onError={onImgErr}
-                className="w-20 h-20 rounded-xl object-cover shadow-xl mb-5 group-hover:scale-[1.03] transition-transform duration-200"
+                className="w-20 h-20 rounded-xl object-cover mb-5 group-hover:scale-[1.03] transition-transform duration-300"
+                style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}
               />
               <p className="text-2xl font-black text-white truncate">
                 {top.name}
               </p>
-              <p className="text-sm text-sp-sub mt-1">
+              <p className="text-[13px] text-sp-sub mt-1.5">
                 {getArtists(top)} · Song
               </p>
               <div
-                className="absolute bottom-5 right-5 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200"
-                style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.55)" }}
+                className="absolute bottom-5 right-5 w-11 h-11 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300"
+                style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.5)" }}
               >
-                <Play size={20} className="text-black fill-black ml-0.5" />
+                <Play size={16} className="text-black fill-black ml-0.5" />
               </div>
             </div>
           </div>
@@ -1284,51 +1308,53 @@ const ArtistPage = ({
       <div
         className="relative h-80 overflow-hidden"
         style={{
-          background: `linear-gradient(to bottom,${bgColor} 0%,#121212 100%)`,
+          background: `linear-gradient(to bottom,${bgColor} 0%,#0e0e0e 100%)`,
         }}
       >
         <img
           src={img}
           onError={onImgErr}
-          className="absolute inset-0 w-full h-full object-cover object-top opacity-40"
+          className="absolute inset-0 w-full h-full object-cover object-top opacity-30"
         />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to bottom,transparent 30%,#121212 100%)",
+              "linear-gradient(to bottom,transparent 20%,#0e0e0e 100%)",
           }}
         />
         <button
           onClick={onBack}
-          className="absolute top-5 left-5 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+          className="absolute top-5 left-5 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/60 transition-all duration-200"
         >
-          <ChevronLeft size={18} />
+          <ChevronLeft size={16} />
         </button>
         <div className="absolute bottom-6 left-6">
-          <span className="text-xs font-bold bg-sp-green text-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+          <span className="text-[10px] font-bold bg-sp-green text-black px-2.5 py-1 rounded-full uppercase tracking-widest">
             Verified Artist
           </span>
-          <h1 className="text-5xl font-black text-white mt-2 leading-none">
+          <h1 className="text-4xl md:text-5xl font-black text-white mt-3 leading-none tracking-tight">
             {artist.name}
           </h1>
           {followers && (
-            <p className="text-sp-sub text-sm mt-2">{followers} followers</p>
+            <p className="text-white/50 text-[13px] mt-2">
+              {followers} followers
+            </p>
           )}
         </div>
       </div>
 
-      <div className="px-6 py-5 flex items-center gap-4 bg-gradient-to-b from-sp-dark to-transparent">
+      <div className="px-6 py-5 flex items-center gap-4">
         <GreenBtn onClick={() => songs.length && onPlay(songs[0], songs)}>
-          <Play size={18} className="fill-black" /> Play
+          <Play size={16} className="fill-black" /> Play
         </GreenBtn>
-        <button className="w-11 h-11 rounded-full border-2 border-white/30 flex items-center justify-center text-white hover:border-white transition-colors">
-          <Shuffle size={17} />
+        <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all duration-200">
+          <Shuffle size={15} />
         </button>
       </div>
 
       <div className="px-6">
-        <h2 className="text-xl font-bold text-white mb-3">Popular</h2>
+        <h2 className="text-lg font-bold text-white mb-3">Popular</h2>
         <div className="space-y-1">
           {songs.slice(0, 20).map((s, i) => (
             <SongRow
@@ -1417,35 +1443,35 @@ const AlbumPage = ({
       <div
         className="px-6 pt-6 pb-6"
         style={{
-          background: `linear-gradient(to bottom,${bgColor} 0%,#121212 100%)`,
+          background: `linear-gradient(to bottom,${bgColor} 0%,#0e0e0e 100%)`,
         }}
       >
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sp-sub hover:text-white text-sm mb-6 transition-colors"
+          className="flex items-center gap-1.5 text-white/50 hover:text-white text-[13px] mb-6 transition-colors duration-200"
         >
-          <ChevronLeft size={16} /> Back
+          <ChevronLeft size={14} /> Back
         </button>
         <div className="flex gap-6 flex-wrap items-end">
           <img
             src={img}
             onError={onImgErr}
-            className="w-52 h-52 object-cover rounded-xl flex-shrink-0"
-            style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.7)" }}
+            className="w-48 h-48 md:w-52 md:h-52 object-cover rounded-2xl flex-shrink-0"
+            style={{ boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}
           />
           <div className="flex flex-col justify-end min-w-0 pb-2">
-            <p className="text-xs font-bold text-sp-sub uppercase tracking-widest mb-2">
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-2">
               Album
             </p>
-            <h1 className="text-4xl font-black text-white mb-3 leading-tight">
+            <h1 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight tracking-tight">
               {album.name}
             </h1>
-            <div className="flex items-center gap-2 flex-wrap text-sm">
-              <span className="font-bold text-white">{artist}</span>
-              <span className="text-sp-muted">·</span>
-              <span className="text-sp-sub">{album.year}</span>
-              <span className="text-sp-muted">·</span>
-              <span className="text-sp-sub">
+            <div className="flex items-center gap-2 flex-wrap text-[13px]">
+              <span className="font-semibold text-white">{artist}</span>
+              <span className="text-white/20">·</span>
+              <span className="text-white/50">{album.year}</span>
+              <span className="text-white/20">·</span>
+              <span className="text-white/50">
                 {songs.length} songs, {fmt(totalDur)}
               </span>
             </div>
@@ -1453,17 +1479,17 @@ const AlbumPage = ({
         </div>
       </div>
 
-      <div className="px-6 py-5 flex items-center gap-4 bg-gradient-to-b from-sp-dark to-transparent">
+      <div className="px-6 py-5 flex items-center gap-4">
         <GreenBtn onClick={() => songs.length && onPlay(songs[0], songs)}>
-          <Play size={18} className="fill-black" /> Play All
+          <Play size={16} className="fill-black" /> Play All
         </GreenBtn>
-        <button className="w-11 h-11 rounded-full border-2 border-white/30 flex items-center justify-center text-white hover:border-white transition-colors">
-          <Shuffle size={17} />
+        <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all duration-200">
+          <Shuffle size={15} />
         </button>
       </div>
 
       <div className="px-6">
-        <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5 text-[10px] font-bold tracking-widest text-sp-muted uppercase mb-1">
+        <div className="flex items-center gap-3 px-3 py-2 border-b border-white/[0.04] text-[10px] font-semibold tracking-[0.15em] text-white/25 uppercase mb-1">
           <span className="w-5 text-center">#</span>
           <span className="flex-1">Title</span>
           <span className="hidden lg:block w-36 text-center">Album</span>
@@ -1496,32 +1522,41 @@ const LikedPage = ({ likedSongs, currentSong, isPlaying, onPlay, onLike }) => {
   return (
     <div className="animate-fadeIn">
       <div
-        className="flex items-end gap-6 mb-8 p-7 rounded-2xl"
+        className="flex items-end gap-6 mb-10 p-7 rounded-3xl overflow-hidden relative"
         style={{
-          background: "linear-gradient(135deg,#450af5 0%,#c4efd9 100%)",
+          background:
+            "linear-gradient(135deg,#450af5 0%,#8b5cf6 50%,#c4efd9 100%)",
         }}
       >
+        <div className="absolute inset-0 bg-black/10" />
         <div
-          className="w-40 h-40 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg,#450af5,#c4efd9)" }}
+          className="relative w-36 h-36 md:w-40 md:h-40 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{
+            background: "linear-gradient(135deg,#450af5,#8b5cf6)",
+            boxShadow: "0 20px 60px rgba(69,10,245,0.4)",
+          }}
         >
-          <Heart size={64} className="text-white fill-white" />
+          <Heart size={56} className="text-white fill-white" />
         </div>
-        <div className="pb-2">
-          <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">
+        <div className="pb-2 relative">
+          <p className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em] mb-1">
             Playlist
           </p>
-          <h1 className="text-4xl font-black text-white">Liked Songs</h1>
-          <p className="text-white/70 text-sm mt-2">{songs.length} songs</p>
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+            Liked Songs
+          </h1>
+          <p className="text-white/60 text-[13px] mt-2">{songs.length} songs</p>
         </div>
       </div>
       {songs.length === 0 ? (
-        <div className="text-center py-16">
-          <Heart size={52} className="mx-auto mb-4 text-sp-muted" />
-          <p className="text-white font-bold text-lg">
+        <div className="text-center py-20">
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-5">
+            <Heart size={28} className="text-sp-muted" />
+          </div>
+          <p className="text-white font-semibold text-base">
             Songs you like will appear here
           </p>
-          <p className="text-sp-sub text-sm mt-1">
+          <p className="text-sp-sub/60 text-sm mt-1.5">
             Click the ♥ icon next to any song
           </p>
         </div>
@@ -1549,32 +1584,35 @@ const LikedPage = ({ likedSongs, currentSong, isPlaying, onPlay, onLike }) => {
 // QUEUE PANEL
 // ─────────────────────────────────────────────────────────────────────────────
 const QueuePanel = ({ queue, queueIndex, currentSong, onClose, onJump }) => (
-  <div className="fixed right-0 top-0 bottom-[7.5rem] md:bottom-24 w-full md:w-72 bg-[#1a1a1a] border-l border-white/5 z-40 flex flex-col animate-slideInRight shadow-2xl">
-    <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-      <h3 className="font-bold text-white text-sm">Queue</h3>
+  <div
+    className="fixed right-0 top-0 bottom-[7.5rem] md:bottom-20 w-full md:w-72 z-40 flex flex-col animate-slideInRight border-l border-white/[0.06]"
+    style={{ background: "rgba(10,10,10,0.95)", backdropFilter: "blur(24px)" }}
+  >
+    <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
+      <h3 className="font-semibold text-white text-[13px]">Queue</h3>
       <button
         onClick={onClose}
-        className="text-sp-sub hover:text-white transition-colors p-1"
+        className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
       >
-        <X size={17} />
+        <X size={15} />
       </button>
     </div>
     {currentSong && (
-      <div className="px-5 py-3 border-b border-white/5">
-        <p className="text-[10px] font-bold text-sp-green uppercase tracking-widest mb-2">
+      <div className="px-5 py-3 border-b border-white/[0.04]">
+        <p className="text-[10px] font-semibold text-sp-green uppercase tracking-[0.15em] mb-2">
           Now Playing
         </p>
         <div className="flex items-center gap-3">
           <img
             src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
             onError={onImgErr}
-            className="w-10 h-10 rounded-lg object-cover"
+            className="w-10 h-10 rounded-xl object-cover"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-sp-green truncate">
+            <p className="text-[13px] font-semibold text-sp-green truncate">
               {currentSong.name}
             </p>
-            <p className="text-xs text-sp-sub truncate">
+            <p className="text-[11px] text-sp-sub/60 truncate">
               {getArtists(currentSong)}
             </p>
           </div>
@@ -1595,18 +1633,20 @@ const QueuePanel = ({ queue, queueIndex, currentSong, onClose, onJump }) => (
         <button
           key={`${s.id}-${i}`}
           onClick={() => onJump(queueIndex + 1 + i)}
-          className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 transition-colors text-left"
+          className="w-full flex items-center gap-3 px-5 py-2 hover:bg-white/[0.04] transition-all duration-200 text-left"
         >
           <img
             src={bestImg(s.image, "50x50") || FALLBACK_IMG}
             onError={onImgErr}
-            className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+            className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-white truncate">{s.name}</p>
-            <p className="text-xs text-sp-sub truncate">{getArtists(s)}</p>
+            <p className="text-[13px] text-white truncate">{s.name}</p>
+            <p className="text-[11px] text-sp-sub/50 truncate">
+              {getArtists(s)}
+            </p>
           </div>
-          <span className="text-[10px] text-sp-muted tabular-nums">
+          <span className="text-[10px] text-white/20 tabular-nums">
             {fmt(s.duration)}
           </span>
         </button>
@@ -1659,36 +1699,36 @@ const NowPlayingView = ({
         background: `linear-gradient(to bottom,${bgColor} 0%,#121212 55%,#0a0a0a 100%)`,
       }}
     >
-      <div className="flex items-center justify-between px-8 pt-6 pb-2">
+      <div className="flex items-center justify-between px-6 md:px-8 pt-5 pb-2">
         <button
           onClick={onClose}
-          className="text-white hover:text-sp-sub transition-colors p-1"
+          className="text-white/70 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10"
         >
-          <ChevronDown size={26} />
+          <ChevronDown size={24} />
         </button>
         <div className="text-center">
-          <p className="text-white text-xs font-bold uppercase tracking-widest">
+          <p className="text-white/90 text-[10px] font-bold uppercase tracking-[0.2em]">
             Now Playing
           </p>
-          <p className="text-sp-sub text-xs mt-0.5 truncate max-w-[220px]">
+          <p className="text-white/40 text-[11px] mt-0.5 truncate max-w-[220px]">
             {currentSong.album?.name || ""}
           </p>
         </div>
-        <button className="text-sp-sub hover:text-white transition-colors p-1">
-          <MoreHorizontal size={22} />
+        <button className="text-white/40 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10">
+          <MoreHorizontal size={20} />
         </button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-10 gap-8 min-h-0">
         <div
-          className={`transition-all duration-500 ${isPlaying ? "scale-100" : "scale-90 opacity-80"}`}
-          style={{ boxShadow: `0 32px 80px ${bgColor}99` }}
+          className={`transition-all duration-700 ease-out ${isPlaying ? "scale-100" : "scale-[0.92] opacity-75"}`}
+          style={{ boxShadow: `0 40px 100px ${bgColor}80` }}
         >
           <img
             src={img}
             onError={onImgErr}
-            className="w-72 h-72 rounded-2xl object-cover"
-            style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}
+            className="w-64 h-64 md:w-72 md:h-72 rounded-3xl object-cover"
+            style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}
           />
         </div>
 
@@ -1753,12 +1793,13 @@ const NowPlayingView = ({
             </button>
             <button
               onClick={onPlayPause}
-              className="w-16 h-16 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-2xl"
+              className="w-[4.25rem] h-[4.25rem] rounded-full bg-white flex items-center justify-center hover:scale-[1.06] active:scale-100 transition-all duration-200"
+              style={{ boxShadow: "0 4px 30px rgba(255,255,255,0.15)" }}
             >
               {isPlaying ? (
-                <Pause size={26} className="text-black fill-black" />
+                <Pause size={24} className="text-black fill-black" />
               ) : (
-                <Play size={26} className="text-black fill-black ml-1" />
+                <Play size={24} className="text-black fill-black ml-0.5" />
               )}
             </button>
             <button
@@ -1838,10 +1879,10 @@ const Player = ({
 
   return (
     <div
-      className="fixed bottom-14 md:bottom-0 left-0 right-0 h-16 md:h-24 z-40 flex items-center px-3 md:px-4 gap-2 md:gap-3 select-none"
+      className="fixed bottom-14 md:bottom-0 left-0 right-0 h-16 md:h-20 z-40 flex items-center px-3 md:px-5 gap-2 md:gap-3 select-none backdrop-blur-xl"
       style={{
-        background: "linear-gradient(to top,#0a0a0a 0%,#181818 100%)",
-        borderTop: "1px solid #282828",
+        background: "rgba(6,6,6,0.92)",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
       }}
     >
       {/* Left: song info */}
@@ -2412,7 +2453,7 @@ export default function App() {
       />
 
       <div
-        className={`flex-1 md:ml-60 ${queueOpen ? "md:mr-72" : ""} flex flex-col overflow-hidden transition-all duration-300`}
+        className={`flex-1 md:ml-[17rem] ${queueOpen ? "md:mr-72" : ""} flex flex-col overflow-hidden transition-all duration-300`}
       >
         {/* Top bar */}
         <div
