@@ -32,6 +32,7 @@ export function registerRoomHandlers(io, socket) {
       socket.join(code);
       socket.data.roomCode = code;
       socket.data.role = role;
+      socket.data.name = name;
 
       // Send full state to the joining user
       socket.emit("duo:session-state", { room });

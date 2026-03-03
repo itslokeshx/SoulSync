@@ -25,7 +25,6 @@ import {
   DuoButton,
   DuoModal,
   DuoPanel,
-  DuoReactions,
   DuoEndCard,
   DuoHeartbeat,
   useDuo,
@@ -2708,13 +2707,10 @@ export default function App() {
       <DuoModal onCreate={duo.createSession} onJoin={duo.joinSession} />
       {duoActive && (
         <DuoPanel
-          onSendReaction={duo.sendReaction}
-          onSendNote={duo.sendNote}
-          onSendMoodMode={duo.sendMoodMode}
+          onSendMessage={duo.sendMessage}
           onEndSession={duo.endSession}
         />
       )}
-      <DuoReactions />
       <DuoEndCard />
     </div>
   );
