@@ -92,7 +92,6 @@ const HOME_SECTIONS = [
       "Rise Of Dragon",
       "Vizhi Veekura",
       "God Bless U",
-      "Salambala",
       "Sugar Baby",
       "Vinveli Nayaga",
       "Manasilaayo",
@@ -103,16 +102,17 @@ const HOME_SECTIONS = [
     title: "Late Night Feels",
     icon: "🌙",
     songs: [
-      "Katchi Sera",
+      "Katchi Sera Sai Abhyankkar",
+      "Aaruyire Guru AR Rahman",
       "Kannadi Poove",
       "Hey Minnale",
       "Unakku Enna Odave",
       "Yendi Vittu Pona",
       "Sithira Puthiri",
       "Enakenna Yaarum Illaye",
-      "Golden Sparrow",
+      "Golden Sparrow NEEK",
       "Vaa Kannamma",
-      "Edho Pesathanae",
+      "Salambala Madharaasi Yuvan",
     ],
   },
   {
@@ -1186,7 +1186,14 @@ const HomePage = ({
           currentSong={currentSong}
           isPlaying={isPlaying}
           onPlay={onPlay}
-          onSeeAll={() => onSearch(title)}
+          onSeeAll={() =>
+            onSearch(
+              songNames
+                .slice(0, 3)
+                .map((s) => s.split(" ")[0])
+                .join(" "),
+            )
+          }
         />
       ))}
     </div>
