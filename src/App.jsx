@@ -460,7 +460,6 @@ const Sidebar = ({
       <span className="text-[17px] font-extrabold tracking-tight text-white">
         Soul<span className="text-sp-green">Sync</span>
       </span>
-      {duoButton}
     </div>
 
     <nav className="px-3 space-y-0.5 mb-4">
@@ -543,8 +542,9 @@ const Sidebar = ({
       )}
     </div>
 
-    <div className="px-6 pb-4 pt-3 border-t border-white/[0.04]">
-      <p className="text-[10px] text-sp-muted/60 font-medium">SoulSync</p>
+    {/* Duo Button — prominent sidebar section */}
+    <div className="px-3 pb-3 pt-2 border-t border-white/[0.04] mt-auto">
+      {duoButton}
     </div>
   </aside>
 );
@@ -2520,7 +2520,7 @@ export default function App() {
               Soul<span className="text-sp-green">Sync</span>
             </span>
             {/* Mobile Duo button */}
-            <div className="ml-auto">
+            <div className="ml-auto flex-shrink-0">
               <DuoButton />
             </div>
           </div>
