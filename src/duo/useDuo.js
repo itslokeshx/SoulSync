@@ -21,6 +21,8 @@ const BACKEND_URL = import.meta.env.VITE_DUO_BACKEND || "http://localhost:4000";
 export function useDuo({
   playSongRef,
   audioRef,
+  currentSongRef,
+  queueRef,
   setIsPlaying,
   setCurrentTime,
   addToast,
@@ -55,6 +57,22 @@ export function useDuo({
           roomCode: data.code,
           myName: hostName,
         });
+
+        // Sync host's currently playing song into the room so joiners get it
+        const cs = currentSongRef?.current;
+        if (cs) {
+          const q = queueRef?.current;
+          socket.emit("duo:sync-song-change", {
+            song: cs,
+            queue: q?.length ? q : [cs],
+            queueIndex: q?.length
+              ? Math.max(
+                  q.findIndex((s) => s.id === cs.id),
+                  0,
+                )
+              : 0,
+          });
+        }
 
         addToast(`Duo room created! Code: ${data.code}`, "success", 5000);
         return data.code;
@@ -169,6 +187,27 @@ export function useDuo({
       store.getState().partnerJoined({ name });
       store.getState().setSessionState(room);
       addToast(`${name} joined the Duo! 🎉`, "success");
+
+      // Host pushes their current song to the newly joined partner
+      if (store.getState().role === "host") {
+        const cs = currentSongRef?.current;
+        if (cs) {
+          const q = queueRef?.current;
+          // Small delay to let partner's socket listeners initialize
+          setTimeout(() => {
+            getSocket().emit("duo:sync-song-change", {
+              song: cs,
+              queue: q?.length ? q : [cs],
+              queueIndex: q?.length
+                ? Math.max(
+                    q.findIndex((s) => s.id === cs.id),
+                    0,
+                  )
+                : 0,
+            });
+          }, 500);
+        }
+      }
     };
 
     const onPartnerDisconnected = ({ who }) => {

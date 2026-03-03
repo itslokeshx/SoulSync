@@ -77,13 +77,18 @@ export const useDuoStore = create((set, get) => ({
   partnerReconnected: ({ name }) =>
     set({ partnerName: name, partnerConnected: true }),
 
-  setSessionState: (room) =>
+  setSessionState: (room) => {
+    const role = get().role;
+    const isHost = role === "host";
     set({
       songHistory: room.songHistory || [],
       messages: room.messages || room.notes || [],
-      partnerConnected: room.guest?.connected || false,
-      partnerName: room.guest?.name || room.host?.name || "",
-    }),
+      partnerConnected: isHost
+        ? room.guest?.connected || false
+        : room.host?.connected || false,
+      partnerName: isHost ? room.guest?.name || "" : room.host?.name || "",
+    });
+  },
 
   addMessage: (msg) =>
     set((s) => ({ messages: [...s.messages, msg].slice(-500) })),

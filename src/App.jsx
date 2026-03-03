@@ -2213,9 +2213,13 @@ export default function App() {
   const duoActive = useDuoStore((s) => s.active);
   const duoPanelOpen = useDuoStore((s) => s.panelOpen);
   const playSongRef = useRef(null); // will be assigned after playSong is defined
+  const duoCurrentSongRef = useRef(null); // ref so Duo can read host's current song
+  const duoQueueRef = useRef([]); // ref so Duo can read host's queue
   const duo = useDuo({
     playSongRef,
     audioRef,
+    currentSongRef: duoCurrentSongRef,
+    queueRef: duoQueueRef,
     setIsPlaying,
     setCurrentTime,
     addToast,
@@ -2341,6 +2345,10 @@ export default function App() {
 
   // Keep playSongRef in sync so useDuo socket handlers can call it
   playSongRef.current = playSong;
+
+  // Keep Duo sync refs up to date so useDuo can read current song/queue
+  duoCurrentSongRef.current = currentSong;
+  duoQueueRef.current = queue;
 
   // ── Audio event listeners ──
   useEffect(() => {
