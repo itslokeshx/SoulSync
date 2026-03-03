@@ -68,36 +68,86 @@ const HOME_SECTIONS = [
     key: "tamilHeatwave",
     title: "Scorching Right Now",
     icon: "🔥",
-    query:
-      "Monica Kanimaa Oorum Blood Vazhithunaiye Muththa Mazhai Sawadeeka Powerhouse Yedi Jinguchaa Pottala Muttaye",
+    songs: [
+      "Monica Coolie",
+      "Kanimaa",
+      "Oorum Blood Dude",
+      "Vazhithunaiye",
+      "Muththa Mazhai",
+      "Sawadeeka",
+      "Powerhouse Coolie",
+      "Yedi",
+      "Jinguchaa",
+      "Pottala Muttaye",
+    ],
   },
   {
     key: "tamilReplay",
     title: "Can't Stop Streaming",
     icon: "💫",
-    query:
-      "Chikitu Og Sambavam Rise Of Dragon Vizhi Veekura God Bless U Salambala Sugar Baby Vinveli Nayaga Manasilaayo",
+    songs: [
+      "Chikitu",
+      "Og Sambavam",
+      "The One Retro",
+      "Rise Of Dragon",
+      "Vizhi Veekura",
+      "God Bless U",
+      "Salambala",
+      "Sugar Baby",
+      "Vinveli Nayaga",
+      "Manasilaayo",
+    ],
   },
   {
     key: "tamilAfterHours",
     title: "Late Night Feels",
     icon: "🌙",
-    query:
-      "Katchi Sera Kannadi Poove Hey Minnale Sithira Puthiri Enakenna Yaarum Illaye Golden Sparrow Vaa Kannamma",
+    songs: [
+      "Katchi Sera",
+      "Kannadi Poove",
+      "Hey Minnale",
+      "Unakku Enna Odave",
+      "Yendi Vittu Pona",
+      "Sithira Puthiri",
+      "Enakenna Yaarum Illaye",
+      "Golden Sparrow",
+      "Vaa Kannamma",
+      "Edho Pesathanae",
+    ],
   },
   {
     key: "midnightLove",
     title: "Love & Longing",
     icon: "💖",
-    query:
-      "Die With A Smile Dusk Till Dawn Heat Waves Golden Hour Until I Found You Yellow Someone You Loved Perfect Ocean Eyes",
+    songs: [
+      "Die With A Smile",
+      "I Think They Call This Love",
+      "Dusk Till Dawn",
+      "Heat Waves",
+      "Golden Hour",
+      "Until I Found You",
+      "Yellow",
+      "Someone You Loved",
+      "Perfect",
+      "Ocean Eyes",
+    ],
   },
   {
     key: "globalPulse",
     title: "Worldwide Anthems",
     icon: "🌍",
-    query:
-      "Blinding Lights As It Was Flowers Cupid Stay Sunroof Industry Baby Savage Love Dance Monkey Good 4 U",
+    songs: [
+      "Blinding Lights",
+      "As It Was",
+      "Flowers",
+      "Cupid",
+      "Stay",
+      "Sunroof",
+      "Industry Baby",
+      "Savage Love",
+      "Dance Monkey",
+      "Good 4 U",
+    ],
   },
 ];
 
@@ -1013,35 +1063,70 @@ const HomePage = ({
       }
       return null;
     };
-    const fetchSequential = async () => {
-      for (let i = 0; i < HOME_SECTIONS.length; i++) {
-        if (cancelled) return;
-        const { key, query } = HOME_SECTIONS[i];
-        // Try cache first
-        const cached = getCached(key);
-        if (cached) {
-          if (!cancelled) setSections((p) => ({ ...p, [key]: cached }));
-          continue;
-        }
-        setLoadings((p) => ({ ...p, [key]: true }));
-        try {
-          if (i > 0) await delay(600);
-          const d = await fetchWithBackoff(
-            `${API}/search/songs?q=${encodeURIComponent(query)}&n=25&page=1`,
-          );
-          if (!cancelled) {
-            const songs = dedup(d?.data?.results || []);
-            setSections((p) => ({ ...p, [key]: songs }));
-            if (songs.length) setCache(key, songs);
-          }
-        } catch {
-          if (!cancelled) setSections((p) => ({ ...p, [key]: [] }));
-        } finally {
-          if (!cancelled) setLoadings((p) => ({ ...p, [key]: false }));
-        }
+    // Search each song name individually, take the best match
+    const searchOneSong = async (songName) => {
+      try {
+        const d = await fetchWithBackoff(
+          `${API}/search/songs?q=${encodeURIComponent(songName)}&n=5&page=1`,
+        );
+        const results = d?.data?.results || [];
+        // Pick the result whose name best matches the query
+        const lower = songName.toLowerCase();
+        const exact = results.find(
+          (r) => (r.name || "").toLowerCase() === lower,
+        );
+        if (exact) return exact;
+        const partial = results.find((r) =>
+          (r.name || "").toLowerCase().includes(lower),
+        );
+        return partial || results[0] || null;
+      } catch {
+        return null;
       }
     };
-    fetchSequential();
+
+    const fetchSection = async (section, idx) => {
+      const { key, songs: songNames } = section;
+      // Try cache first
+      const cached = getCached(key);
+      if (cached) {
+        if (!cancelled) setSections((p) => ({ ...p, [key]: cached }));
+        return;
+      }
+      setLoadings((p) => ({ ...p, [key]: true }));
+      try {
+        // Inter-section delay
+        if (idx > 0) await delay(500);
+        const results = [];
+        // Fetch songs in batches of 3 to avoid rate limits
+        for (let b = 0; b < songNames.length; b += 3) {
+          if (cancelled) break;
+          if (b > 0) await delay(400);
+          const batch = songNames.slice(b, b + 3);
+          const batchResults = await Promise.all(
+            batch.map((name) => searchOneSong(name)),
+          );
+          results.push(...batchResults);
+        }
+        if (!cancelled) {
+          const songs = dedup(results.filter(Boolean));
+          setSections((p) => ({ ...p, [key]: songs }));
+          if (songs.length) setCache(key, songs);
+        }
+      } catch {
+        if (!cancelled) setSections((p) => ({ ...p, [key]: [] }));
+      } finally {
+        if (!cancelled) setLoadings((p) => ({ ...p, [key]: false }));
+      }
+    };
+
+    const fetchAllSections = async () => {
+      for (let i = 0; i < HOME_SECTIONS.length; i++) {
+        if (cancelled) return;
+        await fetchSection(HOME_SECTIONS[i], i);
+      }
+    };
+    fetchAllSections();
     return () => {
       cancelled = true;
     };
@@ -1091,7 +1176,7 @@ const HomePage = ({
         </div>
       )}
 
-      {HOME_SECTIONS.map(({ key, title, icon, query }) => (
+      {HOME_SECTIONS.map(({ key, title, icon, songs: songNames }) => (
         <HSection
           key={key}
           title={title}
@@ -1101,7 +1186,7 @@ const HomePage = ({
           currentSong={currentSong}
           isPlaying={isPlaying}
           onPlay={onPlay}
-          onSeeAll={() => onSearch(query)}
+          onSeeAll={() => onSearch(title)}
         />
       ))}
     </div>
