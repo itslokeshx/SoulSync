@@ -54,7 +54,7 @@ export function DuoButton({ variant = "auto" }) {
               : "0 0 30px rgba(29,185,84,0.12), inset 0 1px 0 rgba(255,255,255,0.05)",
           ...(variant === "mobile-nav" ? { background: "transparent" } : {}),
         }}
-        title="Open Duo Panel"
+        title="Open SoulLink"
       >
         {/* Shimmer — hidden on mobile-nav */}
         {variant !== "mobile-nav" && (
@@ -88,7 +88,9 @@ export function DuoButton({ variant = "auto" }) {
                 />
               </span>
             </div>
-            <span className="text-[10px] font-medium text-sp-green">Duo</span>
+            <span className="text-[10px] font-medium text-sp-green">
+              SoulLink
+            </span>
           </>
         ) : (
           <>
@@ -116,7 +118,7 @@ export function DuoButton({ variant = "auto" }) {
             <div className="hidden md:block flex-1 min-w-0 text-left relative z-10">
               <div className="flex items-center gap-2">
                 <span className="text-[12px] font-bold text-sp-green tracking-wide">
-                  DUO LIVE
+                  SoulLink
                 </span>
                 <span className="relative flex h-2 w-2">
                   <span
@@ -199,7 +201,7 @@ export function DuoButton({ variant = "auto" }) {
               border: "1px solid rgba(255,255,255,0.06)",
             }
       }
-      title="Start Duo listening session"
+      title="Listen together with a friend or partner"
     >
       {/* Hover glow — not on mobile-nav */}
       {variant !== "mobile-nav" && (
@@ -221,7 +223,7 @@ export function DuoButton({ variant = "auto" }) {
             className="text-sp-sub/60 group-active:text-sp-green transition-colors"
           />
           <span className="text-[10px] font-medium text-sp-sub/60 group-active:text-sp-green transition-colors">
-            Duo
+            SoulLink
           </span>
         </>
       ) : (
@@ -237,16 +239,16 @@ export function DuoButton({ variant = "auto" }) {
           {/* Desktop text */}
           <div className="hidden md:block flex-1 min-w-0 text-left relative z-10">
             <span className="text-[12px] font-bold text-sp-sub group-hover:text-white transition-colors duration-300 tracking-wide">
-              START DUO
+              SoulLink
             </span>
             <p className="text-[10px] text-sp-sub/40 group-hover:text-sp-green/50 transition-colors duration-300 font-medium mt-0.5">
-              Listen together in sync
+              Listen with a friend or partner
             </p>
           </div>
 
           {/* Mobile inline text */}
           <span className="md:hidden text-[11px] font-semibold text-sp-sub/60 group-hover:text-white relative z-10 transition-colors">
-            Duo
+            SoulLink
           </span>
 
           {/* Arrow — desktop only */}

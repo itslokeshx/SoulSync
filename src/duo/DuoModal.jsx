@@ -75,9 +75,9 @@ export function DuoModal({ onCreate, onJoin }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <div>
-            <h2 className="text-xl font-bold text-white">Duo Live Sync</h2>
+            <h2 className="text-xl font-bold text-white">SoulLink</h2>
             <p className="text-[13px] text-sp-sub/60 mt-0.5">
-              Listen together in real-time
+              Listen together with a friend in real-time
             </p>
           </div>
           <button
@@ -173,7 +173,7 @@ export function DuoModal({ onCreate, onJoin }) {
                 className="w-full py-3 rounded-xl bg-sp-green hover:bg-sp-green-light text-black font-bold text-[14px] transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-100"
                 style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.3)" }}
               >
-                {loading ? "Creating…" : "Create Duo Room"}
+                {loading ? "Creating…" : "Create SoulLink Room"}
               </button>
             </div>
           ) : (
@@ -212,7 +212,7 @@ export function DuoModal({ onCreate, onJoin }) {
                 className="w-full py-3 rounded-xl bg-sp-green hover:bg-sp-green-light text-black font-bold text-[14px] transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-100"
                 style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.3)" }}
               >
-                {loading ? "Joining…" : "Join Duo Room"}
+                {loading ? "Joining…" : "Join SoulLink Room"}
               </button>
             </div>
           )}

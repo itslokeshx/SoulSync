@@ -74,10 +74,10 @@ export function useDuo({
           });
         }
 
-        addToast(`Duo room created! Code: ${data.code}`, "success", 5000);
+        addToast(`SoulLink room created! Code: ${data.code}`, "success", 5000);
         return data.code;
       } catch (err) {
-        addToast("Failed to create Duo session", "error");
+        addToast("Failed to create SoulLink session", "error");
         return null;
       }
     },
@@ -112,10 +112,10 @@ export function useDuo({
           myName: guestName,
         });
 
-        addToast("Joined Duo session! 🎧", "success");
+        addToast("Joined SoulLink session! 🎧", "success");
         return true;
       } catch (err) {
-        addToast("Failed to join Duo session", "error");
+        addToast("Failed to join SoulLink session", "error");
         return false;
       }
     },
@@ -162,7 +162,7 @@ export function useDuo({
     store.getState().endSession();
     disconnectSocket();
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    addToast("Duo session ended", "info");
+    addToast("SoulLink session ended", "info");
   }, [addToast]);
 
   // ── Auto-rejoin after page reload ──
@@ -175,7 +175,7 @@ export function useDuo({
         name: saved.myName,
         role: saved.role,
       });
-      addToast("Reconnecting to Duo session…", "info");
+      addToast("Reconnecting to SoulLink…", "info");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -186,7 +186,7 @@ export function useDuo({
     const onPartnerJoined = ({ name, role, room }) => {
       store.getState().partnerJoined({ name });
       store.getState().setSessionState(room);
-      addToast(`${name} joined the Duo! 🎉`, "success");
+      addToast(`${name} joined SoulLink! 🎉`, "success");
 
       // Host pushes their current song to the newly joined partner
       if (store.getState().role === "host") {
@@ -212,7 +212,7 @@ export function useDuo({
 
     const onPartnerDisconnected = ({ who }) => {
       store.getState().partnerDisconnected();
-      addToast("Your Duo partner disconnected", "info");
+      addToast("Your partner disconnected", "info");
     };
 
     const onPartnerActive = ({ timestamp }) => {
@@ -274,11 +274,11 @@ export function useDuo({
       store.getState().endSession(songHistory);
       disconnectSocket();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      addToast("Duo session ended by partner", "info");
+      addToast("SoulLink ended by partner", "info");
     };
 
     const onError = ({ message }) => {
-      addToast(message || "Duo error", "error");
+      addToast(message || "SoulLink error", "error");
     };
 
     socket.on("duo:partner-joined", onPartnerJoined);

@@ -9,12 +9,12 @@
 <h1 align="center">🎧 SoulSync</h1>
 <p align="center">
   <strong>Listen together. Feel together.</strong><br/>
-  A premium music streaming app with real-time Duo Live Sync — built with React, Tailwind CSS, Socket.io & the JioSaavn API.
+  A premium music streaming app with real-time SoulLink (listen together) — built with React, Tailwind CSS, Socket.io & the JioSaavn API.
 </p>
 
 <p align="center">
   <a href="#-features">Features</a> •
-  <a href="#-duo-live-sync--how-it-works">Duo Sync</a> •
+  <a href="#-soullink--how-it-works">SoulLink</a> •
   <a href="#-tech-stack">Tech Stack</a> •
   <a href="#-project-structure">Structure</a> •
   <a href="#-getting-started">Setup</a> •
@@ -51,29 +51,29 @@
 - **Smart individual song search** — each curated song is searched individually for accurate results
 - **API response caching** — sessionStorage cache with 15-min TTL, batched requests, exponential backoff on 429s
 
-### 🎧 Duo Live Sync
+### 🎧 SoulLink — Listen Together
 
 - **Real-time listening with a partner** — create a room, share the code, listen together
 - **Forced song sync** — both partners are always on the same song
 - **Play / Pause / Seek sync** — every action mirrors instantly via WebSocket
-- **WhatsApp-style chat** — persistent messaging within the Duo session
+- **WhatsApp-style chat** — persistent messaging within the SoulLink session
 - **Song history** — tracks every song played during the session
 - **Session persistence** — survives page reloads via sessionStorage + auto-rejoin
 - **Heartbeat system** — live partner connection monitoring
 - **End-of-session card** — beautiful recap with song history when session ends
-- **DuoMobileBar** — floating bar showing current synced song + LIVE indicator on mobile
+- **SoulLink Mobile Bar** — floating bar showing current synced song + LIVE indicator on mobile
 
 ### 📱 Responsive Design
 
 - **Desktop** — full sidebar + main content + player bar layout
-- **Mobile** — bottom nav, swipe-friendly, full-screen Duo panel, safe area support
+- **Mobile** — bottom nav, swipe-friendly, full-screen SoulLink panel, safe area support
 - **Glass morphism UI** — frosted glass panels, gradient overlays, smooth animations
 - **Premium transitions** — Framer Motion powered fade/slide animations
 - **Adaptive player** — compact mobile player with expandable full-screen view
 
 ---
 
-## 🎧 Duo Live Sync — How It Works
+## 🎧 SoulLink — How It Works
 
 ```
 ┌──────────────┐                    ┌──────────────────┐                    ┌──────────────┐
@@ -117,7 +117,7 @@ Flow:
 | **React 18.3**           | UI framework with hooks & functional components |
 | **Vite 6.4**             | Lightning-fast dev server & build tool          |
 | **Tailwind CSS 3.4**     | Utility-first styling with custom design tokens |
-| **Zustand 5**            | Lightweight state management (Duo store)        |
+| **Zustand 5**            | Lightweight state management (SoulLink store)   |
 | **Framer Motion 12**     | Smooth animations & transitions                 |
 | **Socket.io Client 4.8** | Real-time WebSocket communication               |
 | **Lucide React**         | Beautiful, consistent icon set                  |
@@ -185,12 +185,12 @@ SoulSync/
 │   ├── components/
 │   │   └── index.md
 │   │
-│   └── duo/                    # 🎧 Duo Live Sync module
+│   └── duo/                    # 🎧 SoulLink — Listen Together module
 │       ├── index.js            # Barrel export
 │       ├── socket.js           # Socket.io client (connect/disconnect/getSocket)
 │       ├── duoStore.js         # Zustand store + sessionStorage persistence
 │       ├── useDuo.js           # Main hook — socket events, sync actions, auto-rejoin
-│       ├── DuoButton.jsx       # Duo toggle button (sidebar/mobile-nav/auto variants)
+│       ├── DuoButton.jsx       # SoulLink toggle button (sidebar/mobile-nav/auto variants)
 │       ├── DuoModal.jsx        # Create/Join session modal
 │       ├── DuoPanel.jsx        # Side panel — chat, song history, session info
 │       ├── DuoEndCard.jsx      # End-of-session recap card
@@ -315,15 +315,15 @@ Visit **http://localhost:5173** — you're live! 🎶
 
 ## 🎨 Design System
 
-| Token             | Value                                                              | Usage                                         |
-| ----------------- | ------------------------------------------------------------------ | --------------------------------------------- |
-| `sp-green`        | `#1DB954`                                                          | Primary accent, active states, Duo indicators |
-| `sp-bg`           | `#0a0a0a`                                                          | App background                                |
-| `sp-card`         | `#161616`                                                          | Card surfaces                                 |
-| `sp-sub`          | `#a1a1a1`                                                          | Subtitle / secondary text                     |
-| Glass morphism    | `blur(20px) + rgba overlays`                                       | Panels, nav, player                           |
-| Border radius     | `rounded-2xl` / `rounded-xl`                                       | Cards, buttons                                |
-| Z-index hierarchy | Toasts `60` > Nav `50` > DuoPanel `45` > DuoBar `41` > Player `40` | Layering                                      |
+| Token             | Value                                                                          | Usage                                              |
+| ----------------- | ------------------------------------------------------------------------------ | -------------------------------------------------- |
+| `sp-green`        | `#1DB954`                                                                      | Primary accent, active states, SoulLink indicators |
+| `sp-bg`           | `#0a0a0a`                                                                      | App background                                     |
+| `sp-card`         | `#161616`                                                                      | Card surfaces                                      |
+| `sp-sub`          | `#a1a1a1`                                                                      | Subtitle / secondary text                          |
+| Glass morphism    | `blur(20px) + rgba overlays`                                                   | Panels, nav, player                                |
+| Border radius     | `rounded-2xl` / `rounded-xl`                                                   | Cards, buttons                                     |
+| Z-index hierarchy | Toasts `60` > Nav `50` > SoulLink Panel `45` > SoulLink Bar `41` > Player `40` | Layering                                           |
 
 ---
 
@@ -379,7 +379,7 @@ Visit **http://localhost:5173** — you're live! 🎶
 
 - [ ] PWA support with offline caching
 - [ ] Lyrics display (synced)
-- [ ] Duo reactions & emoji bursts
+- [ ] SoulLink reactions & emoji bursts
 - [ ] Playlist creation & management
 - [ ] Audio visualizer
 - [ ] Social sharing

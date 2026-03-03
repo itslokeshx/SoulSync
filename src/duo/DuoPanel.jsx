@@ -78,7 +78,7 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
             />
           </div>
           <div>
-            <h3 className="font-semibold text-white text-[13px]">Duo Live</h3>
+            <h3 className="font-semibold text-white text-[13px]">SoulLink</h3>
             <p className="text-[10px] text-sp-sub/50">
               {partnerConnected
                 ? `with ${partnerName}`
@@ -148,7 +148,7 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
                     No messages yet
                   </p>
                   <p className="text-[10px] text-sp-sub/30 mt-1">
-                    Say hi to your Duo partner! 👋
+                    Say hi to your partner! 👋
                   </p>
                 </div>
               ) : (
@@ -260,7 +260,7 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[12px] font-semibold transition-all"
         >
           <LogOut size={13} />
-          End Duo Session
+          End SoulLink
         </button>
       </div>
     </div>

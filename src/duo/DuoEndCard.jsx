@@ -56,7 +56,7 @@ export function DuoEndCard() {
           </div>
 
           <h2 className="text-2xl font-black text-white mb-1">
-            Duo Session Complete
+            SoulLink Complete
           </h2>
           <p className="text-sp-sub/60 text-sm mb-8">
             {partnerName ? `with ${partnerName}` : "Great listening session!"}

@@ -497,7 +497,7 @@ const DuoMobileBar = ({ currentSong, onEndSession, onOpenPanel }) => {
             ) : (
               <>
                 <p className="text-[13px] font-semibold text-sp-green leading-tight">
-                  Duo Session Active
+                  SoulLink Active
                 </p>
                 <p className="text-[10px] text-white/40 mt-0.5">
                   Waiting for a song…
