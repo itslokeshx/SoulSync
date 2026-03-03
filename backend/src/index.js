@@ -2,7 +2,14 @@
 // Saavn Duo — Backend Entry Point
 // Express + Socket.io + Redis (Upstash / in-memory fallback)
 // ─────────────────────────────────────────────────────────────────────────────
-import "dotenv/config";
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, "..", ".env") });
+
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
