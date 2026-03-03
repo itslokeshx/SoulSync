@@ -1,126 +1,128 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --color-brand: #1db954;
   --color-brand-hover: #1ed760;
-  --color-bg-primary: #0a0a0a;
-  --color-bg-secondary: #121212;
-  --color-bg-card: #181818;
-  --color-bg-card-hover: #282828;
-  --color-bg-elevated: #242424;
-  --color-border-subtle: #282828;
+  --color-bg-primary: #000000;
+  --color-bg-sidebar: #090909;
+  --color-bg-card: #121212;
+  --color-bg-card-hover: #1f1f1f;
+  --color-border-subtle: #242424;
   --color-text-primary: #ffffff;
-  --color-text-secondary: #b3b3b3;
-  --color-text-muted: #535353;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+  --color-text-secondary: #a7a7a7;
+  --color-text-muted: #6a6a6a;
 }
 
 body {
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  background: #0a0a0a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #000000;
   color: #ffffff;
   overflow: hidden;
-  height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
   height: 100vh;
 }
 
-/* Hide scrollbar but allow scrolling */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
-/* Custom range input styling */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Refined range inputs for playback/volume */
 input[type="range"] {
   -webkit-appearance: none;
-  appearance: none;
   background: transparent;
   cursor: pointer;
+  height: 4px;
 }
 
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: #535353;
+  background: #4d4d4d;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  appearance: none;
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: #ffffff;
   margin-top: -4px;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.2s;
 }
 
 input[type="range"]:hover::-webkit-slider-thumb {
   opacity: 1;
 }
 
-input[type="range"]::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: #535353;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #fff;
-  border: none;
-}
-
-/* Progress bar green fill */
-.progress-bar::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #1db954 var(--progress, 0%), #535353 var(--progress, 0%));
-}
-
-.progress-bar::-moz-range-track {
-  background: linear-gradient(to right, #1db954 var(--progress, 0%), #535353 var(--progress, 0%));
-}
-
-.progress-bar:hover::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #1db954 var(--progress, 0%), #535353 var(--progress, 0%));
-}
-
-/* Equalizer animation */
-@keyframes eq-bar {
-  0%, 100% { height: 3px; }
-  50% { height: 12px; }
-}
-
-.eq-bar-1 { animation: eq-bar 0.4s ease-in-out infinite; }
-.eq-bar-2 { animation: eq-bar 0.4s ease-in-out 0.1s infinite; }
-.eq-bar-3 { animation: eq-bar 0.4s ease-in-out 0.2s infinite; }
-.eq-bar-4 { animation: eq-bar 0.4s ease-in-out 0.15s infinite; }
-
-/* Skeleton pulse */
+/* Skeleton animation */
 @keyframes pulse-skeleton {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.1; }
+  0% {
+    opacity: 0.1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+
+  100% {
+    opacity: 0.1;
+  }
 }
 
 .skeleton-pulse {
-  animation: pulse-skeleton 1.5s ease-in-out infinite;
+  animation: pulse-skeleton 2s ease-in-out infinite;
 }
 
-/* Fade in */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* EQ animation */
+@keyframes eq {
+
+  0%,
+  100% {
+    height: 4px;
+  }
+
+  50% {
+    height: 16px;
+  }
+}
+
+.eq-bar-1 {
+  animation: eq 0.6s ease-in-out infinite;
+}
+
+.eq-bar-2 {
+  animation: eq 0.6s ease-in-out 0.2s infinite;
+}
+
+.eq-bar-3 {
+  animation: eq 0.6s ease-in-out 0.4s infinite;
+}
+
+.eq-bar-4 {
+  animation: eq 0.6s ease-in-out 0.1s infinite;
 }
 
 .fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
