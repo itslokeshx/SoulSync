@@ -32,42 +32,30 @@ const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23282828'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' font-size='64' fill='%23535353'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";
 
 const GENRE_CATEGORIES = [
-  {
-    label: "Fresh Tamil",
-    q: "new tamil songs 2025 trending",
-    color: "#e13300",
-  },
-  {
-    label: "Kollywood 2025",
-    q: "tamil movie songs 2025 latest",
-    color: "#8b5cf6",
-  },
-  { label: "Anirudh", q: "anirudh ravichander 2025 new", color: "#0d72ea" },
-  { label: "AR Rahman", q: "ar rahman new songs 2025", color: "#e91429" },
+  { label: "Fresh Tamil", q: "latest tamil hits 2025", color: "#e13300" },
+  { label: "Kollywood 2025", q: "tamil movie songs 2025", color: "#8b5cf6" },
+  { label: "Anirudh", q: "anirudh ravichander songs", color: "#0d72ea" },
+  { label: "AR Rahman", q: "ar rahman best songs", color: "#e91429" },
   {
     label: "Reels Viral",
-    q: "die with a smile blinding lights trending",
+    q: "viral reels songs 2025 english",
     color: "#f59b23",
   },
   {
     label: "TikTok Hits",
-    q: "dance monkey levitating savage love",
+    q: "tiktok trending songs english",
     color: "#e91e8c",
   },
-  { label: "Global Pop", q: "as it was good 4 u bad habits", color: "#d97706" },
+  { label: "Global Pop", q: "top english pop songs 2025", color: "#d97706" },
   {
     label: "Chill Vibes",
-    q: "someone you loved ocean eyes faded",
+    q: "chill english songs sad vibes",
     color: "#148a08",
   },
-  {
-    label: "Party Mix",
-    q: "industry baby old town road taki taki",
-    color: "#dc2626",
-  },
+  { label: "Party Mix", q: "party songs english dance 2025", color: "#dc2626" },
   { label: "Romance", q: "romantic tamil songs 2025", color: "#1db954" },
-  { label: "Tamil Melody", q: "tamil melody new songs 2025", color: "#56688a" },
-  { label: "Sid Sriram", q: "sid sriram latest songs 2025", color: "#7c3aed" },
+  { label: "Tamil Melody", q: "tamil melody songs best", color: "#56688a" },
+  { label: "Sid Sriram", q: "sid sriram songs", color: "#7c3aed" },
 ];
 
 const HOME_SECTIONS = [
@@ -75,49 +63,49 @@ const HOME_SECTIONS = [
     key: "freshTamil",
     title: "Fresh Tamil Drops",
     icon: "✨",
-    query: "new tamil songs 2025 trending",
+    query: "latest tamil hits 2025",
   },
   {
     key: "tamilViral",
     title: "Tamil Reels Viral",
     icon: "🔥",
-    query: "oorum blood coolie tamil 2025",
+    query: "tamil trending reels 2025",
   },
   {
     key: "anirudh",
     title: "Anirudh Universe",
     icon: "⚡",
-    query: "anirudh ravichander 2025 new",
+    query: "anirudh ravichander songs",
   },
   {
     key: "arrahman",
     title: "AR Rahman Magic",
     icon: "🎼",
-    query: "ar rahman new songs 2025",
+    query: "ar rahman best songs",
   },
   {
     key: "reelsViral",
     title: "Reels Viral Hits",
     icon: "📱",
-    query: "die with a smile bruno mars",
+    query: "viral reels songs 2025 english",
   },
   {
     key: "tiktokAnthems",
     title: "TikTok Anthems",
     icon: "🎧",
-    query: "blinding lights dance monkey levitating",
+    query: "tiktok trending songs english",
   },
   {
     key: "globalPop",
     title: "Global Pop Hits",
     icon: "🌍",
-    query: "as it was good 4 u bad habits",
+    query: "top english pop songs 2025",
   },
   {
     key: "chillVibes",
     title: "Chill & Feels",
     icon: "💫",
-    query: "someone you loved ocean eyes faded",
+    query: "chill english songs sad vibes",
   },
 ];
 
@@ -830,6 +818,19 @@ const HomePage = ({
   useEffect(() => {
     let cancelled = false;
     const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+    // Deduplicate songs: keep only the first occurrence of each song name
+    const dedup = (songs) => {
+      const seen = new Set();
+      return songs.filter((s) => {
+        const key = (s.name || "")
+          .replace(/\s*\(.*\)$/g, "")
+          .trim()
+          .toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
     const fetchSequential = async () => {
       for (let i = 0; i < HOME_SECTIONS.length; i++) {
         if (cancelled) return;
@@ -838,20 +839,26 @@ const HomePage = ({
         try {
           if (i > 0) await delay(350);
           const r = await fetch(
-            `${API}/search/songs?q=${encodeURIComponent(query)}&n=20&page=1`,
+            `${API}/search/songs?q=${encodeURIComponent(query)}&n=40&page=1`,
           );
           if (!r.ok && r.status === 429) {
             await delay(1000);
             const retry = await fetch(
-              `${API}/search/songs?q=${encodeURIComponent(query)}&n=20&page=1`,
+              `${API}/search/songs?q=${encodeURIComponent(query)}&n=40&page=1`,
             );
             const rd = await retry.json();
             if (!cancelled)
-              setSections((p) => ({ ...p, [key]: rd?.data?.results || [] }));
+              setSections((p) => ({
+                ...p,
+                [key]: dedup(rd?.data?.results || []),
+              }));
           } else {
             const d = await r.json();
             if (!cancelled)
-              setSections((p) => ({ ...p, [key]: d?.data?.results || [] }));
+              setSections((p) => ({
+                ...p,
+                [key]: dedup(d?.data?.results || []),
+              }));
           }
         } catch {
           if (!cancelled) setSections((p) => ({ ...p, [key]: [] }));
