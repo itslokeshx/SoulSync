@@ -125,20 +125,17 @@ export function useDuo({
     getSocket().emit("duo:sync-song-change", { song, queue, queueIndex });
   }, []);
 
-  const sendReaction = useCallback((emoji) => {
+  const sendMessage = useCallback((text) => {
     if (!store.getState().active) return;
-    getSocket().emit("duo:reaction", { emoji });
-  }, []);
-
-  const sendNote = useCallback((text) => {
-    if (!store.getState().active) return;
-    getSocket().emit("duo:note", { text });
-  }, []);
-
-  const sendMoodMode = useCallback((mood) => {
-    if (!store.getState().active) return;
-    getSocket().emit("duo:mood-mode", { mood });
-    store.getState().setMoodMode(mood);
+    const msg = {
+      text,
+      from: store.getState().role,
+      fromName: store.getState().myName,
+      at: Date.now(),
+    };
+    // Add locally immediately (so sender sees it)
+    store.getState().addMessage(msg);
+    getSocket().emit("duo:message", { text });
   }, []);
 
   const endSession = useCallback(() => {
@@ -171,7 +168,7 @@ export function useDuo({
 
     const onSessionState = ({ room }) => {
       store.getState().setSessionState(room);
-      // If there's a current song playing in the room, sync to it
+      // If there's a current song playing in the room, force sync to it
       if (room.currentSong) {
         playSongRef.current?.(room.currentSong, [room.currentSong]);
       }
@@ -210,23 +207,14 @@ export function useDuo({
     };
 
     const onReceiveSongChange = ({ song, queue, queueIndex }) => {
+      // Force partner to switch to the same song
       if (song) {
         playSongRef.current?.(song, queue || [song]);
       }
     };
 
-    const onReceiveReaction = ({ emoji, from }) => {
-      store.getState().addReaction({ emoji, from, at: Date.now() });
-    };
-
-    const onReceiveNote = ({ text, from, at }) => {
-      store.getState().addNote({ text, from, at });
-      addToast(`💬 ${text}`, "info", 4000);
-    };
-
-    const onReceiveMoodMode = ({ mood }) => {
-      store.getState().setMoodMode(mood);
-      if (mood) addToast(`Mood switched to ${mood} 🎵`, "info");
+    const onReceiveMessage = ({ text, from, fromName, at }) => {
+      store.getState().addMessage({ text, from, fromName, at });
     };
 
     const onSessionEnded = ({ songHistory }) => {
@@ -248,9 +236,7 @@ export function useDuo({
     socket.on("duo:receive-pause", onReceivePause);
     socket.on("duo:receive-seek", onReceiveSeek);
     socket.on("duo:receive-song-change", onReceiveSongChange);
-    socket.on("duo:receive-reaction", onReceiveReaction);
-    socket.on("duo:receive-note", onReceiveNote);
-    socket.on("duo:receive-mood-mode", onReceiveMoodMode);
+    socket.on("duo:receive-message", onReceiveMessage);
     socket.on("duo:session-ended", onSessionEnded);
     socket.on("duo:error", onError);
 
@@ -263,9 +249,7 @@ export function useDuo({
       socket.off("duo:receive-pause", onReceivePause);
       socket.off("duo:receive-seek", onReceiveSeek);
       socket.off("duo:receive-song-change", onReceiveSongChange);
-      socket.off("duo:receive-reaction", onReceiveReaction);
-      socket.off("duo:receive-note", onReceiveNote);
-      socket.off("duo:receive-mood-mode", onReceiveMoodMode);
+      socket.off("duo:receive-message", onReceiveMessage);
       socket.off("duo:session-ended", onSessionEnded);
       socket.off("duo:error", onError);
     };
@@ -294,9 +278,7 @@ export function useDuo({
     syncPause,
     syncSeek,
     syncSongChange,
-    sendReaction,
-    sendNote,
-    sendMoodMode,
+    sendMessage,
     endSession,
   };
 }

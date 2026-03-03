@@ -1,16 +1,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// DuoPanel — Side panel showing Duo session info, notes, reactions
+// DuoPanel — Side panel with WhatsApp-style chat & song history
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState } from "react";
-import { X, Copy, Check, Send, Music, Clock, LogOut } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  X,
+  Copy,
+  Check,
+  Send,
+  Music,
+  Clock,
+  LogOut,
+  MessageCircle,
+} from "lucide-react";
 import { useDuoStore } from "./duoStore.js";
 
-export function DuoPanel({
-  onSendReaction,
-  onSendNote,
-  onSendMoodMode,
-  onEndSession,
-}) {
+export function DuoPanel({ onSendMessage, onEndSession }) {
   const {
     panelOpen,
     setPanelOpen,
@@ -20,12 +24,19 @@ export function DuoPanel({
     partnerConnected,
     role,
     songHistory,
-    notes,
-    moodMode,
+    messages,
   } = useDuoStore();
-  const [noteText, setNoteText] = useState("");
+  const [msgText, setMsgText] = useState("");
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState("reactions"); // "reactions" | "notes" | "history"
+  const [activeTab, setActiveTab] = useState("chat"); // "chat" | "history"
+  const chatEndRef = useRef(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (activeTab === "chat") {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, activeTab]);
 
   if (!panelOpen) return null;
 
@@ -35,33 +46,17 @@ export function DuoPanel({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const sendNote = () => {
-    if (!noteText.trim()) return;
-    onSendNote(noteText.trim());
-    setNoteText("");
+  const handleSend = () => {
+    if (!msgText.trim()) return;
+    onSendMessage(msgText.trim());
+    setMsgText("");
   };
 
-  const REACTION_EMOJIS = [
-    "❤️",
-    "🔥",
-    "😍",
-    "🎵",
-    "💃",
-    "🤘",
-    "👏",
-    "😭",
-    "🥺",
-    "✨",
-    "💜",
-    "⚡",
-  ];
-
-  const MOODS = [
-    { id: "chill", label: "Chill", emoji: "🌙" },
-    { id: "hype", label: "Hype", emoji: "⚡" },
-    { id: "sad", label: "Sad", emoji: "🥺" },
-    { id: "romantic", label: "Romantic", emoji: "💕" },
-  ];
+  const formatTime = (ts) =>
+    new Date(ts).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
     <div
@@ -119,118 +114,123 @@ export function DuoPanel({
         </div>
       </div>
 
-      {/* Mood Mode */}
-      <div className="px-5 py-3 border-b border-white/[0.04]">
-        <p className="text-[10px] text-sp-sub/40 uppercase tracking-widest font-semibold mb-2">
-          Mood
-        </p>
-        <div className="flex gap-1.5">
-          {MOODS.map(({ id, label, emoji }) => (
-            <button
-              key={id}
-              onClick={() => onSendMoodMode(moodMode === id ? null : id)}
-              className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 ${
-                moodMode === id
-                  ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
-                  : "bg-white/[0.04] text-sp-sub/60 hover:text-white hover:bg-white/[0.08] border border-transparent"
-              }`}
-            >
-              {emoji} {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Tab switcher */}
       <div className="flex gap-0.5 mx-5 mt-3 mb-2 p-0.5 rounded-lg bg-white/[0.03]">
         {[
-          { id: "reactions", label: "React" },
-          { id: "notes", label: "Notes" },
-          { id: "history", label: "History" },
-        ].map(({ id, label }) => (
+          { id: "chat", label: "Chat", Icon: MessageCircle },
+          { id: "history", label: "History", Icon: Clock },
+        ].map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
               activeTab === id
                 ? "bg-white/[0.08] text-white"
                 : "text-sp-sub/50 hover:text-white"
             }`}
           >
+            <Icon size={12} />
             {label}
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-5 py-3">
-        {activeTab === "reactions" && (
-          <div className="grid grid-cols-4 gap-2">
-            {REACTION_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => onSendReaction(emoji)}
-                className="py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] hover:scale-110 active:scale-95 transition-all duration-200 text-xl"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-4 py-3 flex flex-col">
+        {activeTab === "chat" && (
+          <div className="flex-1 flex flex-col">
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-1.5 pb-2">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12 opacity-40">
+                  <MessageCircle size={28} className="text-sp-sub/30 mb-3" />
+                  <p className="text-[12px] text-sp-sub/50 font-medium">
+                    No messages yet
+                  </p>
+                  <p className="text-[10px] text-sp-sub/30 mt-1">
+                    Say hi to your Duo partner! 👋
+                  </p>
+                </div>
+              ) : (
+                messages.map((m, i) => {
+                  const isMe = m.from === role;
+                  // Check if we should show timestamp (first message or 5+ min gap)
+                  const prevMsg = i > 0 ? messages[i - 1] : null;
+                  const showTime = !prevMsg || m.at - prevMsg.at > 300000;
 
-        {activeTab === "notes" && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Send a note…"
-                maxLength={100}
-                className="flex-1 px-3 py-2 rounded-xl bg-white/[0.06] border border-white/[0.06] text-white text-[13px] placeholder-white/20 outline-none focus:border-sp-green/30 transition-all"
-                onKeyDown={(e) => e.key === "Enter" && sendNote()}
-              />
-              <button
-                onClick={sendNote}
-                disabled={!noteText.trim()}
-                className="p-2.5 rounded-xl bg-sp-green/10 text-sp-green hover:bg-sp-green/20 transition-all disabled:opacity-20"
-              >
-                <Send size={14} />
-              </button>
+                  return (
+                    <div key={i}>
+                      {showTime && (
+                        <div className="flex justify-center my-3">
+                          <span className="text-[9px] text-sp-sub/30 bg-white/[0.03] px-3 py-1 rounded-full">
+                            {formatTime(m.at)}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`relative max-w-[80%] px-3.5 py-2 rounded-2xl text-[13px] leading-relaxed ${
+                            isMe
+                              ? "bg-sp-green/20 text-sp-green rounded-br-md"
+                              : "bg-white/[0.06] text-white/85 rounded-bl-md"
+                          }`}
+                        >
+                          {!isMe && (
+                            <p className="text-[9px] font-semibold text-sp-green/60 mb-0.5">
+                              {m.fromName || partnerName}
+                            </p>
+                          )}
+                          <p className="break-words">{m.text}</p>
+                          <p
+                            className={`text-[8px] mt-1 ${isMe ? "text-sp-green/40 text-right" : "text-white/20"}`}
+                          >
+                            {formatTime(m.at)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatEndRef} />
             </div>
 
-            {notes.length === 0 ? (
-              <p className="text-[12px] text-sp-sub/30 text-center py-8">
-                No notes yet
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {[...notes].reverse().map((n, i) => (
-                  <div
-                    key={i}
-                    className={`px-3 py-2 rounded-xl text-[12px] ${
-                      n.from === role
-                        ? "bg-sp-green/10 text-sp-green ml-6"
-                        : "bg-white/[0.04] text-white/80 mr-6"
-                    }`}
-                  >
-                    <p>{n.text}</p>
-                    {n.song && (
-                      <p className="text-[10px] opacity-40 mt-1">♪ {n.song}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Message input — always at bottom */}
+            <div className="flex gap-2 pt-2 border-t border-white/[0.04] mt-auto">
+              <input
+                type="text"
+                value={msgText}
+                onChange={(e) => setMsgText(e.target.value)}
+                placeholder="Type a message…"
+                maxLength={300}
+                className="flex-1 px-3.5 py-2.5 rounded-2xl bg-white/[0.06] border border-white/[0.06] text-white text-[13px] placeholder-white/20 outline-none focus:border-sp-green/30 transition-all"
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!msgText.trim()}
+                className="p-2.5 rounded-2xl bg-sp-green/15 text-sp-green hover:bg-sp-green/25 transition-all disabled:opacity-20 flex-shrink-0"
+              >
+                <Send size={15} />
+              </button>
+            </div>
           </div>
         )}
 
         {activeTab === "history" && (
           <div className="space-y-1">
             {songHistory.length === 0 ? (
-              <p className="text-[12px] text-sp-sub/30 text-center py-8">
-                No songs played yet
-              </p>
+              <div className="flex flex-col items-center justify-center py-12 opacity-40">
+                <Music size={28} className="text-sp-sub/30 mb-3" />
+                <p className="text-[12px] text-sp-sub/50 font-medium">
+                  No songs played yet
+                </p>
+                <p className="text-[10px] text-sp-sub/30 mt-1">
+                  Songs you listen to together appear here
+                </p>
+              </div>
             ) : (
               [...songHistory].reverse().map((s, i) => (
                 <div
@@ -243,10 +243,7 @@ export function DuoPanel({
                       {s.name}
                     </p>
                     <p className="text-[10px] text-sp-sub/30">
-                      {new Date(s.at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatTime(s.at)}
                     </p>
                   </div>
                 </div>

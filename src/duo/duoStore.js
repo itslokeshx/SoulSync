@@ -19,13 +19,8 @@ export const useDuoStore = create((set, get) => ({
 
   // Session data
   songHistory: [],
-  reactions: [],
-  notes: [],
-  moodMode: null,
+  messages: [], // WhatsApp-style persistent chat messages
   lastHeartbeat: null,
-
-  // Incoming reaction animation queue
-  incomingReactions: [],
 
   // Actions
   setModalOpen: (open) => set({ modalOpen: open }),
@@ -41,9 +36,7 @@ export const useDuoStore = create((set, get) => ({
       modalOpen: false,
       partnerConnected: false,
       songHistory: [],
-      reactions: [],
-      notes: [],
-      moodMode: null,
+      messages: [],
     }),
 
   partnerJoined: ({ name }) =>
@@ -57,30 +50,13 @@ export const useDuoStore = create((set, get) => ({
   setSessionState: (room) =>
     set({
       songHistory: room.songHistory || [],
-      reactions: room.reactions || [],
-      notes: room.notes || [],
-      moodMode: room.moodMode || null,
+      messages: room.messages || room.notes || [],
       partnerConnected: room.guest?.connected || false,
       partnerName: room.guest?.name || room.host?.name || "",
     }),
 
-  addReaction: (reaction) =>
-    set((s) => ({
-      reactions: [...s.reactions, reaction].slice(-100),
-      incomingReactions: [
-        ...s.incomingReactions,
-        { ...reaction, id: Date.now() + Math.random() },
-      ],
-    })),
-
-  removeIncomingReaction: (id) =>
-    set((s) => ({
-      incomingReactions: s.incomingReactions.filter((r) => r.id !== id),
-    })),
-
-  addNote: (note) => set((s) => ({ notes: [...s.notes, note].slice(-200) })),
-
-  setMoodMode: (mood) => set({ moodMode: mood }),
+  addMessage: (msg) =>
+    set((s) => ({ messages: [...s.messages, msg].slice(-500) })),
 
   updateHeartbeat: () => set({ lastHeartbeat: Date.now() }),
 
@@ -104,10 +80,7 @@ export const useDuoStore = create((set, get) => ({
       panelOpen: false,
       endCardOpen: false,
       songHistory: [],
-      reactions: [],
-      notes: [],
-      moodMode: null,
+      messages: [],
       lastHeartbeat: null,
-      incomingReactions: [],
     }),
 }));
