@@ -36,7 +36,11 @@ router.post("/join", async (req, res) => {
     if (!code || !guestName?.trim()) {
       return res.status(400).json({ error: "code and guestName are required" });
     }
-    const result = await roomService.join(code.toUpperCase(), guestName.trim(), null);
+    const result = await roomService.join(
+      code.toUpperCase(),
+      guestName.trim(),
+      null,
+    );
     if (result.error) {
       return res.status(404).json({ error: result.error });
     }
