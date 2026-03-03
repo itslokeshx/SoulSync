@@ -1696,7 +1696,7 @@ const NowPlayingView = ({
     <div
       className="fixed inset-0 z-50 flex flex-col"
       style={{
-        background: `linear-gradient(to bottom,${bgColor} 0%,#121212 55%,#0a0a0a 100%)`,
+        background: `linear-gradient(to bottom,${bgColor} 0%,#0e0e0e 50%,#060606 100%)`,
       }}
     >
       <div className="flex items-center justify-between px-6 md:px-8 pt-5 pb-2">
@@ -1936,7 +1936,8 @@ const Player = ({
         <button
           onClick={onPlayPause}
           disabled={!currentSong}
-          className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-md disabled:opacity-30"
+          className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-100 transition-all duration-200 disabled:opacity-20"
+          style={{ boxShadow: "0 2px 10px rgba(255,255,255,0.1)" }}
         >
           {isPlaying ? (
             <Pause size={14} className="text-black fill-black" />
@@ -1973,7 +1974,8 @@ const Player = ({
             onClick={onPlayPause}
             disabled={!currentSong}
             title="Play/Pause (Space)"
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-md disabled:opacity-30"
+            className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-[1.06] active:scale-100 transition-all duration-200 disabled:opacity-20"
+            style={{ boxShadow: "0 2px 12px rgba(255,255,255,0.1)" }}
           >
             {isPlaying ? (
               <Pause size={16} className="text-black fill-black" />
@@ -2024,16 +2026,16 @@ const Player = ({
         <button
           onClick={onToggleQueue}
           title="Queue (Q)"
-          className={`p-2 rounded-md transition-colors ${queueOpen ? "text-sp-green bg-sp-green/10" : "text-sp-sub hover:text-white"}`}
+          className={`p-1.5 rounded-lg transition-all duration-200 ${queueOpen ? "text-sp-green bg-sp-green/10" : "text-white/30 hover:text-white/60"}`}
         >
-          <ListMusic size={16} />
+          <ListMusic size={15} />
         </button>
         <button
           onClick={() => onVolume(volume > 0 ? 0 : 0.8)}
           title="Mute (M)"
-          className="text-sp-sub hover:text-white transition-colors"
+          className="text-white/30 hover:text-white/60 transition-colors duration-200"
         >
-          {volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+          {volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
         </button>
         <input
           type="range"
@@ -2457,17 +2459,20 @@ export default function App() {
       >
         {/* Top bar */}
         <div
-          className="flex-shrink-0 flex items-center gap-2 md:gap-3 px-4 md:px-6 py-3 md:py-3.5 sticky top-0 z-20 backdrop-blur-md"
+          className="flex-shrink-0 flex items-center gap-2 md:gap-3 px-4 md:px-6 py-3 md:py-3.5 sticky top-0 z-20 backdrop-blur-2xl"
           style={{
-            background: `linear-gradient(to bottom,${bgColor}bb 0%,transparent 100%)`,
+            background: `linear-gradient(to bottom,${bgColor}60 0%,transparent 100%)`,
           }}
         >
           {/* Mobile logo */}
           <div className="flex items-center gap-2 md:hidden flex-shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center shadow-lg shadow-sp-green/20">
-              <Music2 size={15} className="text-black" strokeWidth={2.5} />
+            <div
+              className="w-8 h-8 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center"
+              style={{ boxShadow: "0 0 16px rgba(29,185,84,0.2)" }}
+            >
+              <Music2 size={14} className="text-black" strokeWidth={2.5} />
             </div>
-            <span className="text-base font-extrabold tracking-tight text-white">
+            <span className="text-[15px] font-extrabold tracking-tight text-white">
               Soul<span className="text-sp-green">Sync</span>
             </span>
           </div>
@@ -2476,22 +2481,22 @@ export default function App() {
             <button
               onClick={goBack}
               disabled={!navHistory.length}
-              className="w-8 h-8 rounded-full bg-black/70 flex items-center justify-center text-white disabled:opacity-25 hover:bg-white/10 transition-colors"
+              className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white disabled:opacity-20 hover:bg-white/[0.12] transition-all duration-200"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
             </button>
             <button
               disabled
-              className="w-8 h-8 rounded-full bg-black/70 flex items-center justify-center text-white opacity-20 cursor-not-allowed"
+              className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white opacity-20 cursor-not-allowed"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </button>
           </div>
 
           <div className="flex-1 relative">
             <Search
-              size={15}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sp-sub pointer-events-none"
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
             />
             <input
               type="text"
@@ -2501,8 +2506,8 @@ export default function App() {
                 if (!liveQuery.trim()) setView("search");
               }}
               placeholder="Search songs, artists, albums..."
-              className="w-full text-sm text-white placeholder-sp-muted rounded-full pl-10 pr-9 py-2.5 outline-none focus:ring-2 focus:ring-white/20 transition-all"
-              style={{ background: "#242424" }}
+              className="w-full text-[13px] text-white placeholder-white/25 rounded-full pl-10 pr-9 py-2.5 outline-none border border-white/[0.06] focus:border-white/[0.15] transition-all duration-200"
+              style={{ background: "rgba(255,255,255,0.06)" }}
             />
             {liveQuery && (
               <button
@@ -2511,9 +2516,9 @@ export default function App() {
                   setSearchQuery("");
                   setView("home");
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-sp-sub hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
             )}
           </div>
