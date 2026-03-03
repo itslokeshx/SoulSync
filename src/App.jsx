@@ -21,6 +21,16 @@ import {
   ChevronDown,
   MoreHorizontal,
 } from "lucide-react";
+import {
+  DuoButton,
+  DuoModal,
+  DuoPanel,
+  DuoReactions,
+  DuoEndCard,
+  DuoHeartbeat,
+  useDuo,
+  useDuoStore,
+} from "./duo/index.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS & API
@@ -435,6 +445,7 @@ const Sidebar = ({
   currentSong,
   recentlyPlayed,
   onSongPlay,
+  duoButton,
 }) => (
   <aside
     className="hidden md:flex md:flex-col fixed left-0 top-0 bottom-24 w-[17rem] z-30 select-none border-r border-white/[0.06]"
@@ -450,6 +461,7 @@ const Sidebar = ({
       <span className="text-[17px] font-extrabold tracking-tight text-white">
         Soul<span className="text-sp-green">Sync</span>
       </span>
+      {duoButton}
     </div>
 
     <nav className="px-3 space-y-0.5 mb-4">
@@ -2085,6 +2097,21 @@ export default function App() {
   const [likedSongs, toggleLike] = useLikedSongs();
   const [recentlyPlayed, addRecent] = useRecentlyPlayed();
 
+  // Duo Live Sync hook
+  const duoActive = useDuoStore((s) => s.active);
+  const duoPanelOpen = useDuoStore((s) => s.panelOpen);
+  const playSongRef = useRef(null); // will be assigned after playSong is defined
+  const duo = useDuo({
+    playSongRef,
+    audioRef,
+    setIsPlaying,
+    setCurrentTime,
+    addToast,
+  });
+  // We need a ref so the hook's playSong can call our playSong
+  const duoRef = useRef(duo);
+  duoRef.current = duo;
+
   // Refs so audio callbacks always read latest values (avoids stale closures)
   const qRef = useRef([]);
   const qiRef = useRef(-1);
@@ -2158,6 +2185,13 @@ export default function App() {
         setCurrentTime(0);
         addRecent(target);
 
+        // Duo sync: tell partner about song change
+        duoRef.current.syncSongChange(
+          target,
+          newQueue.length > 0 ? newQueue : [target],
+          newQueue.length > 0 ? newQueue.findIndex((s) => s.id === song.id) : 0,
+        );
+
         if (newQueue.length > 0) {
           setQueue(newQueue);
           setQueueIndex(newQueue.findIndex((s) => s.id === song.id));
@@ -2186,6 +2220,9 @@ export default function App() {
     },
     [addRecent, addToast],
   );
+
+  // Keep playSongRef in sync so useDuo socket handlers can call it
+  playSongRef.current = playSong;
 
   // ── Audio event listeners ──
   useEffect(() => {
@@ -2268,10 +2305,14 @@ export default function App() {
     if (isPlaying) {
       audio.pause();
       setIsPlaying(false);
+      duoRef.current.syncPause(audio.currentTime);
     } else {
       audio
         .play()
-        .then(() => setIsPlaying(true))
+        .then(() => {
+          setIsPlaying(true);
+          duoRef.current.syncPlay(audio.currentTime, currentSong?.id);
+        })
         .catch(() => {});
     }
   }, [isPlaying, currentSong]);
@@ -2281,6 +2322,7 @@ export default function App() {
     if (audio) {
       audio.currentTime = v;
       setCurrentTime(v);
+      duoRef.current.syncSeek(v);
     }
   }, []);
 
@@ -2454,10 +2496,11 @@ export default function App() {
         currentSong={currentSong}
         recentlyPlayed={recentlyPlayed}
         onSongPlay={(s) => playSong(s)}
+        duoButton={<DuoButton />}
       />
 
       <div
-        className={`flex-1 md:ml-[17rem] ${queueOpen ? "md:mr-72" : ""} flex flex-col overflow-hidden transition-all duration-300`}
+        className={`flex-1 md:ml-[17rem] ${queueOpen || duoPanelOpen ? "md:mr-80" : ""} flex flex-col overflow-hidden transition-all duration-300`}
       >
         {/* Top bar */}
         <div
@@ -2477,6 +2520,10 @@ export default function App() {
             <span className="text-[15px] font-extrabold tracking-tight text-white">
               Soul<span className="text-sp-green">Sync</span>
             </span>
+            {/* Mobile Duo button */}
+            <div className="ml-auto">
+              <DuoButton />
+            </div>
           </div>
           {/* Desktop nav arrows */}
           <div className="hidden md:flex gap-1.5 flex-shrink-0">
@@ -2493,6 +2540,7 @@ export default function App() {
             >
               <ChevronRight size={14} />
             </button>
+            {duoActive && <DuoHeartbeat />}
           </div>
 
           <div className="flex-1 relative">
@@ -2655,6 +2703,19 @@ export default function App() {
       />
 
       <Toasts toasts={toasts} dismiss={dismiss} />
+
+      {/* Duo components */}
+      <DuoModal onCreate={duo.createSession} onJoin={duo.joinSession} />
+      {duoActive && (
+        <DuoPanel
+          onSendReaction={duo.sendReaction}
+          onSendNote={duo.sendNote}
+          onSendMoodMode={duo.sendMoodMode}
+          onEndSession={duo.endSession}
+        />
+      )}
+      <DuoReactions />
+      <DuoEndCard />
     </div>
   );
 }

@@ -12,14 +12,14 @@ const BACKEND_URL = import.meta.env.VITE_DUO_BACKEND || "http://localhost:4000";
  * Returns actions that playback controls can invoke to sync with partner.
  *
  * @param {Object} opts
- * @param {Function} opts.playSong — (song, queue) => void
+ * @param {React.RefObject} opts.playSongRef — ref to playSong function (avoids circular deps)
  * @param {React.RefObject} opts.audioRef
  * @param {Function} opts.setIsPlaying
  * @param {Function} opts.setCurrentTime
  * @param {Function} opts.addToast
  */
 export function useDuo({
-  playSong,
+  playSongRef,
   audioRef,
   setIsPlaying,
   setCurrentTime,
@@ -173,7 +173,7 @@ export function useDuo({
       store.getState().setSessionState(room);
       // If there's a current song playing in the room, sync to it
       if (room.currentSong) {
-        playSong(room.currentSong, [room.currentSong]);
+        playSongRef.current?.(room.currentSong, [room.currentSong]);
       }
     };
 
@@ -211,7 +211,7 @@ export function useDuo({
 
     const onReceiveSongChange = ({ song, queue, queueIndex }) => {
       if (song) {
-        playSong(song, queue || [song]);
+        playSongRef.current?.(song, queue || [song]);
       }
     };
 
@@ -269,7 +269,7 @@ export function useDuo({
       socket.off("duo:session-ended", onSessionEnded);
       socket.off("duo:error", onError);
     };
-  }, [playSong, audioRef, setIsPlaying, setCurrentTime, addToast]);
+  }, [playSongRef, audioRef, setIsPlaying, setCurrentTime, addToast]);
 
   // ── Heartbeat ──
   useEffect(() => {
