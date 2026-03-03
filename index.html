@@ -61,41 +61,55 @@
       input[type="range"]:hover::-moz-range-thumb {
         opacity: 1;
       }
-      .progress-bar::-webkit-slider-runnable-track {
+      input[type="range"].progress-bar::-webkit-slider-runnable-track {
         background: linear-gradient(
           to right,
           #1db954 var(--progress, 0%),
           #535353 var(--progress, 0%)
         );
       }
-      .progress-bar::-moz-range-progress {
+      input[type="range"].progress-bar::-moz-range-track {
+        background: linear-gradient(
+          to right,
+          #1db954 var(--progress, 0%),
+          #535353 var(--progress, 0%)
+        );
+      }
+      input[type="range"].progress-bar::-moz-range-progress {
         background: #1db954;
         border-radius: 9999px;
       }
-      .volume-bar::-webkit-slider-runnable-track {
+      input[type="range"].volume-bar::-webkit-slider-runnable-track {
         background: linear-gradient(
           to right,
           #fff var(--volume, 100%),
           #535353 var(--volume, 100%)
         );
       }
-      .volume-bar:hover::-webkit-slider-runnable-track {
+      input[type="range"].volume-bar:hover::-webkit-slider-runnable-track {
         background: linear-gradient(
           to right,
           #1db954 var(--volume, 100%),
           #535353 var(--volume, 100%)
         );
       }
-      .volume-bar::-moz-range-progress {
+      input[type="range"].volume-bar::-moz-range-track {
+        background: linear-gradient(
+          to right,
+          #fff var(--volume, 100%),
+          #535353 var(--volume, 100%)
+        );
+      }
+      input[type="range"].volume-bar::-moz-range-progress {
         background: #fff;
         border-radius: 9999px;
       }
-      .volume-bar:hover::-moz-range-progress {
+      input[type="range"].volume-bar:hover::-moz-range-progress {
         background: #1db954;
         border-radius: 9999px;
       }
-      .progress-bar::-webkit-slider-thumb,
-      .volume-bar::-webkit-slider-thumb {
+      input[type="range"].progress-bar::-webkit-slider-thumb,
+      input[type="range"].volume-bar::-webkit-slider-thumb {
         position: relative;
         z-index: 2;
       }
