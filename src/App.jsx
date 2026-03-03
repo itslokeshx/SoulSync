@@ -407,11 +407,11 @@ const Toasts = ({ toasts, dismiss }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // MOBILE BOTTOM NAV
 // ─────────────────────────────────────────────────────────────────────────────
-const MobileNav = ({ view, onHome, onSearch, onLiked }) => (
+const MobileNav = ({ view, onHome, onSearch, onLiked, duoButton }) => (
   <nav
     className="fixed bottom-0 left-0 right-0 h-[3.5rem] md:hidden z-50 flex items-center justify-around select-none backdrop-blur-xl"
     style={{
-      background: "rgba(6,6,6,0.88)",
+      background: "rgba(6,6,6,0.92)",
       borderTop: "1px solid rgba(255,255,255,0.06)",
     }}
   >
@@ -423,7 +423,7 @@ const MobileNav = ({ view, onHome, onSearch, onLiked }) => (
       <button
         key={id}
         onClick={action}
-        className={`flex flex-col items-center gap-0.5 py-2 px-8 transition-all duration-200 ${
+        className={`flex flex-col items-center gap-0.5 py-2 px-6 transition-all duration-200 ${
           view === id ? "text-sp-green" : "text-sp-sub/60 active:text-white"
         }`}
       >
@@ -431,6 +431,8 @@ const MobileNav = ({ view, onHome, onSearch, onLiked }) => (
         <span className="text-[10px] font-medium">{label}</span>
       </button>
     ))}
+    {/* Duo tab */}
+    {duoButton}
   </nav>
 );
 
@@ -2495,7 +2497,7 @@ export default function App() {
         currentSong={currentSong}
         recentlyPlayed={recentlyPlayed}
         onSongPlay={(s) => playSong(s)}
-        duoButton={<DuoButton />}
+        duoButton={<DuoButton variant="sidebar" />}
       />
 
       <div
@@ -2519,10 +2521,6 @@ export default function App() {
             <span className="text-[15px] font-extrabold tracking-tight text-white">
               Soul<span className="text-sp-green">Sync</span>
             </span>
-            {/* Mobile Duo button */}
-            <div className="ml-auto flex-shrink-0">
-              <DuoButton />
-            </div>
           </div>
           {/* Desktop nav arrows */}
           <div className="hidden md:flex gap-1.5 flex-shrink-0">
@@ -2699,6 +2697,7 @@ export default function App() {
           setView("search");
         }}
         onLiked={() => setView("liked")}
+        duoButton={<DuoButton variant="mobile-nav" />}
       />
 
       <Toasts toasts={toasts} dismiss={dismiss} />

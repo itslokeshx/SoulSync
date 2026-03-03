@@ -60,21 +60,21 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
 
   return (
     <div
-      className="fixed right-0 top-0 bottom-[7.5rem] md:bottom-20 w-full md:w-80 z-40 flex flex-col animate-slideInRight border-l border-white/[0.06]"
+      className="fixed inset-0 md:inset-auto md:right-0 md:top-0 md:bottom-20 md:w-80 z-[45] flex flex-col animate-slideInRight md:border-l border-white/[0.06]"
       style={{
-        background: "rgba(10,10,10,0.97)",
+        background: "rgba(10,10,10,0.98)",
         backdropFilter: "blur(24px)",
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
+      <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-white/[0.04] pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-2.5">
           <div className="relative">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center">
               <Music size={14} className="text-black" />
             </div>
             <span
-              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-sp-black ${partnerConnected ? "bg-sp-green" : "bg-amber-400"}`}
+              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0a0a0a] ${partnerConnected ? "bg-sp-green" : "bg-amber-400"}`}
             />
           </div>
           <div>
@@ -88,20 +88,20 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
         </div>
         <button
           onClick={() => setPanelOpen(false)}
-          className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+          className="text-white/30 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
         >
-          <X size={15} />
+          <X size={16} />
         </button>
       </div>
 
-      {/* Room code */}
-      <div className="px-5 py-3 border-b border-white/[0.04]">
+      {/* Room code — compact row */}
+      <div className="px-4 md:px-5 py-2.5 md:py-3 border-b border-white/[0.04]">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-2.5">
             <p className="text-[10px] text-sp-sub/40 uppercase tracking-widest font-semibold">
-              Room Code
+              Room
             </p>
-            <p className="text-lg font-bold text-sp-green tracking-[0.15em] font-mono">
+            <p className="text-base md:text-lg font-bold text-sp-green tracking-[0.15em] font-mono">
               {roomCode}
             </p>
           </div>
@@ -115,7 +115,7 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-0.5 mx-5 mt-3 mb-2 p-0.5 rounded-lg bg-white/[0.03]">
+      <div className="flex gap-0.5 mx-4 md:mx-5 mt-2.5 md:mt-3 mb-2 p-0.5 rounded-lg bg-white/[0.03]">
         {[
           { id: "chat", label: "Chat", Icon: MessageCircle },
           { id: "history", label: "History", Icon: Clock },
@@ -254,7 +254,7 @@ export function DuoPanel({ onSendMessage, onEndSession }) {
       </div>
 
       {/* Footer: End session */}
-      <div className="px-5 py-3 border-t border-white/[0.04]">
+      <div className="px-4 md:px-5 py-3 border-t border-white/[0.04] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           onClick={onEndSession}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[12px] font-semibold transition-all"
