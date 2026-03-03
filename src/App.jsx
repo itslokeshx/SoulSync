@@ -32,64 +32,92 @@ const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23282828'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' font-size='64' fill='%23535353'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";
 
 const GENRE_CATEGORIES = [
-  { label: "Trending", q: "trending tamil 2024", color: "#e13300" },
-  { label: "Kollywood", q: "tamil movie songs 2024", color: "#8b5cf6" },
-  { label: "Anirudh Hits", q: "anirudh ravichander hits", color: "#0d72ea" },
-  { label: "AR Rahman", q: "ar rahman tamil hits", color: "#e91429" },
-  { label: "Romance", q: "romantic tamil songs", color: "#e91e8c" },
+  {
+    label: "Fresh Tamil",
+    q: "new tamil songs 2025 trending",
+    color: "#e13300",
+  },
+  {
+    label: "Kollywood 2025",
+    q: "tamil movie songs 2025 latest",
+    color: "#8b5cf6",
+  },
+  { label: "Anirudh", q: "anirudh ravichander 2025 new", color: "#0d72ea" },
+  { label: "AR Rahman", q: "ar rahman new songs 2025", color: "#e91429" },
   {
     label: "Reels Viral",
-    q: "die with a smile 7 years old trending reels",
+    q: "die with a smile blinding lights trending",
     color: "#f59b23",
   },
   {
-    label: "International",
-    q: "top international hits 2024 english",
-    color: "#d97706",
+    label: "TikTok Hits",
+    q: "dance monkey levitating savage love",
+    color: "#e91e8c",
   },
-  { label: "Indie", q: "independent tamil music", color: "#148a08" },
-  { label: "Pop Hits", q: "best english pop songs trending", color: "#dc2626" },
-  { label: "Workout", q: "tamil workout motivation songs", color: "#1db954" },
-  { label: "Melody", q: "tamil melody songs", color: "#56688a" },
-  { label: "Classical", q: "carnatic music classical", color: "#7c3aed" },
+  { label: "Global Pop", q: "as it was good 4 u bad habits", color: "#d97706" },
+  {
+    label: "Chill Vibes",
+    q: "someone you loved ocean eyes faded",
+    color: "#148a08",
+  },
+  {
+    label: "Party Mix",
+    q: "industry baby old town road taki taki",
+    color: "#dc2626",
+  },
+  { label: "Romance", q: "romantic tamil songs 2025", color: "#1db954" },
+  { label: "Tamil Melody", q: "tamil melody new songs 2025", color: "#56688a" },
+  { label: "Sid Sriram", q: "sid sriram latest songs 2025", color: "#7c3aed" },
 ];
 
 const HOME_SECTIONS = [
   {
-    key: "trending",
-    title: "Trending in Tamil",
-    icon: "🔥",
-    query: "trending tamil 2024",
+    key: "freshTamil",
+    title: "Fresh Tamil Drops",
+    icon: "✨",
+    query: "new tamil songs 2025 trending",
   },
   {
-    key: "kollywood",
-    title: "Kollywood Chartbusters",
-    icon: "🎬",
-    query: "tamil movie songs 2024",
+    key: "tamilViral",
+    title: "Tamil Reels Viral",
+    icon: "🔥",
+    query: "oorum blood coolie tamil 2025",
   },
   {
     key: "anirudh",
     title: "Anirudh Universe",
     icon: "⚡",
-    query: "anirudh ravichander hits",
+    query: "anirudh ravichander 2025 new",
   },
   {
-    key: "melody",
-    title: "Tamil Melodies",
-    icon: "🎶",
-    query: "tamil melody songs",
+    key: "arrahman",
+    title: "AR Rahman Magic",
+    icon: "🎼",
+    query: "ar rahman new songs 2025",
   },
   {
-    key: "reels",
+    key: "reelsViral",
     title: "Reels Viral Hits",
-    icon: "🔥",
-    query: "die with a smile 7 years trending reels songs",
+    icon: "📱",
+    query: "die with a smile bruno mars",
   },
   {
-    key: "international",
-    title: "International Trending",
+    key: "tiktokAnthems",
+    title: "TikTok Anthems",
+    icon: "🎧",
+    query: "blinding lights dance monkey levitating",
+  },
+  {
+    key: "globalPop",
+    title: "Global Pop Hits",
     icon: "🌍",
-    query: "top international hits 2024 english pop",
+    query: "as it was good 4 u bad habits",
+  },
+  {
+    key: "chillVibes",
+    title: "Chill & Feels",
+    icon: "💫",
+    query: "someone you loved ocean eyes faded",
   },
 ];
 
@@ -97,14 +125,14 @@ const POPULAR_ARTISTS = [
   "Anirudh Ravichander",
   "AR Rahman",
   "Sid Sriram",
+  "The Weeknd",
+  "Dua Lipa",
+  "Bruno Mars",
+  "Olivia Rodrigo",
+  "Billie Eilish",
   "Yuvan Shankar Raja",
-  "Ilaiyaraaja",
-  "Harris Jayaraj",
-  "D Imman",
-  "SPB",
-  "Shreya Ghoshal",
-  "Chinmayi",
-  "Dhanush",
+  "Doja Cat",
+  "Ed Sheeran",
   "GV Prakash",
 ];
 
@@ -753,7 +781,7 @@ const BrowsePage = ({ onSearch }) => (
   <div className="animate-fadeIn">
     <h1 className="text-2xl font-bold text-white mb-1">Browse</h1>
     <p className="text-sp-sub text-sm mb-6">
-      Explore Tamil, Kollywood & Indian music
+      Explore Tamil hits & global viral tracks
     </p>
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-10">
       {GENRE_CATEGORIES.map(({ label, q, color }) => (
@@ -842,7 +870,7 @@ const HomePage = ({
     <div className="animate-fadeIn">
       <h1 className="text-3xl font-black text-white mb-1">{getGreeting()}</h1>
       <p className="text-sp-sub text-sm mb-6">
-        Discover Tamil & Indian music curated for you
+        Fresh Tamil hits & international viral bangers — curated for you
       </p>
 
       {recentlyPlayed.length > 0 && (
