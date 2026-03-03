@@ -367,7 +367,7 @@ const GreenBtn = ({ children, onClick, className = "", small = false }) => (
 // TOAST CONTAINER
 // ─────────────────────────────────────────────────────────────────────────────
 const Toasts = ({ toasts, dismiss }) => (
-  <div className="fixed bottom-28 right-5 z-[60] flex flex-col gap-2 pointer-events-none">
+  <div className="fixed bottom-36 md:bottom-28 right-4 md:right-5 z-[60] flex flex-col gap-2 pointer-events-none">
     {toasts.map((t) => (
       <div
         key={t.id}
@@ -395,6 +395,36 @@ const Toasts = ({ toasts, dismiss }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MOBILE BOTTOM NAV
+// ─────────────────────────────────────────────────────────────────────────────
+const MobileNav = ({ view, onHome, onSearch, onLiked }) => (
+  <nav
+    className="fixed bottom-0 left-0 right-0 h-14 md:hidden z-50 flex items-center justify-around select-none"
+    style={{
+      background: "linear-gradient(to top,#0a0a0a 0%,#181818 100%)",
+      borderTop: "1px solid #282828",
+    }}
+  >
+    {[
+      { id: "home", Icon: Home, label: "Home", action: onHome },
+      { id: "search", Icon: Search, label: "Search", action: onSearch },
+      { id: "liked", Icon: Heart, label: "Liked", action: onLiked },
+    ].map(({ id, Icon, label, action }) => (
+      <button
+        key={id}
+        onClick={action}
+        className={`flex flex-col items-center gap-0.5 py-2 px-8 transition-colors ${
+          view === id ? "text-sp-green" : "text-sp-sub"
+        }`}
+      >
+        <Icon size={21} />
+        <span className="text-[10px] font-semibold">{label}</span>
+      </button>
+    ))}
+  </nav>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SIDEBAR
 // ─────────────────────────────────────────────────────────────────────────────
 const Sidebar = ({
@@ -405,7 +435,7 @@ const Sidebar = ({
   recentlyPlayed,
   onSongPlay,
 }) => (
-  <aside className="fixed left-0 top-0 bottom-24 w-60 bg-sp-black flex flex-col z-30 select-none">
+  <aside className="hidden md:flex md:flex-col fixed left-0 top-0 bottom-24 w-60 bg-sp-black z-30 select-none">
     <div className="px-5 pt-6 pb-5 flex items-center gap-2.5">
       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-sp-green/20">
         <Music2 size={17} className="text-black" strokeWidth={2.5} />
@@ -1519,7 +1549,7 @@ const LikedPage = ({ likedSongs, currentSong, isPlaying, onPlay, onLike }) => {
 // QUEUE PANEL
 // ─────────────────────────────────────────────────────────────────────────────
 const QueuePanel = ({ queue, queueIndex, currentSong, onClose, onJump }) => (
-  <div className="fixed right-0 top-0 bottom-24 w-72 bg-[#1a1a1a] border-l border-white/5 z-40 flex flex-col animate-slideInRight shadow-2xl">
+  <div className="fixed right-0 top-0 bottom-[7.5rem] md:bottom-24 w-full md:w-72 bg-[#1a1a1a] border-l border-white/5 z-40 flex flex-col animate-slideInRight shadow-2xl">
     <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
       <h3 className="font-bold text-white text-sm">Queue</h3>
       <button
@@ -1808,28 +1838,25 @@ const Player = ({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 h-24 z-40 flex items-center px-4 gap-3 select-none"
+      className="fixed bottom-14 md:bottom-0 left-0 right-0 h-16 md:h-24 z-40 flex items-center px-3 md:px-4 gap-2 md:gap-3 select-none"
       style={{
         background: "linear-gradient(to top,#0a0a0a 0%,#181818 100%)",
         borderTop: "1px solid #282828",
       }}
     >
       {/* Left: song info */}
-      <div className="flex items-center gap-3 w-[28%] min-w-0">
+      <div className="flex items-center gap-2 md:gap-3 flex-1 md:flex-none md:w-[28%] min-w-0">
         {currentSong ? (
           <>
             <button onClick={onOpenFullscreen} className="flex-shrink-0 group">
               <img
                 src={img}
                 onError={onImgErr}
-                className="w-14 h-14 rounded-lg object-cover shadow-md group-hover:brightness-75 transition-all"
+                className="w-11 h-11 md:w-14 md:h-14 rounded-lg object-cover shadow-md group-hover:brightness-75 transition-all"
               />
             </button>
-            <div className="min-w-0 flex-1">
-              <p
-                onClick={onOpenFullscreen}
-                className="text-sm font-semibold text-white truncate cursor-pointer hover:underline"
-              >
+            <div className="min-w-0 flex-1" onClick={onOpenFullscreen}>
+              <p className="text-sm font-semibold text-white truncate cursor-pointer hover:underline">
                 {currentSong.name}
               </p>
               <p className="text-xs text-sp-sub truncate">
@@ -1838,7 +1865,7 @@ const Player = ({
             </div>
             <button
               onClick={() => onLike(currentSong)}
-              className="ml-1 p-1 flex-shrink-0"
+              className="ml-1 p-1 flex-shrink-0 hidden md:block"
             >
               <Heart
                 size={16}
@@ -1851,12 +1878,41 @@ const Player = ({
             </button>
           </>
         ) : (
-          <p className="text-sp-muted text-sm">Select a song to play</p>
+          <p className="text-sp-muted text-sm hidden md:block">
+            Select a song to play
+          </p>
         )}
       </div>
 
-      {/* Center: controls */}
-      <div className="flex flex-col items-center gap-1.5 flex-1 max-w-[44%]">
+      {/* Mobile compact controls */}
+      <div className="flex md:hidden items-center gap-1 flex-shrink-0">
+        <button
+          onClick={onPrev}
+          className="text-white p-2 hover:scale-110 transition-transform"
+        >
+          <SkipBack size={19} className="fill-current" />
+        </button>
+        <button
+          onClick={onPlayPause}
+          disabled={!currentSong}
+          className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-md disabled:opacity-30"
+        >
+          {isPlaying ? (
+            <Pause size={14} className="text-black fill-black" />
+          ) : (
+            <Play size={14} className="text-black fill-black ml-0.5" />
+          )}
+        </button>
+        <button
+          onClick={onNext}
+          className="text-white p-2 hover:scale-110 transition-transform"
+        >
+          <SkipForward size={19} className="fill-current" />
+        </button>
+      </div>
+
+      {/* Center: full controls (desktop only) */}
+      <div className="hidden md:flex flex-col items-center gap-1.5 flex-1 max-w-[44%]">
         <div className="flex items-center gap-4">
           <button
             onClick={onShuffle}
@@ -1922,8 +1978,8 @@ const Player = ({
         </div>
       </div>
 
-      {/* Right: volume */}
-      <div className="flex items-center gap-2 w-[28%] justify-end">
+      {/* Right: volume (desktop only) */}
+      <div className="hidden md:flex items-center gap-2 w-[28%] justify-end">
         <button
           onClick={onToggleQueue}
           title="Queue (Q)"
@@ -2356,16 +2412,26 @@ export default function App() {
       />
 
       <div
-        className={`flex-1 ml-60 ${queueOpen ? "mr-72" : ""} flex flex-col overflow-hidden transition-all duration-300`}
+        className={`flex-1 md:ml-60 ${queueOpen ? "md:mr-72" : ""} flex flex-col overflow-hidden transition-all duration-300`}
       >
         {/* Top bar */}
         <div
-          className="flex-shrink-0 flex items-center gap-3 px-6 py-3.5 sticky top-0 z-20 backdrop-blur-md"
+          className="flex-shrink-0 flex items-center gap-2 md:gap-3 px-4 md:px-6 py-3 md:py-3.5 sticky top-0 z-20 backdrop-blur-md"
           style={{
             background: `linear-gradient(to bottom,${bgColor}bb 0%,transparent 100%)`,
           }}
         >
-          <div className="flex gap-1.5">
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2 md:hidden flex-shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center shadow-lg shadow-sp-green/20">
+              <Music2 size={15} className="text-black" strokeWidth={2.5} />
+            </div>
+            <span className="text-base font-extrabold tracking-tight text-white">
+              Soul<span className="text-sp-green">Sync</span>
+            </span>
+          </div>
+          {/* Desktop nav arrows */}
+          <div className="hidden md:flex gap-1.5 flex-shrink-0">
             <button
               onClick={goBack}
               disabled={!navHistory.length}
@@ -2381,7 +2447,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex-1 max-w-lg relative">
+          <div className="flex-1 relative">
             <Search
               size={15}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sp-sub pointer-events-none"
@@ -2413,7 +2479,7 @@ export default function App() {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto px-6 pt-4 pb-12">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28">
           {view === "home" && (
             <HomePage
               currentSong={currentSong}
@@ -2529,6 +2595,16 @@ export default function App() {
           onLike={handleLike}
         />
       )}
+
+      <MobileNav
+        view={view}
+        onHome={goHome}
+        onSearch={() => {
+          setLiveQuery("");
+          setView("search");
+        }}
+        onLiked={() => setView("liked")}
+      />
 
       <Toasts toasts={toasts} dismiss={dismiss} />
     </div>
