@@ -6,7 +6,7 @@ import {
   Clock, X, MoreHorizontal, Maximize2
 } from 'lucide-react';
 
-const API_BASE = 'https://jiosaavn.rajputhemant.dev';
+const API_BASE = '/api';
 
 // ─── UTILITIES ──────────────────────────────────────────
 const formatTime = (s) => {
