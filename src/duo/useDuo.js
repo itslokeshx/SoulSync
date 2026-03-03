@@ -18,65 +18,91 @@ const BACKEND_URL = import.meta.env.VITE_DUO_BACKEND || "http://localhost:4000";
  * @param {Function} opts.setCurrentTime
  * @param {Function} opts.addToast
  */
-export function useDuo({ playSong, audioRef, setIsPlaying, setCurrentTime, addToast }) {
+export function useDuo({
+  playSong,
+  audioRef,
+  setIsPlaying,
+  setCurrentTime,
+  addToast,
+}) {
   const heartbeatRef = useRef(null);
   const store = useDuoStore;
 
   // ── Create Session (REST + Socket) ──
-  const createSession = useCallback(async (hostName) => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/session/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hostName }),
-      });
-      const data = await res.json();
-      if (data.error) { addToast(data.error, "error"); return null; }
+  const createSession = useCallback(
+    async (hostName) => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/session/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hostName }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          addToast(data.error, "error");
+          return null;
+        }
 
-      const socket = connectSocket();
-      socket.emit("duo:join", { code: data.code, name: hostName, role: "host" });
+        const socket = connectSocket();
+        socket.emit("duo:join", {
+          code: data.code,
+          name: hostName,
+          role: "host",
+        });
 
-      store.getState().startSession({
-        role: "host",
-        roomCode: data.code,
-        myName: hostName,
-      });
+        store.getState().startSession({
+          role: "host",
+          roomCode: data.code,
+          myName: hostName,
+        });
 
-      addToast(`Duo room created! Code: ${data.code}`, "success", 5000);
-      return data.code;
-    } catch (err) {
-      addToast("Failed to create Duo session", "error");
-      return null;
-    }
-  }, [addToast]);
+        addToast(`Duo room created! Code: ${data.code}`, "success", 5000);
+        return data.code;
+      } catch (err) {
+        addToast("Failed to create Duo session", "error");
+        return null;
+      }
+    },
+    [addToast],
+  );
 
   // ── Join Session (REST + Socket) ──
-  const joinSession = useCallback(async (code, guestName) => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/session/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, guestName }),
-      });
-      const data = await res.json();
-      if (data.error) { addToast(data.error, "error"); return false; }
+  const joinSession = useCallback(
+    async (code, guestName) => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/session/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, guestName }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          addToast(data.error, "error");
+          return false;
+        }
 
-      const socket = connectSocket();
-      socket.emit("duo:join", { code: code.toUpperCase(), name: guestName, role: "guest" });
+        const socket = connectSocket();
+        socket.emit("duo:join", {
+          code: code.toUpperCase(),
+          name: guestName,
+          role: "guest",
+        });
 
-      store.getState().startSession({
-        role: "guest",
-        roomCode: code.toUpperCase(),
-        myName: guestName,
-      });
+        store.getState().startSession({
+          role: "guest",
+          roomCode: code.toUpperCase(),
+          myName: guestName,
+        });
 
-      addToast("Joined Duo session! 🎧", "success");
-      return true;
-    } catch (err) {
-      addToast("Failed to join Duo session", "error");
-      return false;
-    }
-  }, [addToast]);
+        addToast("Joined Duo session! 🎧", "success");
+        return true;
+      } catch (err) {
+        addToast("Failed to join Duo session", "error");
+        return false;
+      }
+    },
+    [addToast],
+  );
 
   // ── Sync actions (called by playback controls) ──
   const syncPlay = useCallback((currentTime, songId) => {
@@ -158,7 +184,10 @@ export function useDuo({ playSong, audioRef, setIsPlaying, setCurrentTime, addTo
         if (Math.abs(audio.currentTime - ct) > 2) {
           audio.currentTime = ct;
         }
-        audio.play().then(() => setIsPlaying(true)).catch(() => {});
+        audio
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch(() => {});
       }
     };
 
