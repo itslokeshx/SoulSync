@@ -550,7 +550,10 @@ const Sidebar = ({
     className="hidden md:flex md:flex-col fixed left-0 top-0 bottom-24 w-[17rem] z-30 select-none border-r border-white/[0.06]"
     style={{ background: "linear-gradient(180deg,#0e0e0e 0%,#080808 100%)" }}
   >
-    <div className="px-5 pt-6 pb-5 flex items-center gap-3">
+    <div
+      className="px-5 pt-6 pb-5 flex items-center gap-3 cursor-pointer active:scale-95 transition-transform"
+      onClick={() => setView("home")}
+    >
       <div
         className="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center flex-shrink-0"
         style={{ boxShadow: "0 0 20px rgba(29,185,84,0.25)" }}
@@ -2598,6 +2601,7 @@ export default function App() {
     setView("home");
     setLiveQuery("");
     setSearchQuery("");
+    useDuoStore.getState().setPanelOpen(false);
   }, []);
 
   const jumpToQueue = useCallback(
@@ -2642,7 +2646,10 @@ export default function App() {
           }}
         >
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 md:hidden flex-shrink-0">
+          <button
+            onClick={goHome}
+            className="flex items-center gap-2 md:hidden flex-shrink-0 active:scale-95 transition-transform"
+          >
             <div
               className="w-8 h-8 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center"
               style={{ boxShadow: "0 0 16px rgba(29,185,84,0.2)" }}
@@ -2652,7 +2659,7 @@ export default function App() {
             <span className="text-[15px] font-extrabold tracking-tight text-white">
               Soul<span className="text-sp-green">Sync</span>
             </span>
-          </div>
+          </button>
           {/* Desktop nav arrows */}
           <div className="hidden md:flex gap-1.5 flex-shrink-0">
             <button
