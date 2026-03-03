@@ -1600,6 +1600,8 @@ const NowPlayingView = ({
   onClose,
   onPlayPause,
   onSeek,
+  onSeekStart,
+  onSeekEnd,
   onVolume,
   onPrev,
   onNext,
@@ -1688,8 +1690,11 @@ const NowPlayingView = ({
               type="range"
               min={0}
               max={duration || 0}
+              step="any"
               value={currentTime}
               onChange={(e) => onSeek(+e.target.value)}
+              onPointerDown={onSeekStart}
+              onPointerUp={onSeekEnd}
               className="progress-bar w-full h-1 rounded-full cursor-pointer"
               style={{ "--progress": `${progress}%` }}
             />
@@ -1783,6 +1788,8 @@ const Player = ({
   likedSongs,
   onPlayPause,
   onSeek,
+  onSeekStart,
+  onSeekEnd,
   onVolume,
   onPrev,
   onNext,
@@ -1900,8 +1907,11 @@ const Player = ({
             type="range"
             min={0}
             max={duration || 0}
+            step="any"
             value={currentTime}
             onChange={(e) => onSeek(+e.target.value)}
+            onPointerDown={onSeekStart}
+            onPointerUp={onSeekEnd}
             disabled={!currentSong}
             className="progress-bar flex-1 h-1 rounded-full cursor-pointer disabled:cursor-default"
             style={{ "--progress": `${progress}%` }}
@@ -1947,6 +1957,7 @@ const Player = ({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
   const audioRef = useRef(null);
+  const seekingRef = useRef(false);
 
   const [view, setView] = useState("home");
   const [liveQuery, setLiveQuery] = useState("");
@@ -2079,8 +2090,13 @@ export default function App() {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const onTime = () => setCurrentTime(audio.currentTime);
-    const onMeta = () => setDuration(audio.duration);
+    const onTime = () => {
+      if (!seekingRef.current) setCurrentTime(audio.currentTime);
+    };
+    const onMeta = () => {
+      const d = audio.duration;
+      setDuration(d && isFinite(d) ? d : 0);
+    };
     const onError = () => {
       addToast("Audio load failed.", "error");
       setIsPlaying(false);
@@ -2165,6 +2181,14 @@ export default function App() {
       audio.currentTime = v;
       setCurrentTime(v);
     }
+  }, []);
+
+  const handleSeekStart = useCallback(() => {
+    seekingRef.current = true;
+  }, []);
+
+  const handleSeekEnd = useCallback(() => {
+    seekingRef.current = false;
   }, []);
 
   const handleVolume = useCallback((v) => {
@@ -2469,6 +2493,8 @@ export default function App() {
         likedSongs={likedSongs}
         onPlayPause={handlePlayPause}
         onSeek={handleSeek}
+        onSeekStart={handleSeekStart}
+        onSeekEnd={handleSeekEnd}
         onVolume={handleVolume}
         onPrev={handlePrev}
         onNext={handleNext}
@@ -2493,6 +2519,8 @@ export default function App() {
           onClose={() => setNpOpen(false)}
           onPlayPause={handlePlayPause}
           onSeek={handleSeek}
+          onSeekStart={handleSeekStart}
+          onSeekEnd={handleSeekEnd}
           onVolume={handleVolume}
           onPrev={handlePrev}
           onNext={handleNext}
