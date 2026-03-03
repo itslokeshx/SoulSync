@@ -32,72 +32,72 @@ const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23282828'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' font-size='64' fill='%23535353'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";
 
 const GENRE_CATEGORIES = [
-  { label: "Trending 🔥", q: "trending hindi 2024", color: "#e13300" },
-  { label: "Bollywood 🎬", q: "bollywood hits 2024", color: "#8b5cf6" },
-  { label: "Pop", q: "pop hits 2024", color: "#0d72ea" },
-  { label: "Hip-Hop 🎤", q: "hip hop rap 2024", color: "#e91429" },
-  { label: "Romance 💕", q: "romantic hindi songs", color: "#e91e8c" },
-  { label: "Party 🎉", q: "party dance songs 2024", color: "#f59b23" },
-  { label: "Devotional 🕉️", q: "devotional bhajan songs", color: "#d97706" },
-  { label: "English 🌍", q: "english top hits 2024", color: "#148a08" },
-  { label: "Punjabi 🎺", q: "punjabi hits 2024", color: "#dc2626" },
-  { label: "Workout 💪", q: "workout motivation songs", color: "#1db954" },
-  { label: "Sad 🌧️", q: "sad emotional hindi songs", color: "#56688a" },
-  { label: "Classical 🎻", q: "classical indian music", color: "#7c3aed" },
+  { label: "Trending", q: "trending tamil 2024", color: "#e13300" },
+  { label: "Kollywood", q: "tamil movie songs 2024", color: "#8b5cf6" },
+  { label: "Anirudh Hits", q: "anirudh ravichander hits", color: "#0d72ea" },
+  { label: "AR Rahman", q: "ar rahman tamil hits", color: "#e91429" },
+  { label: "Romance", q: "romantic tamil songs", color: "#e91e8c" },
+  { label: "Kuthu", q: "kuthu tamil dance songs", color: "#f59b23" },
+  { label: "Devotional", q: "tamil devotional songs", color: "#d97706" },
+  { label: "Indie", q: "independent tamil music", color: "#148a08" },
+  { label: "National", q: "indian patriotic songs", color: "#dc2626" },
+  { label: "Workout", q: "tamil workout motivation songs", color: "#1db954" },
+  { label: "Melody", q: "tamil melody songs", color: "#56688a" },
+  { label: "Classical", q: "carnatic music classical", color: "#7c3aed" },
 ];
 
 const HOME_SECTIONS = [
   {
     key: "trending",
-    title: "Trending Now",
+    title: "Trending in Tamil",
     icon: "🔥",
-    query: "trending hindi 2024",
+    query: "trending tamil 2024",
   },
   {
-    key: "bollywood",
-    title: "Top Bollywood Hits",
+    key: "kollywood",
+    title: "Kollywood Chartbusters",
     icon: "🎬",
-    query: "bollywood hits 2024",
+    query: "tamil movie songs 2024",
   },
   {
-    key: "english",
-    title: "English Charts",
-    icon: "🌍",
-    query: "english top hits 2024",
+    key: "anirudh",
+    title: "Anirudh Universe",
+    icon: "⚡",
+    query: "anirudh ravichander hits",
   },
   {
-    key: "romantic",
-    title: "Romantic Vibes",
-    icon: "💕",
-    query: "romantic hindi songs",
+    key: "melody",
+    title: "Tamil Melodies",
+    icon: "🎶",
+    query: "tamil melody songs",
   },
   {
-    key: "party",
-    title: "Party Anthems",
-    icon: "🎉",
-    query: "party dance songs 2024",
+    key: "kuthu",
+    title: "Kuthu & Dance",
+    icon: "💃",
+    query: "kuthu tamil dance songs",
   },
   {
-    key: "punjabi",
-    title: "Punjabi Hits",
-    icon: "🎺",
-    query: "punjabi hits 2024",
+    key: "national",
+    title: "Desh Bhakti",
+    icon: "🇮🇳",
+    query: "indian patriotic national songs",
   },
 ];
 
 const POPULAR_ARTISTS = [
-  "Arijit Singh",
-  "Shreya Ghoshal",
-  "AP Dhillon",
-  "Diljit Dosanjh",
+  "Anirudh Ravichander",
   "AR Rahman",
-  "Pritam",
-  "Badshah",
-  "Neha Kakkar",
-  "Jubin Nautiyal",
-  "Atif Aslam",
-  "KK",
-  "Sonu Nigam",
+  "Sid Sriram",
+  "Yuvan Shankar Raja",
+  "Ilaiyaraaja",
+  "Harris Jayaraj",
+  "D Imman",
+  "SPB",
+  "Shreya Ghoshal",
+  "Chinmayi",
+  "Dhanush",
+  "GV Prakash",
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,9 +155,9 @@ const getArtists = (song) => {
 
 const getGreeting = () => {
   const h = new Date().getHours();
-  if (h < 12) return "Good morning ☀️";
-  if (h < 17) return "Good afternoon 🌤️";
-  return "Good evening 🌙";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 };
 
 const onImgErr = (e) => {
@@ -383,13 +383,10 @@ const Sidebar = ({
 }) => (
   <aside className="fixed left-0 top-0 bottom-24 w-60 bg-sp-black flex flex-col z-30 select-none">
     <div className="px-5 pt-6 pb-5 flex items-center gap-2.5">
-      <div
-        className="w-9 h-9 rounded-xl bg-sp-green flex items-center justify-center flex-shrink-0"
-        style={{ boxShadow: "0 0 20px rgba(29,185,84,0.4)" }}
-      >
-        <Music2 size={18} className="text-black" />
+      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-sp-green/20">
+        <Music2 size={17} className="text-black" strokeWidth={2.5} />
       </div>
-      <span className="text-xl font-black tracking-tight text-white">
+      <span className="text-lg font-extrabold tracking-tight text-white">
         Soul<span className="text-sp-green">Sync</span>
       </span>
     </div>
@@ -472,7 +469,9 @@ const Sidebar = ({
 
     <div className="px-6 pb-4 pt-3 border-t border-white/5">
       <p className="text-[10px] text-sp-muted">Powered by JioSaavn</p>
-      <p className="text-[10px] text-sp-muted/50 mt-0.5">SoulSync v2.0</p>
+      <p className="text-[10px] text-sp-muted/50 mt-0.5">
+        SoulSync v3.0 — Tamil & National
+      </p>
     </div>
   </aside>
 );
@@ -744,20 +743,20 @@ const HSection = ({
 // ─────────────────────────────────────────────────────────────────────────────
 const BrowsePage = ({ onSearch }) => (
   <div className="animate-fadeIn">
-    <h1 className="text-2xl font-bold text-white mb-6">Browse all</h1>
+    <h1 className="text-2xl font-bold text-white mb-1">Browse</h1>
+    <p className="text-sp-sub text-sm mb-6">
+      Explore Tamil, Kollywood & Indian music
+    </p>
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-10">
       {GENRE_CATEGORIES.map(({ label, q, color }) => (
         <button
           key={label}
           onClick={() => onSearch(q)}
-          className="relative h-24 rounded-xl overflow-hidden text-left px-4 py-3 font-bold text-white text-sm hover:scale-[1.03] transition-transform duration-200"
+          className="relative h-24 rounded-xl overflow-hidden text-left px-4 py-3 font-bold text-white text-sm hover:scale-[1.02] active:scale-100 transition-transform duration-150"
           style={{
-            background: `linear-gradient(135deg,${color} 0%,${color}77 100%)`,
+            background: `linear-gradient(135deg,${color} 0%,${color}55 100%)`,
           }}
         >
-          <span className="text-4xl absolute right-3 bottom-1 opacity-25">
-            🎵
-          </span>
           {label}
         </button>
       ))}
@@ -833,7 +832,10 @@ const HomePage = ({
 
   return (
     <div className="animate-fadeIn">
-      <h1 className="text-3xl font-black text-white mb-2">{getGreeting()}</h1>
+      <h1 className="text-3xl font-black text-white mb-1">{getGreeting()}</h1>
+      <p className="text-sp-sub text-sm mb-6">
+        Discover Tamil & Indian music curated for you
+      </p>
 
       {recentlyPlayed.length > 0 && (
         <div className="mb-8 mt-5">
@@ -2324,7 +2326,7 @@ export default function App() {
               onFocus={() => {
                 if (!liveQuery.trim()) setView("search");
               }}
-              placeholder="What do you want to listen to?"
+              placeholder="Search songs, artists, albums..."
               className="w-full text-sm text-white placeholder-sp-muted rounded-full pl-10 pr-9 py-2.5 outline-none focus:ring-2 focus:ring-white/20 transition-all"
               style={{ background: "#242424" }}
             />
