@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   Home, Search, Library, ChevronLeft, ChevronRight,
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, Volume1, VolumeX, Heart, Music2, ListMusic,
-  Clock, X, Disc3
+  Clock, X, MoreHorizontal, Maximize2
 } from 'lucide-react';
 
 const API_BASE = 'https://jiosaavn.rajputhemant.dev';
 
-// ─── Helpers ─────────────────────────────────────────────
+// ─── UTILITIES ──────────────────────────────────────────
 const formatTime = (s) => {
   if (!s || isNaN(s)) return '0:00';
   const m = Math.floor(s / 60);
@@ -22,102 +22,94 @@ const getBestUrl = (downloadUrl) => {
     const q = { '12kbps': 1, '48kbps': 2, '96kbps': 3, '160kbps': 4, '320kbps': 5 };
     return (q[b.quality] || 0) - (q[a.quality] || 0);
   });
-  return sorted[0]?.url || sorted[0]?.link || null;
+  return sorted[0]?.link || sorted[0]?.url || null;
 };
 
 const getImage = (images, size = 2) => {
   if (!images) return '';
-  if (Array.isArray(images)) return images[Math.min(size, images.length - 1)]?.url || images[0]?.url || '';
+  if (Array.isArray(images)) return images[Math.min(size, images.length - 1)]?.link || images[0]?.link || '';
   if (typeof images === 'string') return images;
   return '';
 };
 
-const truncate = (str, len = 30) => {
-  if (!str) return '';
-  return str.length > len ? str.slice(0, len) + '…' : str;
+// ─── API ABSTRACTION ────────────────────────────────────
+const api = {
+  get: async (endpoint, signal) => {
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, { signal });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const data = await res.json();
+      return data.data || data;
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error('API Error:', e);
+      return null;
+    }
+  }
 };
 
-// ─── Skeleton Card ───────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="flex-shrink-0 w-[160px]">
-    <div className="w-[160px] h-[160px] rounded-md bg-[#282828] skeleton-pulse" />
-    <div className="mt-3 h-3 w-3/4 rounded bg-[#282828] skeleton-pulse" />
-    <div className="mt-2 h-2.5 w-1/2 rounded bg-[#282828] skeleton-pulse" />
-  </div>
-);
-
-// ─── Equalizer Bars ──────────────────────────────────────
-const EqBars = () => (
+// ─── UI COMPONENTS ──────────────────────────────────────
+const EqBars = memo(() => (
   <div className="flex items-end gap-[2px] h-3">
     <div className="w-[3px] bg-brand rounded-sm eq-bar-1" />
     <div className="w-[3px] bg-brand rounded-sm eq-bar-2" />
     <div className="w-[3px] bg-brand rounded-sm eq-bar-3" />
     <div className="w-[3px] bg-brand rounded-sm eq-bar-4" />
   </div>
+));
+EqBars.displayName = 'EqBars';
+
+const CardSkeleton = () => (
+  <div className="flex-shrink-0 w-[160px]">
+    <div className="w-[160px] h-[160px] rounded-lg bg-bg-card-hover skeleton-pulse shadow-md mb-3" />
+    <div className="h-3.5 w-3/4 rounded bg-bg-card-hover skeleton-pulse mb-2" />
+    <div className="h-2.5 w-1/2 rounded bg-bg-card-hover skeleton-pulse" />
+  </div>
 );
 
-// ─── Song Card (Home/Browse) ─────────────────────────────
-const SongCard = ({ song, onClick, isPlaying, isCurrent }) => (
-  <div
+const SongCard = memo(({ song, onClick, isPlaying, isCurrent }) => (
+  <button
     onClick={() => onClick(song)}
-    className="flex-shrink-0 w-[160px] group cursor-pointer select-none"
+    className="flex-shrink-0 w-[160px] group text-left cursor-pointer transition-colors p-3 hover:bg-bg-card-hover rounded-xl"
   >
-    <div className="relative w-[160px] h-[160px] rounded-md overflow-hidden shadow-lg">
-      <img
-        src={getImage(song.image)}
-        alt={song.name || song.title}
-        loading="lazy"
-        className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-75"
-      />
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+    <div className="relative w-full aspect-square rounded-md overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] mb-4">
+      <img src={getImage(song.image)} alt={song.name || song.title} loading="lazy"
+        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+      <div className={`absolute inset-0 bg-black/40 flex flex-col items-center justify-center transition-opacity duration-200
+        ${isCurrent ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
         {isCurrent && isPlaying ? (
-          <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center shadow-xl">
-            <EqBars />
-          </div>
+          <EqBars />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center shadow-xl hover:scale-105 transition-transform">
-            <Play size={20} className="text-black ml-0.5" fill="black" />
+          <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.4)] hover:scale-105 transition-transform text-black hover:bg-brand-hover">
+            <Play size={24} className="ml-1" fill="currentColor" />
           </div>
         )}
       </div>
-      {isCurrent && (
-        <div className="absolute bottom-2 right-2">
-          <EqBars />
-        </div>
-      )}
     </div>
-    <p className="mt-2 text-sm font-medium text-white truncate">
-      {song.name || song.title || 'Unknown'}
-    </p>
-    <p className="text-xs text-text-secondary truncate">
+    <p className="text-sm font-bold text-text-primary truncate">{song.name || song.title || 'Unknown'}</p>
+    <p className="text-xs text-text-secondary truncate mt-1">
       {typeof song.artists === 'object' && song.artists?.primary
         ? song.artists.primary.map(a => a.name).join(', ')
         : song.artist || song.subtitle || ''}
     </p>
-  </div>
-);
+  </button>
+));
+SongCard.displayName = 'SongCard';
 
-// ─── Horizontal Scroll Section ───────────────────────────
-const HScrollSection = ({ title, songs, loading, onSongClick, currentSong, isPlaying, onSeeAll }) => (
-  <div className="mb-8 fade-in">
-    <div className="flex items-center justify-between mb-4 px-1">
-      <h2 className="text-xl font-bold text-white">{title}</h2>
-      {onSeeAll && (
-        <button onClick={onSeeAll} className="text-sm font-semibold text-text-secondary hover:text-brand transition-colors">
-          See all
-        </button>
-      )}
+const HSection = ({ title, items, loading, onItemClick, currentId, isPlaying }) => (
+  <div className="mb-10 fade-in">
+    <div className="flex items-end justify-between mb-5 px-1">
+      <h2 className="text-2xl font-bold tracking-tight text-text-primary">{title}</h2>
     </div>
-    <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+    <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-2 px-2 pb-4">
       {loading
-        ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-        : songs.map((song, i) => (
+        ? Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)
+        : items.map((item, i) => (
           <SongCard
-            key={song.id || i}
-            song={song}
-            onClick={onSongClick}
+            key={item.id || i}
+            song={item}
+            onClick={onItemClick}
             isPlaying={isPlaying}
-            isCurrent={currentSong?.id === song.id}
+            isCurrent={currentId === item.id}
           />
         ))
       }
@@ -125,965 +117,453 @@ const HScrollSection = ({ title, songs, loading, onSongClick, currentSong, isPla
   </div>
 );
 
-// ─── Main App ────────────────────────────────────────────
+// ─── APP SHELL ──────────────────────────────────────────
 export default function App() {
-  // ── Navigation ──
   const [currentView, setCurrentView] = useState('home');
   const [viewHistory, setViewHistory] = useState([{ view: 'home', data: null }]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const [hIndex, setHIndex] = useState(0);
   const [viewData, setViewData] = useState(null);
 
-  // ── Search ──
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchCache] = useState(() => new Map());
   const abortRef = useRef(null);
 
-  // ── Home Sections ──
-  const [homeSections, setHomeSections] = useState({
-    trending: { songs: [], loading: true },
-    bollywood: { songs: [], loading: true },
-    english: { songs: [], loading: true },
-    romantic: { songs: [], loading: true },
+  const [homeFeed, setHomeFeed] = useState({
+    trending: { items: [], loading: true },
+    bollywood: { items: [], loading: true },
+    english: { items: [], loading: true }
   });
 
-  // ── Playback ──
   const [currentSong, setCurrentSong] = useState(null);
   const [queue, setQueue] = useState([]);
-  const [queueIndex, setQueueIndex] = useState(-1);
+  const [queueIdx, setQueueIdx] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.7);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [isRepeat, setIsRepeat] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, duration: 0 });
+  const [volume, setVolume] = useState(1);
+  const [settings, setSettings] = useState({ shuffle: false, repeat: false });
   const [liked, setLiked] = useState(new Set());
   const audioRef = useRef(null);
 
-  // ── Artist / Album ──
   const [artistData, setArtistData] = useState(null);
   const [albumData, setAlbumData] = useState(null);
   const [pageLoading, setPageLoading] = useState(false);
-
-  // ── Toast ──
   const [toast, setToast] = useState(null);
 
-  const showToast = useCallback((msg, type = 'error') => {
-    setToast({ msg, type });
+  // ── Helpers ──
+  const showToast = useCallback(msg => {
+    setToast(msg);
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // ── Navigation helpers ──
   const navigate = useCallback((view, data = null) => {
     setCurrentView(view);
     setViewData(data);
-    const newEntry = { view, data };
     setViewHistory(prev => {
-      const sliced = prev.slice(0, historyIndex + 1);
-      return [...sliced, newEntry];
+      const slice = prev.slice(0, hIndex + 1);
+      return [...slice, { view, data }];
     });
-    setHistoryIndex(prev => prev + 1);
-  }, [historyIndex]);
+    setHIndex(prev => prev + 1);
+  }, [hIndex]);
 
-  const goBack = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      const entry = viewHistory[newIndex];
-      setCurrentView(entry.view);
-      setViewData(entry.data);
-    }
-  }, [historyIndex, viewHistory]);
-
-  const goForward = useCallback(() => {
-    if (historyIndex < viewHistory.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      const entry = viewHistory[newIndex];
-      setCurrentView(entry.view);
-      setViewData(entry.data);
-    }
-  }, [historyIndex, viewHistory]);
-
-  // ── Fetch helper ──
-  const fetchApi = useCallback(async (endpoint, signal) => {
-    try {
-      const res = await fetch(`${API_BASE}${endpoint}`, { signal });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
-      return data.data || data;
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        console.error('API Error:', e);
+  // ── Fetch Home Feed ──
+  useEffect(() => {
+    const fetchHome = async () => {
+      const qs = [
+        { key: 'trending', q: 'trending hindi' },
+        { key: 'bollywood', q: 'bollywood hits' },
+        { key: 'english', q: 'global top hits' }
+      ];
+      for (const { key, q } of qs) {
+        const data = await api.get(`/search/songs?q=${encodeURIComponent(q)}&page=1&n=12`);
+        setHomeFeed(prev => ({
+          ...prev,
+          [key]: { items: data?.results || [], loading: false }
+        }));
       }
-      return null;
-    }
+    };
+    fetchHome();
   }, []);
 
-  // ── Fetch home sections ──
-  useEffect(() => {
-    const queries = [
-      { key: 'trending', query: 'trending hindi 2024' },
-      { key: 'bollywood', query: 'bollywood hits' },
-      { key: 'english', query: 'english top hits' },
-      { key: 'romantic', query: 'romantic hindi songs' },
-    ];
-
-    queries.forEach(async ({ key, query }) => {
-      const data = await fetchApi(`/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=20`);
-      setHomeSections(prev => ({
-        ...prev,
-        [key]: { songs: data?.results || [], loading: false },
-      }));
-    });
-  }, [fetchApi]);
-
-  // ── Search with debounce ──
+  // ── Search ──
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults(null);
       setSearchLoading(false);
       return;
     }
-
-    if (searchCache.has(searchQuery.trim())) {
-      setSearchResults(searchCache.get(searchQuery.trim()));
-      setSearchLoading(false);
-      return;
-    }
-
     setSearchLoading(true);
-    const timer = setTimeout(async () => {
+    const t = setTimeout(async () => {
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
+      const q = encodeURIComponent(searchQuery);
 
-      const [songsData, albumsData, artistsData] = await Promise.all([
-        fetchApi(`/api/search/songs?query=${encodeURIComponent(searchQuery)}&page=1&limit=20`, signal),
-        fetchApi(`/api/search/albums?query=${encodeURIComponent(searchQuery)}&limit=10`, signal),
-        fetchApi(`/api/search/artists?query=${encodeURIComponent(searchQuery)}&limit=10`, signal),
+      const [songs, albums, artists] = await Promise.all([
+        api.get(`/search/songs?q=${q}&page=1&n=20`, signal),
+        api.get(`/search/albums?q=${q}&page=1&n=10`, signal),
+        api.get(`/search/artists?q=${q}&page=1&n=10`, signal)
       ]);
 
-      const result = {
-        songs: songsData?.results || [],
-        albums: albumsData?.results || [],
-        artists: artistsData?.results || [],
-      };
-
-      // LRU cache (max 5)
-      if (searchCache.size >= 5) {
-        const firstKey = searchCache.keys().next().value;
-        searchCache.delete(firstKey);
-      }
-      searchCache.set(searchQuery.trim(), result);
-
-      setSearchResults(result);
+      setSearchResults({
+        songs: songs?.results || [],
+        albums: albums?.results || [],
+        artists: artists?.results || []
+      });
       setSearchLoading(false);
     }, 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, fetchApi, searchCache]);
-
-  // ── Audio Engine ──
+  // ── Audio Lifecycle ──
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoadedMeta = () => setDuration(audio.duration);
-    const onEnded = () => {
-      if (isRepeat) {
-        audio.currentTime = 0;
-        audio.play();
-      } else {
-        playNext();
-      }
+    const a = audioRef.current;
+    if (!a) return;
+    const updTime = () => setProgress(p => ({ ...p, current: a.currentTime }));
+    const updDur = () => setProgress(p => ({ ...p, duration: a.duration }));
+    const ended = () => {
+      if (settings.repeat) { a.currentTime = 0; a.play(); }
+      else playNext();
     };
-    const onError = () => showToast('Failed to load audio. Trying next…');
-
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('loadedmetadata', onLoadedMeta);
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('error', onError);
-
+    a.addEventListener('timeupdate', updTime);
+    a.addEventListener('loadedmetadata', updDur);
+    a.addEventListener('ended', ended);
     return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('loadedmetadata', onLoadedMeta);
-      audio.removeEventListener('ended', onEnded);
-      audio.removeEventListener('error', onError);
+      a.removeEventListener('timeupdate', updTime);
+      a.removeEventListener('loadedmetadata', updDur);
+      a.removeEventListener('ended', ended);
     };
-  }, [isRepeat, queue, queueIndex]);
+  }, [settings.repeat, queue, queueIdx]);
 
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
+  useEffect(() => { if (audioRef.current) audioRef.current.volume = volume; }, [volume]);
 
-  // ── Play song ──
-  const playSong = useCallback((song, songList = null, index = -1) => {
+  // ── Play Controls ──
+  const playTrack = useCallback((song, list = null, idx = -1) => {
     const url = getBestUrl(song.downloadUrl);
-    if (!url) {
-      showToast('No playable URL found for this song');
-      return;
-    }
+    if (!url) { showToast('Track not available'); return; }
 
     setCurrentSong(song);
-    if (songList) {
-      setQueue(songList);
-      setQueueIndex(index >= 0 ? index : songList.findIndex(s => s.id === song.id));
-    } else if (queue.length === 0 || !queue.find(s => s.id === song.id)) {
-      setQueue(prev => [...prev, song]);
-      setQueueIndex(prev => prev + 1);
+    if (list) {
+      setQueue(list);
+      setQueueIdx(idx >= 0 ? idx : list.findIndex(s => s.id === song.id));
     } else {
-      setQueueIndex(queue.findIndex(s => s.id === song.id));
+      setQueue(prev => [...prev, song]);
+      setQueueIdx(prev => prev + 1);
     }
 
-    const audio = audioRef.current;
-    if (audio) {
-      audio.src = url;
-      audio.play().then(() => setIsPlaying(true)).catch(() => { });
+    const a = audioRef.current;
+    if (a) {
+      a.src = url;
+      a.play().then(() => setIsPlaying(true)).catch(console.error);
     }
-
-    // Fetch suggestions for auto-queue
-    fetchApi(`/api/songs/${song.id}/suggestions?limit=10`).then(data => {
-      if (data && Array.isArray(data)) {
-        setQueue(prev => {
-          const existingIds = new Set(prev.map(s => s.id));
-          const newSongs = data.filter(s => !existingIds.has(s.id));
-          return [...prev, ...newSongs];
-        });
-      }
-    });
-  }, [queue, fetchApi, showToast]);
+  }, []);
 
   const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !currentSong) return;
-    if (isPlaying) { audio.pause(); setIsPlaying(false); }
-    else { audio.play().then(() => setIsPlaying(true)).catch(() => { }); }
+    const a = audioRef.current;
+    if (!a || !currentSong) return;
+    if (isPlaying) { a.pause(); setIsPlaying(false); }
+    else { a.play().then(() => setIsPlaying(true)).catch(console.error); }
   }, [isPlaying, currentSong]);
 
   const playNext = useCallback(() => {
     if (queue.length === 0) return;
-    let nextIdx;
-    if (isShuffle) {
-      nextIdx = Math.floor(Math.random() * queue.length);
-    } else {
-      nextIdx = queueIndex + 1;
-      if (nextIdx >= queue.length) nextIdx = 0;
-    }
-    const nextSong = queue[nextIdx];
-    if (nextSong) {
-      setQueueIndex(nextIdx);
-      const url = getBestUrl(nextSong.downloadUrl);
-      if (url) {
-        setCurrentSong(nextSong);
-        const audio = audioRef.current;
-        if (audio) {
-          audio.src = url;
-          audio.play().then(() => setIsPlaying(true)).catch(() => { });
-        }
-      }
-    }
-  }, [queue, queueIndex, isShuffle]);
+    let next = settings.shuffle ? Math.floor(Math.random() * queue.length) : queueIdx + 1;
+    if (next >= queue.length) next = 0;
+    playTrack(queue[next], queue, next);
+  }, [queue, queueIdx, settings.shuffle, playTrack]);
 
   const playPrev = useCallback(() => {
     if (queue.length === 0) return;
-    const audio = audioRef.current;
-    if (audio && audio.currentTime > 3) {
-      audio.currentTime = 0;
-      return;
-    }
-    let prevIdx = queueIndex - 1;
-    if (prevIdx < 0) prevIdx = queue.length - 1;
-    const prevSong = queue[prevIdx];
-    if (prevSong) {
-      setQueueIndex(prevIdx);
-      const url = getBestUrl(prevSong.downloadUrl);
-      if (url) {
-        setCurrentSong(prevSong);
-        if (audio) {
-          audio.src = url;
-          audio.play().then(() => setIsPlaying(true)).catch(() => { });
-        }
-      }
-    }
-  }, [queue, queueIndex]);
+    const a = audioRef.current;
+    if (a && a.currentTime > 3) { a.currentTime = 0; return; }
+    let prev = queueIdx - 1;
+    if (prev < 0) prev = queue.length - 1;
+    playTrack(queue[prev], queue, prev);
+  }, [queue, queueIdx, playTrack]);
 
-  const handleSeek = useCallback((e) => {
-    const time = parseFloat(e.target.value);
-    if (audioRef.current) audioRef.current.currentTime = time;
-    setCurrentTime(time);
-  }, []);
-
-  const handleVolume = useCallback((e) => {
-    setVolume(parseFloat(e.target.value));
-  }, []);
-
-  // ── Open Artist ──
   const openArtist = useCallback(async (artist) => {
     setPageLoading(true);
-    navigate('artist', artist);
+    navigate('artist');
     const id = artist.id || artist.artistId;
-    const [details, songsData] = await Promise.all([
-      fetchApi(`/api/artists/${id}`),
-      fetchApi(`/api/artists/${id}/songs`),
+    const [dets, songs] = await Promise.all([
+      api.get(`/artist?id=${id}`),
+      api.get(`/artist/songs?id=${id}`)
     ]);
     setArtistData({
       ...artist,
-      ...(details || {}),
-      topSongs: songsData?.results || songsData?.songs || details?.topSongs || [],
+      ...dets,
+      topSongs: songs?.results || songs?.songs || []
     });
     setPageLoading(false);
-  }, [fetchApi, navigate]);
-
-  // ── Open Album ──
-  const openAlbum = useCallback(async (album) => {
-    setPageLoading(true);
-    navigate('album', album);
-    const data = await fetchApi(`/api/albums?id=${album.id}`);
-    setAlbumData(data || album);
-    setPageLoading(false);
-  }, [fetchApi, navigate]);
-
-  // ── Browse genres ──
-  const browseGenre = useCallback((genre) => {
-    setSearchQuery(genre);
-    navigate('search');
   }, [navigate]);
 
-  // ── Sidebar ──
-  const genres = ['Trending', 'Bollywood', 'Pop', 'Hip-Hop', 'Romance', 'Party', 'Devotional', 'Classical'];
+  const openAlbum = useCallback(async (album) => {
+    setPageLoading(true);
+    navigate('album');
+    const data = await api.get(`/album?id=${album.id}`);
+    setAlbumData(data || album);
+    setPageLoading(false);
+  }, [navigate]);
 
-  const Sidebar = () => (
-    <aside className="fixed left-0 top-0 bottom-[90px] w-[240px] bg-black flex flex-col z-30">
-      {/* Logo */}
-      <div className="px-6 pt-6 pb-4 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-brand flex items-center justify-center">
-          <Music2 size={20} className="text-black" />
-        </div>
-        <span className="text-2xl font-extrabold text-brand tracking-tight">Saavn</span>
-      </div>
-
-      {/* Nav */}
-      <nav className="px-3 space-y-1">
-        {[
-          { icon: Home, label: 'Home', view: 'home' },
-          { icon: Search, label: 'Search', view: 'search' },
-          { icon: Library, label: 'Your Library', view: 'library' },
-        ].map(({ icon: Icon, label, view }) => (
-          <button
-            key={view}
-            onClick={() => { navigate(view); if (view === 'home') setSearchQuery(''); }}
-            className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-md text-sm font-semibold transition-all duration-200
-              ${currentView === view
-                ? 'bg-bg-card-hover text-white border-l-[3px] border-brand pl-[9px]'
-                : 'text-text-secondary hover:text-white hover:bg-bg-card'
-              }`}
-          >
-            <Icon size={22} />
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Browse */}
-      <div className="mt-6 px-5 flex-1 overflow-y-auto hide-scrollbar">
-        <h3 className="text-[11px] font-bold text-text-muted tracking-widest uppercase mb-3">Browse</h3>
-        <div className="flex flex-wrap gap-2">
-          {genres.map(g => (
-            <button
-              key={g}
-              onClick={() => browseGenre(g)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium bg-bg-card text-text-secondary
-                hover:bg-bg-card-hover hover:text-white transition-all duration-200"
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-border-subtle">
-        <p className="text-[10px] text-text-muted">Powered by JioSaavn</p>
-        <p className="text-[9px] text-text-muted mt-0.5">v1.0.0</p>
-      </div>
-    </aside>
-  );
-
-  // ── Top Bar ──
-  const TopBar = () => (
-    <div className="sticky top-0 z-20 flex items-center gap-4 px-6 py-4 bg-bg-primary/90 backdrop-blur-md">
-      {/* Nav arrows */}
-      <button onClick={goBack} disabled={historyIndex <= 0}
-        className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center disabled:opacity-30 hover:bg-bg-card-hover transition">
-        <ChevronLeft size={18} />
-      </button>
-      <button onClick={goForward} disabled={historyIndex >= viewHistory.length - 1}
-        className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center disabled:opacity-30 hover:bg-bg-card-hover transition">
-        <ChevronRight size={18} />
-      </button>
-
-      {/* Search */}
-      <div className="flex-1 max-w-xl relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            if (currentView !== 'search' && e.target.value) navigate('search');
-            if (!e.target.value && currentView === 'search') navigate('home');
-          }}
-          placeholder="What do you want to listen to?"
-          className="w-full py-2.5 pl-11 pr-10 rounded-full bg-bg-elevated text-sm text-white
-            placeholder-text-muted border border-transparent focus:border-white/20
-            focus:outline-none transition-all duration-200"
-        />
-        {searchQuery && (
-          <button onClick={() => { setSearchQuery(''); navigate('home'); }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white">
-            <X size={16} />
-          </button>
-        )}
-      </div>
+  // ── Views ──
+  const HomeView = () => (
+    <div className="px-8 pb-12 pt-4 fade-in max-w-[1800px] mx-auto">
+      <h1 className="text-[2rem] font-bold text-text-primary tracking-tight mb-8">
+        Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}
+      </h1>
+      <HSection title="Trending Now" items={homeFeed.trending.items} loading={homeFeed.trending.loading}
+        onItemClick={s => playTrack(s, homeFeed.trending.items)} currentId={currentSong?.id} isPlaying={isPlaying} />
+      <HSection title="Bollywood Hits" items={homeFeed.bollywood.items} loading={homeFeed.bollywood.loading}
+        onItemClick={s => playTrack(s, homeFeed.bollywood.items)} currentId={currentSong?.id} isPlaying={isPlaying} />
+      <HSection title="Global Top Hits" items={homeFeed.english.items} loading={homeFeed.english.loading}
+        onItemClick={s => playTrack(s, homeFeed.english.items)} currentId={currentSong?.id} isPlaying={isPlaying} />
     </div>
   );
 
-  // ── Home Page ──
-  const HomePage = () => (
-    <div className="px-6 pb-8 fade-in">
-      <h1 className="text-2xl font-bold text-white mb-6 mt-2">Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}</h1>
-      <HScrollSection title="Trending Now 🔥" songs={homeSections.trending.songs} loading={homeSections.trending.loading}
-        onSongClick={(s) => playSong(s, homeSections.trending.songs)} currentSong={currentSong} isPlaying={isPlaying} />
-      <HScrollSection title="Top Bollywood Hits" songs={homeSections.bollywood.songs} loading={homeSections.bollywood.loading}
-        onSongClick={(s) => playSong(s, homeSections.bollywood.songs)} currentSong={currentSong} isPlaying={isPlaying} />
-      <HScrollSection title="English Charts" songs={homeSections.english.songs} loading={homeSections.english.loading}
-        onSongClick={(s) => playSong(s, homeSections.english.songs)} currentSong={currentSong} isPlaying={isPlaying} />
-      <HScrollSection title="Romantic Songs 💕" songs={homeSections.romantic.songs} loading={homeSections.romantic.loading}
-        onSongClick={(s) => playSong(s, homeSections.romantic.songs)} currentSong={currentSong} isPlaying={isPlaying} />
-    </div>
-  );
-
-  // ── Search Results ──
-  const SearchResultsView = () => {
-    if (searchLoading) {
-      return (
-        <div className="px-6 pb-8 fade-in">
-          <h2 className="text-xl font-bold mb-4">Searching…</h2>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar">
-            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
+  const SearchView = () => {
+    if (searchLoading) return (
+      <div className="px-8 py-8 flex flex-wrap gap-4">{Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)}</div>
+    );
+    if (!searchResults) return (
+      <div className="px-8 py-8">
+        <h2 className="text-2xl font-bold mb-6">Browse all</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {['Hindi', 'English', 'Punjabi', 'Tamil', 'Telugu', 'Pop', 'Romance', 'Party', 'Devotional', 'Hip Hop'].map((g, i) => {
+            const cols = ['bg-pink-600', 'bg-purple-600', 'bg-orange-600', 'bg-emerald-600', 'bg-blue-600'];
+            return (
+              <div key={g} onClick={() => setSearchQuery(g)} className={`aspect-square rounded-xl p-4 cursor-pointer hover:scale-105 transition-transform ${cols[i % cols.length]} shadow-md relative overflow-hidden`}>
+                <span className="text-xl font-bold">{g}</span>
+                <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-black/20 rounded-full blur-xl" />
+              </div>
+            );
+          })}
         </div>
-      );
-    }
+      </div>
+    );
 
-    if (!searchResults) {
-      return (
-        <div className="px-6 pb-8 fade-in">
-          <h2 className="text-xl font-bold mb-4">Search</h2>
-          <p className="text-text-secondary text-sm">Start typing to search for songs, artists, and albums.</p>
-          {/* Genre Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
-            {genres.map((g, i) => {
-              const colors = ['from-indigo-600', 'from-pink-600', 'from-green-600', 'from-purple-600', 'from-orange-600', 'from-cyan-600', 'from-rose-600', 'from-amber-600'];
-              return (
-                <button key={g} onClick={() => browseGenre(g)}
-                  className={`relative h-[100px] rounded-lg bg-gradient-to-br ${colors[i % colors.length]} to-transparent overflow-hidden
-                    hover:scale-[1.02] transition-transform duration-200`}>
-                  <span className="absolute bottom-3 left-4 text-lg font-bold">{g}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    const { songs = [], albums = [], artists = [] } = searchResults;
-    const noResults = songs.length === 0 && albums.length === 0 && artists.length === 0;
-
-    if (noResults) {
-      return (
-        <div className="px-6 pb-8 fade-in flex flex-col items-center justify-center py-20">
-          <Search size={48} className="text-text-muted mb-4" />
-          <p className="text-xl font-bold mb-2">No results found for &ldquo;{searchQuery}&rdquo;</p>
-          <p className="text-text-secondary text-sm">Try different keywords or check for typos.</p>
-        </div>
-      );
-    }
+    const { songs, albums, artists } = searchResults;
+    if (!songs.length && !albums.length && !artists.length) return (
+      <div className="px-8 py-20 text-center"><p className="text-xl text-text-secondary">No results found for "{searchQuery}"</p></div>
+    );
 
     return (
-      <div className="px-6 pb-8 fade-in">
-        {/* Artists */}
-        {artists.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4">Artists</h2>
-            <div className="flex gap-5 overflow-x-auto hide-scrollbar pb-2">
-              {artists.map(artist => (
-                <button key={artist.id} onClick={() => openArtist(artist)}
-                  className="flex-shrink-0 flex flex-col items-center gap-2 group w-[120px]">
-                  <div className="w-[100px] h-[100px] rounded-full overflow-hidden bg-bg-card shadow-lg">
-                    <img src={getImage(artist.image)} alt={artist.name || artist.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                  </div>
-                  <p className="text-sm font-medium truncate w-full text-center group-hover:text-white text-text-secondary transition-colors">
-                    {artist.name || artist.title}
-                  </p>
-                  <p className="text-[10px] text-text-muted">Artist</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Songs */}
+      <div className="px-8 pb-12 pt-4 fade-in max-w-[1800px] mx-auto">
         {songs.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4">Songs</h2>
-            <div className="space-y-0.5">
-              {songs.slice(0, 20).map((song, i) => {
-                const isCurrent = currentSong?.id === song.id;
-                return (
-                  <button
-                    key={song.id || i}
-                    onClick={() => playSong(song, songs, i)}
-                    className={`w-full flex items-center gap-4 px-3 py-2 rounded-md group transition-all duration-150
-                      ${isCurrent ? 'bg-bg-card-hover' : 'hover:bg-bg-card'}`}
-                  >
-                    {/* Number / Play / Eq */}
-                    <div className="w-6 flex items-center justify-center">
-                      {isCurrent && isPlaying ? <EqBars /> :
-                        <span className="text-sm text-text-muted group-hover:hidden">{i + 1}</span>}
-                      {!(isCurrent && isPlaying) && <Play size={14} className="text-white hidden group-hover:block" fill="white" />}
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6">Top Songs</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {songs.slice(0, 8).map((s, i) => (
+                <button key={s.id} onClick={() => playTrack(s, songs, i)}
+                  className="flex items-center gap-4 p-2 rounded-md hover:bg-bg-card-hover group text-left w-full transition-colors">
+                  <div className="relative w-12 h-12 flex-shrink-0">
+                    <img src={getImage(s.image)} alt="" className="w-full h-full object-cover rounded shadow" />
+                    <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center rounded">
+                      <Play size={16} fill="white" />
                     </div>
-                    {/* Art */}
-                    <img src={getImage(song.image, 0)} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" loading="lazy" />
-                    {/* Info */}
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className={`text-sm font-medium truncate ${isCurrent ? 'text-brand' : 'text-white'}`}>
-                        {song.name || song.title}
-                      </p>
-                      <p className="text-xs text-text-secondary truncate">
-                        {typeof song.artists === 'object' && song.artists?.primary
-                          ? song.artists.primary.map(a => a.name).join(', ')
-                          : song.artist || song.subtitle || ''}
-                      </p>
-                    </div>
-                    {/* Album */}
-                    <p className="hidden md:block text-xs text-text-muted truncate max-w-[200px]">
-                      {song.album?.name || song.album || ''}
-                    </p>
-                    {/* Duration */}
-                    <span className="text-xs text-text-muted w-12 text-right">
-                      {formatTime(song.duration)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Albums */}
-        {albums.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4">Albums</h2>
-            <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
-              {albums.map(album => (
-                <button key={album.id} onClick={() => openAlbum(album)}
-                  className="flex-shrink-0 w-[160px] group text-left cursor-pointer">
-                  <div className="w-[160px] h-[160px] rounded-md overflow-hidden shadow-lg">
-                    <img src={getImage(album.image)} alt={album.name || album.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                   </div>
-                  <p className="mt-2 text-sm font-medium text-white truncate">{album.name || album.title}</p>
-                  <p className="text-xs text-text-secondary truncate">{album.artist || album.subtitle || album.year || ''}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-base font-medium truncate ${currentSong?.id === s.id ? 'text-brand' : 'text-white'}`}>{s.name || s.title}</p>
+                    <p className="text-sm text-text-secondary truncate">{s.subtitle}</p>
+                  </div>
+                  <span className="text-sm text-text-secondary w-12 text-right">{formatTime(s.duration)}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
-      </div>
-    );
-  };
-
-  // ── Artist Page ──
-  const ArtistPage = () => {
-    if (pageLoading || !artistData) {
-      return (
-        <div className="px-6 py-8 fade-in">
-          <div className="h-[280px] rounded-xl bg-bg-card skeleton-pulse mb-6" />
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-14 rounded-lg bg-bg-card skeleton-pulse" />
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    const artistName = artistData.name || artistData.title || '';
-    const imgSrc = getImage(artistData.image);
-    const topSongs = artistData.topSongs || [];
-    const fanCount = artistData.fanCount || artistData.followerCount;
-
-    return (
-      <div className="fade-in">
-        {/* Banner */}
-        <div className="relative h-[320px] overflow-hidden">
-          <img src={imgSrc} alt={artistName}
-            className="absolute inset-0 w-full h-full object-cover object-top" />
-          <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/60 to-transparent" />
-          <div className="absolute bottom-6 left-6">
-            <p className="text-xs text-text-secondary font-medium mb-1 uppercase tracking-widest">Artist</p>
-            <h1 className="text-5xl font-extrabold text-white drop-shadow-xl">{artistName}</h1>
-            {fanCount && (
-              <p className="text-sm text-text-secondary mt-2">{Number(fanCount).toLocaleString()} followers</p>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="px-6 py-4 flex items-center gap-4">
-          <button onClick={() => { if (topSongs.length > 0) playSong(topSongs[0], topSongs, 0); }}
-            className="w-14 h-14 rounded-full bg-brand flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
-            <Play size={24} className="text-black ml-0.5" fill="black" />
-          </button>
-        </div>
-
-        {/* Popular Songs */}
-        <div className="px-6 pb-8">
-          <h2 className="text-xl font-bold mb-4">Popular</h2>
-          <div className="space-y-0.5">
-            {topSongs.slice(0, 10).map((song, i) => {
-              const isCurrent = currentSong?.id === song.id;
-              return (
-                <button
-                  key={song.id || i}
-                  onClick={() => playSong(song, topSongs, i)}
-                  className={`w-full flex items-center gap-4 px-3 py-2 rounded-md group transition-all duration-150
-                    ${isCurrent ? 'bg-bg-card-hover' : 'hover:bg-bg-card'}`}
-                >
-                  <div className="w-6 flex items-center justify-center">
-                    {isCurrent && isPlaying ? <EqBars /> :
-                      <span className="text-sm text-text-muted group-hover:hidden">{i + 1}</span>}
-                    {!(isCurrent && isPlaying) && <Play size={14} className="text-white hidden group-hover:block" fill="white" />}
-                  </div>
-                  <img src={getImage(song.image, 0)} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" loading="lazy" />
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className={`text-sm font-medium truncate ${isCurrent ? 'text-brand' : 'text-white'}`}>
-                      {song.name || song.title}
-                    </p>
-                    <p className="text-xs text-text-secondary truncate">
-                      {typeof song.artists === 'object' && song.artists?.primary
-                        ? song.artists.primary.map(a => a.name).join(', ')
-                        : song.artist || song.subtitle || ''}
-                    </p>
-                  </div>
-                  <span className="text-xs text-text-muted">{formatTime(song.duration)}</span>
+        {artists.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6">Artists</h2>
+            <div className="flex gap-6 overflow-x-auto hide-scrollbar pb-4 -mx-2 px-2">
+              {artists.map(a => (
+                <button key={a.id} onClick={() => openArtist(a)} className="flex flex-col items-center gap-3 w-[140px] flex-shrink-0 group hover:bg-bg-card-hover p-3 rounded-xl transition-colors">
+                  <img src={getImage(a.image)} alt="" className="w-[110px] h-[110px] rounded-full object-cover shadow-lg group-hover:shadow-2xl transition-shadow" />
+                  <p className="text-base font-bold truncate w-full text-center">{a.name || a.title}</p>
+                  <span className="text-xs text-text-secondary">Artist</span>
                 </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ── Album Page ──
-  const AlbumPage = () => {
-    if (pageLoading || !albumData) {
-      return (
-        <div className="px-6 py-8 fade-in">
-          <div className="flex gap-6">
-            <div className="w-[230px] h-[230px] rounded-lg bg-bg-card skeleton-pulse flex-shrink-0" />
-            <div className="flex-1 space-y-3 pt-8">
-              <div className="h-8 w-2/3 rounded bg-bg-card skeleton-pulse" />
-              <div className="h-4 w-1/3 rounded bg-bg-card skeleton-pulse" />
-              <div className="h-4 w-1/4 rounded bg-bg-card skeleton-pulse" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const albumName = albumData.name || albumData.title;
-    const albumArt = getImage(albumData.image);
-    const songs = albumData.songs || [];
-    const artist = typeof albumData.artists === 'object' && albumData.artists?.primary
-      ? albumData.artists.primary.map(a => a.name).join(', ')
-      : albumData.artist || albumData.subtitle || '';
-
-    return (
-      <div className="fade-in">
-        {/* Header */}
-        <div className="px-6 pt-6 pb-6 flex gap-6 items-end bg-gradient-to-b from-bg-card/50 to-transparent">
-          <img src={albumArt} alt={albumName}
-            className="w-[230px] h-[230px] rounded-lg shadow-2xl object-cover flex-shrink-0" />
-          <div>
-            <p className="text-xs text-text-secondary font-medium uppercase tracking-widest mb-1">Album</p>
-            <h1 className="text-4xl font-extrabold text-white mb-3">{albumName}</h1>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <span className="font-medium text-white">{artist}</span>
-              {albumData.year && <><span>•</span><span>{albumData.year}</span></>}
-              {songs.length > 0 && <><span>•</span><span>{songs.length} songs</span></>}
-            </div>
-          </div>
-        </div>
-
-        {/* Play All */}
-        <div className="px-6 py-4 flex items-center gap-4">
-          <button onClick={() => { if (songs.length > 0) playSong(songs[0], songs, 0); }}
-            className="w-14 h-14 rounded-full bg-brand flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
-            <Play size={24} className="text-black ml-0.5" fill="black" />
-          </button>
-        </div>
-
-        {/* Track List */}
-        <div className="px-6 pb-8">
-          {/* Header row */}
-          <div className="flex items-center gap-4 px-3 py-2 border-b border-border-subtle text-text-muted text-xs mb-2">
-            <span className="w-6 text-center">#</span>
-            <span className="flex-1">Title</span>
-            <Clock size={14} />
-          </div>
-          <div className="space-y-0.5">
-            {songs.map((song, i) => {
-              const isCurrent = currentSong?.id === song.id;
-              return (
-                <button
-                  key={song.id || i}
-                  onClick={() => playSong(song, songs, i)}
-                  className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-md group transition-all duration-150
-                    ${isCurrent ? 'bg-bg-card-hover' : 'hover:bg-bg-card'}`}
-                >
-                  <div className="w-6 flex items-center justify-center">
-                    {isCurrent && isPlaying ? <EqBars /> :
-                      <span className="text-sm text-text-muted group-hover:hidden">{i + 1}</span>}
-                    {!(isCurrent && isPlaying) && <Play size={14} className="text-white hidden group-hover:block" fill="white" />}
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className={`text-sm font-medium truncate ${isCurrent ? 'text-brand' : 'text-white'}`}>
-                      {song.name || song.title}
-                    </p>
-                    <p className="text-xs text-text-secondary truncate">
-                      {typeof song.artists === 'object' && song.artists?.primary
-                        ? song.artists.primary.map(a => a.name).join(', ')
-                        : song.artist || song.subtitle || ''}
-                    </p>
-                  </div>
-                  <span className="text-xs text-text-muted">{formatTime(song.duration)}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ── Queue Panel ──
-  const [showQueue, setShowQueue] = useState(false);
-
-  const QueuePanel = () => {
-    if (!showQueue) return null;
-    return (
-      <div className="fixed right-0 top-0 bottom-[90px] w-[320px] bg-bg-secondary border-l border-border-subtle z-30 flex flex-col fade-in">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
-          <h3 className="text-base font-bold">Queue</h3>
-          <button onClick={() => setShowQueue(false)} className="text-text-muted hover:text-white transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-3 py-2">
-          {queue.length === 0 ? (
-            <p className="text-sm text-text-muted text-center mt-10">Queue is empty</p>
-          ) : (
-            <div className="space-y-0.5">
-              {queue.map((song, i) => {
-                const isCurrent = i === queueIndex;
-                return (
-                  <button key={`${song.id}-${i}`}
-                    onClick={() => {
-                      setQueueIndex(i);
-                      const url = getBestUrl(song.downloadUrl);
-                      if (url) {
-                        setCurrentSong(song);
-                        const audio = audioRef.current;
-                        if (audio) { audio.src = url; audio.play().then(() => setIsPlaying(true)).catch(() => { }); }
-                      }
-                    }}
-                    className={`w-full flex items-center gap-3 px-2 py-2 rounded-md transition-all duration-150
-                      ${isCurrent ? 'bg-bg-card-hover' : 'hover:bg-bg-card'}`}
-                  >
-                    {isCurrent && isPlaying ? <EqBars /> : <span className="text-xs text-text-muted w-4">{i + 1}</span>}
-                    <img src={getImage(song.image, 0)} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0" loading="lazy" />
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className={`text-xs font-medium truncate ${isCurrent ? 'text-brand' : 'text-white'}`}>
-                        {song.name || song.title}
-                      </p>
-                      <p className="text-[10px] text-text-secondary truncate">
-                        {typeof song.artists === 'object' && song.artists?.primary
-                          ? song.artists.primary.map(a => a.name).join(', ')
-                          : song.artist || song.subtitle || ''}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // ── Player Bar ──
-  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
-
-  const PlayerBar = () => (
-    <div className="fixed bottom-0 left-0 right-0 h-[90px] bg-bg-card border-t border-border-subtle z-40 flex items-center px-4">
-      {/* Left - Song Info */}
-      <div className="flex items-center gap-3 w-[30%] min-w-0">
-        {currentSong ? (
-          <>
-            <img src={getImage(currentSong.image, 1)} alt=""
-              className="w-14 h-14 rounded-md object-cover shadow-lg flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">{currentSong.name || currentSong.title}</p>
-              <p className="text-xs text-text-secondary truncate">
-                {typeof currentSong.artists === 'object' && currentSong.artists?.primary
-                  ? currentSong.artists.primary.map(a => a.name).join(', ')
-                  : currentSong.artist || currentSong.subtitle || ''}
-              </p>
-            </div>
-            <button onClick={() => setLiked(prev => {
-              const n = new Set(prev);
-              n.has(currentSong.id) ? n.delete(currentSong.id) : n.add(currentSong.id);
-              return n;
-            })} className="flex-shrink-0 ml-1">
-              <Heart size={16}
-                className={`transition-colors ${liked.has(currentSong?.id) ? 'text-brand fill-brand' : 'text-text-muted hover:text-white'}`} />
-            </button>
-          </>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-md bg-bg-elevated flex items-center justify-center">
-              <Music2 size={20} className="text-text-muted" />
-            </div>
-            <div>
-              <p className="text-sm text-text-muted">No song playing</p>
+              ))}
             </div>
           </div>
         )}
+        {albums.length > 0 && (
+          <HSection title="Albums" items={albums} onItemClick={openAlbum} />
+        )}
       </div>
+    );
+  };
 
-      {/* Center - Controls */}
-      <div className="flex flex-col items-center w-[40%]">
-        {/* Buttons */}
-        <div className="flex items-center gap-5 mb-1.5">
-          <button onClick={() => setIsShuffle(!isShuffle)}
-            className={`transition-colors ${isShuffle ? 'text-brand' : 'text-text-secondary hover:text-white'}`}>
-            <Shuffle size={16} />
-          </button>
-          <button onClick={playPrev} className="text-text-secondary hover:text-white transition-colors">
-            <SkipBack size={18} fill="currentColor" />
-          </button>
-          <button onClick={togglePlay}
-            className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform">
-            {isPlaying
-              ? <Pause size={18} className="text-black" fill="black" />
-              : <Play size={18} className="text-black ml-0.5" fill="black" />}
-          </button>
-          <button onClick={playNext} className="text-text-secondary hover:text-white transition-colors">
-            <SkipForward size={18} fill="currentColor" />
-          </button>
-          <button onClick={() => setIsRepeat(!isRepeat)}
-            className={`transition-colors ${isRepeat ? 'text-brand' : 'text-text-secondary hover:text-white'}`}>
-            <Repeat size={16} />
-          </button>
-        </div>
-        {/* Progress */}
-        <div className="flex items-center gap-2 w-full max-w-lg">
-          <span className="text-[11px] text-text-muted w-10 text-right font-mono">{formatTime(currentTime)}</span>
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            value={currentTime}
-            onChange={handleSeek}
-            className="flex-1 h-1 progress-bar"
-            style={{ '--progress': `${progressPct}%` }}
-          />
-          <span className="text-[11px] text-text-muted w-10 font-mono">{formatTime(duration)}</span>
-        </div>
-      </div>
-
-      {/* Right - Volume + Queue */}
-      <div className="flex items-center justify-end gap-3 w-[30%]">
-        <button onClick={() => setShowQueue(!showQueue)}
-          className={`transition-colors ${showQueue ? 'text-brand' : 'text-text-secondary hover:text-white'}`}>
-          <ListMusic size={18} />
+  const TrackListView = ({ headerRef, tracks = [], isAlbum = false }) => (
+    <div className="px-8 pb-12 max-w-[1800px] mx-auto fade-in">
+      <div className="flex items-center gap-6 mb-8 pt-6">
+        <button onClick={() => { if (tracks.length) playTrack(tracks[0], tracks, 0) }}
+          className="w-14 h-14 rounded-full bg-brand flex items-center justify-center hover:scale-105 transition-transform text-black shadow-lg">
+          <Play size={24} className="ml-1" fill="currentColor" />
         </button>
-        <VolumeIcon size={18} className="text-text-secondary flex-shrink-0" />
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={volume}
-          onChange={handleVolume}
-          className="w-24 h-1 progress-bar"
-          style={{ '--progress': `${volume * 100}%` }}
-        />
+        <button className="text-text-secondary hover:text-white"><Heart size={32} /></button>
+        <button className="text-text-secondary hover:text-white"><MoreHorizontal size={32} /></button>
+      </div>
+      <div>
+        <div className="flex items-center gap-4 px-4 py-2 border-b border-border-subtle text-text-secondary text-sm mb-4">
+          <span className="w-6 text-center">#</span>
+          <span className="flex-1">Title</span>
+          {!isAlbum && <span className="flex-1 hidden md:block">Album</span>}
+          <Clock size={16} />
+        </div>
+        {tracks.map((s, i) => {
+          const isCur = currentSong?.id === s.id;
+          return (
+            <button key={s.id} onClick={() => playTrack(s, tracks, i)}
+              className="w-full flex items-center gap-4 px-4 py-2.5 rounded-md hover:bg-bg-card-hover group transition-colors text-left focus:outline-none">
+              <div className="w-6 flex justify-center text-text-secondary text-base">
+                {isCur && isPlaying ? <EqBars /> : <span className="group-hover:hidden">{i + 1}</span>}
+                {(!isCur || !isPlaying) && <Play size={16} fill="white" className="hidden group-hover:block" />}
+              </div>
+              <img src={getImage(s.image)} alt="" className="w-10 h-10 rounded shadow object-cover" />
+              <div className="flex-1 min-w-0">
+                <p className={`text-base truncate ${isCur ? 'text-brand' : 'text-white'}`}>{s.name || s.title}</p>
+                <p className="text-sm text-text-secondary truncate">{s.subtitle}</p>
+              </div>
+              {!isAlbum && <p className="flex-1 hidden md:block text-sm text-text-secondary truncate">{s.album?.name || s.album}</p>}
+              <span className="text-sm text-text-secondary w-12 text-right">{formatTime(s.duration)}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 
-  // ── Render view content ──
-  const renderView = () => {
-    switch (currentView) {
-      case 'search': return <SearchResultsView />;
-      case 'artist': return <ArtistPage />;
-      case 'album': return <AlbumPage />;
-      case 'library': return (
-        <div className="px-6 py-8 fade-in flex flex-col items-center justify-center min-h-[400px]">
-          <Library size={48} className="text-text-muted mb-4" />
-          <h2 className="text-xl font-bold mb-2">Your Library</h2>
-          <p className="text-text-secondary text-sm">Sign in to save your favorite tracks.</p>
+  const ArtistAlbumView = () => {
+    if (pageLoading) return <div className="px-8 py-12"><div className="w-full h-[300px] skeleton-pulse bg-bg-card rounded-2xl" /></div>;
+    const isArtist = currentView === 'artist';
+    const data = isArtist ? artistData : albumData;
+    if (!data) return null;
+
+    return (
+      <div className="relative fade-in">
+        <div className={`h-[340px] px-8 flex items-end pb-6 ${isArtist ? '' : 'bg-gradient-to-b from-bg-card to-bg-primary'}`}>
+          {isArtist ? (
+            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0" style={{ backgroundImage: `url(${getImage(data.image)})` }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/50 to-transparent" />
+            </div>
+          ) : (
+            <img src={getImage(data.image)} className="w-[232px] h-[232px] rounded shadow-2xl z-10 mr-6 object-cover" />
+          )}
+          <div className="z-10 w-full">
+            <h2 className="text-sm font-bold uppercase tracking-widest mb-2 opacity-80">{isArtist ? 'Artist' : 'Album'}</h2>
+            <h1 className="text-[4rem] font-bold text-white tracking-tighter leading-none mb-4 drop-shadow-lg">
+              {data.name || data.title}
+            </h1>
+            <p className="text-sm font-medium opacity-80">{isArtist ? `${Number(data.fanCount || data.followerCount || 0).toLocaleString()} followers` : data.subtitle}</p>
+          </div>
         </div>
-      );
-      default: return <HomePage />;
-    }
+        <TrackListView tracks={data.topSongs || data.songs || []} isAlbum={!isArtist} />
+      </div>
+    );
   };
 
+  // ── Render Shell ──
   return (
-    <div className="h-screen flex flex-col bg-bg-primary font-sans">
+    <div className="h-screen flex flex-col bg-bg-primary text-text-primary antialiased">
       <audio ref={audioRef} preload="auto" />
-      <Sidebar />
-      <QueuePanel />
 
-      {/* Main content */}
-      <main
-        className="ml-[240px] flex-1 overflow-y-auto hide-scrollbar pb-[90px]"
-        style={{ marginRight: showQueue ? '320px' : '0' }}
-      >
-        <TopBar />
-        {renderView()}
-      </main>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-[260px] bg-bg-sidebar flex flex-col shrink-0">
+          <div className="px-6 py-6 cursor-pointer flex gap-3 items-center group" onClick={() => navigate('home')}>
+            <div className="w-8 h-8 bg-brand rounded-full flex items-center justify-center text-black shadow-[0_0_15px_rgba(29,185,84,0.4)] group-hover:scale-105 transition-transform">
+              <Music2 size={16} />
+            </div>
+            <span className="text-[22px] font-bold tracking-tight text-white">SoulSync</span>
+          </div>
+          <nav className="px-3 flex flex-col gap-1">
+            <button onClick={() => navigate('home')} className={`flex items-center gap-4 px-3 py-3 rounded-md font-bold transition-colors ${currentView === 'home' ? 'bg-bg-card text-white' : 'text-text-secondary hover:text-white'}`}>
+              <Home size={24} className={currentView === 'home' ? 'text-white' : ''} /> Home
+            </button>
+            <button onClick={() => navigate('search')} className={`flex items-center gap-4 px-3 py-3 rounded-md font-bold transition-colors ${currentView === 'search' ? 'bg-bg-card text-white' : 'text-text-secondary hover:text-white'}`}>
+              <Search size={24} className={currentView === 'search' ? 'text-white' : ''} /> Search
+            </button>
+          </nav>
+        </aside>
 
-      <PlayerBar />
+        {/* content window */}
+        <main className="flex-1 bg-bg-card overflow-y-auto hide-scrollbar rounded-lg mt-2 mr-2 mb-2 shadow-[0_0_40px_rgba(0,0,0,0.8)] relative border border-border-subtle">
+          {/* Header */}
+          <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-bg-card/90 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <button onClick={() => { if (hIndex > 0) { setHIndex(hIndex - 1); setCurrentView(viewHistory[hIndex - 1].view); setViewData(viewHistory[hIndex - 1].data); } }}
+                className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:scale-105 disabled:opacity-30"><ChevronLeft size={20} /></button>
+              <button onClick={() => { if (hIndex < viewHistory.length - 1) { setHIndex(hIndex + 1); setCurrentView(viewHistory[hIndex + 1].view); setViewData(viewHistory[hIndex + 1].data); } }}
+                className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:scale-105 disabled:opacity-30"><ChevronRight size={20} /></button>
+              {currentView === 'search' && (
+                <div className="ml-4 relative w-[320px]">
+                  <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+                  <input type="text" autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="What do you want to play?"
+                    className="w-full bg-[#242424] text-white rounded-full py-2.5 pl-10 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/20 border border-transparent shadow-inner" />
+                  {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white"><X size={18} /></button>}
+                </div>
+              )}
+            </div>
+          </header>
+          {currentView === 'home' && <HomeView />}
+          {currentView === 'search' && <SearchView />}
+          {(currentView === 'artist' || currentView === 'album') && <ArtistAlbumView />}
+        </main>
+      </div>
 
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-[100px] right-6 z-50 px-4 py-2.5 rounded-lg shadow-xl text-sm font-medium fade-in
-          ${toast.type === 'error' ? 'bg-red-600/90 text-white' : 'bg-brand text-black'}`}>
-          {toast.msg}
+      {/* Player Bar */}
+      <footer className="h-[90px] bg-bg-primary shrink-0 flex items-center justify-between px-4 border-t border-border-subtle z-50">
+        <div className="w-[30%] flex items-center gap-4 h-full pr-4 overflow-hidden">
+          {currentSong ? (
+            <>
+              <img src={getImage(currentSong.image)} className="w-14 h-14 rounded object-cover shadow-lg" alt="" />
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p className="text-sm font-bold text-white truncate hover:underline cursor-pointer">{currentSong.name || currentSong.title}</p>
+                <p className="text-xs text-text-secondary truncate hover:underline cursor-pointer hover:text-white mt-1">{currentSong.subtitle}</p>
+              </div>
+              <button onClick={() => setLiked(prev => { const n = new Set(prev); n.has(currentSong.id) ? n.delete(currentSong.id) : n.add(currentSong.id); return n; })}>
+                <Heart size={16} className={liked.has(currentSong?.id) ? 'text-brand fill-brand' : 'text-text-secondary hover:text-white'} />
+              </button>
+            </>
+          ) : <div className="text-text-secondary text-sm font-medium">No active track</div>}
         </div>
-      )}
+
+        <div className="w-[40%] flex flex-col items-center justify-center">
+          <div className="flex items-center gap-6 mb-2">
+            <button onClick={() => setSettings(prev => ({ ...prev, shuffle: !prev.shuffle }))} className={`${settings.shuffle ? 'text-brand' : 'text-text-secondary'} hover:text-white`}><Shuffle size={18} /></button>
+            <button onClick={playPrev} className="text-text-secondary hover:text-white"><SkipBack size={20} fill="currentColor" /></button>
+            <button onClick={togglePlay} className="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform text-black shrink-0">
+              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
+            </button>
+            <button onClick={playNext} className="text-text-secondary hover:text-white"><SkipForward size={20} fill="currentColor" /></button>
+            <button onClick={() => setSettings(prev => ({ ...prev, repeat: !prev.repeat }))} className={`${settings.repeat ? 'text-brand' : 'text-text-secondary'} hover:text-white`}><Repeat size={18} /></button>
+          </div>
+          <div className="flex items-center gap-2 w-full max-w-[600px]">
+            <span className="text-xs text-text-secondary w-10 text-right">{formatTime(progress.current)}</span>
+            <div className="flex-1 relative group flex items-center h-4">
+              <input type="range" min={0} max={progress.duration || 0} value={progress.current}
+                onChange={e => { const val = parseFloat(e.target.value); if (audioRef.current) audioRef.current.currentTime = val; setProgress(p => ({ ...p, current: val })) }}
+                className="w-full absolute z-10 opacity-0 group-hover:opacity-100 cursor-pointer" />
+              <div className="h-1 bg-[#4d4d4d] w-full rounded-full overflow-hidden absolute">
+                <div className="h-full bg-white group-hover:bg-brand transition-colors" style={{ width: `${(progress.current / (progress.duration || 1)) * 100}%` }} />
+              </div>
+            </div>
+            <span className="text-xs text-text-secondary w-10">{formatTime(progress.duration)}</span>
+          </div>
+        </div>
+
+        <div className="w-[30%] flex justify-end items-center gap-4 pl-4">
+          {volume === 0 ? <VolumeX size={18} className="text-text-secondary" /> : volume < 0.5 ? <Volume1 size={18} className="text-text-secondary" /> : <Volume2 size={18} className="text-text-secondary" />}
+          <div className="w-[100px] relative group flex items-center h-4">
+            <input type="range" min={0} max={1} step={0.01} value={volume} onChange={e => setVolume(parseFloat(e.target.value))}
+              className="w-full absolute z-10 opacity-0 group-hover:opacity-100 cursor-pointer" />
+            <div className="h-1 bg-[#4d4d4d] w-full rounded-full overflow-hidden absolute">
+              <div className="h-full bg-white group-hover:bg-brand transition-colors" style={{ width: `${volume * 100}%` }} />
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {toast && <div className="fixed bottom-[110px] left-1/2 -translate-x-1/2 bg-[#2e77d0] text-white px-6 py-3 rounded-lg font-bold shadow-2xl z-50 fade-in">{toast}</div>}
     </div>
   );
 }
