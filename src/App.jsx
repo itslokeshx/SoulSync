@@ -1,569 +1,2463 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Home, Search, Library, ChevronLeft, ChevronRight,
-  Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
-  Volume2, Volume1, VolumeX, Heart, Music2, ListMusic,
-  Clock, X, MoreHorizontal, Maximize2
-} from 'lucide-react';
+  Home,
+  Search,
+  Library,
+  Music2,
+  SkipBack,
+  SkipForward,
+  Play,
+  Pause,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  Volume2,
+  VolumeX,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  ListMusic,
+  X,
+  ChevronDown,
+  MoreHorizontal,
+} from "lucide-react";
 
-const API_BASE = '/api';
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS & API
+// ─────────────────────────────────────────────────────────────────────────────
+const API = "https://jiosaavn.rajputhemant.dev";
+// NOTE: This API uses snake_case fields. image[].link, download_url[].link, artist_map.primary_artists
 
-// ─── UTILITIES ──────────────────────────────────────────
-const formatTime = (s) => {
-  if (!s || isNaN(s)) return '0:00';
+const FALLBACK_IMG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23282828'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' font-size='64' fill='%23535353'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";
+
+const GENRE_CATEGORIES = [
+  { label: "Trending 🔥", q: "trending hindi 2024", color: "#e13300" },
+  { label: "Bollywood 🎬", q: "bollywood hits 2024", color: "#8b5cf6" },
+  { label: "Pop", q: "pop hits 2024", color: "#0d72ea" },
+  { label: "Hip-Hop 🎤", q: "hip hop rap 2024", color: "#e91429" },
+  { label: "Romance 💕", q: "romantic hindi songs", color: "#e91e8c" },
+  { label: "Party 🎉", q: "party dance songs 2024", color: "#f59b23" },
+  { label: "Devotional 🕉️", q: "devotional bhajan songs", color: "#d97706" },
+  { label: "English 🌍", q: "english top hits 2024", color: "#148a08" },
+  { label: "Punjabi 🎺", q: "punjabi hits 2024", color: "#dc2626" },
+  { label: "Workout 💪", q: "workout motivation songs", color: "#1db954" },
+  { label: "Sad 🌧️", q: "sad emotional hindi songs", color: "#56688a" },
+  { label: "Classical 🎻", q: "classical indian music", color: "#7c3aed" },
+];
+
+const HOME_SECTIONS = [
+  {
+    key: "trending",
+    title: "Trending Now",
+    icon: "🔥",
+    query: "trending hindi 2024",
+  },
+  {
+    key: "bollywood",
+    title: "Top Bollywood Hits",
+    icon: "🎬",
+    query: "bollywood hits 2024",
+  },
+  {
+    key: "english",
+    title: "English Charts",
+    icon: "🌍",
+    query: "english top hits 2024",
+  },
+  {
+    key: "romantic",
+    title: "Romantic Vibes",
+    icon: "💕",
+    query: "romantic hindi songs",
+  },
+  {
+    key: "party",
+    title: "Party Anthems",
+    icon: "🎉",
+    query: "party dance songs 2024",
+  },
+  {
+    key: "punjabi",
+    title: "Punjabi Hits",
+    icon: "🎺",
+    query: "punjabi hits 2024",
+  },
+];
+
+const POPULAR_ARTISTS = [
+  "Arijit Singh",
+  "Shreya Ghoshal",
+  "AP Dhillon",
+  "Diljit Dosanjh",
+  "AR Rahman",
+  "Pritam",
+  "Badshah",
+  "Neha Kakkar",
+  "Jubin Nautiyal",
+  "Atif Aslam",
+  "KK",
+  "Sonu Nigam",
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+const bestUrl = (urls) => {
+  if (!urls) return null;
+  if (typeof urls === "string") return urls;
+  if (!Array.isArray(urls) || !urls.length) return null;
+  for (const q of ["320kbps", "160kbps", "96kbps", "48kbps", "12kbps"]) {
+    const f = urls.find((u) => u.quality === q);
+    if (f?.link) return f.link;
+    if (f?.url) return f.url; // fallback camelCase
+  }
+  const last = urls[urls.length - 1];
+  return last?.link || last?.url || null;
+};
+
+const bestImg = (images, prefer = "500x500") => {
+  if (!images) return null;
+  if (typeof images === "string") return images;
+  if (!Array.isArray(images)) return images?.link || images?.url || null;
+  if (!images.length) return null;
+  for (const q of [prefer, "500x500", "150x150", "50x50"]) {
+    const f = images.find((i) => i.quality === q);
+    if (f?.link) return f.link;
+    if (f?.url) return f.url;
+  }
+  const last = images[images.length - 1];
+  return last?.link || last?.url || null;
+};
+
+const fmt = (s) => {
+  if (!s || isNaN(s)) return "0:00";
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
-  return `${m}:${sec.toString().padStart(2, '0')}`;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
 };
 
-const getBestUrl = (downloadUrl) => {
-  if (!downloadUrl || !Array.isArray(downloadUrl) || downloadUrl.length === 0) return null;
-  const sorted = [...downloadUrl].sort((a, b) => {
-    const q = { '12kbps': 1, '48kbps': 2, '96kbps': 3, '160kbps': 4, '320kbps': 5 };
-    return (q[b.quality] || 0) - (q[a.quality] || 0);
+const getArtists = (song) => {
+  if (!song) return "—";
+  // snake_case API: artist_map.primary_artists
+  if (
+    Array.isArray(song.artist_map?.primary_artists) &&
+    song.artist_map.primary_artists.length
+  )
+    return song.artist_map.primary_artists.map((a) => a.name).join(", ");
+  // camelCase fallback
+  if (Array.isArray(song.artists?.primary) && song.artists.primary.length)
+    return song.artists.primary.map((a) => a.name).join(", ");
+  // music field (common in search results)
+  if (song.music) return song.music;
+  return song.primaryArtists || song.subtitle || "—";
+};
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning ☀️";
+  if (h < 17) return "Good afternoon 🌤️";
+  return "Good evening 🌙";
+};
+
+const onImgErr = (e) => {
+  e.target.onerror = null;
+  e.target.src = FALLBACK_IMG;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DYNAMIC COLOR EXTRACTION
+// ─────────────────────────────────────────────────────────────────────────────
+const PRESET_COLORS = [
+  "#1a3a2a",
+  "#1a2847",
+  "#47251a",
+  "#2d1a47",
+  "#1a3d47",
+  "#3a3a1a",
+  "#471a2d",
+  "#1a3347",
+  "#3d2a1a",
+  "#1a473d",
+];
+const hashColor = (id) => {
+  let h = 0;
+  for (const c of id || "") h = c.charCodeAt(0) + ((h << 5) - h);
+  return PRESET_COLORS[Math.abs(h) % PRESET_COLORS.length];
+};
+
+const extractColor = (imgUrl) =>
+  new Promise((resolve) => {
+    if (!imgUrl) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const cv = document.createElement("canvas");
+        cv.width = 20;
+        cv.height = 20;
+        const ctx = cv.getContext("2d");
+        ctx.drawImage(img, 0, 0, 20, 20);
+        const d = ctx.getImageData(0, 0, 20, 20).data;
+        let r = 0,
+          g = 0,
+          b = 0,
+          n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          const lum = (d[i] + d[i + 1] + d[i + 2]) / 3;
+          if (lum < 20 || lum > 230) continue;
+          r += d[i];
+          g += d[i + 1];
+          b += d[i + 2];
+          n++;
+        }
+        if (!n) return resolve(null);
+        const f = 0.42;
+        resolve(
+          `rgb(${Math.round((r / n) * f)},${Math.round((g / n) * f)},${Math.round((b / n) * f)})`,
+        );
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = imgUrl;
   });
-  return sorted[0]?.link || sorted[0]?.url || null;
-};
 
-const getImage = (images, size = 2) => {
-  if (!images) return '';
-  if (Array.isArray(images)) return images[Math.min(size, images.length - 1)]?.link || images[0]?.link || '';
-  if (typeof images === 'string') return images;
-  return '';
-};
-
-// ─── API ABSTRACTION ────────────────────────────────────
-const api = {
-  get: async (endpoint, signal) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOM HOOKS
+// ─────────────────────────────────────────────────────────────────────────────
+const useLikedSongs = () => {
+  const [liked, setLiked] = useState(() => {
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`, { signal });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
-      return data.data || data;
-    } catch (e) {
-      if (e.name !== 'AbortError') console.error('API Error:', e);
-      return null;
+      return JSON.parse(localStorage.getItem("ss_liked") || "{}");
+    } catch {
+      return {};
     }
-  }
+  });
+  const toggle = useCallback((song) => {
+    setLiked((prev) => {
+      const next = { ...prev };
+      if (next[song.id]) {
+        delete next[song.id];
+      } else {
+        next[song.id] = {
+          id: song.id,
+          name: song.name,
+          image: song.image,
+          artists: song.artists,
+          primaryArtists: song.primaryArtists,
+          duration: song.duration,
+        };
+      }
+      localStorage.setItem("ss_liked", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  return [liked, toggle];
 };
 
-// ─── UI COMPONENTS ──────────────────────────────────────
-const EqBars = memo(() => (
-  <div className="flex items-end gap-[2px] h-3">
-    <div className="w-[3px] bg-brand rounded-sm eq-bar-1" />
-    <div className="w-[3px] bg-brand rounded-sm eq-bar-2" />
-    <div className="w-[3px] bg-brand rounded-sm eq-bar-3" />
-    <div className="w-[3px] bg-brand rounded-sm eq-bar-4" />
-  </div>
-));
-EqBars.displayName = 'EqBars';
-
-const CardSkeleton = () => (
-  <div className="flex-shrink-0 w-[160px]">
-    <div className="w-[160px] h-[160px] rounded-lg bg-bg-card-hover skeleton-pulse shadow-md mb-3" />
-    <div className="h-3.5 w-3/4 rounded bg-bg-card-hover skeleton-pulse mb-2" />
-    <div className="h-2.5 w-1/2 rounded bg-bg-card-hover skeleton-pulse" />
-  </div>
-);
-
-const SongCard = memo(({ song, onClick, isPlaying, isCurrent }) => (
-  <button
-    onClick={() => onClick(song)}
-    className="flex-shrink-0 w-[160px] group text-left cursor-pointer transition-colors p-3 hover:bg-bg-card-hover rounded-xl"
-  >
-    <div className="relative w-full aspect-square rounded-md overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] mb-4">
-      <img src={getImage(song.image)} alt={song.name || song.title} loading="lazy"
-        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-      <div className={`absolute inset-0 bg-black/40 flex flex-col items-center justify-center transition-opacity duration-200
-        ${isCurrent ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-        {isCurrent && isPlaying ? (
-          <EqBars />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-brand flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.4)] hover:scale-105 transition-transform text-black hover:bg-brand-hover">
-            <Play size={24} className="ml-1" fill="currentColor" />
-          </div>
-        )}
-      </div>
-    </div>
-    <p className="text-sm font-bold text-text-primary truncate">{song.name || song.title || 'Unknown'}</p>
-    <p className="text-xs text-text-secondary truncate mt-1">
-      {typeof song.artists === 'object' && song.artists?.primary
-        ? song.artists.primary.map(a => a.name).join(', ')
-        : song.artist || song.subtitle || ''}
-    </p>
-  </button>
-));
-SongCard.displayName = 'SongCard';
-
-const HSection = ({ title, items, loading, onItemClick, currentId, isPlaying }) => (
-  <div className="mb-10 fade-in">
-    <div className="flex items-end justify-between mb-5 px-1">
-      <h2 className="text-2xl font-bold tracking-tight text-text-primary">{title}</h2>
-    </div>
-    <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-2 px-2 pb-4">
-      {loading
-        ? Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)
-        : items.map((item, i) => (
-          <SongCard
-            key={item.id || i}
-            song={item}
-            onClick={onItemClick}
-            isPlaying={isPlaying}
-            isCurrent={currentId === item.id}
-          />
-        ))
-      }
-    </div>
-  </div>
-);
-
-// ─── APP SHELL ──────────────────────────────────────────
-export default function App() {
-  const [currentView, setCurrentView] = useState('home');
-  const [viewHistory, setViewHistory] = useState([{ view: 'home', data: null }]);
-  const [hIndex, setHIndex] = useState(0);
-  const [viewData, setViewData] = useState(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const abortRef = useRef(null);
-
-  const [homeFeed, setHomeFeed] = useState({
-    trending: { items: [], loading: true },
-    bollywood: { items: [], loading: true },
-    english: { items: [], loading: true }
+const useRecentlyPlayed = () => {
+  const [recent, setRecent] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("ss_recent") || "[]");
+    } catch {
+      return [];
+    }
   });
-
-  const [currentSong, setCurrentSong] = useState(null);
-  const [queue, setQueue] = useState([]);
-  const [queueIdx, setQueueIdx] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, duration: 0 });
-  const [volume, setVolume] = useState(1);
-  const [settings, setSettings] = useState({ shuffle: false, repeat: false });
-  const [liked, setLiked] = useState(new Set());
-  const audioRef = useRef(null);
-
-  const [artistData, setArtistData] = useState(null);
-  const [albumData, setAlbumData] = useState(null);
-  const [pageLoading, setPageLoading] = useState(false);
-  const [toast, setToast] = useState(null);
-
-  // ── Helpers ──
-  const showToast = useCallback(msg => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }, []);
-
-  const navigate = useCallback((view, data = null) => {
-    setCurrentView(view);
-    setViewData(data);
-    setViewHistory(prev => {
-      const slice = prev.slice(0, hIndex + 1);
-      return [...slice, { view, data }];
+  const add = useCallback((song) => {
+    setRecent((prev) => {
+      const next = [song, ...prev.filter((s) => s.id !== song.id)].slice(0, 20);
+      localStorage.setItem("ss_recent", JSON.stringify(next));
+      return next;
     });
-    setHIndex(prev => prev + 1);
-  }, [hIndex]);
-
-  // ── Fetch Home Feed ──
-  useEffect(() => {
-    const fetchHome = async () => {
-      const qs = [
-        { key: 'trending', q: 'trending hindi' },
-        { key: 'bollywood', q: 'bollywood hits' },
-        { key: 'english', q: 'global top hits' }
-      ];
-      for (const { key, q } of qs) {
-        const data = await api.get(`/search/songs?q=${encodeURIComponent(q)}&page=1&n=12`);
-        setHomeFeed(prev => ({
-          ...prev,
-          [key]: { items: data?.results || [], loading: false }
-        }));
-      }
-    };
-    fetchHome();
   }, []);
+  return [recent, add];
+};
 
-  // ── Search ──
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults(null);
-      setSearchLoading(false);
-      return;
-    }
-    setSearchLoading(true);
-    const t = setTimeout(async () => {
-      if (abortRef.current) abortRef.current.abort();
-      abortRef.current = new AbortController();
-      const signal = abortRef.current.signal;
-      const q = encodeURIComponent(searchQuery);
-
-      const [songs, albums, artists] = await Promise.all([
-        api.get(`/search/songs?q=${q}&page=1&n=20`, signal),
-        api.get(`/search/albums?q=${q}&page=1&n=10`, signal),
-        api.get(`/search/artists?q=${q}&page=1&n=10`, signal)
-      ]);
-
-      setSearchResults({
-        songs: songs?.results || [],
-        albums: albums?.results || [],
-        artists: artists?.results || []
-      });
-      setSearchLoading(false);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
-
-  // ── Audio Lifecycle ──
-  useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
-    const updTime = () => setProgress(p => ({ ...p, current: a.currentTime }));
-    const updDur = () => setProgress(p => ({ ...p, duration: a.duration }));
-    const ended = () => {
-      if (settings.repeat) { a.currentTime = 0; a.play(); }
-      else playNext();
-    };
-    a.addEventListener('timeupdate', updTime);
-    a.addEventListener('loadedmetadata', updDur);
-    a.addEventListener('ended', ended);
-    return () => {
-      a.removeEventListener('timeupdate', updTime);
-      a.removeEventListener('loadedmetadata', updDur);
-      a.removeEventListener('ended', ended);
-    };
-  }, [settings.repeat, queue, queueIdx]);
-
-  useEffect(() => { if (audioRef.current) audioRef.current.volume = volume; }, [volume]);
-
-  // ── Play Controls ──
-  const playTrack = useCallback((song, list = null, idx = -1) => {
-    const url = getBestUrl(song.downloadUrl);
-    if (!url) { showToast('Track not available'); return; }
-
-    setCurrentSong(song);
-    if (list) {
-      setQueue(list);
-      setQueueIdx(idx >= 0 ? idx : list.findIndex(s => s.id === song.id));
-    } else {
-      setQueue(prev => [...prev, song]);
-      setQueueIdx(prev => prev + 1);
-    }
-
-    const a = audioRef.current;
-    if (a) {
-      a.src = url;
-      a.play().then(() => setIsPlaying(true)).catch(console.error);
-    }
+let _tid = 0;
+const useToasts = () => {
+  const [toasts, setToasts] = useState([]);
+  const add = useCallback((message, type = "info", ms = 3000) => {
+    const id = ++_tid;
+    setToasts((p) => [...p, { id, message, type }]);
+    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), ms);
   }, []);
-
-  const togglePlay = useCallback(() => {
-    const a = audioRef.current;
-    if (!a || !currentSong) return;
-    if (isPlaying) { a.pause(); setIsPlaying(false); }
-    else { a.play().then(() => setIsPlaying(true)).catch(console.error); }
-  }, [isPlaying, currentSong]);
-
-  const playNext = useCallback(() => {
-    if (queue.length === 0) return;
-    let next = settings.shuffle ? Math.floor(Math.random() * queue.length) : queueIdx + 1;
-    if (next >= queue.length) next = 0;
-    playTrack(queue[next], queue, next);
-  }, [queue, queueIdx, settings.shuffle, playTrack]);
-
-  const playPrev = useCallback(() => {
-    if (queue.length === 0) return;
-    const a = audioRef.current;
-    if (a && a.currentTime > 3) { a.currentTime = 0; return; }
-    let prev = queueIdx - 1;
-    if (prev < 0) prev = queue.length - 1;
-    playTrack(queue[prev], queue, prev);
-  }, [queue, queueIdx, playTrack]);
-
-  const openArtist = useCallback(async (artist) => {
-    setPageLoading(true);
-    navigate('artist');
-    const id = artist.id || artist.artistId;
-    const [dets, songs] = await Promise.all([
-      api.get(`/artist?id=${id}`),
-      api.get(`/artist/songs?id=${id}`)
-    ]);
-    setArtistData({
-      ...artist,
-      ...dets,
-      topSongs: songs?.results || songs?.songs || []
-    });
-    setPageLoading(false);
-  }, [navigate]);
-
-  const openAlbum = useCallback(async (album) => {
-    setPageLoading(true);
-    navigate('album');
-    const data = await api.get(`/album?id=${album.id}`);
-    setAlbumData(data || album);
-    setPageLoading(false);
-  }, [navigate]);
-
-  // ── Views ──
-  const HomeView = () => (
-    <div className="px-8 pb-12 pt-4 fade-in max-w-[1800px] mx-auto">
-      <h1 className="text-[2rem] font-bold text-text-primary tracking-tight mb-8">
-        Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}
-      </h1>
-      <HSection title="Trending Now" items={homeFeed.trending.items} loading={homeFeed.trending.loading}
-        onItemClick={s => playTrack(s, homeFeed.trending.items)} currentId={currentSong?.id} isPlaying={isPlaying} />
-      <HSection title="Bollywood Hits" items={homeFeed.bollywood.items} loading={homeFeed.bollywood.loading}
-        onItemClick={s => playTrack(s, homeFeed.bollywood.items)} currentId={currentSong?.id} isPlaying={isPlaying} />
-      <HSection title="Global Top Hits" items={homeFeed.english.items} loading={homeFeed.english.loading}
-        onItemClick={s => playTrack(s, homeFeed.english.items)} currentId={currentSong?.id} isPlaying={isPlaying} />
-    </div>
+  const dismiss = useCallback(
+    (id) => setToasts((p) => p.filter((t) => t.id !== id)),
+    [],
   );
+  return { toasts, add, dismiss };
+};
 
-  const SearchView = () => {
-    if (searchLoading) return (
-      <div className="px-8 py-8 flex flex-wrap gap-4">{Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)}</div>
-    );
-    if (!searchResults) return (
-      <div className="px-8 py-8">
-        <h2 className="text-2xl font-bold mb-6">Browse all</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {['Hindi', 'English', 'Punjabi', 'Tamil', 'Telugu', 'Pop', 'Romance', 'Party', 'Devotional', 'Hip Hop'].map((g, i) => {
-            const cols = ['bg-pink-600', 'bg-purple-600', 'bg-orange-600', 'bg-emerald-600', 'bg-blue-600'];
+// ─────────────────────────────────────────────────────────────────────────────
+// ATOMS
+// ─────────────────────────────────────────────────────────────────────────────
+const Sk = ({ className = "" }) => (
+  <div
+    className={`rounded-lg ${className}`}
+    style={{
+      background: "linear-gradient(90deg,#282828 25%,#333 50%,#282828 75%)",
+      backgroundSize: "200% 100%",
+      animation: "shimmer 1.6s linear infinite",
+    }}
+  />
+);
+
+const EqBars = ({ size = "sm" }) => {
+  const anims = [
+    "animate-eq1",
+    "animate-eq2",
+    "animate-eq3",
+    "animate-eq4",
+    "animate-eq5",
+  ];
+  const heights = size === "sm" ? [6, 12, 4, 10, 7] : [8, 16, 5, 14, 9];
+  return (
+    <span
+      className="flex items-end gap-[2px]"
+      style={{ height: size === "sm" ? 16 : 22 }}
+    >
+      {heights.map((h, i) => (
+        <span
+          key={i}
+          className={`w-[3px] bg-sp-green rounded-sm ${anims[i]}`}
+          style={{ height: h }}
+        />
+      ))}
+    </span>
+  );
+};
+
+const GreenBtn = ({ children, onClick, className = "", small = false }) => (
+  <button
+    onClick={onClick}
+    className={`bg-sp-green hover:bg-sp-green-light text-black font-bold rounded-full flex items-center gap-2 transition-all duration-150 hover:scale-105 ${small ? "px-5 py-2 text-sm" : "px-7 py-3.5 text-sm"} ${className}`}
+    style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.35)" }}
+  >
+    {children}
+  </button>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST CONTAINER
+// ─────────────────────────────────────────────────────────────────────────────
+const Toasts = ({ toasts, dismiss }) => (
+  <div className="fixed bottom-28 right-5 z-[60] flex flex-col gap-2 pointer-events-none">
+    {toasts.map((t) => (
+      <div
+        key={t.id}
+        className={`pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-2xl text-sm font-medium animate-fadeIn backdrop-blur-md border border-white/10 ${
+          t.type === "error"
+            ? "bg-red-900/90 text-red-100"
+            : t.type === "success"
+              ? "bg-sp-green/90 text-black"
+              : "bg-[#282828]/90 text-white"
+        }`}
+      >
+        <span>
+          {t.type === "success" ? "✓" : t.type === "error" ? "✕" : "ℹ"}
+        </span>
+        <span>{t.message}</span>
+        <button
+          onClick={() => dismiss(t.id)}
+          className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIDEBAR
+// ─────────────────────────────────────────────────────────────────────────────
+const Sidebar = ({
+  view,
+  setView,
+  onGenreSearch,
+  currentSong,
+  recentlyPlayed,
+  onSongPlay,
+}) => (
+  <aside className="fixed left-0 top-0 bottom-24 w-60 bg-sp-black flex flex-col z-30 select-none">
+    <div className="px-5 pt-6 pb-5 flex items-center gap-2.5">
+      <div
+        className="w-9 h-9 rounded-xl bg-sp-green flex items-center justify-center flex-shrink-0"
+        style={{ boxShadow: "0 0 20px rgba(29,185,84,0.4)" }}
+      >
+        <Music2 size={18} className="text-black" />
+      </div>
+      <span className="text-xl font-black tracking-tight text-white">
+        Soul<span className="text-sp-green">Sync</span>
+      </span>
+    </div>
+
+    <nav className="px-3 space-y-0.5 mb-3">
+      {[
+        { id: "home", label: "Home", Icon: Home },
+        { id: "search", label: "Search", Icon: Search },
+        { id: "liked", label: "Liked Songs", Icon: Heart },
+      ].map(({ id, label, Icon }) => (
+        <button
+          key={id}
+          onClick={() => setView(id)}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
+            view === id
+              ? "bg-white/10 text-white"
+              : "text-sp-sub hover:text-white hover:bg-white/5"
+          }`}
+        >
+          <Icon size={18} className={view === id ? "text-sp-green" : ""} />
+          <span className="flex-1 text-left">{label}</span>
+          {view === id && (
+            <span className="w-1.5 h-1.5 rounded-full bg-sp-green" />
+          )}
+        </button>
+      ))}
+    </nav>
+
+    <div className="flex-1 overflow-y-auto hide-scrollbar px-3">
+      <p className="text-[10px] font-bold tracking-[0.14em] text-sp-muted px-3 mb-2">
+        BROWSE
+      </p>
+      {GENRE_CATEGORIES.slice(0, 8).map(({ label, q }) => (
+        <button
+          key={label}
+          onClick={() => onGenreSearch(q)}
+          className="w-full text-left px-3 py-2 text-sm text-sp-sub hover:text-white hover:bg-white/5 rounded-lg transition-all duration-150"
+        >
+          {label}
+        </button>
+      ))}
+
+      {recentlyPlayed.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[10px] font-bold tracking-[0.14em] text-sp-muted px-3 mb-2">
+            RECENTLY PLAYED
+          </p>
+          {recentlyPlayed.slice(0, 5).map((s) => {
+            const img = bestImg(s.image, "50x50") || FALLBACK_IMG;
+            const isCur = currentSong?.id === s.id;
             return (
-              <div key={g} onClick={() => setSearchQuery(g)} className={`aspect-square rounded-xl p-4 cursor-pointer hover:scale-105 transition-transform ${cols[i % cols.length]} shadow-md relative overflow-hidden`}>
-                <span className="text-xl font-bold">{g}</span>
-                <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-black/20 rounded-full blur-xl" />
-              </div>
+              <button
+                key={s.id}
+                onClick={() => onSongPlay(s)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/5 transition-all duration-150"
+              >
+                <img
+                  src={img}
+                  onError={onImgErr}
+                  className="w-8 h-8 rounded-md object-cover flex-shrink-0"
+                  loading="lazy"
+                />
+                <div className="min-w-0 flex-1 text-left">
+                  <p
+                    className={`text-xs font-semibold truncate ${isCur ? "text-sp-green" : "text-white"}`}
+                  >
+                    {s.name}
+                  </p>
+                  <p className="text-[10px] text-sp-muted truncate">
+                    {getArtists(s)}
+                  </p>
+                </div>
+                {isCur && <EqBars />}
+              </button>
             );
           })}
         </div>
-      </div>
-    );
+      )}
+    </div>
 
-    const { songs, albums, artists } = searchResults;
-    if (!songs.length && !albums.length && !artists.length) return (
-      <div className="px-8 py-20 text-center"><p className="text-xl text-text-secondary">No results found for "{searchQuery}"</p></div>
-    );
+    <div className="px-6 pb-4 pt-3 border-t border-white/5">
+      <p className="text-[10px] text-sp-muted">Powered by JioSaavn</p>
+      <p className="text-[10px] text-sp-muted/50 mt-0.5">SoulSync v2.0</p>
+    </div>
+  </aside>
+);
 
-    return (
-      <div className="px-8 pb-12 pt-4 fade-in max-w-[1800px] mx-auto">
-        {songs.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6">Top Songs</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {songs.slice(0, 8).map((s, i) => (
-                <button key={s.id} onClick={() => playTrack(s, songs, i)}
-                  className="flex items-center gap-4 p-2 rounded-md hover:bg-bg-card-hover group text-left w-full transition-colors">
-                  <div className="relative w-12 h-12 flex-shrink-0">
-                    <img src={getImage(s.image)} alt="" className="w-full h-full object-cover rounded shadow" />
-                    <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center rounded">
-                      <Play size={16} fill="white" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-base font-medium truncate ${currentSong?.id === s.id ? 'text-brand' : 'text-white'}`}>{s.name || s.title}</p>
-                    <p className="text-sm text-text-secondary truncate">{s.subtitle}</p>
-                  </div>
-                  <span className="text-sm text-text-secondary w-12 text-right">{formatTime(s.duration)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {artists.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6">Artists</h2>
-            <div className="flex gap-6 overflow-x-auto hide-scrollbar pb-4 -mx-2 px-2">
-              {artists.map(a => (
-                <button key={a.id} onClick={() => openArtist(a)} className="flex flex-col items-center gap-3 w-[140px] flex-shrink-0 group hover:bg-bg-card-hover p-3 rounded-xl transition-colors">
-                  <img src={getImage(a.image)} alt="" className="w-[110px] h-[110px] rounded-full object-cover shadow-lg group-hover:shadow-2xl transition-shadow" />
-                  <p className="text-base font-bold truncate w-full text-center">{a.name || a.title}</p>
-                  <span className="text-xs text-text-secondary">Artist</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {albums.length > 0 && (
-          <HSection title="Albums" items={albums} onItemClick={openAlbum} />
-        )}
-      </div>
-    );
-  };
-
-  const TrackListView = ({ headerRef, tracks = [], isAlbum = false }) => (
-    <div className="px-8 pb-12 max-w-[1800px] mx-auto fade-in">
-      <div className="flex items-center gap-6 mb-8 pt-6">
-        <button onClick={() => { if (tracks.length) playTrack(tracks[0], tracks, 0) }}
-          className="w-14 h-14 rounded-full bg-brand flex items-center justify-center hover:scale-105 transition-transform text-black shadow-lg">
-          <Play size={24} className="ml-1" fill="currentColor" />
-        </button>
-        <button className="text-text-secondary hover:text-white"><Heart size={32} /></button>
-        <button className="text-text-secondary hover:text-white"><MoreHorizontal size={32} /></button>
-      </div>
-      <div>
-        <div className="flex items-center gap-4 px-4 py-2 border-b border-border-subtle text-text-secondary text-sm mb-4">
-          <span className="w-6 text-center">#</span>
-          <span className="flex-1">Title</span>
-          {!isAlbum && <span className="flex-1 hidden md:block">Album</span>}
-          <Clock size={16} />
-        </div>
-        {tracks.map((s, i) => {
-          const isCur = currentSong?.id === s.id;
-          return (
-            <button key={s.id} onClick={() => playTrack(s, tracks, i)}
-              className="w-full flex items-center gap-4 px-4 py-2.5 rounded-md hover:bg-bg-card-hover group transition-colors text-left focus:outline-none">
-              <div className="w-6 flex justify-center text-text-secondary text-base">
-                {isCur && isPlaying ? <EqBars /> : <span className="group-hover:hidden">{i + 1}</span>}
-                {(!isCur || !isPlaying) && <Play size={16} fill="white" className="hidden group-hover:block" />}
-              </div>
-              <img src={getImage(s.image)} alt="" className="w-10 h-10 rounded shadow object-cover" />
-              <div className="flex-1 min-w-0">
-                <p className={`text-base truncate ${isCur ? 'text-brand' : 'text-white'}`}>{s.name || s.title}</p>
-                <p className="text-sm text-text-secondary truncate">{s.subtitle}</p>
-              </div>
-              {!isAlbum && <p className="flex-1 hidden md:block text-sm text-text-secondary truncate">{s.album?.name || s.album}</p>}
-              <span className="text-sm text-text-secondary w-12 text-right">{formatTime(s.duration)}</span>
+// ─────────────────────────────────────────────────────────────────────────────
+// SONG CARD
+// ─────────────────────────────────────────────────────────────────────────────
+const SongCard = ({ song, isCurrent, isPlaying, onPlay }) => {
+  const [hov, setHov] = useState(false);
+  const img = bestImg(song.image) || FALLBACK_IMG;
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onPlay}
+      className="flex-shrink-0 w-44 p-3 rounded-xl bg-sp-card hover:bg-sp-hover cursor-pointer transition-all duration-200"
+      style={{ boxShadow: hov ? "0 8px 32px rgba(0,0,0,0.5)" : "none" }}
+    >
+      <div className="relative mb-3">
+        <img
+          src={img}
+          onError={onImgErr}
+          loading="lazy"
+          className={`w-full aspect-square object-cover rounded-lg transition-all duration-300 ${hov ? "scale-[1.04] brightness-50" : ""}`}
+        />
+        <div
+          className={`absolute inset-0 rounded-lg flex items-center justify-center transition-opacity duration-200 ${hov || (isCurrent && isPlaying) ? "opacity-100" : "opacity-0"}`}
+        >
+          {isCurrent && isPlaying && !hov ? (
+            <EqBars size="lg" />
+          ) : (
+            <button
+              className="w-12 h-12 rounded-full bg-sp-green flex items-center justify-center hover:bg-sp-green-light hover:scale-110 transition-all duration-150"
+              style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.55)" }}
+            >
+              {isCurrent && isPlaying ? (
+                <Pause size={18} className="text-black fill-black" />
+              ) : (
+                <Play size={18} className="text-black fill-black ml-0.5" />
+              )}
             </button>
+          )}
+        </div>
+      </div>
+      <p
+        className={`text-sm font-semibold truncate leading-tight ${isCurrent ? "text-sp-green" : "text-white"}`}
+      >
+        {song.name}
+      </p>
+      <p className="text-xs text-sp-sub truncate mt-0.5">{getArtists(song)}</p>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALBUM CARD
+// ─────────────────────────────────────────────────────────────────────────────
+const AlbumCard = ({ album, onClick }) => {
+  const [hov, setHov] = useState(false);
+  const img = bestImg(album.image) || FALLBACK_IMG;
+  return (
+    <button
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onClick}
+      className="flex-shrink-0 w-44 p-3 rounded-xl bg-sp-card hover:bg-sp-hover transition-all duration-200 text-left"
+      style={{ boxShadow: hov ? "0 8px 32px rgba(0,0,0,0.5)" : "none" }}
+    >
+      <div className="relative mb-3">
+        <img
+          src={img}
+          onError={onImgErr}
+          loading="lazy"
+          className={`w-full aspect-square object-cover rounded-lg transition-all duration-300 ${hov ? "scale-[1.04] brightness-50" : ""}`}
+        />
+        <div
+          className={`absolute inset-0 rounded-lg flex items-center justify-center transition-opacity duration-200 ${hov ? "opacity-100" : "opacity-0"}`}
+        >
+          <div
+            className="w-12 h-12 rounded-full bg-sp-green flex items-center justify-center"
+            style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.55)" }}
+          >
+            <Play size={18} className="text-black fill-black ml-0.5" />
+          </div>
+        </div>
+      </div>
+      <p className="text-sm font-semibold text-white truncate">{album.name}</p>
+      <p className="text-xs text-sp-sub truncate mt-0.5">
+        {album.description || album.year || ""}
+      </p>
+    </button>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARTIST CARD
+// ─────────────────────────────────────────────────────────────────────────────
+const ArtistCard = ({ artist, onClick }) => {
+  const [hov, setHov] = useState(false);
+  const img = bestImg(artist.image) || FALLBACK_IMG;
+  return (
+    <button
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onClick}
+      className="flex-shrink-0 flex flex-col items-center gap-2 w-28 group"
+    >
+      <div className="relative w-24 h-24 rounded-full overflow-hidden">
+        <img
+          src={img}
+          onError={onImgErr}
+          loading="lazy"
+          className={`w-full h-full object-cover transition-all duration-250 ${hov ? "brightness-60 scale-110" : ""}`}
+        />
+        <div
+          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hov ? "opacity-100" : "opacity-0"}`}
+        >
+          <Play size={24} className="text-white fill-white drop-shadow-lg" />
+        </div>
+      </div>
+      <p className="text-xs font-semibold text-white truncate w-full text-center">
+        {artist.name}
+      </p>
+      <p className="text-[10px] text-sp-muted -mt-1">Artist</p>
+    </button>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SONG ROW
+// ─────────────────────────────────────────────────────────────────────────────
+const SongRow = ({
+  song,
+  index,
+  isCurrent,
+  isPlaying,
+  onPlay,
+  liked,
+  onLike,
+}) => {
+  const [hov, setHov] = useState(false);
+  const img = bestImg(song.image, "50x50") || FALLBACK_IMG;
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onPlay}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 ${
+        isCurrent ? "bg-white/[0.07]" : "hover:bg-white/[0.05]"
+      }`}
+    >
+      <div className="w-5 flex-shrink-0 flex items-center justify-center">
+        {isCurrent && isPlaying ? (
+          <EqBars />
+        ) : hov ? (
+          <Play size={13} className="text-white fill-white" />
+        ) : (
+          <span
+            className={`text-xs tabular-nums ${isCurrent ? "text-sp-green" : "text-sp-sub"}`}
+          >
+            {index + 1}
+          </span>
+        )}
+      </div>
+      <img
+        src={img}
+        onError={onImgErr}
+        loading="lazy"
+        className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <p
+          className={`text-sm font-semibold truncate ${isCurrent ? "text-sp-green" : "text-white"}`}
+        >
+          {song.name}
+        </p>
+        <p className="text-xs text-sp-sub truncate">{getArtists(song)}</p>
+      </div>
+      <p className="hidden lg:block text-xs text-sp-muted truncate w-36 text-center">
+        {song.album?.name || ""}
+      </p>
+      {onLike && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike(song);
+          }}
+          className={`p-1.5 rounded-full transition-all duration-150 ${
+            liked
+              ? "text-sp-green opacity-100"
+              : `text-sp-sub hover:text-white ${hov ? "opacity-100" : "opacity-0"}`
+          }`}
+        >
+          <Heart size={14} className={liked ? "fill-sp-green" : ""} />
+        </button>
+      )}
+      <p className="text-xs text-sp-muted w-9 text-right flex-shrink-0 tabular-nums">
+        {fmt(song.duration)}
+      </p>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HORIZONTAL SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+const HSection = ({
+  title,
+  icon,
+  songs = [],
+  albums = [],
+  loading,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onAlbumClick,
+  onSeeAll,
+}) => (
+  <div className="mb-8 animate-fadeIn">
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-xl font-bold text-white flex items-center gap-2">
+        {icon && <span>{icon}</span>}
+        {title}
+      </h2>
+      {onSeeAll && (
+        <button
+          onClick={onSeeAll}
+          className="text-[11px] font-bold text-sp-sub hover:text-white tracking-widest uppercase transition-colors"
+        >
+          See all
+        </button>
+      )}
+    </div>
+    <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+      {loading
+        ? Array.from({ length: 7 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 w-44 p-3 rounded-xl bg-sp-card"
+            >
+              <Sk className="w-full aspect-square mb-3" />
+              <Sk className="h-3 w-4/5 mb-2" />
+              <Sk className="h-2.5 w-1/2" />
+            </div>
+          ))
+        : songs.length > 0
+          ? songs.map((s) => (
+              <SongCard
+                key={s.id}
+                song={s}
+                isCurrent={currentSong?.id === s.id}
+                isPlaying={isPlaying}
+                onPlay={() => onPlay(s, songs)}
+              />
+            ))
+          : albums.map((a) => (
+              <AlbumCard
+                key={a.id}
+                album={a}
+                onClick={() => onAlbumClick?.(a)}
+              />
+            ))}
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BROWSE PAGE (shown when search bar focused, no query)
+// ─────────────────────────────────────────────────────────────────────────────
+const BrowsePage = ({ onSearch }) => (
+  <div className="animate-fadeIn">
+    <h1 className="text-2xl font-bold text-white mb-6">Browse all</h1>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-10">
+      {GENRE_CATEGORIES.map(({ label, q, color }) => (
+        <button
+          key={label}
+          onClick={() => onSearch(q)}
+          className="relative h-24 rounded-xl overflow-hidden text-left px-4 py-3 font-bold text-white text-sm hover:scale-[1.03] transition-transform duration-200"
+          style={{
+            background: `linear-gradient(135deg,${color} 0%,${color}77 100%)`,
+          }}
+        >
+          <span className="text-4xl absolute right-3 bottom-1 opacity-25">
+            🎵
+          </span>
+          {label}
+        </button>
+      ))}
+    </div>
+    <h2 className="text-xl font-bold text-white mb-4">Popular Artists</h2>
+    <div className="flex flex-wrap gap-2">
+      {POPULAR_ARTISTS.map((name) => (
+        <button
+          key={name}
+          onClick={() => onSearch(name)}
+          className="px-4 py-2 rounded-full bg-sp-hover hover:bg-sp-green hover:text-black text-white text-sm font-semibold transition-all duration-200"
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+const HomePage = ({
+  currentSong,
+  isPlaying,
+  onPlay,
+  onSearch,
+  recentlyPlayed,
+  likedSongs,
+  onLike,
+}) => {
+  const [sections, setSections] = useState({});
+  const [loadings, setLoadings] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+    const fetchSequential = async () => {
+      for (let i = 0; i < HOME_SECTIONS.length; i++) {
+        if (cancelled) return;
+        const { key, query } = HOME_SECTIONS[i];
+        setLoadings((p) => ({ ...p, [key]: true }));
+        try {
+          if (i > 0) await delay(350);
+          const r = await fetch(
+            `${API}/search/songs?q=${encodeURIComponent(query)}&n=20&page=1`,
           );
-        })}
+          if (!r.ok && r.status === 429) {
+            await delay(1000);
+            const retry = await fetch(
+              `${API}/search/songs?q=${encodeURIComponent(query)}&n=20&page=1`,
+            );
+            const rd = await retry.json();
+            if (!cancelled)
+              setSections((p) => ({ ...p, [key]: rd?.data?.results || [] }));
+          } else {
+            const d = await r.json();
+            if (!cancelled)
+              setSections((p) => ({ ...p, [key]: d?.data?.results || [] }));
+          }
+        } catch {
+          if (!cancelled) setSections((p) => ({ ...p, [key]: [] }));
+        } finally {
+          if (!cancelled) setLoadings((p) => ({ ...p, [key]: false }));
+        }
+      }
+    };
+    fetchSequential();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div className="animate-fadeIn">
+      <h1 className="text-3xl font-black text-white mb-2">{getGreeting()}</h1>
+
+      {recentlyPlayed.length > 0 && (
+        <div className="mb-8 mt-5">
+          <h2 className="text-xl font-bold text-white mb-4">Recently Played</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+            {recentlyPlayed.slice(0, 8).map((s) => {
+              const img = bestImg(s.image, "50x50") || FALLBACK_IMG;
+              const isCur = currentSong?.id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onPlay(s, recentlyPlayed)}
+                  className="flex items-center gap-3 bg-sp-hover/60 hover:bg-sp-hover rounded-lg overflow-hidden transition-all duration-200 h-14"
+                >
+                  <img
+                    src={img}
+                    onError={onImgErr}
+                    className="w-14 h-14 object-cover flex-shrink-0"
+                  />
+                  <span
+                    className={`flex-1 text-sm font-semibold text-left truncate pr-3 leading-tight ${isCur ? "text-sp-green" : "text-white"}`}
+                  >
+                    {s.name}
+                  </span>
+                  {isCur && isPlaying && (
+                    <span className="pr-2">
+                      <EqBars />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {HOME_SECTIONS.map(({ key, title, icon, query }) => (
+        <HSection
+          key={key}
+          title={title}
+          icon={icon}
+          songs={sections[key] || []}
+          loading={loadings[key]}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPlay={onPlay}
+          onSeeAll={() => onSearch(query)}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEARCH PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+const TABS = ["All", "Songs", "Artists", "Albums"];
+
+const SearchPage = ({
+  query,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onArtistClick,
+  onAlbumClick,
+  onSearch,
+  likedSongs,
+  onLike,
+}) => {
+  const [results, setResults] = useState({
+    songs: [],
+    artists: [],
+    albums: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState("All");
+  const abort = useRef(null);
+
+  useEffect(() => {
+    setTab("All");
+    if (!query.trim()) return;
+    abort.current?.abort();
+    const ctrl = new AbortController();
+    abort.current = ctrl;
+    setLoading(true);
+    setResults({ songs: [], artists: [], albums: [] });
+    const sig = { signal: ctrl.signal };
+    Promise.all([
+      fetch(
+        `${API}/search/songs?q=${encodeURIComponent(query)}&n=20&page=1`,
+        sig,
+      )
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch(`${API}/search/artists?q=${encodeURIComponent(query)}&n=10`, sig)
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch(`${API}/search/albums?q=${encodeURIComponent(query)}&n=10`, sig)
+        .then((r) => r.json())
+        .catch(() => null),
+    ])
+      .then(([s, ar, al]) => {
+        if (ctrl.signal.aborted) return;
+        setResults({
+          songs: s?.data?.results || [],
+          artists: ar?.data?.results || [],
+          albums: al?.data?.results || [],
+        });
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+  }, [query]);
+
+  if (!query.trim()) return <BrowsePage onSearch={onSearch} />;
+
+  if (loading)
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        <div className="flex gap-5 pb-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Sk key={i} className="w-24 h-24 rounded-full flex-shrink-0" />
+          ))}
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Sk key={i} className="h-14 w-full rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+
+  const none =
+    !results.songs.length && !results.artists.length && !results.albums.length;
+  if (none)
+    return (
+      <div className="flex flex-col items-center justify-center h-72 gap-4 animate-fadeIn text-center">
+        <div className="w-16 h-16 rounded-full bg-sp-hover flex items-center justify-center">
+          <Search size={28} className="text-sp-muted" />
+        </div>
+        <div>
+          <p className="text-white font-bold text-lg">No results found</p>
+          <p className="text-sp-sub text-sm mt-1">for &ldquo;{query}&rdquo;</p>
+        </div>
+      </div>
+    );
+
+  const top = results.songs[0];
+  const showS = (tab === "All" || tab === "Songs") && results.songs.length > 0;
+  const showAr =
+    (tab === "All" || tab === "Artists") && results.artists.length > 0;
+  const showAl =
+    (tab === "All" || tab === "Albums") && results.albums.length > 0;
+
+  return (
+    <div className="animate-fadeIn space-y-8">
+      {/* Filter tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-150 ${
+              tab === t
+                ? "bg-white text-black"
+                : "bg-sp-hover text-white hover:bg-white/20"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Top result */}
+      {tab === "All" && top && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h2 className="text-xl font-bold text-white mb-4">Top Result</h2>
+            <div
+              onClick={() => onPlay(top, results.songs)}
+              className="p-6 rounded-xl bg-sp-card hover:bg-sp-hover cursor-pointer transition-all duration-200 group relative overflow-hidden"
+            >
+              <img
+                src={bestImg(top.image) || FALLBACK_IMG}
+                onError={onImgErr}
+                className="w-20 h-20 rounded-xl object-cover shadow-xl mb-5 group-hover:scale-[1.03] transition-transform duration-200"
+              />
+              <p className="text-2xl font-black text-white truncate">
+                {top.name}
+              </p>
+              <p className="text-sm text-sp-sub mt-1">
+                {getArtists(top)} · Song
+              </p>
+              <div
+                className="absolute bottom-5 right-5 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+                style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.55)" }}
+              >
+                <Play size={20} className="text-black fill-black ml-0.5" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white mb-4">Songs</h2>
+            <div className="space-y-1">
+              {results.songs.slice(0, 4).map((s, i) => (
+                <SongRow
+                  key={s.id}
+                  song={s}
+                  index={i}
+                  isCurrent={currentSong?.id === s.id}
+                  isPlaying={isPlaying}
+                  onPlay={() => onPlay(s, results.songs)}
+                  liked={!!likedSongs?.[s.id]}
+                  onLike={onLike}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Artists */}
+      {showAr && (
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4">Artists</h2>
+          <div className="flex gap-6 overflow-x-auto hide-scrollbar pb-2">
+            {results.artists.map((a) => (
+              <ArtistCard
+                key={a.id}
+                artist={a}
+                onClick={() => onArtistClick(a)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Songs list */}
+      {showS && tab === "Songs" && (
+        <div>
+          <h2 className="text-xl font-bold text-white mb-3">Songs</h2>
+          <div className="space-y-1">
+            {results.songs.map((s, i) => (
+              <SongRow
+                key={s.id}
+                song={s}
+                index={i}
+                isCurrent={currentSong?.id === s.id}
+                isPlaying={isPlaying}
+                onPlay={() => onPlay(s, results.songs)}
+                liked={!!likedSongs?.[s.id]}
+                onLike={onLike}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      {showS && tab === "All" && results.songs.length > 4 && (
+        <div>
+          <h2 className="text-xl font-bold text-white mb-3">More Songs</h2>
+          <div className="space-y-1">
+            {results.songs.slice(4).map((s, i) => (
+              <SongRow
+                key={s.id}
+                song={s}
+                index={i + 4}
+                isCurrent={currentSong?.id === s.id}
+                isPlaying={isPlaying}
+                onPlay={() => onPlay(s, results.songs)}
+                liked={!!likedSongs?.[s.id]}
+                onLike={onLike}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Albums */}
+      {showAl && (
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
+          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+            {results.albums.map((al) => (
+              <AlbumCard
+                key={al.id}
+                album={al}
+                onClick={() => onAlbumClick(al)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARTIST PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+const ArtistPage = ({
+  artistId,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onBack,
+  likedSongs,
+  onLike,
+}) => {
+  const [artist, setArtist] = useState(null);
+  const [songs, setSongs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [bgColor, setBgColor] = useState("#1a1a1a");
+
+  useEffect(() => {
+    if (!artistId) return;
+    setLoading(true);
+    setArtist(null);
+    setSongs([]);
+    Promise.all([
+      fetch(`${API}/artist?id=${artistId}`)
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch(`${API}/artist/songs?id=${artistId}&n=20`)
+        .then((r) => r.json())
+        .catch(() => null),
+    ])
+      .then(([a, s]) => {
+        const data = a?.data || null;
+        setArtist(data);
+        // /artist/songs returns data.results or fall back to top_songs from /artist
+        const songList =
+          s?.data?.results ||
+          (Array.isArray(s?.data) ? s.data : null) ||
+          data?.top_songs ||
+          [];
+        setSongs(songList);
+        if (data) {
+          const img = bestImg(data.image);
+          if (img) extractColor(img).then((c) => c && setBgColor(c));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [artistId]);
+
+  if (loading)
+    return (
+      <div className="animate-fadeIn space-y-4">
+        <Sk className="w-full h-72 rounded-2xl" />
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Sk key={i} className="h-14 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  if (!artist)
+    return (
+      <div className="text-sp-sub p-10 text-center">Artist not found.</div>
+    );
+
+  const img = bestImg(artist.image) || FALLBACK_IMG;
+  const followers =
+    artist.follower_count || artist.followerCount
+      ? parseInt(
+          artist.follower_count || artist.followerCount,
+          10,
+        ).toLocaleString()
+      : null;
+
+  return (
+    <div className="animate-fadeIn -mt-6 -mx-6">
+      <div
+        className="relative h-80 overflow-hidden"
+        style={{
+          background: `linear-gradient(to bottom,${bgColor} 0%,#121212 100%)`,
+        }}
+      >
+        <img
+          src={img}
+          onError={onImgErr}
+          className="absolute inset-0 w-full h-full object-cover object-top opacity-40"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom,transparent 30%,#121212 100%)",
+          }}
+        />
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-5 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <div className="absolute bottom-6 left-6">
+          <span className="text-xs font-bold bg-sp-green text-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+            Verified Artist
+          </span>
+          <h1 className="text-5xl font-black text-white mt-2 leading-none">
+            {artist.name}
+          </h1>
+          {followers && (
+            <p className="text-sp-sub text-sm mt-2">{followers} followers</p>
+          )}
+        </div>
+      </div>
+
+      <div className="px-6 py-5 flex items-center gap-4 bg-gradient-to-b from-sp-dark to-transparent">
+        <GreenBtn onClick={() => songs.length && onPlay(songs[0], songs)}>
+          <Play size={18} className="fill-black" /> Play
+        </GreenBtn>
+        <button className="w-11 h-11 rounded-full border-2 border-white/30 flex items-center justify-center text-white hover:border-white transition-colors">
+          <Shuffle size={17} />
+        </button>
+      </div>
+
+      <div className="px-6">
+        <h2 className="text-xl font-bold text-white mb-3">Popular</h2>
+        <div className="space-y-1">
+          {songs.slice(0, 20).map((s, i) => (
+            <SongRow
+              key={s.id}
+              song={s}
+              index={i}
+              isCurrent={currentSong?.id === s.id}
+              isPlaying={isPlaying}
+              onPlay={() => onPlay(s, songs)}
+              liked={!!likedSongs?.[s.id]}
+              onLike={onLike}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
+};
 
-  const ArtistAlbumView = () => {
-    if (pageLoading) return <div className="px-8 py-12"><div className="w-full h-[300px] skeleton-pulse bg-bg-card rounded-2xl" /></div>;
-    const isArtist = currentView === 'artist';
-    const data = isArtist ? artistData : albumData;
-    if (!data) return null;
+// ─────────────────────────────────────────────────────────────────────────────
+// ALBUM PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+const AlbumPage = ({
+  albumId,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onBack,
+  likedSongs,
+  onLike,
+}) => {
+  const [album, setAlbum] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [bgColor, setBgColor] = useState("#1a1a1a");
 
+  useEffect(() => {
+    if (!albumId) return;
+    setLoading(true);
+    setAlbum(null);
+    fetch(`${API}/album?id=${albumId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const data = d?.data || null;
+        setAlbum(data);
+        if (data) {
+          const img = bestImg(data.image);
+          if (img) extractColor(img).then((c) => c && setBgColor(c));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [albumId]);
+
+  if (loading)
     return (
-      <div className="relative fade-in">
-        <div className={`h-[340px] px-8 flex items-end pb-6 ${isArtist ? '' : 'bg-gradient-to-b from-bg-card to-bg-primary'}`}>
-          {isArtist ? (
-            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0" style={{ backgroundImage: `url(${getImage(data.image)})` }}>
-              <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/50 to-transparent" />
-            </div>
-          ) : (
-            <img src={getImage(data.image)} className="w-[232px] h-[232px] rounded shadow-2xl z-10 mr-6 object-cover" />
-          )}
-          <div className="z-10 w-full">
-            <h2 className="text-sm font-bold uppercase tracking-widest mb-2 opacity-80">{isArtist ? 'Artist' : 'Album'}</h2>
-            <h1 className="text-[4rem] font-bold text-white tracking-tighter leading-none mb-4 drop-shadow-lg">
-              {data.name || data.title}
-            </h1>
-            <p className="text-sm font-medium opacity-80">{isArtist ? `${Number(data.fanCount || data.followerCount || 0).toLocaleString()} followers` : data.subtitle}</p>
+      <div className="animate-fadeIn space-y-4">
+        <div className="flex gap-6 flex-wrap">
+          <Sk className="w-52 h-52 rounded-2xl flex-shrink-0" />
+          <div className="flex-1 space-y-3">
+            <Sk className="h-10 w-2/3" />
+            <Sk className="h-4 w-1/2" />
+            <Sk className="h-4 w-1/3" />
           </div>
         </div>
-        <TrackListView tracks={data.topSongs || data.songs || []} isAlbum={!isArtist} />
+        <div className="space-y-2 mt-4">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Sk key={i} className="h-14 rounded-xl" />
+          ))}
+        </div>
       </div>
     );
-  };
+  if (!album)
+    return <div className="text-sp-sub p-10 text-center">Album not found.</div>;
 
-  // ── Render Shell ──
+  const songs = album.songs || [];
+  const img = bestImg(album.image) || FALLBACK_IMG;
+  const artist = Array.isArray(album.artist_map?.primary_artists)
+    ? album.artist_map.primary_artists.map((a) => a.name).join(", ")
+    : Array.isArray(album.artists?.primary)
+      ? album.artists.primary.map((a) => a.name).join(", ")
+      : album.primaryArtists || album.subtitle || "";
+  const totalDur = songs.reduce((acc, s) => acc + (s.duration || 0), 0);
+
   return (
-    <div className="h-screen flex flex-col bg-bg-primary text-text-primary antialiased">
-      <audio ref={audioRef} preload="auto" />
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-[260px] bg-bg-sidebar flex flex-col shrink-0">
-          <div className="px-6 py-6 cursor-pointer flex gap-3 items-center group" onClick={() => navigate('home')}>
-            <div className="w-8 h-8 bg-brand rounded-full flex items-center justify-center text-black shadow-[0_0_15px_rgba(29,185,84,0.4)] group-hover:scale-105 transition-transform">
-              <Music2 size={16} />
+    <div className="animate-fadeIn -mt-6 -mx-6">
+      <div
+        className="px-6 pt-6 pb-6"
+        style={{
+          background: `linear-gradient(to bottom,${bgColor} 0%,#121212 100%)`,
+        }}
+      >
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sp-sub hover:text-white text-sm mb-6 transition-colors"
+        >
+          <ChevronLeft size={16} /> Back
+        </button>
+        <div className="flex gap-6 flex-wrap items-end">
+          <img
+            src={img}
+            onError={onImgErr}
+            className="w-52 h-52 object-cover rounded-xl flex-shrink-0"
+            style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.7)" }}
+          />
+          <div className="flex flex-col justify-end min-w-0 pb-2">
+            <p className="text-xs font-bold text-sp-sub uppercase tracking-widest mb-2">
+              Album
+            </p>
+            <h1 className="text-4xl font-black text-white mb-3 leading-tight">
+              {album.name}
+            </h1>
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="font-bold text-white">{artist}</span>
+              <span className="text-sp-muted">·</span>
+              <span className="text-sp-sub">{album.year}</span>
+              <span className="text-sp-muted">·</span>
+              <span className="text-sp-sub">
+                {songs.length} songs, {fmt(totalDur)}
+              </span>
             </div>
-            <span className="text-[22px] font-bold tracking-tight text-white">SoulSync</span>
           </div>
-          <nav className="px-3 flex flex-col gap-1">
-            <button onClick={() => navigate('home')} className={`flex items-center gap-4 px-3 py-3 rounded-md font-bold transition-colors ${currentView === 'home' ? 'bg-bg-card text-white' : 'text-text-secondary hover:text-white'}`}>
-              <Home size={24} className={currentView === 'home' ? 'text-white' : ''} /> Home
-            </button>
-            <button onClick={() => navigate('search')} className={`flex items-center gap-4 px-3 py-3 rounded-md font-bold transition-colors ${currentView === 'search' ? 'bg-bg-card text-white' : 'text-text-secondary hover:text-white'}`}>
-              <Search size={24} className={currentView === 'search' ? 'text-white' : ''} /> Search
-            </button>
-          </nav>
-        </aside>
+        </div>
+      </div>
 
-        {/* content window */}
-        <main className="flex-1 bg-bg-card overflow-y-auto hide-scrollbar rounded-lg mt-2 mr-2 mb-2 shadow-[0_0_40px_rgba(0,0,0,0.8)] relative border border-border-subtle">
-          {/* Header */}
-          <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-bg-card/90 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <button onClick={() => { if (hIndex > 0) { setHIndex(hIndex - 1); setCurrentView(viewHistory[hIndex - 1].view); setViewData(viewHistory[hIndex - 1].data); } }}
-                className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:scale-105 disabled:opacity-30"><ChevronLeft size={20} /></button>
-              <button onClick={() => { if (hIndex < viewHistory.length - 1) { setHIndex(hIndex + 1); setCurrentView(viewHistory[hIndex + 1].view); setViewData(viewHistory[hIndex + 1].data); } }}
-                className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:scale-105 disabled:opacity-30"><ChevronRight size={20} /></button>
-              {currentView === 'search' && (
-                <div className="ml-4 relative w-[320px]">
-                  <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-                  <input type="text" autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="What do you want to play?"
-                    className="w-full bg-[#242424] text-white rounded-full py-2.5 pl-10 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/20 border border-transparent shadow-inner" />
-                  {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white"><X size={18} /></button>}
-                </div>
-              )}
+      <div className="px-6 py-5 flex items-center gap-4 bg-gradient-to-b from-sp-dark to-transparent">
+        <GreenBtn onClick={() => songs.length && onPlay(songs[0], songs)}>
+          <Play size={18} className="fill-black" /> Play All
+        </GreenBtn>
+        <button className="w-11 h-11 rounded-full border-2 border-white/30 flex items-center justify-center text-white hover:border-white transition-colors">
+          <Shuffle size={17} />
+        </button>
+      </div>
+
+      <div className="px-6">
+        <div className="flex items-center gap-3 px-3 py-2 border-b border-white/5 text-[10px] font-bold tracking-widest text-sp-muted uppercase mb-1">
+          <span className="w-5 text-center">#</span>
+          <span className="flex-1">Title</span>
+          <span className="hidden lg:block w-36 text-center">Album</span>
+          <span className="w-9 text-right">⏱</span>
+        </div>
+        <div className="space-y-0.5 pb-10">
+          {songs.map((s, i) => (
+            <SongRow
+              key={s.id}
+              song={s}
+              index={i}
+              isCurrent={currentSong?.id === s.id}
+              isPlaying={isPlaying}
+              onPlay={() => onPlay(s, songs)}
+              liked={!!likedSongs?.[s.id]}
+              onLike={onLike}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIKED SONGS PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+const LikedPage = ({ likedSongs, currentSong, isPlaying, onPlay, onLike }) => {
+  const songs = Object.values(likedSongs);
+  return (
+    <div className="animate-fadeIn">
+      <div
+        className="flex items-end gap-6 mb-8 p-7 rounded-2xl"
+        style={{
+          background: "linear-gradient(135deg,#450af5 0%,#c4efd9 100%)",
+        }}
+      >
+        <div
+          className="w-40 h-40 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: "linear-gradient(135deg,#450af5,#c4efd9)" }}
+        >
+          <Heart size={64} className="text-white fill-white" />
+        </div>
+        <div className="pb-2">
+          <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">
+            Playlist
+          </p>
+          <h1 className="text-4xl font-black text-white">Liked Songs</h1>
+          <p className="text-white/70 text-sm mt-2">{songs.length} songs</p>
+        </div>
+      </div>
+      {songs.length === 0 ? (
+        <div className="text-center py-16">
+          <Heart size={52} className="mx-auto mb-4 text-sp-muted" />
+          <p className="text-white font-bold text-lg">
+            Songs you like will appear here
+          </p>
+          <p className="text-sp-sub text-sm mt-1">
+            Click the ♥ icon next to any song
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {songs.map((s, i) => (
+            <SongRow
+              key={s.id}
+              song={s}
+              index={i}
+              isCurrent={currentSong?.id === s.id}
+              isPlaying={isPlaying}
+              onPlay={() => onPlay(s, songs)}
+              liked
+              onLike={onLike}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEUE PANEL
+// ─────────────────────────────────────────────────────────────────────────────
+const QueuePanel = ({ queue, queueIndex, currentSong, onClose, onJump }) => (
+  <div className="fixed right-0 top-0 bottom-24 w-72 bg-[#1a1a1a] border-l border-white/5 z-40 flex flex-col animate-slideInRight shadow-2xl">
+    <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+      <h3 className="font-bold text-white text-sm">Queue</h3>
+      <button
+        onClick={onClose}
+        className="text-sp-sub hover:text-white transition-colors p-1"
+      >
+        <X size={17} />
+      </button>
+    </div>
+    {currentSong && (
+      <div className="px-5 py-3 border-b border-white/5">
+        <p className="text-[10px] font-bold text-sp-green uppercase tracking-widest mb-2">
+          Now Playing
+        </p>
+        <div className="flex items-center gap-3">
+          <img
+            src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
+            onError={onImgErr}
+            className="w-10 h-10 rounded-lg object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-sp-green truncate">
+              {currentSong.name}
+            </p>
+            <p className="text-xs text-sp-sub truncate">
+              {getArtists(currentSong)}
+            </p>
+          </div>
+          <EqBars />
+        </div>
+      </div>
+    )}
+    <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
+        Next Up
+      </p>
+      {queue.slice(queueIndex + 1).length === 0 && (
+        <p className="text-sp-muted text-sm px-5 py-4 text-center">
+          Nothing in queue
+        </p>
+      )}
+      {queue.slice(queueIndex + 1).map((s, i) => (
+        <button
+          key={`${s.id}-${i}`}
+          onClick={() => onJump(queueIndex + 1 + i)}
+          className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 transition-colors text-left"
+        >
+          <img
+            src={bestImg(s.image, "50x50") || FALLBACK_IMG}
+            onError={onImgErr}
+            className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-white truncate">{s.name}</p>
+            <p className="text-xs text-sp-sub truncate">{getArtists(s)}</p>
+          </div>
+          <span className="text-[10px] text-sp-muted tabular-nums">
+            {fmt(s.duration)}
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOW PLAYING FULLSCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+const NowPlayingView = ({
+  currentSong,
+  isPlaying,
+  currentTime,
+  duration,
+  volume,
+  shuffle,
+  repeat,
+  liked,
+  onClose,
+  onPlayPause,
+  onSeek,
+  onVolume,
+  onPrev,
+  onNext,
+  onShuffle,
+  onRepeat,
+  onLike,
+}) => {
+  const [bgColor, setBgColor] = useState("#121212");
+  useEffect(() => {
+    if (!currentSong) return;
+    const img = bestImg(currentSong.image);
+    if (img) extractColor(img).then((c) => c && setBgColor(c));
+  }, [currentSong?.id]); // eslint-disable-line
+
+  if (!currentSong) return null;
+  const img = bestImg(currentSong.image) || FALLBACK_IMG;
+  const artists = getArtists(currentSong);
+  const progress = duration ? (currentTime / duration) * 100 : 0;
+  const volPct = Math.round(volume * 100);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{
+        background: `linear-gradient(to bottom,${bgColor} 0%,#121212 55%,#0a0a0a 100%)`,
+      }}
+    >
+      <div className="flex items-center justify-between px-8 pt-6 pb-2">
+        <button
+          onClick={onClose}
+          className="text-white hover:text-sp-sub transition-colors p-1"
+        >
+          <ChevronDown size={26} />
+        </button>
+        <div className="text-center">
+          <p className="text-white text-xs font-bold uppercase tracking-widest">
+            Now Playing
+          </p>
+          <p className="text-sp-sub text-xs mt-0.5 truncate max-w-[220px]">
+            {currentSong.album?.name || ""}
+          </p>
+        </div>
+        <button className="text-sp-sub hover:text-white transition-colors p-1">
+          <MoreHorizontal size={22} />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-10 gap-8 min-h-0">
+        <div
+          className={`transition-all duration-500 ${isPlaying ? "scale-100" : "scale-90 opacity-80"}`}
+          style={{ boxShadow: `0 32px 80px ${bgColor}99` }}
+        >
+          <img
+            src={img}
+            onError={onImgErr}
+            className="w-72 h-72 rounded-2xl object-cover"
+            style={{ boxShadow: "0 16px 48px rgba(0,0,0,0.7)" }}
+          />
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="flex items-start justify-between mb-5">
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl font-black text-white truncate leading-tight">
+                {currentSong.name}
+              </p>
+              <p className="text-sp-sub mt-0.5">{artists}</p>
             </div>
-          </header>
-          {currentView === 'home' && <HomeView />}
-          {currentView === 'search' && <SearchView />}
-          {(currentView === 'artist' || currentView === 'album') && <ArtistAlbumView />}
+            <button
+              onClick={() => onLike(currentSong)}
+              className="mt-1 ml-4 flex-shrink-0 p-1"
+            >
+              <Heart
+                size={22}
+                className={
+                  liked
+                    ? "text-sp-green fill-sp-green"
+                    : "text-sp-sub hover:text-white transition-colors"
+                }
+              />
+            </button>
+          </div>
+
+          <div className="mb-5">
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              value={currentTime}
+              onChange={(e) => onSeek(+e.target.value)}
+              className="progress-bar w-full h-1 rounded-full cursor-pointer"
+              style={{ "--progress": `${progress}%` }}
+            />
+            <div className="flex justify-between mt-1.5">
+              <span className="text-[11px] text-sp-sub tabular-nums">
+                {fmt(currentTime)}
+              </span>
+              <span className="text-[11px] text-sp-sub tabular-nums">
+                {fmt(duration)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={onShuffle}
+              className={`transition-colors ${shuffle ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
+            >
+              <Shuffle size={20} />
+            </button>
+            <button
+              onClick={onPrev}
+              className="text-white hover:scale-110 transition-transform"
+            >
+              <SkipBack size={30} className="fill-current" />
+            </button>
+            <button
+              onClick={onPlayPause}
+              className="w-16 h-16 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-2xl"
+            >
+              {isPlaying ? (
+                <Pause size={26} className="text-black fill-black" />
+              ) : (
+                <Play size={26} className="text-black fill-black ml-1" />
+              )}
+            </button>
+            <button
+              onClick={onNext}
+              className="text-white hover:scale-110 transition-transform"
+            >
+              <SkipForward size={30} className="fill-current" />
+            </button>
+            <button
+              onClick={onRepeat}
+              className={`transition-colors ${repeat !== "off" ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
+            >
+              {repeat === "one" ? <Repeat1 size={20} /> : <Repeat size={20} />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onVolume(0)}
+              className="text-sp-sub hover:text-white transition-colors flex-shrink-0"
+            >
+              <VolumeX size={16} />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={volPct}
+              onChange={(e) => onVolume(+e.target.value / 100)}
+              className="volume-bar flex-1 h-1 rounded-full cursor-pointer"
+              style={{ "--volume": `${volPct}%` }}
+            />
+            <button
+              onClick={() => onVolume(1)}
+              className="text-sp-sub hover:text-white transition-colors flex-shrink-0"
+            >
+              <Volume2 size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOTTOM PLAYER
+// ─────────────────────────────────────────────────────────────────────────────
+const Player = ({
+  currentSong,
+  isPlaying,
+  currentTime,
+  duration,
+  volume,
+  shuffle,
+  repeat,
+  likedSongs,
+  onPlayPause,
+  onSeek,
+  onVolume,
+  onPrev,
+  onNext,
+  onShuffle,
+  onRepeat,
+  onLike,
+  onOpenFullscreen,
+  onToggleQueue,
+  queueOpen,
+}) => {
+  const progress = duration ? (currentTime / duration) * 100 : 0;
+  const volPct = Math.round(volume * 100);
+  const img = currentSong
+    ? bestImg(currentSong.image, "50x50") || FALLBACK_IMG
+    : null;
+
+  return (
+    <div
+      className="fixed bottom-0 left-0 right-0 h-24 z-40 flex items-center px-4 gap-3 select-none"
+      style={{
+        background: "linear-gradient(to top,#0a0a0a 0%,#181818 100%)",
+        borderTop: "1px solid #282828",
+      }}
+    >
+      {/* Left: song info */}
+      <div className="flex items-center gap-3 w-[28%] min-w-0">
+        {currentSong ? (
+          <>
+            <button onClick={onOpenFullscreen} className="flex-shrink-0 group">
+              <img
+                src={img}
+                onError={onImgErr}
+                className="w-14 h-14 rounded-lg object-cover shadow-md group-hover:brightness-75 transition-all"
+              />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p
+                onClick={onOpenFullscreen}
+                className="text-sm font-semibold text-white truncate cursor-pointer hover:underline"
+              >
+                {currentSong.name}
+              </p>
+              <p className="text-xs text-sp-sub truncate">
+                {getArtists(currentSong)}
+              </p>
+            </div>
+            <button
+              onClick={() => onLike(currentSong)}
+              className="ml-1 p-1 flex-shrink-0"
+            >
+              <Heart
+                size={16}
+                className={
+                  likedSongs?.[currentSong.id]
+                    ? "text-sp-green fill-sp-green"
+                    : "text-sp-sub hover:text-white transition-colors"
+                }
+              />
+            </button>
+          </>
+        ) : (
+          <p className="text-sp-muted text-sm">Select a song to play</p>
+        )}
+      </div>
+
+      {/* Center: controls */}
+      <div className="flex flex-col items-center gap-1.5 flex-1 max-w-[44%]">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onShuffle}
+            title="Shuffle"
+            className={`transition-colors ${shuffle ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
+          >
+            <Shuffle size={16} />
+          </button>
+          <button
+            onClick={onPrev}
+            title="Previous (←)"
+            className="text-white hover:scale-110 transition-transform"
+          >
+            <SkipBack size={21} className="fill-current" />
+          </button>
+          <button
+            onClick={onPlayPause}
+            disabled={!currentSong}
+            title="Play/Pause (Space)"
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform shadow-md disabled:opacity-30"
+          >
+            {isPlaying ? (
+              <Pause size={16} className="text-black fill-black" />
+            ) : (
+              <Play size={16} className="text-black fill-black ml-0.5" />
+            )}
+          </button>
+          <button
+            onClick={onNext}
+            title="Next (→)"
+            className="text-white hover:scale-110 transition-transform"
+          >
+            <SkipForward size={21} className="fill-current" />
+          </button>
+          <button
+            onClick={onRepeat}
+            title={`Repeat: ${repeat}`}
+            className={`transition-colors ${repeat !== "off" ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
+          >
+            {repeat === "one" ? <Repeat1 size={16} /> : <Repeat size={16} />}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 w-full">
+          <span className="text-[10px] text-sp-sub w-8 text-right tabular-nums">
+            {fmt(currentTime)}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            value={currentTime}
+            onChange={(e) => onSeek(+e.target.value)}
+            disabled={!currentSong}
+            className="progress-bar flex-1 h-1 rounded-full cursor-pointer disabled:cursor-default"
+            style={{ "--progress": `${progress}%` }}
+          />
+          <span className="text-[10px] text-sp-sub w-8 tabular-nums">
+            {fmt(duration)}
+          </span>
+        </div>
+      </div>
+
+      {/* Right: volume */}
+      <div className="flex items-center gap-2 w-[28%] justify-end">
+        <button
+          onClick={onToggleQueue}
+          title="Queue (Q)"
+          className={`p-2 rounded-md transition-colors ${queueOpen ? "text-sp-green bg-sp-green/10" : "text-sp-sub hover:text-white"}`}
+        >
+          <ListMusic size={16} />
+        </button>
+        <button
+          onClick={() => onVolume(volume > 0 ? 0 : 0.8)}
+          title="Mute (M)"
+          className="text-sp-sub hover:text-white transition-colors"
+        >
+          {volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volPct}
+          onChange={(e) => onVolume(+e.target.value / 100)}
+          className="volume-bar w-24 h-1 rounded-full cursor-pointer"
+          style={{ "--volume": `${volPct}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN APP
+// ─────────────────────────────────────────────────────────────────────────────
+export default function App() {
+  const audioRef = useRef(null);
+
+  const [view, setView] = useState("home");
+  const [liveQuery, setLiveQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [artistId, setArtistId] = useState(null);
+  const [albumId, setAlbumId] = useState(null);
+  const [navHistory, setNavHistory] = useState([]);
+
+  const [queue, setQueue] = useState([]);
+  const [queueIndex, setQueueIndex] = useState(-1);
+  const [currentSong, setCurrentSong] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.8);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState("off"); // off | all | one
+
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [npOpen, setNpOpen] = useState(false);
+  const [bgColor, setBgColor] = useState("#121212");
+
+  const { toasts, add: addToast, dismiss } = useToasts();
+  const [likedSongs, toggleLike] = useLikedSongs();
+  const [recentlyPlayed, addRecent] = useRecentlyPlayed();
+
+  // Refs so audio callbacks always read latest values (avoids stale closures)
+  const qRef = useRef([]);
+  const qiRef = useRef(-1);
+  const sfRef = useRef(false);
+  const rpRef = useRef("off");
+  const vlRef = useRef(0.8);
+  const csRef = useRef(null);
+  useEffect(() => {
+    qRef.current = queue;
+  }, [queue]);
+  useEffect(() => {
+    qiRef.current = queueIndex;
+  }, [queueIndex]);
+  useEffect(() => {
+    sfRef.current = shuffle;
+  }, [shuffle]);
+  useEffect(() => {
+    rpRef.current = repeat;
+  }, [repeat]);
+  useEffect(() => {
+    vlRef.current = volume;
+  }, [volume]);
+  useEffect(() => {
+    csRef.current = currentSong;
+  }, [currentSong]);
+
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchQuery(liveQuery);
+      if (liveQuery.trim()) setView("search");
+    }, 400);
+    return () => clearTimeout(t);
+  }, [liveQuery]);
+
+  // Dynamic background color from current song
+  useEffect(() => {
+    if (!currentSong) return;
+    const img = bestImg(currentSong.image);
+    if (img) extractColor(img).then((c) => c && setBgColor(c));
+    else setBgColor(hashColor(currentSong.id));
+  }, [currentSong?.id]); // eslint-disable-line
+
+  // ── playSong ──
+  const playSong = useCallback(
+    async (song, newQueue = []) => {
+      if (!song) return;
+      const audio = audioRef.current;
+      try {
+        let target = song;
+        // Fetch full details if download_url is missing (search results don't include it)
+        if (!target.download_url?.length && !target.downloadUrl?.length) {
+          const res = await fetch(`${API}/song?id=${song.id}`);
+          const data = await res.json();
+          // /song returns data.songs[] array
+          target =
+            data?.data?.songs?.[0] || data?.data?.[0] || data?.data || song;
+        }
+        const url = bestUrl(target.download_url || target.downloadUrl);
+        if (!url) {
+          addToast("No playable URL for this song.", "error");
+          return;
+        }
+
+        audio.pause();
+        audio.src = url;
+        audio.volume = vlRef.current;
+        await audio.play();
+        setCurrentSong(target);
+        setIsPlaying(true);
+        setCurrentTime(0);
+        addRecent(target);
+
+        if (newQueue.length > 0) {
+          setQueue(newQueue);
+          setQueueIndex(newQueue.findIndex((s) => s.id === song.id));
+          qRef.current = newQueue;
+          qiRef.current = newQueue.findIndex((s) => s.id === song.id);
+        }
+        // Preload suggestions when queue is thin
+        if (newQueue.length <= 1) {
+          fetch(`${API}/song/recommend?id=${target.id}&n=10`)
+            .then((r) => r.json())
+            .then((d) => {
+              const suggs = Array.isArray(d?.data) ? d.data : [];
+              if (suggs.length)
+                setQueue((prev) =>
+                  prev.length <= 1 ? [target, ...suggs] : [...prev, ...suggs],
+                );
+            })
+            .catch(() => {});
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          addToast("Playback failed. Try another song.", "error");
+          setIsPlaying(false);
+        }
+      }
+    },
+    [addRecent, addToast],
+  );
+
+  // ── Audio event listeners ──
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onTime = () => setCurrentTime(audio.currentTime);
+    const onMeta = () => setDuration(audio.duration);
+    const onError = () => {
+      addToast("Audio load failed.", "error");
+      setIsPlaying(false);
+    };
+    const onEnded = () => {
+      const q = qRef.current;
+      const idx = qiRef.current;
+      const rep = rpRef.current;
+      const shf = sfRef.current;
+      if (rep === "one") {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
+      if (!q.length) return;
+      let next;
+      if (shf) {
+        next = Math.floor(Math.random() * q.length);
+      } else {
+        next = idx + 1;
+        if (next >= q.length) {
+          if (rep === "all") {
+            next = 0;
+          } else {
+            const cur = csRef.current;
+            if (cur) {
+              fetch(`${API}/song/recommend?id=${cur.id}&n=10`)
+                .then((r) => r.json())
+                .then((d) => {
+                  const suggs = Array.isArray(d?.data) ? d.data : [];
+                  if (suggs.length) {
+                    setQueue((prev) => {
+                      const ext = [...prev, ...suggs];
+                      qRef.current = ext;
+                      const ni = idx + 1;
+                      qiRef.current = ni;
+                      playSong(ext[ni], ext);
+                      return ext;
+                    });
+                  }
+                })
+                .catch(() => {});
+            }
+            return;
+          }
+        }
+      }
+      setQueueIndex(next);
+      qiRef.current = next;
+      playSong(q[next], q);
+    };
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("loadedmetadata", onMeta);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+    return () => {
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("loadedmetadata", onMeta);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+    };
+  }, [addToast, playSong]);
+
+  // ── Playback controls ──
+  const handlePlayPause = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentSong) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => {});
+    }
+  }, [isPlaying, currentSong]);
+
+  const handleSeek = useCallback((v) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.currentTime = v;
+      setCurrentTime(v);
+    }
+  }, []);
+
+  const handleVolume = useCallback((v) => {
+    const audio = audioRef.current;
+    if (audio) audio.volume = v;
+    setVolume(v);
+  }, []);
+
+  const handleNext = useCallback(() => {
+    const q = qRef.current,
+      idx = qiRef.current;
+    if (!q.length) return;
+    let next;
+    if (sfRef.current) next = Math.floor(Math.random() * q.length);
+    else {
+      next = idx + 1;
+      if (next >= q.length) next = rpRef.current === "all" ? 0 : q.length - 1;
+    }
+    setQueueIndex(next);
+    qiRef.current = next;
+    playSong(q[next], q);
+  }, [playSong]);
+
+  const handlePrev = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+      return;
+    }
+    const q = qRef.current,
+      idx = qiRef.current;
+    if (!q.length) return;
+    const prev = Math.max(0, idx - 1);
+    setQueueIndex(prev);
+    qiRef.current = prev;
+    playSong(q[prev], q);
+  }, [playSong]);
+
+  const handleLike = useCallback(
+    (song) => {
+      const wasLiked = !!likedSongs[song.id];
+      toggleLike(song);
+      addToast(
+        wasLiked ? "Removed from Liked Songs" : "Added to Liked Songs ♥",
+        wasLiked ? "info" : "success",
+        2000,
+      );
+    },
+    [likedSongs, toggleLike, addToast],
+  );
+
+  const cycleRepeat = useCallback(() => {
+    setRepeat((r) => {
+      const next = r === "off" ? "all" : r === "all" ? "one" : "off";
+      rpRef.current = next;
+      return next;
+    });
+  }, []);
+
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        handlePlayPause();
+      }
+      if (e.code === "ArrowRight") {
+        e.preventDefault();
+        handleNext();
+      }
+      if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        handlePrev();
+      }
+      if (e.key === "m" || e.key === "M")
+        handleVolume(vlRef.current > 0 ? 0 : 0.8);
+      if (e.key === "q" || e.key === "Q") setQueueOpen((p) => !p);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handlePlayPause, handleNext, handlePrev, handleVolume]);
+
+  // ── Navigation ──
+  const pushNav = useCallback(
+    (extra = {}) => {
+      setNavHistory((h) => [
+        ...h.slice(-19),
+        { view, artistId, albumId, liveQuery, searchQuery, ...extra },
+      ]);
+    },
+    [view, artistId, albumId, liveQuery, searchQuery],
+  );
+
+  const goBack = useCallback(() => {
+    if (!navHistory.length) return;
+    const prev = navHistory[navHistory.length - 1];
+    setNavHistory((h) => h.slice(0, -1));
+    setView(prev.view);
+    if (prev.artistId !== undefined) setArtistId(prev.artistId);
+    if (prev.albumId !== undefined) setAlbumId(prev.albumId);
+    if (prev.liveQuery !== undefined) setLiveQuery(prev.liveQuery);
+    if (prev.searchQuery !== undefined) setSearchQuery(prev.searchQuery);
+  }, [navHistory]);
+
+  const openArtist = useCallback(
+    (a) => {
+      pushNav();
+      setArtistId(a.id);
+      setView("artist");
+    },
+    [pushNav],
+  );
+
+  const openAlbum = useCallback(
+    (al) => {
+      pushNav();
+      setAlbumId(al.id);
+      setView("album");
+    },
+    [pushNav],
+  );
+
+  const triggerSearch = useCallback((q) => {
+    setLiveQuery(q);
+    setSearchQuery(q);
+    setView("search");
+  }, []);
+
+  const goHome = useCallback(() => {
+    setView("home");
+    setLiveQuery("");
+    setSearchQuery("");
+  }, []);
+
+  const jumpToQueue = useCallback(
+    (idx) => {
+      const q = qRef.current;
+      setQueueIndex(idx);
+      qiRef.current = idx;
+      playSong(q[idx], q);
+    },
+    [playSong],
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  return (
+    <div
+      className="flex h-screen bg-sp-black overflow-hidden"
+      style={{ fontFamily: "'Inter',system-ui,sans-serif" }}
+    >
+      <audio ref={audioRef} preload="metadata" />
+
+      <Sidebar
+        view={view}
+        setView={(v) => {
+          if (v === "home") goHome();
+          else setView(v);
+        }}
+        onGenreSearch={triggerSearch}
+        currentSong={currentSong}
+        recentlyPlayed={recentlyPlayed}
+        onSongPlay={(s) => playSong(s)}
+      />
+
+      <div
+        className={`flex-1 ml-60 ${queueOpen ? "mr-72" : ""} flex flex-col overflow-hidden transition-all duration-300`}
+      >
+        {/* Top bar */}
+        <div
+          className="flex-shrink-0 flex items-center gap-3 px-6 py-3.5 sticky top-0 z-20 backdrop-blur-md"
+          style={{
+            background: `linear-gradient(to bottom,${bgColor}bb 0%,transparent 100%)`,
+          }}
+        >
+          <div className="flex gap-1.5">
+            <button
+              onClick={goBack}
+              disabled={!navHistory.length}
+              className="w-8 h-8 rounded-full bg-black/70 flex items-center justify-center text-white disabled:opacity-25 hover:bg-white/10 transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              disabled
+              className="w-8 h-8 rounded-full bg-black/70 flex items-center justify-center text-white opacity-20 cursor-not-allowed"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <div className="flex-1 max-w-lg relative">
+            <Search
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sp-sub pointer-events-none"
+            />
+            <input
+              type="text"
+              value={liveQuery}
+              onChange={(e) => setLiveQuery(e.target.value)}
+              onFocus={() => {
+                if (!liveQuery.trim()) setView("search");
+              }}
+              placeholder="What do you want to listen to?"
+              className="w-full text-sm text-white placeholder-sp-muted rounded-full pl-10 pr-9 py-2.5 outline-none focus:ring-2 focus:ring-white/20 transition-all"
+              style={{ background: "#242424" }}
+            />
+            {liveQuery && (
+              <button
+                onClick={() => {
+                  setLiveQuery("");
+                  setSearchQuery("");
+                  setView("home");
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sp-sub hover:text-white transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto px-6 pt-4 pb-12">
+          {view === "home" && (
+            <HomePage
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={playSong}
+              onSearch={triggerSearch}
+              recentlyPlayed={recentlyPlayed}
+              likedSongs={likedSongs}
+              onLike={handleLike}
+            />
+          )}
+          {view === "search" && (
+            <SearchPage
+              query={searchQuery}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={playSong}
+              onArtistClick={openArtist}
+              onAlbumClick={openAlbum}
+              onSearch={triggerSearch}
+              likedSongs={likedSongs}
+              onLike={handleLike}
+            />
+          )}
+          {view === "artist" && (
+            <ArtistPage
+              artistId={artistId}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={playSong}
+              onBack={goBack}
+              likedSongs={likedSongs}
+              onLike={handleLike}
+            />
+          )}
+          {view === "album" && (
+            <AlbumPage
+              albumId={albumId}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={playSong}
+              onBack={goBack}
+              likedSongs={likedSongs}
+              onLike={handleLike}
+            />
+          )}
+          {view === "liked" && (
+            <LikedPage
+              likedSongs={likedSongs}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={playSong}
+              onLike={handleLike}
+            />
+          )}
         </main>
       </div>
 
-      {/* Player Bar */}
-      <footer className="h-[90px] bg-bg-primary shrink-0 flex items-center justify-between px-4 border-t border-border-subtle z-50">
-        <div className="w-[30%] flex items-center gap-4 h-full pr-4 overflow-hidden">
-          {currentSong ? (
-            <>
-              <img src={getImage(currentSong.image)} className="w-14 h-14 rounded object-cover shadow-lg" alt="" />
-              <div className="flex flex-col justify-center min-w-0 flex-1">
-                <p className="text-sm font-bold text-white truncate hover:underline cursor-pointer">{currentSong.name || currentSong.title}</p>
-                <p className="text-xs text-text-secondary truncate hover:underline cursor-pointer hover:text-white mt-1">{currentSong.subtitle}</p>
-              </div>
-              <button onClick={() => setLiked(prev => { const n = new Set(prev); n.has(currentSong.id) ? n.delete(currentSong.id) : n.add(currentSong.id); return n; })}>
-                <Heart size={16} className={liked.has(currentSong?.id) ? 'text-brand fill-brand' : 'text-text-secondary hover:text-white'} />
-              </button>
-            </>
-          ) : <div className="text-text-secondary text-sm font-medium">No active track</div>}
-        </div>
+      {queueOpen && (
+        <QueuePanel
+          queue={queue}
+          queueIndex={queueIndex}
+          currentSong={currentSong}
+          onClose={() => setQueueOpen(false)}
+          onJump={jumpToQueue}
+        />
+      )}
 
-        <div className="w-[40%] flex flex-col items-center justify-center">
-          <div className="flex items-center gap-6 mb-2">
-            <button onClick={() => setSettings(prev => ({ ...prev, shuffle: !prev.shuffle }))} className={`${settings.shuffle ? 'text-brand' : 'text-text-secondary'} hover:text-white`}><Shuffle size={18} /></button>
-            <button onClick={playPrev} className="text-text-secondary hover:text-white"><SkipBack size={20} fill="currentColor" /></button>
-            <button onClick={togglePlay} className="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform text-black shrink-0">
-              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
-            </button>
-            <button onClick={playNext} className="text-text-secondary hover:text-white"><SkipForward size={20} fill="currentColor" /></button>
-            <button onClick={() => setSettings(prev => ({ ...prev, repeat: !prev.repeat }))} className={`${settings.repeat ? 'text-brand' : 'text-text-secondary'} hover:text-white`}><Repeat size={18} /></button>
-          </div>
-          <div className="flex items-center gap-2 w-full max-w-[600px]">
-            <span className="text-xs text-text-secondary w-10 text-right">{formatTime(progress.current)}</span>
-            <div className="flex-1 relative group flex items-center h-4">
-              <input type="range" min={0} max={progress.duration || 0} value={progress.current}
-                onChange={e => { const val = parseFloat(e.target.value); if (audioRef.current) audioRef.current.currentTime = val; setProgress(p => ({ ...p, current: val })) }}
-                className="w-full absolute z-10 opacity-0 group-hover:opacity-100 cursor-pointer" />
-              <div className="h-1 bg-[#4d4d4d] w-full rounded-full overflow-hidden absolute">
-                <div className="h-full bg-white group-hover:bg-brand transition-colors" style={{ width: `${(progress.current / (progress.duration || 1)) * 100}%` }} />
-              </div>
-            </div>
-            <span className="text-xs text-text-secondary w-10">{formatTime(progress.duration)}</span>
-          </div>
-        </div>
+      <Player
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        currentTime={currentTime}
+        duration={duration}
+        volume={volume}
+        shuffle={shuffle}
+        repeat={repeat}
+        likedSongs={likedSongs}
+        onPlayPause={handlePlayPause}
+        onSeek={handleSeek}
+        onVolume={handleVolume}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        onShuffle={() => setShuffle((s) => !s)}
+        onRepeat={cycleRepeat}
+        onLike={handleLike}
+        onOpenFullscreen={() => setNpOpen(true)}
+        onToggleQueue={() => setQueueOpen((q) => !q)}
+        queueOpen={queueOpen}
+      />
 
-        <div className="w-[30%] flex justify-end items-center gap-4 pl-4">
-          {volume === 0 ? <VolumeX size={18} className="text-text-secondary" /> : volume < 0.5 ? <Volume1 size={18} className="text-text-secondary" /> : <Volume2 size={18} className="text-text-secondary" />}
-          <div className="w-[100px] relative group flex items-center h-4">
-            <input type="range" min={0} max={1} step={0.01} value={volume} onChange={e => setVolume(parseFloat(e.target.value))}
-              className="w-full absolute z-10 opacity-0 group-hover:opacity-100 cursor-pointer" />
-            <div className="h-1 bg-[#4d4d4d] w-full rounded-full overflow-hidden absolute">
-              <div className="h-full bg-white group-hover:bg-brand transition-colors" style={{ width: `${volume * 100}%` }} />
-            </div>
-          </div>
-        </div>
-      </footer>
+      {npOpen && currentSong && (
+        <NowPlayingView
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          volume={volume}
+          shuffle={shuffle}
+          repeat={repeat}
+          liked={!!likedSongs[currentSong?.id]}
+          onClose={() => setNpOpen(false)}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+          onVolume={handleVolume}
+          onPrev={handlePrev}
+          onNext={handleNext}
+          onShuffle={() => setShuffle((s) => !s)}
+          onRepeat={cycleRepeat}
+          onLike={handleLike}
+        />
+      )}
 
-      {toast && <div className="fixed bottom-[110px] left-1/2 -translate-x-1/2 bg-[#2e77d0] text-white px-6 py-3 rounded-lg font-bold shadow-2xl z-50 fade-in">{toast}</div>}
+      <Toasts toasts={toasts} dismiss={dismiss} />
     </div>
   );
 }

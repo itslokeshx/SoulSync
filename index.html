@@ -2,15 +2,109 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SoulSync — Stream millions of songs. Discover music, artists, and albums. Free, dark, and immersive." />
+    <title>SoulSync – Music for the Soul</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <title>SoulSync — Music for Everyone</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        font-family: "Inter", system-ui, sans-serif;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        background: #535353;
+        border-radius: 9999px;
+        height: 4px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        margin-top: -5px;
+        background: #fff;
+        border-radius: 50%;
+        height: 14px;
+        width: 14px;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      input[type="range"]:hover::-webkit-slider-thumb {
+        opacity: 1;
+      }
+      input[type="range"]::-moz-range-track {
+        background: #535353;
+        border-radius: 9999px;
+        height: 4px;
+      }
+      input[type="range"]::-moz-range-thumb {
+        background: #fff;
+        border: none;
+        border-radius: 50%;
+        height: 14px;
+        width: 14px;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      input[type="range"]:hover::-moz-range-thumb {
+        opacity: 1;
+      }
+      .progress-bar::-webkit-slider-runnable-track {
+        background: linear-gradient(
+          to right,
+          #1db954 var(--progress, 0%),
+          #535353 var(--progress, 0%)
+        );
+      }
+      .progress-bar::-moz-range-progress {
+        background: #1db954;
+        border-radius: 9999px;
+      }
+      .volume-bar::-webkit-slider-runnable-track {
+        background: linear-gradient(
+          to right,
+          #fff var(--volume, 100%),
+          #535353 var(--volume, 100%)
+        );
+      }
+      .volume-bar:hover::-webkit-slider-runnable-track {
+        background: linear-gradient(
+          to right,
+          #1db954 var(--volume, 100%),
+          #535353 var(--volume, 100%)
+        );
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #535353;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #b3b3b3;
+      }
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
   </head>
-  <body>
+  <body class="bg-black overflow-hidden">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
