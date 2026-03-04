@@ -53,19 +53,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-[100dvh] bg-sp-black flex flex-col lg:flex-row overflow-hidden">
       {/* ═══════════════ LEFT: Hero ═══════════════ */}
-      <div className="relative lg:w-[52%] flex flex-col justify-center items-center px-6 py-12 sm:py-16 lg:py-0 lg:px-16 overflow-hidden">
+      <div className="relative lg:w-[52%] flex flex-col justify-center items-center px-5 sm:px-6 py-8 sm:py-14 lg:py-0 lg:px-16 overflow-hidden">
         {/* Background layers */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Green gradient orb */}
           <div
-            className="absolute w-[500px] h-[500px] -top-32 -left-32 opacity-[0.12]"
+            className="absolute w-[280px] h-[280px] sm:w-[500px] sm:h-[500px] -top-20 -left-20 sm:-top-32 sm:-left-32 opacity-[0.12]"
             style={{
               background:
                 "radial-gradient(circle, #1db954 0%, transparent 70%)",
             }}
           />
           <div
-            className="absolute w-[300px] h-[300px] bottom-0 right-0 opacity-[0.06]"
+            className="absolute w-[180px] h-[180px] sm:w-[300px] sm:h-[300px] bottom-0 right-0 opacity-[0.06]"
             style={{
               background:
                 "radial-gradient(circle, #1db954 0%, transparent 70%)",
@@ -86,16 +86,20 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="flex items-center gap-3.5 mb-10 lg:mb-14"
+            className="flex items-center gap-3 sm:gap-3.5 mb-7 sm:mb-10 lg:mb-14"
           >
             <div
-              className="w-12 h-12 rounded-xl bg-sp-green flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sp-green flex items-center justify-center flex-shrink-0"
               style={{ boxShadow: "0 0 24px rgba(29,185,84,0.3)" }}
             >
-              <Music2 size={24} className="text-black" strokeWidth={2.5} />
+              <Music2
+                size={22}
+                className="text-black sm:w-6 sm:h-6"
+                strokeWidth={2.5}
+              />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight leading-none">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-none">
                 Soul<span className="text-sp-green">Sync</span>
               </h1>
               <p className="text-[10px] text-white/20 font-medium tracking-[0.18em] uppercase mt-0.5">
@@ -110,14 +114,14 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
           >
-            <h2 className="text-[2rem] sm:text-[2.5rem] lg:text-[2.8rem] font-black text-white leading-[1.1] tracking-tight">
+            <h2 className="text-[1.6rem] sm:text-[2.5rem] lg:text-[2.8rem] font-black text-white leading-[1.1] tracking-tight">
               Your music,
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-sp-green via-emerald-300 to-teal-400">
                 your way.
               </span>
             </h2>
-            <p className="text-white/35 text-sm sm:text-base mt-4 leading-relaxed max-w-sm">
+            <p className="text-white/35 text-[13px] sm:text-base mt-3 sm:mt-4 leading-relaxed max-w-sm">
               AI-powered playlists, real-time duo sessions, and 50 million songs
               — completely free, forever.
             </p>
@@ -128,10 +132,10 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="mt-10 lg:mt-14"
+            className="mt-7 sm:mt-10 lg:mt-14"
           >
             {/* EQ visualizer */}
-            <div className="flex items-end gap-[3px] h-6 mb-6">
+            <div className="flex items-end gap-[3px] h-5 sm:h-6 mb-4 sm:mb-6">
               {[6, 10, 4, 14, 8, 12, 5, 9, 7, 11, 6, 13, 5, 8].map((h, i) => (
                 <EqBar key={i} delay={i * 0.08} h={h} />
               ))}
@@ -147,10 +151,13 @@ export default function LoginPage() {
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]"
                 >
-                  <Icon size={13} className="text-sp-green" />
-                  <span className="text-xs text-white/50 font-medium">
+                  <Icon
+                    size={12}
+                    className="text-sp-green sm:w-[13px] sm:h-[13px]"
+                  />
+                  <span className="text-[11px] sm:text-xs text-white/50 font-medium">
                     {label}
                   </span>
                 </div>
@@ -180,7 +187,9 @@ export default function LoginPage() {
       </div>
 
       {/* ═══════════════ RIGHT: Login ═══════════════ */}
-      <div className="relative lg:w-[48%] flex flex-col items-center justify-center px-6 pb-10 sm:pb-12 lg:py-0 lg:px-16">
+      <div className="relative lg:w-[48%] flex flex-col items-center justify-center px-5 sm:px-6 pb-8 sm:pb-12 lg:py-0 lg:px-16">
+        {/* Horizontal divider — mobile */}
+        <div className="lg:hidden w-16 h-px bg-white/[0.06] mx-auto mb-6 sm:mb-8" />
         {/* Vertical divider — desktop */}
         <div className="hidden lg:block absolute left-0 top-[15%] bottom-[15%] w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent" />
 
@@ -193,7 +202,7 @@ export default function LoginPage() {
         >
           {/* Card */}
           <div
-            className="rounded-3xl p-7 sm:p-9"
+            className="rounded-2xl sm:rounded-3xl p-5 sm:p-7 md:p-9"
             style={{
               background:
                 "linear-gradient(160deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)",
@@ -203,10 +212,10 @@ export default function LoginPage() {
             }}
           >
             {/* Top green accent line */}
-            <div className="w-12 h-1 rounded-full bg-sp-green mx-auto mb-7" />
+            <div className="w-10 sm:w-12 h-1 rounded-full bg-sp-green mx-auto mb-5 sm:mb-7" />
 
-            <div className="text-center mb-7">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">
+            <div className="text-center mb-5 sm:mb-7">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">
                 Get started
               </h2>
               <p className="text-sm text-white/30 mt-1.5 leading-relaxed">
@@ -248,13 +257,13 @@ export default function LoginPage() {
                   size="large"
                   shape="pill"
                   text="continue_with"
-                  width="300"
+                  width="280"
                 />
               </div>
             </div>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-6">
+            <div className="flex items-center gap-2 sm:gap-3 my-4 sm:my-6">
               <div className="flex-1 h-px bg-white/[0.06]" />
               <div className="flex items-center gap-1.5">
                 <div className="w-1 h-1 rounded-full bg-sp-green/50" />
@@ -266,7 +275,7 @@ export default function LoginPage() {
             </div>
 
             {/* Testimonial-style social proof */}
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+            <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
               {/* Stacked avatars */}
               <div className="flex -space-x-2 flex-shrink-0">
                 {["🎵", "🎧", "🎶"].map((e, i) => (
@@ -278,8 +287,8 @@ export default function LoginPage() {
                   </div>
                 ))}
               </div>
-              <div>
-                <p className="text-[11px] text-white/50 leading-snug">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-[11px] text-white/50 leading-snug">
                   Join thousands of music lovers already vibing on SoulSync
                 </p>
               </div>
@@ -287,7 +296,7 @@ export default function LoginPage() {
           </div>
 
           {/* Mobile stats */}
-          <div className="flex lg:hidden items-center justify-center gap-5 mt-6">
+          <div className="flex lg:hidden items-center justify-center gap-4 sm:gap-5 mt-5 sm:mt-6">
             {[
               { val: "50M+", label: "Songs" },
               { val: "200K+", label: "Artists" },
