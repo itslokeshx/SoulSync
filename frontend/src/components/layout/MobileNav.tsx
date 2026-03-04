@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Search, Library, Download, UserCircle } from "lucide-react";
+import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
 
 export const MobileNav = () => {
@@ -9,6 +10,9 @@ export const MobileNav = () => {
     location.pathname === "/"
       ? "home"
       : location.pathname.slice(1).split("/")[0];
+  const hasActiveDownloads = useDownloadStore(
+    (s) => s.active.some((d) => d.status === "downloading" || d.status === "saving"),
+  );
 
   return (
     <nav
@@ -33,9 +37,8 @@ export const MobileNav = () => {
         <button
           key={id}
           onClick={() => navigate(path)}
-          className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${
-            view === id ? "text-sp-green" : "text-white/40 active:text-white"
-          }`}
+          className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${view === id ? "text-sp-green" : "text-white/40 active:text-white"
+            }`}
         >
           {view === id && (
             <span
@@ -44,6 +47,12 @@ export const MobileNav = () => {
             />
           )}
           <Icon size={19} strokeWidth={view === id ? 2.5 : 1.8} />
+          {id === "downloads" && hasActiveDownloads && (
+            <span className="absolute top-1 right-0.5 z-20 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green" />
+            </span>
+          )}
           <span
             className={`text-[9px] font-medium ${view === id ? "text-sp-green" : ""}`}
           >
