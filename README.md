@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="https://soul-sync-beta.vercel.app/"><img src="https://img.shields.io/badge/🔴_LIVE-soul--sync--beta.vercel.app-1DB954?style=for-the-badge" alt="Live Demo" /></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/SoulSync-Music-1DB954?style=for-the-badge&logo=spotify&logoColor=white" alt="SoulSync" />
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
