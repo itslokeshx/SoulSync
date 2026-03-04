@@ -36,11 +36,15 @@ export const logger = winston.createLogger({
 const app = express();
 const httpServer = createServer(app);
 
+const FRONTEND_URL = (
+  process.env.FRONTEND_URL || "http://localhost:5173"
+).replace(/\/+$/, "");
+
 // Middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: FRONTEND_URL,
     credentials: true,
   }),
 );
@@ -74,9 +78,7 @@ async function start() {
   httpServer.listen(PORT, () => {
     console.log(`\n🚀 SoulSync Backend running on port ${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health`);
-    console.log(
-      `   Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}\n`,
-    );
+    console.log(`   Frontend: ${FRONTEND_URL}\n`);
   });
 }
 
