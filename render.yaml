@@ -8,3 +8,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          type: web
+          name: soulsync-backend
+          property: host

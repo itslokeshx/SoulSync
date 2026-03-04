@@ -93,6 +93,9 @@ export const PlayerBar = ({
     return () => document.removeEventListener("pointerdown", close);
   }, [showMobileVol]);
 
+  // Don't render the player bar at all when no song is selected
+  if (!currentSong) return null;
+
   return (
     <div className="fixed bottom-[4.5rem] md:bottom-0 left-0 right-0 z-40 select-none">
       {/* ── Mobile progress bar (thin line at top of bar) ──── */}

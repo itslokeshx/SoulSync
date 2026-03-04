@@ -59,28 +59,28 @@ function getGreeting(name: string): {
 // ─── LANGUAGE-AWARE MOOD QUERIES ─────────────────────────────────────────────
 const MOOD_QUERY_TEMPLATES: Record<string, string[]> = {
   morning: [
-    "morning chill {lang} songs",
-    "feel good {lang} songs",
-    "upbeat {lang} hits",
-    "positive vibes {lang}",
+    "morning vibes {lang} hits",
+    "feel good {lang} hits {year}",
+    "upbeat {lang} hits {year}",
+    "happy {lang} songs {year}",
   ],
   afternoon: [
     "best {lang} songs {year}",
-    "popular {lang} hits",
-    "top {lang} songs",
-    "energetic {lang} songs",
+    "popular {lang} hits {year}",
+    "top {lang} songs {year}",
+    "trending {lang} songs",
   ],
   evening: [
-    "romantic {lang} songs",
-    "soothing {lang} melodies",
-    "evening chill {lang}",
-    "melodious {lang} songs",
+    "romantic {lang} hits",
+    "soothing {lang} melodies {year}",
+    "evening {lang} hits",
+    "melodious {lang} hits",
   ],
   night: [
-    "late night {lang} songs",
-    "lofi chill {lang}",
-    "calm {lang} songs",
-    "soft {lang} music",
+    "late night {lang} hits",
+    "midnight {lang} songs",
+    "chill {lang} hits {year}",
+    "relaxing {lang} hits",
   ],
 };
 
@@ -165,10 +165,9 @@ async function buildUserProfile(userId: string): Promise<UserProfile> {
   for (const h of recentHistory) {
     // We don't have language on history, but we can infer from preferences
   }
-  const topLanguages = (user as any)?.preferences?.languages || [
-    "hindi",
-    "english",
-  ];
+  const topLanguages = (user as any)?.preferences?.languages?.length
+    ? (user as any).preferences.languages
+    : ["english"];
 
   return {
     topArtists,
@@ -287,9 +286,10 @@ async function buildLanguageSection(
     tamil: ["best tamil songs", "top tamil hits", "popular tamil songs"],
     telugu: ["best telugu songs", "top telugu hits", "popular telugu songs"],
     english: [
-      "top english pop songs",
-      "best english hits",
-      "popular english songs",
+      "Ed Sheeran best songs",
+      "The Weeknd top hits",
+      "top english pop hits 2025",
+      "best english songs 2024",
     ],
     punjabi: [
       "best punjabi songs",
@@ -396,8 +396,20 @@ async function buildTrending(
   const lang =
     languages.length > 0
       ? languages[Math.floor(Math.random() * languages.length)]
-      : "hindi";
-  const result = await searchSongs(`popular ${lang} songs`, 20);
+      : "english";
+  const trendingQueries: Record<string, string> = {
+    tamil: "trending tamil hits 2025",
+    english: "trending english hits 2025",
+    hindi: "trending bollywood hits 2025",
+    telugu: "trending telugu hits 2025",
+    punjabi: "trending punjabi hits 2025",
+    kannada: "trending kannada hits 2025",
+    malayalam: "trending malayalam hits 2025",
+  };
+  const result = await searchSongs(
+    trendingQueries[lang] || `trending ${lang} hits 2025`,
+    20,
+  );
   if (result.results.length === 0) return null;
 
   const filtered = filterByLanguage(result.results, languages);
@@ -428,7 +440,7 @@ async function buildMoodGrid(): Promise<DashboardSection | null> {
 async function buildNewReleases(
   languages: string[],
 ): Promise<DashboardSection | null> {
-  const lang = languages[0] || "hindi";
+  const lang = languages[0] || "english";
   const result = await searchSongs(
     `new ${lang} songs ${new Date().getFullYear()}`,
     18,
@@ -471,36 +483,36 @@ export async function buildDashboard(
 
   // ── GUEST PATH ──
   if (isGuest) {
-    const defaultLangs = ["hindi", "english", "tamil"];
+    const defaultLangs = ["tamil", "english", "telugu"];
     const [fallback1, fallback2, fallback3, timeSec] = await Promise.all([
-      searchSongs("best bollywood songs", 15).catch(() => ({
-        results: [] as JioSaavnSong[],
-      })),
       searchSongs("best tamil songs", 15).catch(() => ({
         results: [] as JioSaavnSong[],
       })),
-      searchSongs("top english pop songs", 15).catch(() => ({
+      searchSongs("best telugu songs", 15).catch(() => ({
+        results: [] as JioSaavnSong[],
+      })),
+      searchSongs("best english songs 2024", 15).catch(() => ({
         results: [] as JioSaavnSong[],
       })),
       buildTimeMoodSection(timeMood, defaultLangs).catch(() => null),
     ]);
     if (timeSec) sections.push(timeSec);
     if (fallback1.results.length > 0) {
-      const filtered = filterByLanguage(fallback1.results, ["hindi"]);
+      const filtered = filterByLanguage(fallback1.results, ["tamil"]);
       sections.push({
-        id: "popular_bollywood",
-        title: "Popular in Bollywood",
-        subtitle: "India's biggest hits",
+        id: "popular_tamil",
+        title: "Popular in Tamil",
+        subtitle: "Kollywood's finest",
         type: "horizontal",
         songs: filtered.slice(0, 12),
       });
     }
     if (fallback2.results.length > 0) {
-      const filtered = filterByLanguage(fallback2.results, ["tamil"]);
+      const filtered = filterByLanguage(fallback2.results, ["telugu"]);
       sections.push({
-        id: "popular_tamil",
-        title: "Popular in Tamil",
-        subtitle: "Kollywood's finest",
+        id: "popular_telugu",
+        title: "Popular in Telugu",
+        subtitle: "Tollywood's best",
         type: "horizontal",
         songs: filtered.slice(0, 12),
       });
@@ -601,7 +613,7 @@ export async function buildDashboard(
   if (!profile.hasHistory && sections.length < 3) {
     // Build sections based on user's preferred languages
     const fallbackLangs =
-      userLangs.length > 0 ? userLangs.slice(0, 3) : ["hindi", "english"];
+      userLangs.length > 0 ? userLangs.slice(0, 3) : ["tamil", "english"];
 
     const fallbackResults = await Promise.all(
       fallbackLangs.map((lang) =>

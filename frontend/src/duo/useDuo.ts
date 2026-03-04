@@ -185,6 +185,20 @@ export function useDuo({
   useEffect(() => {
     const socket = getSocket();
 
+    // Auto-rejoin room on socket reconnect (network drop / server restart)
+    const onReconnect = () => {
+      const saved = getPersistedSession();
+      if (saved?.roomCode && saved?.myName && saved?.role) {
+        console.log("[Duo] Socket reconnected, rejoining room", saved.roomCode);
+        socket.emit("duo:join", {
+          code: saved.roomCode,
+          name: saved.myName,
+          role: saved.role,
+        });
+        addToast("Reconnected to SoulLink!", "success");
+      }
+    };
+
     const onPartnerJoined = ({ name, role: _role, room }: any) => {
       store.getState().partnerJoined({ name });
       store.getState().setSessionState(room);
@@ -212,7 +226,32 @@ export function useDuo({
 
     const onPartnerDisconnected = () => {
       store.getState().partnerDisconnected();
-      addToast("Your partner disconnected", "info");
+      addToast("Your partner disconnected — they can rejoin", "info");
+    };
+
+    const onPartnerReconnected = ({ name }: any) => {
+      store.getState().partnerReconnected({ name });
+      addToast(`${name} reconnected! 🎉`, "success");
+
+      // If we're host, resync the current song
+      if (store.getState().role === "host") {
+        const cs = currentSongRef?.current;
+        if (cs) {
+          const q = queueRef?.current;
+          setTimeout(() => {
+            getSocket().emit("duo:sync-song-change", {
+              song: cs,
+              queue: q?.length ? q : [cs],
+              queueIndex: q?.length
+                ? Math.max(
+                    q.findIndex((s: any) => s.id === cs.id),
+                    0,
+                  )
+                : 0,
+            });
+          }, 500);
+        }
+      }
     };
 
     const onPartnerActive = () => {
@@ -274,8 +313,10 @@ export function useDuo({
       addToast(message || "SoulLink error", "error");
     };
 
+    socket.on("connect", onReconnect);
     socket.on("duo:partner-joined", onPartnerJoined);
     socket.on("duo:partner-disconnected", onPartnerDisconnected);
+    socket.on("duo:partner-reconnected", onPartnerReconnected);
     socket.on("duo:partner-active", onPartnerActive);
     socket.on("duo:session-state", onSessionState);
     socket.on("duo:receive-play", onReceivePlay);
@@ -287,8 +328,10 @@ export function useDuo({
     socket.on("duo:error", onError);
 
     return () => {
+      socket.off("connect", onReconnect);
       socket.off("duo:partner-joined", onPartnerJoined);
       socket.off("duo:partner-disconnected", onPartnerDisconnected);
+      socket.off("duo:partner-reconnected", onPartnerReconnected);
       socket.off("duo:partner-active", onPartnerActive);
       socket.off("duo:session-state", onSessionState);
       socket.off("duo:receive-play", onReceivePlay);

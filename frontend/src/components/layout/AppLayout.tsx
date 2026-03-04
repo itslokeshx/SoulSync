@@ -118,9 +118,12 @@ export function AppLayout() {
     csRef.current = currentSong;
   }, [currentSong]);
 
-  // Auto-close NowPlaying fullscreen on route change
+  // Auto-close NowPlaying fullscreen & minimise DuoPanel on route change
   useEffect(() => {
     setNpOpen(false);
+    if (useDuoStore.getState().panelOpen) {
+      useDuoStore.getState().setPanelOpen(false);
+    }
   }, [location.pathname]);
 
   // Debounced search → navigate to /search
@@ -605,7 +608,7 @@ export function AppLayout() {
           </div>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28">
+          <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28 bg-black/40">
             <Outlet />
           </main>
         </div>

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Search, Library, Download } from "lucide-react";
+import { Home, Search, Library, Download, UserCircle } from "lucide-react";
 import { DuoButton } from "../../duo";
 
 export const MobileNav = () => {
@@ -28,11 +28,12 @@ export const MobileNav = () => {
           path: "/downloads",
         },
         { id: "library", Icon: Library, label: "Library", path: "/library" },
+        { id: "profile", Icon: UserCircle, label: "Profile", path: "/profile" },
       ].map(({ id, Icon, label, path }) => (
         <button
           key={id}
           onClick={() => navigate(path)}
-          className={`flex flex-col items-center gap-0.5 py-2 px-5 transition-all duration-300 relative ${
+          className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${
             view === id ? "text-sp-green" : "text-white/40 active:text-white"
           }`}
         >
@@ -42,9 +43,9 @@ export const MobileNav = () => {
               style={{ boxShadow: "0 0 8px rgba(29,185,84,0.5)" }}
             />
           )}
-          <Icon size={20} strokeWidth={view === id ? 2.5 : 1.8} />
+          <Icon size={19} strokeWidth={view === id ? 2.5 : 1.8} />
           <span
-            className={`text-[10px] font-medium ${view === id ? "text-sp-green" : ""}`}
+            className={`text-[9px] font-medium ${view === id ? "text-sp-green" : ""}`}
           >
             {label}
           </span>

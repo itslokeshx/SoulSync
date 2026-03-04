@@ -2,14 +2,16 @@ import Groq from "groq-sdk";
 
 interface KeyState {
   key: string;
+  index: number;
   uses: number;
   errors: number;
   lastErrorTime: number;
+  rateLimitedUntil: number;
 }
 
 class GroqKeyManager {
   private keys: KeyState[] = [];
-  private index = 0;
+  private roundRobinIndex = 0;
 
   constructor() {
     const envKeys = [
@@ -20,60 +22,74 @@ class GroqKeyManager {
       process.env.GROQ_KEY_5,
     ].filter(Boolean) as string[];
 
-    this.keys = envKeys.map((key) => ({
+    this.keys = envKeys.map((key, i) => ({
       key,
+      index: i,
       uses: 0,
       errors: 0,
       lastErrorTime: 0,
+      rateLimitedUntil: 0,
     }));
 
+    console.log(`[Groq] Initialized with ${this.keys.length} API key(s)`);
     if (this.keys.length === 0) {
       console.warn("[Groq] No API keys configured");
     }
   }
 
-  getNextKey(): string {
-    if (this.keys.length === 0) {
-      throw new Error("AI temporarily unavailable — no API keys configured");
-    }
+  /** Pick the best available key using round-robin with health checks */
+  private pickKey(): KeyState | null {
+    if (this.keys.length === 0) return null;
 
-    const oneHourAgo = Date.now() - 3600000;
-    let attempts = 0;
+    const now = Date.now();
+    const cooldownMs = 10 * 60 * 1000; // 10 min cooldown for errored keys
 
-    while (attempts < this.keys.length) {
-      const keyState = this.keys[this.index % this.keys.length];
-      this.index++;
+    // Try round-robin through all keys
+    for (let attempt = 0; attempt < this.keys.length; attempt++) {
+      const idx = this.roundRobinIndex % this.keys.length;
+      this.roundRobinIndex++;
+      const ks = this.keys[idx];
 
-      // Reset error count if last error was more than 1 hour ago
-      if (keyState.lastErrorTime < oneHourAgo) {
-        keyState.errors = 0;
+      // Skip rate-limited keys
+      if (ks.rateLimitedUntil > now) continue;
+
+      // Reset errors after cooldown period
+      if (ks.errors > 0 && now - ks.lastErrorTime > cooldownMs) {
+        ks.errors = 0;
       }
 
-      // Skip keys with 3+ errors in the last hour
-      if (keyState.errors >= 3) {
-        attempts++;
-        continue;
-      }
+      // Skip keys with too many consecutive errors
+      if (ks.errors >= 3) continue;
 
-      keyState.uses++;
-      return keyState.key;
+      return ks;
     }
 
-    throw new Error("AI temporarily unavailable — all keys exhausted");
+    // All keys are errored — pick the one with the oldest error (most likely recovered)
+    const sorted = [...this.keys].sort(
+      (a, b) => a.lastErrorTime - b.lastErrorTime,
+    );
+    // Reset its error count to give it another chance
+    sorted[0].errors = 0;
+    return sorted[0];
   }
 
-  reportError(key: string): void {
-    const keyState = this.keys.find((k) => k.key === key);
-    if (keyState) {
-      keyState.errors++;
-      keyState.lastErrorTime = Date.now();
+  reportError(key: string, isRateLimit = false): void {
+    const ks = this.keys.find((k) => k.key === key);
+    if (ks) {
+      ks.errors++;
+      ks.lastErrorTime = Date.now();
+      if (isRateLimit) {
+        // Back off this key for 60s on rate limit
+        ks.rateLimitedUntil = Date.now() + 60_000;
+      }
     }
   }
 
   reportSuccess(key: string): void {
-    const keyState = this.keys.find((k) => k.key === key);
-    if (keyState) {
-      keyState.errors = 0;
+    const ks = this.keys.find((k) => k.key === key);
+    if (ks) {
+      ks.errors = 0;
+      ks.rateLimitedUntil = 0;
     }
   }
 
@@ -83,10 +99,17 @@ class GroqKeyManager {
     maxTokens = 1000,
   ): Promise<string> {
     let lastError: Error | null = null;
+    const triedKeys = new Set<string>();
 
-    for (let i = 0; i < Math.min(this.keys.length, 5); i++) {
-      const key = this.getNextKey();
-      const client = new Groq({ apiKey: key });
+    for (let i = 0; i < this.keys.length; i++) {
+      const ks = this.pickKey();
+      if (!ks) break;
+
+      // Avoid retrying same key in one call
+      if (triedKeys.has(ks.key)) continue;
+      triedKeys.add(ks.key);
+
+      const client = new Groq({ apiKey: ks.key });
 
       try {
         const completion = await client.chat.completions.create({
@@ -100,7 +123,12 @@ class GroqKeyManager {
         });
 
         const content = completion.choices[0]?.message?.content || "";
-        this.reportSuccess(key);
+        this.reportSuccess(ks.key);
+        ks.uses++;
+
+        console.log(
+          `[Groq] Success on key #${ks.index + 1} (total uses: ${ks.uses})`,
+        );
 
         // Strip markdown fences
         const cleaned = content
@@ -110,11 +138,15 @@ class GroqKeyManager {
 
         return cleaned;
       } catch (err) {
-        this.reportError(key);
+        const errMsg = (err as Error).message || "";
+        const isRateLimit =
+          errMsg.includes("rate_limit") ||
+          errMsg.includes("429") ||
+          errMsg.includes("quota");
+        this.reportError(ks.key, isRateLimit);
         lastError = err as Error;
         console.error(
-          `[Groq] Key failed, trying next:`,
-          (err as Error).message,
+          `[Groq] Key #${ks.index + 1} failed${isRateLimit ? " (rate limited)" : ""}, trying next: ${errMsg}`,
         );
       }
     }

@@ -71,6 +71,28 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ── Keep-alive self-ping to prevent Render free-tier sleep ───────────────
+function startKeepAlive() {
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
+  if (!RENDER_URL) {
+    logger.info("[KeepAlive] No RENDER_EXTERNAL_URL set — skipping self-ping");
+    return;
+  }
+  const url = `${RENDER_URL.replace(/\/+$/, "")}/health`;
+  const INTERVAL = 13 * 60 * 1000; // every 13 minutes (Render sleeps after 15)
+
+  setInterval(async () => {
+    try {
+      const res = await fetch(url);
+      logger.info(`[KeepAlive] Pinged ${url} → ${res.status}`);
+    } catch (err) {
+      logger.warn(`[KeepAlive] Ping failed: ${(err as Error).message}`);
+    }
+  }, INTERVAL);
+
+  logger.info(`[KeepAlive] Self-ping active every 13 min → ${url}`);
+}
+
 // Initialize Socket.io
 initializeSocket(httpServer);
 
@@ -84,6 +106,9 @@ async function start() {
     console.log(`\n🚀 SoulSync Backend running on port ${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health`);
     console.log(`   Frontend: ${FRONTEND_URL}\n`);
+
+    // Start keep-alive after server boots
+    startKeepAlive();
   });
 }
 

@@ -10,10 +10,25 @@ export function getSocket(): Socket {
       autoConnect: false,
       withCredentials: true,
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      timeout: 10_000,
+      reconnectionDelayMax: 5000,
+      timeout: 15_000,
       transports: ["websocket", "polling"],
+    });
+
+    // Auto-rejoin room on reconnect
+    socket.on("connect", () => {
+      console.log("[DuoSocket] Connected:", socket?.id);
+      // Rejoin is handled in useDuo via the 'connect' event
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("[DuoSocket] Disconnected:", reason);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.warn("[DuoSocket] Connection error:", err.message);
     });
   }
   return socket;

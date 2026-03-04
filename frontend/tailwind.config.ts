@@ -5,8 +5,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        "sp-black": "#050505",
-        "sp-dark": "#0a0a0a",
+        "sp-black": "#000000",
+        "sp-dark": "#060606",
         "sp-card": "#141414",
         "sp-hover": "#1c1c1c",
         "sp-green": "#1db954",

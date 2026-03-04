@@ -229,7 +229,7 @@ export default function DownloadsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              Downloads
+              Downloads & Device Music
             </h1>
             <p className="text-xs text-white/30 mt-0.5">
               {songs.length} songs · {storageSize} used
@@ -250,6 +250,28 @@ export default function DownloadsPage() {
             </span>
           </button>
         </div>
+        {/* Offline playback banner */}
+        <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-sp-green/[0.08] border border-sp-green/[0.15]">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-sp-green/20">
+            <Music2 size={16} className="text-sp-green" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-sp-green">
+              Play songs directly from your device
+            </p>
+            <p className="text-[11px] text-white/40 mt-0.5">
+              Import MP3s, AAC, or any audio files — plays offline, no internet
+              needed
+            </p>
+          </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="flex-shrink-0 px-3 py-1.5 rounded-full bg-sp-green/20 hover:bg-sp-green/30 text-sp-green text-[11px] font-semibold transition-all"
+          >
+            {importing ? "…" : "+ Add"}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -262,23 +284,31 @@ export default function DownloadsPage() {
             <HardDrive size={28} className="text-white/20" />
           </div>
           <div>
-            <p className="text-white font-semibold">No downloads yet</p>
-            <p className="text-white/30 text-sm mt-1">
-              Download songs from the 3-dot menu or import from your device
+            <p className="text-white font-semibold text-lg">
+              Your Music Library
+            </p>
+            <p className="text-white/40 text-sm mt-1 max-w-xs">
+              Download songs for offline play, or import audio files directly
+              from your device to listen anywhere — no internet required.
             </p>
           </div>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50"
-          >
-            {importing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <FileAudio size={16} />
-            )}
-            {importing ? "Importing…" : "Import local songs"}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50"
+            >
+              {importing ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <FileAudio size={16} />
+              )}
+              {importing ? "Importing…" : "Import from device"}
+            </button>
+          </div>
+          <p className="text-white/20 text-[11px] mt-1">
+            Supports MP3, AAC, WAV, OGG, FLAC & more
+          </p>
         </div>
       ) : (
         <div className="space-y-0.5">

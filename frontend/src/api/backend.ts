@@ -5,15 +5,47 @@ import { User, UserStats } from "../types/user";
 const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL || "http://localhost:4000",
   withCredentials: true,
-  timeout: 15000,
+  timeout: 30000,
 });
+
+// Wake up backend on first load (Render free tier sleeps after 15 min)
+let _wakeUpDone = false;
+async function ensureBackendAwake() {
+  if (_wakeUpDone) return;
+  try {
+    await api.get("/health", { timeout: 45000 });
+    _wakeUpDone = true;
+  } catch {
+    // Backend might be sleeping, give it time
+  }
+}
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 export async function loginWithGoogle(
   idToken: string,
 ): Promise<{ user: User; isNewUser: boolean }> {
-  const { data } = await api.post("/api/auth/google", { idToken });
-  return data;
+  // Ensure backend is awake before login attempt
+  await ensureBackendAwake();
+  // Retry up to 3 times for cold-start scenarios
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { data } = await api.post(
+        "/api/auth/google",
+        { idToken },
+        {
+          timeout: 30000,
+        },
+      );
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 export async function logout(): Promise<void> {

@@ -3,29 +3,54 @@ import axios from "axios";
 const JIOSAAVN_API =
   process.env.JIOSAAVN_API || "https://jiosaavn.rajputhemant.dev";
 
-// ── rate-limit queue: throttle requests to avoid 429s ───────────
+// ── Serialised request queue: JioSaavn API allows 1 req / second ────────
+const REQ_GAP = 1100; // ms between requests (1.1s to stay safe)
 let lastReq = 0;
-const REQ_GAP = 300; // ms between requests
+let queueTail: Promise<void> = Promise.resolve();
 
+/**
+ * Enqueue a GET request so that only ONE request is in-flight at a time
+ * and each request is spaced at least REQ_GAP ms from the previous one.
+ * Retries up to 3 times on 429 with exponential back-off.
+ */
 async function throttledGet(url: string, opts: Record<string, any> = {}) {
-  const now = Date.now();
-  const wait = Math.max(0, REQ_GAP - (now - lastReq));
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastReq = Date.now();
+  // Chain onto the queue so requests execute one-by-one
+  const result = new Promise<any>((resolve, reject) => {
+    queueTail = queueTail.then(async () => {
+      // Wait until enough time has passed since the last request
+      const now = Date.now();
+      const wait = Math.max(0, REQ_GAP - (now - lastReq));
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      return await axios.get(url, { timeout: 8000, ...opts });
-    } catch (err: any) {
-      if (err?.response?.status === 429 && attempt < 2) {
-        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          lastReq = Date.now();
+          const res = await axios.get(url, { timeout: 10000, ...opts });
+          resolve(res);
+          return;
+        } catch (err: any) {
+          if (err?.response?.status === 429 && attempt < 2) {
+            // Read the retry-after header or use exponential backoff
+            const retryAfter = err.response?.headers?.["retry-after"];
+            const delay = retryAfter
+              ? Math.max(parseInt(retryAfter, 10) * 1000, 1200)
+              : (attempt + 1) * 1500;
+            console.warn(
+              `[JioSaavn] 429 rate limited, waiting ${delay}ms (attempt ${attempt + 1}/3)`,
+            );
+            await new Promise((r) => setTimeout(r, delay));
+            lastReq = Date.now(); // update so next queued item also waits
+            continue;
+          }
+          reject(err);
+          return;
+        }
       }
-      throw err;
-    }
-  }
-  throw new Error("max retries");
+      reject(new Error("max retries exceeded"));
+    });
+  });
+
+  return result;
 }
 
 export interface JioSaavnSong {
