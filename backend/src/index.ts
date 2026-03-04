@@ -41,7 +41,12 @@ const FRONTEND_URL = (
 ).replace(/\/+$/, "");
 
 // Middleware
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  }),
+);
 app.use(
   cors({
     origin: FRONTEND_URL,
