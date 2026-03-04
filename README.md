@@ -1,8 +1,10 @@
 <div align="center">
 
-<img src="frontend/public/banner.png" alt="SoulSync Banner" width="100%" />
-
 <br/>
+
+<img src="frontend/public/banner.png" alt="SoulSync Banner" width="75%" style="max-width:900px;border-radius:16px;" />
+
+<br/><br/>
 
 # 🎧 SoulSync
 
@@ -25,7 +27,7 @@
 
 <br/><br/>
 
-[Features](#-features) · [AI Engine](#-ai-engine) · [SoulLink](#-soullink--listen-together) · [Tech Stack](#-tech-stack) · [Architecture](#-architecture) · [Setup](#-getting-started) · [Deploy](#-deployment) · [API Docs](#-api-reference)
+[Features](#-features) · [vs Spotify](#-soulsync-vs-spotify) · [AI Engine](#-ai-engine) · [SoulLink](#-soullink--listen-together) · [Tech Stack](#-tech-stack) · [Architecture](#-architecture) · [Setup](#-getting-started) · [Deploy](#-deployment) · [API Docs](#-api-reference)
 
 </div>
 
@@ -61,6 +63,37 @@
 </tr>
 </table>
 </div>
+
+<br/>
+
+---
+
+## 🏆 SoulSync vs Spotify
+
+> *Everything Spotify charges ₹119/month for — SoulSync gives you free. Plus features Spotify doesn't offer at any price.*
+
+<div align="center">
+
+| Feature | 🟢 SoulSync | 🔴 Spotify Free | 🟡 Spotify Premium |
+|---|:---:|:---:|:---:|
+| **Ad-free listening** | ✅ Always | ❌ Ads every song | ✅ Paid |
+| **AI Playlist Builder** | ✅ Free, unlimited | ❌ Not available | ❌ Not available |
+| **Listen Together (Duo)** | ✅ Free + built-in chat | ❌ Not available | ✅ Paid, no chat |
+| **Song Downloads** | ✅ Free, stored locally | ❌ Not available | ✅ Paid only |
+| **NLP Smart Search** | ✅ Intent-aware | ❌ Keyword only | ❌ Keyword only |
+| **Personalized Dashboard** | ✅ From day 1 | ❌ Generic | ✅ Algorithmic black box |
+| **In-session Chat** | ✅ Built-in | ❌ Not available | ❌ Not available |
+| **Offline Playback** | ✅ Free | ❌ Not available | ✅ Paid |
+| **Indian Language Support** | ✅ 10+ languages | ❌ Poor regional | ❌ Poor regional |
+| **BGM / Instrumental Search** | ✅ Auto-detected | ❌ No | ❌ No |
+| **Guest Browsing** | ✅ No login needed | ❌ Login required | ❌ Login required |
+| **Import Local Files** | ✅ MP3/WAV/FLAC/AAC | ❌ No | ❌ No |
+| **Open Source** | ✅ MIT License | ❌ Closed source | ❌ Closed source |
+| **Monthly Price** | **₹0 forever** | ₹0 with ads | **₹119/month** |
+
+</div>
+
+> 💬 **Bottom line** — SoulSync is what Spotify would look like if they actually cared about users more than revenue.
 
 <br/>
 
@@ -467,13 +500,13 @@ SoulSync/
 │       │
 │       ├── components/
 │       │   ├── cards/              #    SongCard, SongRow, AlbumCard, ArtistCard, HSection
-│       │   ├── layout/            #    AppLayout, Sidebar, MobileNav, DuoMobileBar
-│       │   ├── player/            #    PlayerBar, NowPlayingView, QueuePanel
-│       │   └── ui/                #    AIPlaylistModal, ContextMenu, Skeleton, EqBars, Toasts
+│       │   ├── layout/             #    AppLayout, Sidebar, MobileNav, DuoMobileBar
+│       │   ├── player/             #    PlayerBar, NowPlayingView, QueuePanel
+│       │   └── ui/                 #    AIPlaylistModal, ContextMenu, Skeleton, EqBars, Toasts
 │       │
 │       ├── duo/                    # 🎧 SoulLink module
 │       │   ├── socket.ts, duoStore.ts, useDuo.ts
-│       │   ├── DuoButton, DuoModal, DuoPanel, DuoEndCard, DuoHeartbeat
+│       │   └── DuoButton, DuoModal, DuoPanel, DuoEndCard, DuoHeartbeat
 │       │
 │       ├── store/                  #    playerStore, queueStore, searchStore, uiStore
 │       ├── api/                    #    backend.ts (REST), jiosaavn.ts (external)
@@ -633,17 +666,19 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Token | Hex | Preview | Usage |
-|-------|-----|---------|-------|
-| `sp-black` | `#000000` | ![](https://via.placeholder.com/16/000000/000000?text=+) | True black |
-| `sp-dark` | `#060606` | ![](https://via.placeholder.com/16/060606/060606?text=+) | App background |
-| `sp-card` | `#141414` | ![](https://via.placeholder.com/16/141414/141414?text=+) | Card surfaces |
-| `sp-hover` | `#1c1c1c` | ![](https://via.placeholder.com/16/1c1c1c/1c1c1c?text=+) | Hover states |
-| `sp-green` | `#1db954` | ![](https://via.placeholder.com/16/1db954/1db954?text=+) | Primary accent |
-| `sp-green-light` | `#1ed760` | ![](https://via.placeholder.com/16/1ed760/1ed760?text=+) | Hover accent |
-| `sp-accent` | `#6366f1` | ![](https://via.placeholder.com/16/6366f1/6366f1?text=+) | AI features |
-| `sp-rose` | `#f43f5e` | ![](https://via.placeholder.com/16/f43f5e/f43f5e?text=+) | Heart / destructive |
-| `sp-amber` | `#f59e0b` | ![](https://via.placeholder.com/16/f59e0b/f59e0b?text=+) | Warnings |
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `sp-black` | `#000000` | True black backgrounds |
+| `sp-dark` | `#060606` | App background |
+| `sp-card` | `#141414` | Card surfaces |
+| `sp-hover` | `#1c1c1c` | Hover states |
+| `sp-green` | `#1db954` | Primary accent, active states, SoulLink |
+| `sp-green-light` | `#1ed760` | Hover accent |
+| `sp-sub` | `#a0a0a0` | Secondary / subtitle text |
+| `sp-glass` | `rgba(255,255,255,0.04)` | Glassmorphism overlays |
+| `sp-accent` | `#6366f1` | AI features, secondary accent |
+| `sp-rose` | `#f43f5e` | Heart/like, destructive actions |
+| `sp-amber` | `#f59e0b` | Warnings, highlights |
 
 </details>
 
@@ -900,6 +935,8 @@ This project is open source under the **[MIT License](LICENSE)**.
 <br/>
 
 **Built with ❤️ by [Loki](https://github.com/itslokeshx)**
+
+*No ads. No paywalls. No limits. Just music.*
 
 _Listen together. Feel together._
 
