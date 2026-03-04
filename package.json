@@ -1,1 +1,13 @@
-{"name":"soulsync","private":true,"version":"0.0.0","type":"module","scripts":{"dev":"vite","build":"vite build","preview":"vite preview"},"dependencies":{"framer-motion":"^12.34.5","lucide-react":"^0.474.0","react":"^18.3.1","react-dom":"^18.3.1","socket.io-client":"^4.8.3","zustand":"^5.0.11"},"devDependencies":{"@types/react":"^18.3.18","@types/react-dom":"^18.3.5","@vitejs/plugin-react":"^4.3.4","autoprefixer":"^10.4.20","postcss":"^8.5.1","tailwindcss":"^3.4.17","vite":"^6.1.0"}}
+{
+  "name": "soulsync",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "typecheck": "npm --prefix frontend run typecheck && npm --prefix backend run typecheck"
+  }
+}
