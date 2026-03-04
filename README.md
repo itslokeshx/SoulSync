@@ -70,26 +70,23 @@
 
 ## 🏆 SoulSync vs Spotify
 
-> *Everything Spotify charges ₹119/month for — SoulSync gives you free. Plus features Spotify doesn't offer at any price.*
+> _Everything Spotify charges ₹119/month for — SoulSync gives you free. Plus features Spotify doesn't offer at any price._
 
 <div align="center">
 
-| Feature | 🟢 SoulSync | 🔴 Spotify Free | 🟡 Spotify Premium |
-|---|:---:|:---:|:---:|
-| **Ad-free listening** | ✅ Always | ❌ Ads every song | ✅ Paid |
-| **AI Playlist Builder** | ✅ Free, unlimited | ❌ Not available | ❌ Not available |
-| **Listen Together (Duo)** | ✅ Free + built-in chat | ❌ Not available | ✅ Paid, no chat |
-| **Song Downloads** | ✅ Free, stored locally | ❌ Not available | ✅ Paid only |
-| **NLP Smart Search** | ✅ Intent-aware | ❌ Keyword only | ❌ Keyword only |
-| **Personalized Dashboard** | ✅ From day 1 | ❌ Generic | ✅ Algorithmic black box |
-| **In-session Chat** | ✅ Built-in | ❌ Not available | ❌ Not available |
-| **Offline Playback** | ✅ Free | ❌ Not available | ✅ Paid |
-| **Indian Language Support** | ✅ 10+ languages | ❌ Poor regional | ❌ Poor regional |
-| **BGM / Instrumental Search** | ✅ Auto-detected | ❌ No | ❌ No |
-| **Guest Browsing** | ✅ No login needed | ❌ Login required | ❌ Login required |
-| **Import Local Files** | ✅ MP3/WAV/FLAC/AAC | ❌ No | ❌ No |
-| **Open Source** | ✅ MIT License | ❌ Closed source | ❌ Closed source |
-| **Monthly Price** | **₹0 forever** | ₹0 with ads | **₹119/month** |
+| Feature                    |       🟢 SoulSync       |  🔴 Spotify Free  |    🟡 Spotify Premium    |
+| -------------------------- | :---------------------: | :---------------: | :----------------------: |
+| **Ad-free listening**      |        ✅ Always        | ❌ Ads every song |         ✅ Paid          |
+| **AI Playlist Builder**    |   ✅ Free, unlimited    | ❌ Not available  |     ❌ Not available     |
+| **Listen Together (Duo)**  | ✅ Free + built-in chat | ❌ Not available  |     ✅ Paid, no chat     |
+| **Song Downloads**         | ✅ Free, stored locally | ❌ Not available  |       ✅ Paid only       |
+| **NLP Smart Search**       |     ✅ Intent-aware     |  ❌ Keyword only  |     ❌ Keyword only      |
+| **Personalized Dashboard** |      ✅ From day 1      |    ❌ Generic     | ✅ Algorithmic black box |
+| **In-session Chat**        |       ✅ Built-in       | ❌ Not available  |     ❌ Not available     |
+| **Offline Playback**       |         ✅ Free         | ❌ Not available  |         ✅ Paid          |
+| **Import Local Files**     |   ✅ MP3/WAV/FLAC/AAC   |       ❌ No       |          ❌ No           |
+| **Open Source**            |     ✅ MIT License      | ❌ Closed source  |     ❌ Closed source     |
+| **Monthly Price**          |     **₹0 forever**      |    ₹0 with ads    |      **₹119/month**      |
 
 </div>
 
@@ -106,13 +103,13 @@
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
-| **Google OAuth 2.0** | One-tap sign-in via `@react-oauth/google`, verified server-side with `google-auth-library` |
-| **JWT Sessions** | httpOnly secure cookies with 7-day expiry, automatic renewal |
-| **Guided Onboarding** | 4-step animated wizard — languages → eras → moods → profile name |
-| **Protected Routes** | `ProtectedRoute` wrapper redirects unauthenticated users to login |
-| **User Profiles** | Google photo, editable display name, language/mood/era preferences |
+| Feature               | Description                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| **Google OAuth 2.0**  | One-tap sign-in via `@react-oauth/google`, verified server-side with `google-auth-library` |
+| **JWT Sessions**      | httpOnly secure cookies with 7-day expiry, automatic renewal                               |
+| **Guided Onboarding** | 4-step animated wizard — languages → eras → moods → profile name                           |
+| **Protected Routes**  | `ProtectedRoute` wrapper redirects unauthenticated users to login                          |
+| **User Profiles**     | Google photo, editable display name, language/mood/era preferences                         |
 
 </details>
 
@@ -121,18 +118,18 @@
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
-| **Millions of Songs** | Full streaming powered by JioSaavn API across 10+ Indian languages & English |
-| **NLP Smart Search** | Understands artists, moods, languages, eras, movies, and formats (e.g., _"sad anirudh songs 2024"_) |
-| **Search Enhancer** | 500+ artist dictionary, mood tokenization, language detection, intent classification |
-| **HQ Playback** | Auto-selects 320kbps → 160kbps → 96kbps based on availability |
-| **Queue Management** | View, reorder, add next/last, shuffle, and auto-fill with recommendations |
-| **Shuffle & Repeat** | Shuffle mode, repeat-one, repeat-all, repeat-off |
-| **Now Playing View** | Full-screen immersive view with dynamic gradients, vinyl spin, and album art |
-| **Context Menu** | Right-click: Play, Queue, Add to Playlist, Like, Download, Go to Artist/Album |
-| **Keyboard Shortcuts** | Space (play/pause), arrows (seek/volume), M (mute), S (shuffle), R (repeat) |
-| **Dynamic Backgrounds** | Album art color extraction for immersive gradient overlays |
+| Feature                 | Description                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| **Millions of Songs**   | Full streaming powered by JioSaavn API across 10+ Indian languages & English                        |
+| **NLP Smart Search**    | Understands artists, moods, languages, eras, movies, and formats (e.g., _"sad anirudh songs 2024"_) |
+| **Search Enhancer**     | 500+ artist dictionary, mood tokenization, language detection, intent classification                |
+| **HQ Playback**         | Auto-selects 320kbps → 160kbps → 96kbps based on availability                                       |
+| **Queue Management**    | View, reorder, add next/last, shuffle, and auto-fill with recommendations                           |
+| **Shuffle & Repeat**    | Shuffle mode, repeat-one, repeat-all, repeat-off                                                    |
+| **Now Playing View**    | Full-screen immersive view with dynamic gradients, vinyl spin, and album art                        |
+| **Context Menu**        | Right-click: Play, Queue, Add to Playlist, Like, Download, Go to Artist/Album                       |
+| **Keyboard Shortcuts**  | Space (play/pause), arrows (seek/volume), M (mute), S (shuffle), R (repeat)                         |
+| **Dynamic Backgrounds** | Album art color extraction for immersive gradient overlays                                          |
 
 </details>
 
@@ -141,14 +138,14 @@
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
+| Feature                   | Description                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------- |
 | **Mood-Based Generation** | Describe a vibe → Groq AI generates 15 matching songs with a creative playlist name |
-| **Song List Mode** | Paste song names → AI optimizes search queries and matches from JioSaavn |
-| **Smart Matching** | Confidence scoring (high / partial / none) with relevance-based ranking |
-| **Multi-Key Rotation** | Up to 5 Groq API keys with round-robin, rate-limit detection, auto fallback |
-| **Result Caching** | AI responses cached in Redis for 30 min to save API calls |
-| **One-Click Save** | Review matches, deselect unwanted songs, save directly to your library |
+| **Song List Mode**        | Paste song names → AI optimizes search queries and matches from JioSaavn            |
+| **Smart Matching**        | Confidence scoring (high / partial / none) with relevance-based ranking             |
+| **Multi-Key Rotation**    | Up to 5 Groq API keys with round-robin, rate-limit detection, auto fallback         |
+| **Result Caching**        | AI responses cached in Redis for 30 min to save API calls                           |
+| **One-Click Save**        | Review matches, deselect unwanted songs, save directly to your library              |
 
 </details>
 
@@ -159,17 +156,17 @@
 
 Built dynamically from your **listening history**, **language preferences**, and **time of day**.
 
-| Section | Description |
-|---------|-------------|
-| 🎵 **Quick Grid** | 6 recently played songs for instant replay |
-| 🔄 **Continue Listening** | Last 10 songs with album art |
-| 🎤 **Artist Spotlight** | Top listened artist with their songs |
-| 🌍 **Language Sections** | Personalized sections in your preferred languages |
-| ⏰ **Time-Based Mood** | "Morning Fresh Hits", "Late Night Chill", etc. |
-| 💡 **Because You Listened** | Recommendations based on recent tracks |
-| 📈 **Trending Now** | Trending songs filtered by your languages |
-| 😊 **Mood Grid** | Clickable mood cards — Happy, Heartbreak, Party, Chill, Workout, Rainy Day |
-| 🆕 **New Releases** | Latest songs in preferred languages |
+| Section                     | Description                                                                |
+| --------------------------- | -------------------------------------------------------------------------- |
+| 🎵 **Quick Grid**           | 6 recently played songs for instant replay                                 |
+| 🔄 **Continue Listening**   | Last 10 songs with album art                                               |
+| 🎤 **Artist Spotlight**     | Top listened artist with their songs                                       |
+| 🌍 **Language Sections**    | Personalized sections in your preferred languages                          |
+| ⏰ **Time-Based Mood**      | "Morning Fresh Hits", "Late Night Chill", etc.                             |
+| 💡 **Because You Listened** | Recommendations based on recent tracks                                     |
+| 📈 **Trending Now**         | Trending songs filtered by your languages                                  |
+| 😊 **Mood Grid**            | Clickable mood cards — Happy, Heartbreak, Party, Chill, Workout, Rainy Day |
+| 🆕 **New Releases**         | Latest songs in preferred languages                                        |
 
 </details>
 
@@ -178,14 +175,14 @@ Built dynamically from your **listening history**, **language preferences**, and
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
-| **Cloud Playlists** | Create, edit, delete, reorder — stored in MongoDB, synced everywhere |
-| **AI Playlists** | Save directly from AI modal with auto-generated names and tags |
-| **Liked Songs** | Cloud-synced hearts with localStorage fallback for offline resilience |
-| **Recently Played** | Persistent 20-song history with deduplication |
-| **Listening History** | Full play log with 90-day TTL auto-cleanup in MongoDB |
-| **Playlist Page** | Song list, total duration, drag-reorder, batch operations |
+| Feature               | Description                                                           |
+| --------------------- | --------------------------------------------------------------------- |
+| **Cloud Playlists**   | Create, edit, delete, reorder — stored in MongoDB, synced everywhere  |
+| **AI Playlists**      | Save directly from AI modal with auto-generated names and tags        |
+| **Liked Songs**       | Cloud-synced hearts with localStorage fallback for offline resilience |
+| **Recently Played**   | Persistent 20-song history with deduplication                         |
+| **Listening History** | Full play log with 90-day TTL auto-cleanup in MongoDB                 |
+| **Playlist Page**     | Song list, total duration, drag-reorder, batch operations             |
 
 </details>
 
@@ -194,13 +191,13 @@ Built dynamically from your **listening history**, **language preferences**, and
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
-| **IndexedDB Storage** | Songs saved locally with separate blob + metadata stores |
-| **One-Click Download** | Download any song from context menu or player |
+| Feature                | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| **IndexedDB Storage**  | Songs saved locally with separate blob + metadata stores          |
+| **One-Click Download** | Download any song from context menu or player                     |
 | **Import Local Files** | File picker for MP3/WAV/AAC/OGG/FLAC with auto-duration detection |
-| **Offline Playback** | Play downloaded songs without internet via blob URLs |
-| **Storage Dashboard** | View total storage used, remove individual songs |
+| **Offline Playback**   | Play downloaded songs without internet via blob URLs              |
+| **Storage Dashboard**  | View total storage used, remove individual songs                  |
 
 </details>
 
@@ -209,13 +206,13 @@ Built dynamically from your **listening history**, **language preferences**, and
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
-| **Profile Page** | Google avatar, editable name, preference tags |
-| **Listening Stats** | Total songs played, total listening time, liked count |
-| **Top Artists** | Aggregated from history with play counts and album art |
-| **Language Breakdown** | Listening distribution by language |
-| **Edit Preferences** | Modify languages/eras/moods — triggers dashboard rebuild |
+| Feature                | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| **Profile Page**       | Google avatar, editable name, preference tags            |
+| **Listening Stats**    | Total songs played, total listening time, liked count    |
+| **Top Artists**        | Aggregated from history with play counts and album art   |
+| **Language Breakdown** | Listening distribution by language                       |
+| **Edit Preferences**   | Modify languages/eras/moods — triggers dashboard rebuild |
 
 </details>
 
@@ -224,14 +221,14 @@ Built dynamically from your **listening history**, **language preferences**, and
 
 <br/>
 
-| Feature | Description |
-|---------|-------------|
-| **Desktop** | Sidebar + main content + now-playing + queue sidebar |
-| **Mobile** | Bottom nav, full-screen panels, safe area support |
-| **Glassmorphism** | Frosted glass panels, gradient overlays, blur effects |
-| **Animations** | Framer Motion fade/slide/scale, vinyl spin, equalizer bars, shimmer skeletons |
-| **Skeleton Loaders** | Shimmer-animated loading states matching UI structure |
-| **Adaptive Player** | Compact bar → expandable full-screen Now Playing view |
+| Feature              | Description                                                                   |
+| -------------------- | ----------------------------------------------------------------------------- |
+| **Desktop**          | Sidebar + main content + now-playing + queue sidebar                          |
+| **Mobile**           | Bottom nav, full-screen panels, safe area support                             |
+| **Glassmorphism**    | Frosted glass panels, gradient overlays, blur effects                         |
+| **Animations**       | Framer Motion fade/slide/scale, vinyl spin, equalizer bars, shimmer skeletons |
+| **Skeleton Loaders** | Shimmer-animated loading states matching UI structure                         |
+| **Adaptive Player**  | Compact bar → expandable full-screen Now Playing view                         |
 
 </details>
 
@@ -311,18 +308,18 @@ The AI pipeline processes user input through multiple stages:
 
 <br/>
 
-| Event | Direction | Purpose |
-|-------|-----------|---------|
-| `duo:join` | Client → Server | Join room with code, name, role |
-| `duo:session-state` | Server → Client | Full room state on join |
-| `duo:partner-joined` | Server → Client | Notify partner connected |
-| `duo:sync-song-change` | Client ↔ Server | Sync current song + queue |
-| `duo:sync-play` | Client ↔ Server | Sync play action + timestamp |
-| `duo:sync-pause` | Client ↔ Server | Sync pause action |
-| `duo:sync-seek` | Client ↔ Server | Sync seek position |
-| `duo:message` | Client ↔ Server | Chat messages |
-| `duo:heartbeat` | Client → Server | Alive check (5s interval) |
-| `duo:end-session` | Client → Server | End session for both |
+| Event                  | Direction       | Purpose                         |
+| ---------------------- | --------------- | ------------------------------- |
+| `duo:join`             | Client → Server | Join room with code, name, role |
+| `duo:session-state`    | Server → Client | Full room state on join         |
+| `duo:partner-joined`   | Server → Client | Notify partner connected        |
+| `duo:sync-song-change` | Client ↔ Server | Sync current song + queue       |
+| `duo:sync-play`        | Client ↔ Server | Sync play action + timestamp    |
+| `duo:sync-pause`       | Client ↔ Server | Sync pause action               |
+| `duo:sync-seek`        | Client ↔ Server | Sync seek position              |
+| `duo:message`          | Client ↔ Server | Chat messages                   |
+| `duo:heartbeat`        | Client → Server | Alive check (5s interval)       |
+| `duo:end-session`      | Client → Server | End session for both            |
 
 </details>
 
@@ -339,40 +336,40 @@ The AI pipeline processes user input through multiple stages:
 <tr>
 <td>
 
-| | Technology |
-|---|---|
-| ⚡ | TypeScript 5.7 |
-| ⚛️ | React 18.3 |
-| 🔥 | Vite 6.1 |
-| 🎨 | Tailwind CSS 3.4 |
-| 🗃️ | Zustand 5 |
-| 🎬 | Framer Motion 12 |
-| 🧭 | React Router 6 |
-| 🔄 | TanStack Query 5 |
-| 🔌 | Socket.io Client |
-| 🔐 | Google OAuth |
-| 🎯 | Lucide React |
-| 🍞 | react-hot-toast |
+|     | Technology       |
+| --- | ---------------- |
+| ⚡  | TypeScript 5.7   |
+| ⚛️  | React 18.3       |
+| 🔥  | Vite 6.1         |
+| 🎨  | Tailwind CSS 3.4 |
+| 🗃️  | Zustand 5        |
+| 🎬  | Framer Motion 12 |
+| 🧭  | React Router 6   |
+| 🔄  | TanStack Query 5 |
+| 🔌  | Socket.io Client |
+| 🔐  | Google OAuth     |
+| 🎯  | Lucide React     |
+| 🍞  | react-hot-toast  |
 
 </td>
 <td></td>
 <td></td>
 <td>
 
-| | Technology |
-|---|---|
-| ⚡ | TypeScript 5.7 |
-| 🚀 | Express 4.21 |
-| 🍃 | MongoDB + Mongoose 8.9 |
-| 🔌 | Socket.io 4.8 |
-| 🧠 | Groq SDK (LLaMA 3.3) |
-| 🔐 | google-auth-library |
-| 🎫 | jsonwebtoken |
-| 📝 | Winston Logger |
-| ✅ | Zod Validation |
-| 🛡️ | Helmet + CORS |
-| 📦 | Upstash Redis |
-| 🆔 | nanoid |
+|     | Technology             |
+| --- | ---------------------- |
+| ⚡  | TypeScript 5.7         |
+| 🚀  | Express 4.21           |
+| 🍃  | MongoDB + Mongoose 8.9 |
+| 🔌  | Socket.io 4.8          |
+| 🧠  | Groq SDK (LLaMA 3.3)   |
+| 🔐  | google-auth-library    |
+| 🎫  | jsonwebtoken           |
+| 📝  | Winston Logger         |
+| ✅  | Zod Validation         |
+| 🛡️  | Helmet + CORS          |
+| 📦  | Upstash Redis          |
+| 🆔  | nanoid                 |
 
 </td>
 </tr>
@@ -430,12 +427,12 @@ The AI pipeline processes user input through multiple stages:
 
 <br/>
 
-| Model | Key Fields |
-|-------|------------|
-| **User** | googleId, email, name, photo, preferences (languages/eras/moods), likedSongs[], totalListeningTime |
-| **Playlist** | userId, name, description, songs[], isPublic, isAIGenerated, tags[], auto-calculated songCount & totalDuration |
-| **ListeningHistory** | userId, songId, title, artist, source (search/recommendation/playlist/duo), 90-day TTL |
-| **DuoSession** | host/guest, roomCode, currentSong, playState, messages[] |
+| Model                | Key Fields                                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **User**             | googleId, email, name, photo, preferences (languages/eras/moods), likedSongs[], totalListeningTime             |
+| **Playlist**         | userId, name, description, songs[], isPublic, isAIGenerated, tags[], auto-calculated songCount & totalDuration |
+| **ListeningHistory** | userId, songId, title, artist, source (search/recommendation/playlist/duo), 90-day TTL                         |
+| **DuoSession**       | host/guest, roomCode, currentSong, playState, messages[]                                                       |
 
 </details>
 
@@ -444,13 +441,13 @@ The AI pipeline processes user input through multiple stages:
 
 <br/>
 
-| Store | Manages |
-|-------|---------|
+| Store         | Manages                                                 |
+| ------------- | ------------------------------------------------------- |
 | `playerStore` | Current song, play/pause, time, volume, shuffle, repeat |
-| `queueStore` | Song queue, history, add/remove/reorder |
-| `searchStore` | Search query, results, filters |
-| `uiStore` | UI toggles — queue panel, now playing, context menu |
-| `duoStore` | SoulLink session state + sessionStorage persistence |
+| `queueStore`  | Song queue, history, add/remove/reorder                 |
+| `searchStore` | Search query, results, filters                          |
+| `uiStore`     | UI toggles — queue panel, now playing, context menu     |
+| `duoStore`    | SoulLink session state + sessionStorage persistence     |
 
 </details>
 
@@ -540,13 +537,13 @@ SoulSync/
 
 ### Prerequisites
 
-| Requirement | Version |
-|-------------|---------|
-| Node.js | ≥ 18 |
-| npm | ≥ 9 |
-| MongoDB Atlas | Free M0 cluster |
-| Google Cloud | OAuth 2.0 Client ID |
-| Groq API | Free key _(optional, for AI features)_ |
+| Requirement   | Version                                |
+| ------------- | -------------------------------------- |
+| Node.js       | ≥ 18                                   |
+| npm           | ≥ 9                                    |
+| MongoDB Atlas | Free M0 cluster                        |
+| Google Cloud  | OAuth 2.0 Client ID                    |
+| Groq API      | Free key _(optional, for AI features)_ |
 
 ### Quick Start
 
@@ -666,19 +663,19 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Token | Hex | Usage |
-|-------|-----|-------|
-| `sp-black` | `#000000` | True black backgrounds |
-| `sp-dark` | `#060606` | App background |
-| `sp-card` | `#141414` | Card surfaces |
-| `sp-hover` | `#1c1c1c` | Hover states |
-| `sp-green` | `#1db954` | Primary accent, active states, SoulLink |
-| `sp-green-light` | `#1ed760` | Hover accent |
-| `sp-sub` | `#a0a0a0` | Secondary / subtitle text |
-| `sp-glass` | `rgba(255,255,255,0.04)` | Glassmorphism overlays |
-| `sp-accent` | `#6366f1` | AI features, secondary accent |
-| `sp-rose` | `#f43f5e` | Heart/like, destructive actions |
-| `sp-amber` | `#f59e0b` | Warnings, highlights |
+| Token            | Hex                      | Usage                                   |
+| ---------------- | ------------------------ | --------------------------------------- |
+| `sp-black`       | `#000000`                | True black backgrounds                  |
+| `sp-dark`        | `#060606`                | App background                          |
+| `sp-card`        | `#141414`                | Card surfaces                           |
+| `sp-hover`       | `#1c1c1c`                | Hover states                            |
+| `sp-green`       | `#1db954`                | Primary accent, active states, SoulLink |
+| `sp-green-light` | `#1ed760`                | Hover accent                            |
+| `sp-sub`         | `#a0a0a0`                | Secondary / subtitle text               |
+| `sp-glass`       | `rgba(255,255,255,0.04)` | Glassmorphism overlays                  |
+| `sp-accent`      | `#6366f1`                | AI features, secondary accent           |
+| `sp-rose`        | `#f43f5e`                | Heart/like, destructive actions         |
+| `sp-amber`       | `#f59e0b`                | Warnings, highlights                    |
 
 </details>
 
@@ -687,16 +684,16 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Animation | Duration | Purpose |
-|-----------|----------|---------|
-| `eq1–eq5` | 0.75s | Staggered equalizer bars |
-| `shimmer` | 1.6s | Skeleton loading |
-| `fadeIn` / `fadeUp` | 0.3–0.4s | Element entrance |
-| `slideInRight` | 0.3s | Panel slide-in |
-| `scaleIn` | 0.25s | Modal appearance |
-| `vinylSpin` | 3s | Now playing vinyl rotation |
-| `gradientShift` | 8s | Background gradient animation |
-| `breathe` | 4s | Soft breathing scale |
+| Animation           | Duration | Purpose                       |
+| ------------------- | -------- | ----------------------------- |
+| `eq1–eq5`           | 0.75s    | Staggered equalizer bars      |
+| `shimmer`           | 1.6s     | Skeleton loading              |
+| `fadeIn` / `fadeUp` | 0.3–0.4s | Element entrance              |
+| `slideInRight`      | 0.3s     | Panel slide-in                |
+| `scaleIn`           | 0.25s    | Modal appearance              |
+| `vinylSpin`         | 3s       | Now playing vinyl rotation    |
+| `gradientShift`     | 8s       | Background gradient animation |
+| `breathe`           | 4s       | Soft breathing scale          |
 
 </details>
 
@@ -705,14 +702,14 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Z-Index | Layer |
-|---------|-------|
-| 60 | Toast notifications |
-| 50 | Navigation |
-| 45 | SoulLink panel |
-| 44 | Context menu |
-| 41 | SoulLink mobile bar |
-| 40 | Player bar |
+| Z-Index | Layer               |
+| ------- | ------------------- |
+| 60      | Toast notifications |
+| 50      | Navigation          |
+| 45      | SoulLink panel      |
+| 44      | Context menu        |
+| 41      | SoulLink mobile bar |
+| 40      | Player bar          |
 
 </details>
 
@@ -722,17 +719,17 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 ## ⚡ Performance
 
-| Optimization | Impact |
-|-------------|--------|
-| **NLP Search Enhancer** | 500+ artist dict + mood tokens + multi-query expansion = precise results |
-| **Redis Caching** | Dashboard (30m), AI (30m), search — with in-memory fallback |
-| **Batched API Calls** | AI searches execute 5 concurrent requests per batch |
-| **Debounced Search** | 400ms delay prevents API spam while typing |
-| **Lazy Recommendations** | Queue auto-fills only when ≤1 song remains |
-| **Skeleton Loaders** | Shimmer-animated placeholders matching UI structure |
-| **90-Day TTL** | Listening history auto-expires via MongoDB TTL index |
-| **Keep-Alive Ping** | 13-min self-ping prevents Render free-tier sleep |
-| **Ref-Based Callbacks** | Avoids stale closures in audio event handlers |
+| Optimization             | Impact                                                                   |
+| ------------------------ | ------------------------------------------------------------------------ |
+| **NLP Search Enhancer**  | 500+ artist dict + mood tokens + multi-query expansion = precise results |
+| **Redis Caching**        | Dashboard (30m), AI (30m), search — with in-memory fallback              |
+| **Batched API Calls**    | AI searches execute 5 concurrent requests per batch                      |
+| **Debounced Search**     | 400ms delay prevents API spam while typing                               |
+| **Lazy Recommendations** | Queue auto-fills only when ≤1 song remains                               |
+| **Skeleton Loaders**     | Shimmer-animated placeholders matching UI structure                      |
+| **90-Day TTL**           | Listening history auto-expires via MongoDB TTL index                     |
+| **Keep-Alive Ping**      | 13-min self-ping prevents Render free-tier sleep                         |
+| **Ref-Based Callbacks**  | Avoids stale closures in audio event handlers                            |
 
 <br/>
 
@@ -740,16 +737,16 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 ## 🔒 Security
 
-| Layer | Implementation |
-|-------|---------------|
-| **Authentication** | Google OAuth 2.0 — no passwords, server-verified tokens |
-| **Sessions** | httpOnly, Secure, SameSite cookies (not localStorage) |
-| **Headers** | Helmet (CORP, COOP) on all responses |
-| **CORS** | Exact origin validation with credentials |
-| **Rate Limiting** | 100 req/min global, 15 req/min for AI endpoints |
-| **JWT** | Middleware validates signature + expiry on every protected route |
-| **Validation** | Zod schemas + server-side input checks |
-| **Secrets** | All sensitive ops (OAuth, AI, DB) are server-side only |
+| Layer              | Implementation                                                   |
+| ------------------ | ---------------------------------------------------------------- |
+| **Authentication** | Google OAuth 2.0 — no passwords, server-verified tokens          |
+| **Sessions**       | httpOnly, Secure, SameSite cookies (not localStorage)            |
+| **Headers**        | Helmet (CORP, COOP) on all responses                             |
+| **CORS**           | Exact origin validation with credentials                         |
+| **Rate Limiting**  | 100 req/min global, 15 req/min for AI endpoints                  |
+| **JWT**            | Middleware validates signature + expiry on every protected route |
+| **Validation**     | Zod schemas + server-side input checks                           |
+| **Secrets**        | All sensitive ops (OAuth, AI, DB) are server-side only           |
 
 <br/>
 
@@ -762,11 +759,11 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Method | Endpoint | Auth | Body | Response |
-|--------|----------|------|------|----------|
-| `POST` | `/google` | ✗ | `{ idToken }` | `{ user, isNewUser }` |
-| `POST` | `/logout` | ✗ | — | `{ success }` |
-| `GET` | `/me` | ✓ | — | `{ user }` |
+| Method | Endpoint  | Auth | Body          | Response              |
+| ------ | --------- | ---- | ------------- | --------------------- |
+| `POST` | `/google` | ✗    | `{ idToken }` | `{ user, isNewUser }` |
+| `POST` | `/logout` | ✗    | —             | `{ success }`         |
+| `GET`  | `/me`     | ✓    | —             | `{ user }`            |
 
 </details>
 
@@ -775,11 +772,11 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Method | Endpoint | Auth | Params | Response |
-|--------|----------|------|--------|----------|
-| `GET` | `/songs` | ✗ | `?q=...&limit=...` | `{ results, parsed }` |
-| `GET` | `/albums` | ✗ | `?q=...&limit=...` | `{ results }` |
-| `GET` | `/artists` | ✗ | `?q=...&limit=...` | `{ results }` |
+| Method | Endpoint   | Auth | Params             | Response              |
+| ------ | ---------- | ---- | ------------------ | --------------------- |
+| `GET`  | `/songs`   | ✗    | `?q=...&limit=...` | `{ results, parsed }` |
+| `GET`  | `/albums`  | ✗    | `?q=...&limit=...` | `{ results }`         |
+| `GET`  | `/artists` | ✗    | `?q=...&limit=...` | `{ results }`         |
 
 </details>
 
@@ -788,16 +785,16 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 
 <br/>
 
-| Method | Endpoint | Body | Response |
-|--------|----------|------|----------|
-| `GET` | `/` | — | `{ playlists }` |
-| `POST` | `/` | `{ name, description, songs, tags }` | `{ playlist }` |
-| `GET` | `/:id` | — | `{ playlist }` |
-| `PATCH` | `/:id` | `{ name, description, isPublic }` | `{ playlist }` |
-| `DELETE` | `/:id` | — | `{ success }` |
-| `POST` | `/:id/songs` | `{ song }` | `{ playlist }` |
-| `DELETE` | `/:id/songs/:songId` | — | `{ playlist }` |
-| `PATCH` | `/:id/reorder` | `{ songIds }` | `{ playlist }` |
+| Method   | Endpoint             | Body                                 | Response        |
+| -------- | -------------------- | ------------------------------------ | --------------- |
+| `GET`    | `/`                  | —                                    | `{ playlists }` |
+| `POST`   | `/`                  | `{ name, description, songs, tags }` | `{ playlist }`  |
+| `GET`    | `/:id`               | —                                    | `{ playlist }`  |
+| `PATCH`  | `/:id`               | `{ name, description, isPublic }`    | `{ playlist }`  |
+| `DELETE` | `/:id`               | —                                    | `{ success }`   |
+| `POST`   | `/:id/songs`         | `{ song }`                           | `{ playlist }`  |
+| `DELETE` | `/:id/songs/:songId` | —                                    | `{ playlist }`  |
+| `PATCH`  | `/:id/reorder`       | `{ songIds }`                        | `{ playlist }`  |
 
 _All routes require authentication._
 
@@ -808,16 +805,16 @@ _All routes require authentication._
 
 <br/>
 
-| Method | Endpoint | Body / Params | Response |
-|--------|----------|---------------|----------|
-| `GET` | `/me` | — | `{ user }` |
-| `PATCH` | `/preferences` | `{ name, languages, eras, moods }` | `{ user }` |
-| `POST` | `/history` | `{ songId, title, artist, duration, source }` | `{ success }` |
-| `GET` | `/history` | `?limit=20&page=1` | `{ history, total, page }` |
-| `POST` | `/liked` | `{ song }` | `{ success, likedCount }` |
-| `DELETE` | `/liked/:songId` | — | `{ success }` |
-| `GET` | `/liked` | — | `{ likedSongs }` |
-| `GET` | `/stats` | — | `{ totalSongsPlayed, totalListeningTime, topArtists, languageBreakdown }` |
+| Method   | Endpoint         | Body / Params                                 | Response                                                                  |
+| -------- | ---------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `GET`    | `/me`            | —                                             | `{ user }`                                                                |
+| `PATCH`  | `/preferences`   | `{ name, languages, eras, moods }`            | `{ user }`                                                                |
+| `POST`   | `/history`       | `{ songId, title, artist, duration, source }` | `{ success }`                                                             |
+| `GET`    | `/history`       | `?limit=20&page=1`                            | `{ history, total, page }`                                                |
+| `POST`   | `/liked`         | `{ song }`                                    | `{ success, likedCount }`                                                 |
+| `DELETE` | `/liked/:songId` | —                                             | `{ success }`                                                             |
+| `GET`    | `/liked`         | —                                             | `{ likedSongs }`                                                          |
+| `GET`    | `/stats`         | —                                             | `{ totalSongsPlayed, totalListeningTime, topArtists, languageBreakdown }` |
 
 _All routes require authentication._
 
@@ -828,9 +825,9 @@ _All routes require authentication._
 
 <br/>
 
-| Method | Endpoint | Rate Limit | Body | Response |
-|--------|----------|------------|------|----------|
-| `POST` | `/build-playlist` | 15/min | `{ songs }` or `{ mood }` | `{ playlistName, matched, partial, unmatched, stats }` |
+| Method | Endpoint          | Rate Limit | Body                      | Response                                               |
+| ------ | ----------------- | ---------- | ------------------------- | ------------------------------------------------------ |
+| `POST` | `/build-playlist` | 15/min     | `{ songs }` or `{ mood }` | `{ playlistName, matched, partial, unmatched, stats }` |
 
 _Requires authentication._
 
@@ -841,10 +838,10 @@ _Requires authentication._
 
 <br/>
 
-| Method | Endpoint | Auth | Response |
-|--------|----------|------|----------|
-| `GET` | `/` | ✓ | `{ greeting, subtitle, sections[], generatedAt }` |
-| `GET` | `/guest` | ✗ | `{ greeting, subtitle, sections[], generatedAt }` |
+| Method | Endpoint | Auth | Response                                          |
+| ------ | -------- | ---- | ------------------------------------------------- |
+| `GET`  | `/`      | ✓    | `{ greeting, subtitle, sections[], generatedAt }` |
+| `GET`  | `/guest` | ✗    | `{ greeting, subtitle, sections[], generatedAt }` |
 
 </details>
 
@@ -853,12 +850,12 @@ _Requires authentication._
 
 <br/>
 
-| Method | Endpoint | Body | Response |
-|--------|----------|------|----------|
-| `POST` | `/create` | `{ hostName }` | `{ code, room }` |
-| `POST` | `/join` | `{ code, guestName }` | `{ room }` |
-| `GET` | `/:code` | — | `{ room }` |
-| `DELETE` | `/:code` | — | `{ ok }` |
+| Method   | Endpoint  | Body                  | Response         |
+| -------- | --------- | --------------------- | ---------------- |
+| `POST`   | `/create` | `{ hostName }`        | `{ code, room }` |
+| `POST`   | `/join`   | `{ code, guestName }` | `{ room }`       |
+| `GET`    | `/:code`  | —                     | `{ room }`       |
+| `DELETE` | `/:code`  | —                     | `{ ok }`         |
 
 </details>
 
@@ -867,9 +864,9 @@ _Requires authentication._
 
 <br/>
 
-| Method | Endpoint | Response |
-|--------|----------|----------|
-| `GET` | `/health` | `{ status: "ok", timestamp }` |
+| Method | Endpoint  | Response                      |
+| ------ | --------- | ----------------------------- |
+| `GET`  | `/health` | `{ status: "ok", timestamp }` |
 
 </details>
 
@@ -878,14 +875,14 @@ _Requires authentication._
 
 <br/>
 
-| Endpoint | Purpose |
-|----------|---------|
-| `/search/songs?q=...&n=...` | Search songs |
-| `/song?id=...` | Song details + download URLs |
-| `/song/recommend?id=...&n=...` | Recommendations |
-| `/search/artists?q=...` | Search artists |
-| `/artist?id=...` | Artist details + songs |
-| `/album?id=...` | Album details + tracklist |
+| Endpoint                       | Purpose                      |
+| ------------------------------ | ---------------------------- |
+| `/search/songs?q=...&n=...`    | Search songs                 |
+| `/song?id=...`                 | Song details + download URLs |
+| `/song/recommend?id=...&n=...` | Recommendations              |
+| `/search/artists?q=...`        | Search artists               |
+| `/artist?id=...`               | Artist details + songs       |
+| `/album?id=...`                | Album details + tracklist    |
 
 </details>
 
@@ -895,15 +892,15 @@ _Requires authentication._
 
 ## 🗺️ Roadmap
 
-| Status | Feature |
-|--------|---------|
-| 🟡 | PWA support with service worker |
-| 🟡 | Synced lyrics display |
-| 🟡 | SoulLink emoji reactions |
-| 🟡 | Audio visualizer |
-| 🟡 | Social sharing & public profiles |
-| 🟡 | Multi-language UI (i18n) |
-| 🟡 | Cross-device session continuity |
+| Status | Feature                          |
+| ------ | -------------------------------- |
+| 🟡     | PWA support with service worker  |
+| 🟡     | Synced lyrics display            |
+| 🟡     | SoulLink emoji reactions         |
+| 🟡     | Audio visualizer                 |
+| 🟡     | Social sharing & public profiles |
+| 🟡     | Multi-language UI (i18n)         |
+| 🟡     | Cross-device session continuity  |
 
 <br/>
 
@@ -936,7 +933,7 @@ This project is open source under the **[MIT License](LICENSE)**.
 
 **Built with ❤️ by [Loki](https://github.com/itslokeshx)**
 
-*No ads. No paywalls. No limits. Just music.*
+_No ads. No paywalls. No limits. Just music._
 
 _Listen together. Feel together._
 
