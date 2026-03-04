@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -7,6 +7,7 @@ import {
   Shuffle,
   Repeat,
   Repeat1,
+  Volume1,
   Volume2,
   VolumeX,
   Heart,
@@ -73,7 +74,40 @@ export const NowPlayingView = ({
 }: NowPlayingViewProps) => {
   const [bgColor, setBgColor] = useState("#121212");
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showVol, setShowVol] = useState(false);
+  const volTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const volRef = useRef<HTMLDivElement>(null);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
+
+  // Auto-hide volume popup after inactivity
+  const scheduleHideVol = useCallback(() => {
+    if (volTimeout.current) clearTimeout(volTimeout.current);
+    volTimeout.current = setTimeout(() => setShowVol(false), 1800);
+  }, []);
+
+  const handleVolInteraction = useCallback(() => {
+    setShowVol(true);
+    scheduleHideVol();
+  }, [scheduleHideVol]);
+
+  // Close volume popup when tapping outside
+  useEffect(() => {
+    if (!showVol) return;
+    const close = (e: PointerEvent) => {
+      if (volRef.current && !volRef.current.contains(e.target as Node)) {
+        setShowVol(false);
+        if (volTimeout.current) clearTimeout(volTimeout.current);
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [showVol]);
+
+  useEffect(() => {
+    return () => {
+      if (volTimeout.current) clearTimeout(volTimeout.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentSong) return;
@@ -101,11 +135,27 @@ export const NowPlayingView = ({
   const volPct = Math.round(volume * 100);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Subtle ambient tint — very faint so it stays dark */}
+    <div
+      className="fixed inset-0 z-50 flex flex-col transition-colors duration-1000"
+      style={{
+        background: `linear-gradient(160deg, ${bgColor}30 0%, ${bgColor}18 20%, #0a0a0a 45%, #050505 100%)`,
+      }}
+    >
+      {/* Ambient glow orbs */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-[0.12] blur-[120px] pointer-events-none"
+        className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full opacity-[0.08] blur-[160px] pointer-events-none animate-breathe"
         style={{ background: bgColor }}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[140px] pointer-events-none"
+        style={{ background: bgColor }}
+      />
+      {/* Noise texture overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+        }}
       />
 
       <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 pt-3 sm:pt-5 pb-1 sm:pb-2 relative">
@@ -131,40 +181,42 @@ export const NowPlayingView = ({
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-10 gap-4 sm:gap-6 md:gap-8 min-h-0 relative overflow-y-auto thin-scrollbar py-2 sm:pb-8">
-        <div
-          className={`transition-all duration-700 ease-out relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"}`}
-          style={{
-            boxShadow: `0 30px 80px ${bgColor}60, 0 0 40px ${bgColor}30`,
-          }}
-        >
-          <img
-            src={img}
-            onError={onImgErr}
-            className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-2xl sm:rounded-3xl object-cover"
-            style={{ boxShadow: "0 16px 60px rgba(0,0,0,0.7)" }}
-          />
-          {isPlaying && (
-            <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.06] animate-breathe pointer-events-none" />
-          )}
+      <div className="flex-1 flex flex-col lg:flex-row items-center justify-center px-4 sm:px-8 md:px-10 lg:px-16 xl:px-24 gap-4 sm:gap-6 lg:gap-16 min-h-0 relative overflow-y-auto lg:overflow-hidden thin-scrollbar py-2 sm:pb-8 lg:py-0">
+        {/* Album art — centered on mobile, left side on desktop */}
+        <div className="flex-shrink-0 flex items-center justify-center lg:flex-1 lg:justify-end">
+          <div
+            className={`transition-all duration-700 ease-out relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"}`}
+            style={{
+              boxShadow: `0 30px 80px ${bgColor}60, 0 0 40px ${bgColor}30`,
+            }}
+          >
+            <img
+              src={img}
+              onError={onImgErr}
+              className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96 rounded-2xl sm:rounded-3xl object-cover"
+              style={{ boxShadow: "0 16px 60px rgba(0,0,0,0.7)" }}
+            />
+            {isPlaying && (
+              <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.06] animate-breathe pointer-events-none" />
+            )}
+          </div>
         </div>
 
-        {/* Controls + Vertical Volume side by side */}
-        <div className="w-full max-w-sm flex gap-3 sm:gap-4">
-          {/* Main controls column */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-3 sm:mb-5">
-              <div className="min-w-0 flex-1">
-                <p className="text-xl sm:text-2xl md:text-3xl font-black text-white truncate leading-tight">
-                  {currentSong.name}
-                </p>
-                <p className="text-white/50 mt-0.5 sm:mt-1 text-xs sm:text-sm">
-                  {artists}
-                </p>
-              </div>
+        {/* Controls column — right side on desktop */}
+        <div className="w-full max-w-sm lg:flex-1 lg:max-w-md flex flex-col justify-center">
+          <div className="flex items-start justify-between mb-1">
+            <div className="min-w-0 flex-1">
+              <p className="text-xl sm:text-2xl md:text-3xl font-black text-white truncate leading-tight">
+                {currentSong.name}
+              </p>
+              <p className="text-white/50 mt-0.5 sm:mt-1 text-xs sm:text-sm">
+                {artists}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
               <button
                 onClick={() => onLike(currentSong)}
-                className="mt-1 ml-3 flex-shrink-0 p-1.5 sm:p-2 rounded-full hover:bg-white/10 transition-all duration-200"
+                className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 transition-all duration-200"
               >
                 <Heart
                   size={20}
@@ -175,149 +227,154 @@ export const NowPlayingView = ({
                   }
                 />
               </button>
-            </div>
-
-            {/* Top features: Shuffle & Repeat */}
-            <div className="flex items-center justify-center gap-8 sm:gap-10 mb-3 sm:mb-4">
-              <button
-                onClick={onShuffle}
-                className={`transition-all duration-200 p-2 sm:p-3 rounded-full ${shuffle ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/5"}`}
-              >
-                <Shuffle size={20} />
-              </button>
-              <button
-                onClick={onRepeat}
-                className={`transition-all duration-200 p-2 sm:p-3 rounded-full ${repeat !== "off" ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/5"}`}
-              >
-                {repeat === "one" ? (
-                  <Repeat1 size={20} />
-                ) : (
-                  <Repeat size={20} />
+              {/* Volume icon + popup */}
+              <div ref={volRef} className="relative group">
+                <button
+                  onClick={handleVolInteraction}
+                  onMouseEnter={() => setShowVol(true)}
+                  className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 transition-all duration-200 text-white/40 hover:text-white"
+                >
+                  {volume === 0 ? (
+                    <VolumeX size={20} />
+                  ) : volume < 0.5 ? (
+                    <Volume1 size={20} />
+                  ) : (
+                    <Volume2 size={20} />
+                  )}
+                </button>
+                {/* Vertical volume popup */}
+                {showVol && (
+                  <div
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col items-center gap-2 py-3 px-2 rounded-2xl z-50"
+                    style={{
+                      background: "rgba(20,20,20,0.95)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      backdropFilter: "blur(24px)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                    }}
+                    onMouseEnter={() => {
+                      if (volTimeout.current) clearTimeout(volTimeout.current);
+                    }}
+                    onMouseLeave={scheduleHideVol}
+                  >
+                    <span className="text-[10px] text-white/50 tabular-nums font-semibold">
+                      {volPct}%
+                    </span>
+                    <div
+                      className="relative w-[6px] h-28 sm:h-32 rounded-full bg-white/[0.1] cursor-pointer"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const pct = 1 - y / rect.height;
+                        onVolume(Math.max(0, Math.min(1, pct)));
+                        scheduleHideVol();
+                      }}
+                      onTouchMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const y = e.touches[0].clientY - rect.top;
+                        const pct = 1 - y / rect.height;
+                        onVolume(Math.max(0, Math.min(1, pct)));
+                      }}
+                      onTouchEnd={scheduleHideVol}
+                    >
+                      <div
+                        className="absolute bottom-0 left-0 right-0 rounded-full bg-sp-green transition-all duration-100"
+                        style={{ height: `${volPct}%` }}
+                      />
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-lg shadow-black/40 transition-all duration-100"
+                        style={{ bottom: `calc(${volPct}% - 6px)` }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        onVolume(volume > 0 ? 0 : 0.8);
+                        scheduleHideVol();
+                      }}
+                      className="text-white/40 hover:text-white transition-colors"
+                    >
+                      {volume === 0 ? (
+                        <Volume2 size={14} />
+                      ) : (
+                        <VolumeX size={14} />
+                      )}
+                    </button>
+                  </div>
                 )}
-              </button>
-            </div>
-
-            {/* Song progress bar */}
-            <div className="mb-1 sm:mb-2">
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                step="any"
-                value={currentTime}
-                onChange={(e) => onSeek(+e.target.value)}
-                onPointerDown={onSeekStart}
-                onPointerUp={onSeekEnd}
-                className="progress-bar progress-glow w-full h-1.5 rounded-full cursor-pointer"
-                style={
-                  {
-                    "--progress": `${duration ? currentTime / duration : 0}`,
-                  } as React.CSSProperties
-                }
-              />
-              <div className="flex justify-between mt-1.5">
-                <span className="text-[11px] text-white/40 tabular-nums">
-                  {fmt(currentTime)}
-                </span>
-                <span className="text-[11px] text-white/40 tabular-nums">
-                  {fmt(duration)}
-                </span>
               </div>
             </div>
+          </div>
 
-            {/* Bottom features: Skip & Play controls */}
-            <div className="flex items-center justify-center gap-5 sm:gap-6 mt-2 sm:mt-4 mb-2 sm:mb-4">
-              <button
-                onClick={onPrev}
-                className="text-white hover:scale-110 transition-all p-1"
-              >
-                <SkipBack
-                  size={26}
-                  className="fill-current sm:w-[30px] sm:h-[30px]"
-                />
-              </button>
-              <button
-                onClick={onPlayPause}
-                className="w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] rounded-full bg-white flex items-center justify-center hover:scale-[1.06] active:scale-95 transition-all duration-200"
-                style={{ boxShadow: "0 6px 36px rgba(255,255,255,0.2)" }}
-              >
-                {isPlaying ? (
-                  <Pause
-                    size={22}
-                    className="text-black fill-black sm:w-[26px] sm:h-[26px]"
-                  />
-                ) : (
-                  <Play
-                    size={22}
-                    className="text-black fill-black ml-0.5 sm:w-[26px] sm:h-[26px] sm:ml-1"
-                  />
-                )}
-              </button>
-              <button
-                onClick={onNext}
-                className="text-white hover:scale-110 transition-all p-1"
-              >
-                <SkipForward
-                  size={26}
-                  className="fill-current sm:w-[30px] sm:h-[30px]"
-                />
-              </button>
+          {/* Progress bar */}
+          <div className="mb-1">
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step="any"
+              value={currentTime}
+              onChange={(e) => onSeek(+e.target.value)}
+              onPointerDown={onSeekStart}
+              onPointerUp={onSeekEnd}
+              className="progress-bar progress-glow w-full h-1.5 rounded-full cursor-pointer"
+              style={
+                {
+                  "--progress": `${duration ? currentTime / duration : 0}`,
+                } as React.CSSProperties
+              }
+            />
+            <div className="flex justify-between mt-1.5">
+              <span className="text-[11px] text-white/40 tabular-nums">
+                {fmt(currentTime)}
+              </span>
+              <span className="text-[11px] text-white/40 tabular-nums">
+                {fmt(duration)}
+              </span>
             </div>
           </div>
 
-          {/* Vertical Volume Slider — right side */}
-          <div className="flex flex-col items-center gap-1.5 sm:gap-2 pt-10 sm:pt-14 flex-shrink-0">
+          {/* Playback controls row */}
+          <div className="flex items-center justify-between mt-1 sm:mt-3 mb-1 sm:mb-2 px-2">
             <button
-              onClick={() => onVolume(1)}
-              className="text-white/40 hover:text-white transition-colors"
+              onClick={onShuffle}
+              className={`transition-all duration-200 p-2 rounded-full ${shuffle ? "text-sp-green" : "text-white/40 hover:text-white"}`}
             >
-              <Volume2 size={14} className="sm:w-4 sm:h-4" />
+              <Shuffle size={18} />
             </button>
-
-            {/* Vertical track */}
-            <div
-              className="relative w-[5px] sm:w-[6px] h-28 sm:h-36 rounded-full bg-white/[0.08] cursor-pointer"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const y = e.clientY - rect.top;
-                const pct = 1 - y / rect.height;
-                onVolume(Math.max(0, Math.min(1, pct)));
-              }}
-              onTouchMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const y = e.touches[0].clientY - rect.top;
-                const pct = 1 - y / rect.height;
-                onVolume(Math.max(0, Math.min(1, pct)));
-              }}
-            >
-              {/* Filled portion (bottom-up) */}
-              <div
-                className="absolute bottom-0 left-0 right-0 rounded-full bg-sp-green transition-all duration-100"
-                style={{ height: `${volPct}%` }}
-              />
-              {/* Thumb dot */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white shadow-lg shadow-black/40 transition-all duration-100"
-                style={{ bottom: `calc(${volPct}% - 5px)` }}
-              />
-            </div>
-
             <button
-              onClick={() => onVolume(volume > 0 ? 0 : 0.8)}
-              className="text-white/40 hover:text-white transition-colors"
+              onClick={onPrev}
+              className="text-white hover:scale-110 transition-all p-1"
             >
-              <VolumeX size={14} className="sm:w-4 sm:h-4" />
+              <SkipBack size={26} className="fill-current" />
             </button>
-            <span className="text-[9px] sm:text-[10px] text-white/30 tabular-nums font-medium">
-              {volPct}%
-            </span>
+            <button
+              onClick={onPlayPause}
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white flex items-center justify-center hover:scale-[1.06] active:scale-95 transition-all duration-200"
+              style={{ boxShadow: "0 6px 30px rgba(255,255,255,0.18)" }}
+            >
+              {isPlaying ? (
+                <Pause size={22} className="text-black fill-black" />
+              ) : (
+                <Play size={22} className="text-black fill-black ml-0.5" />
+              )}
+            </button>
+            <button
+              onClick={onNext}
+              className="text-white hover:scale-110 transition-all p-1"
+            >
+              <SkipForward size={26} className="fill-current" />
+            </button>
+            <button
+              onClick={onRepeat}
+              className={`transition-all duration-200 p-2 rounded-full ${repeat !== "off" ? "text-sp-green" : "text-white/40 hover:text-white"}`}
+            >
+              {repeat === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
+            </button>
           </div>
-        </div>
 
-        {/* Song Suggestions */}
-        <div className="w-full max-w-sm">
+          {/* Song Suggestions */}
           {suggestions.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-white/[0.06]">
+            <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.06]">
               <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3">
                 Similar Songs
               </p>
