@@ -9,6 +9,9 @@ import {
   CheckCircle2,
   FolderOpen,
   FileAudio,
+  ArrowDownToLine,
+  Check,
+  X,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import {
@@ -19,6 +22,7 @@ import {
   saveOfflineSong,
   OfflineSong,
 } from "../utils/offlineDB";
+import { useDownloadStore } from "../store/downloadStore";
 import { bestImg, onImgErr } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import toast from "react-hot-toast";
@@ -46,6 +50,8 @@ export default function DownloadsPage() {
   const [loading, setLoading] = useState(true);
   const [storageSize, setStorageSize] = useState("0 KB");
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
+  const activeDownloads = useDownloadStore((s) => s.active);
+  const prevDoneRef = useRef(new Set<string>());
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -71,6 +77,21 @@ export default function DownloadsPage() {
       blobUrlsRef.current.clear();
     };
   }, [refresh]);
+
+  // Auto-refresh saved songs when any download completes
+  useEffect(() => {
+    const doneIds = new Set(
+      activeDownloads.filter((d) => d.status === "done").map((d) => d.id),
+    );
+    // Check if there's a new completion we haven't refreshed for
+    for (const id of doneIds) {
+      if (!prevDoneRef.current.has(id)) {
+        refresh();
+        break;
+      }
+    }
+    prevDoneRef.current = doneIds;
+  }, [activeDownloads, refresh]);
 
   const handleRemove = async (id: string, name: string) => {
     // Revoke any existing blob URL for this song
@@ -274,6 +295,104 @@ export default function DownloadsPage() {
         </div>
       </div>
 
+      {/* ── Active Downloads ── */}
+      {activeDownloads.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <ArrowDownToLine size={14} className="text-sp-green" />
+            <span className="text-sm font-semibold text-white/60">
+              Downloading ({activeDownloads.filter((d) => d.status === "downloading" || d.status === "saving").length})
+            </span>
+          </div>
+          <div className="space-y-1">
+            {activeDownloads.map((dl) => {
+              const isDone = dl.status === "done";
+              const isError = dl.status === "error";
+              const isSaving = dl.status === "saving";
+              return (
+                <div
+                  key={`dl-${dl.id}`}
+                  className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${isDone
+                      ? "bg-sp-green/[0.06]"
+                      : isError
+                        ? "bg-red-500/[0.06]"
+                        : "bg-white/[0.03]"
+                    }`}
+                >
+                  {/* Album art */}
+                  <div className="relative flex-shrink-0 w-10 h-10">
+                    {dl.albumArt ? (
+                      <img
+                        src={dl.albumArt}
+                        onError={onImgErr}
+                        className="w-10 h-10 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center">
+                        <Music2 size={16} className="text-white/30" />
+                      </div>
+                    )}
+                    {/* Overlay icon */}
+                    <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40">
+                      {isDone ? (
+                        <Check size={16} className="text-sp-green" />
+                      ) : isError ? (
+                        <X size={16} className="text-red-400" />
+                      ) : (
+                        <ArrowDownToLine
+                          size={14}
+                          className="text-white animate-bounce"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Song info + progress bar */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[13px] font-medium text-white truncate">
+                        {dl.name}
+                      </p>
+                      <span
+                        className={`text-[11px] font-semibold tabular-nums flex-shrink-0 ${isDone
+                            ? "text-sp-green"
+                            : isError
+                              ? "text-red-400"
+                              : "text-white/50"
+                          }`}
+                      >
+                        {isDone
+                          ? "Saved"
+                          : isError
+                            ? "Failed"
+                            : isSaving
+                              ? "Saving…"
+                              : `${dl.progress}%`}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/30 truncate mb-1.5">
+                      {dl.artist}
+                    </p>
+                    {/* Progress bar */}
+                    <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ease-out ${isDone
+                            ? "bg-sp-green"
+                            : isError
+                              ? "bg-red-400"
+                              : "bg-sp-green shadow-[0_0_8px_rgba(29,185,84,0.4)]"
+                          }`}
+                        style={{ width: `${isDone ? 100 : dl.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-40">
           <Loader2 size={24} className="text-white/30 animate-spin" />
@@ -318,9 +437,8 @@ export default function DownloadsPage() {
             return (
               <div
                 key={s.id}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 group ${
-                  isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 group ${isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
+                  }`}
               >
                 <span className="w-5 text-center text-xs text-white/25 tabular-nums">
                   {i + 1}
@@ -343,9 +461,8 @@ export default function DownloadsPage() {
                   onClick={() => handlePlay(s, songs)}
                 >
                   <p
-                    className={`text-[13px] font-medium truncate cursor-pointer ${
-                      isCurrent ? "text-sp-green" : "text-white"
-                    }`}
+                    className={`text-[13px] font-medium truncate cursor-pointer ${isCurrent ? "text-sp-green" : "text-white"
+                      }`}
                   >
                     {s.name}
                   </p>
