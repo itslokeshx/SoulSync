@@ -33,7 +33,7 @@ export const Sidebar = () => {
 
   return (
     <aside
-      className={`hidden md:flex md:flex-col fixed left-0 top-0 bottom-24 z-30 select-none transition-all duration-300 ${
+      className={`hidden md:flex md:flex-col fixed left-0 top-0 bottom-[4.75rem] z-30 select-none transition-all duration-300 ${
         collapsed ? "w-[4.5rem]" : "w-[17rem]"
       }`}
       style={{
@@ -43,19 +43,19 @@ export const Sidebar = () => {
     >
       {/* Logo + Collapse toggle */}
       <div
-        className={`flex items-center gap-3 cursor-pointer active:scale-95 transition-transform ${
-          collapsed ? "px-0 pt-6 pb-5 justify-center" : "px-5 pt-6 pb-5"
+        className={`flex items-center gap-3 cursor-pointer active:scale-95 transition-transform flex-shrink-0 ${
+          collapsed ? "px-0 pt-4 pb-3 justify-center" : "px-5 pt-4 pb-3"
         }`}
         onClick={() => !collapsed && navigate("/")}
       >
         <div
-          className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0 animate-breathe"
+          className="w-9 h-9 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0 animate-breathe"
           style={{ boxShadow: "0 0 24px rgba(29,185,84,0.3)" }}
         >
-          <Music2 size={18} className="text-black" strokeWidth={2.5} />
+          <Music2 size={16} className="text-black" strokeWidth={2.5} />
         </div>
         {!collapsed && (
-          <span className="text-[18px] font-extrabold tracking-tight text-white flex-1">
+          <span className="text-[17px] font-extrabold tracking-tight text-white flex-1">
             Soul
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-sp-green to-emerald-300">
               Sync
@@ -64,15 +64,17 @@ export const Sidebar = () => {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className={`space-y-1 mb-5 ${collapsed ? "px-1.5" : "px-3"}`}>
+      {/* Navigation — scrollable if needed */}
+      <nav
+        className={`flex-1 overflow-y-auto thin-scrollbar space-y-0.5 ${collapsed ? "px-1.5" : "px-3"}`}
+      >
         {navItems.map(({ id, label, Icon, path }) => (
           <button
             key={id}
             onClick={() => navigate(path)}
             title={collapsed ? label : undefined}
             className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-all duration-300 relative overflow-hidden ${
-              collapsed ? "justify-center px-0 py-2.5" : "px-3.5 py-2.5"
+              collapsed ? "justify-center px-0 py-2" : "px-3.5 py-2"
             } ${
               view === id
                 ? "text-white"
@@ -100,15 +102,9 @@ export const Sidebar = () => {
         ))}
       </nav>
 
-      {/* Divider */}
-      <div className="mx-5 h-px bg-gradient-to-r from-white/[0.06] via-white/[0.03] to-transparent mb-3" />
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Duo + Collapse */}
+      {/* Duo + Collapse — always visible at bottom */}
       <div
-        className={`pb-3 pt-2 border-t border-white/[0.04] mt-auto ${collapsed ? "px-1.5" : "px-3"}`}
+        className={`flex-shrink-0 pb-2 pt-2 border-t border-white/[0.04] ${collapsed ? "px-1.5" : "px-3"}`}
       >
         <DuoButton variant={collapsed ? "mobile-nav" : "sidebar"} />
         <button
