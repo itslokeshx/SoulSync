@@ -6,7 +6,7 @@ interface RoomData {
   currentSong: unknown;
   isPlaying: boolean;
   currentTime: number;
-  messages: { text: string; from: string; at: number }[];
+  messages: { text: string; from: string; fromName: string; at: number }[];
   songHistory: unknown[];
   stats: {
     duration: number;
@@ -19,25 +19,38 @@ interface RoomData {
 
 const rooms = new Map<string, RoomData>();
 
+/** Find which room code a socket belongs to */
+function findSocketRoom(socketId: string): string | null {
+  for (const [code, room] of rooms) {
+    if (room.host.socketId === socketId || room.guest.socketId === socketId) {
+      return code;
+    }
+  }
+  return null;
+}
+
 export function setupRoomHandlers(io: Server, socket: Socket): void {
-  // Join a room
+  // ── Join a room ─────────────────────────────────────────────────────
+  // Frontend sends: { code, name, role }
   socket.on(
     "duo:join",
     ({
       code,
-      userName,
+      name,
       role,
     }: {
       code: string;
-      userName: string;
+      name: string;
       role: "host" | "guest";
     }) => {
-      socket.join(code);
+      if (!code || !name) return;
+      const roomCode = code.toUpperCase();
+      socket.join(roomCode);
 
-      let room = rooms.get(code);
+      let room = rooms.get(roomCode);
       if (!room) {
         room = {
-          host: { name: userName, socketId: socket.id, connected: true },
+          host: { name, socketId: socket.id, connected: true },
           guest: { name: null, socketId: null, connected: false },
           currentSong: null,
           isPlaying: false,
@@ -52,166 +65,148 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
           },
           createdAt: Date.now(),
         };
-        rooms.set(code, room);
+        rooms.set(roomCode, room);
       }
 
       if (role === "host") {
-        room.host = { name: userName, socketId: socket.id, connected: true };
-      } else {
-        room.guest = { name: userName, socketId: socket.id, connected: true };
-        // Notify host
-        socket
-          .to(code)
-          .emit("duo:partner-joined", { name: userName, connected: true });
-        // Send current state to guest
-        socket.emit("duo:session-state", room);
-      }
-    },
-  );
-
-  // Sync play
-  socket.on(
-    "duo:sync-play",
-    ({
-      code,
-      songData,
-      currentTime,
-    }: {
-      code: string;
-      songData: unknown;
-      currentTime: number;
-    }) => {
-      const room = rooms.get(code);
-      if (room) {
-        room.currentSong = songData;
-        room.isPlaying = true;
-        room.currentTime = currentTime;
-      }
-      socket.to(code).emit("duo:receive-play", { songData, currentTime });
-    },
-  );
-
-  // Sync pause
-  socket.on(
-    "duo:sync-pause",
-    ({ code, currentTime }: { code: string; currentTime: number }) => {
-      const room = rooms.get(code);
-      if (room) {
-        room.isPlaying = false;
-        room.currentTime = currentTime;
-      }
-      socket.to(code).emit("duo:receive-pause", { currentTime });
-    },
-  );
-
-  // Sync seek
-  socket.on(
-    "duo:sync-seek",
-    ({ code, currentTime }: { code: string; currentTime: number }) => {
-      const room = rooms.get(code);
-      if (room) room.currentTime = currentTime;
-      socket.to(code).emit("duo:receive-seek", { currentTime });
-    },
-  );
-
-  // Sync song change
-  socket.on(
-    "duo:sync-song",
-    ({ code, songData }: { code: string; songData: unknown }) => {
-      const room = rooms.get(code);
-      if (room) {
-        if (room.currentSong) {
-          room.songHistory.push(room.currentSong);
+        room.host = { name, socketId: socket.id, connected: true };
+        // If guest already connected, notify host
+        if (room.guest.connected && room.guest.name) {
+          socket.emit("duo:partner-joined", {
+            name: room.guest.name,
+            role: "guest",
+            room,
+          });
         }
-        room.currentSong = songData;
-        room.stats.songsPlayed++;
+      } else {
+        room.guest = { name, socketId: socket.id, connected: true };
+        // Notify host that guest joined (include room state)
+        socket.to(roomCode).emit("duo:partner-joined", {
+          name,
+          role: "guest",
+          room,
+        });
+        // Send current room state to the joining guest
+        socket.emit("duo:session-state", { room });
       }
-      socket.to(code).emit("duo:receive-song", { songData });
+
+      console.log(`[Duo] ${role} "${name}" joined room ${roomCode}`);
     },
   );
 
-  // Reactions
-  socket.on(
-    "duo:reaction",
-    ({
-      code,
-      emoji,
-      userName,
-    }: {
-      code: string;
-      emoji: string;
-      userName: string;
-    }) => {
-      const room = rooms.get(code);
-      if (room) room.stats.reactionsCount++;
-      socket.to(code).emit("duo:receive-reaction", { emoji, from: userName });
-    },
-  );
-
-  // Messages
-  socket.on(
-    "duo:message",
-    ({
-      code,
-      text,
-      userName,
-    }: {
-      code: string;
-      text: string;
-      userName: string;
-    }) => {
-      const room = rooms.get(code);
-      if (room) {
-        room.messages.push({ text, from: userName, at: Date.now() });
-        room.stats.messagesCount++;
-      }
-      socket
-        .to(code)
-        .emit("duo:receive-message", { text, from: userName, at: Date.now() });
-    },
-  );
-
-  // Notes
-  socket.on(
-    "duo:note",
-    ({
-      code,
-      songId,
-      text,
-      userName,
-    }: {
-      code: string;
-      songId: string;
-      text: string;
-      userName: string;
-    }) => {
-      socket
-        .to(code)
-        .emit("duo:receive-note", { text, songId, from: userName });
-    },
-  );
-
-  // Heartbeat
-  socket.on("duo:heartbeat", (data: { code: string } | undefined) => {
-    if (!data?.code) return;
-    socket.to(data.code).emit("duo:partner-active", { lastSeen: Date.now() });
+  // ── Sync play ───────────────────────────────────────────────────────
+  // Frontend sends: { currentTime, songId }
+  socket.on("duo:sync-play", ({ currentTime, songId }: any) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (room) {
+      room.isPlaying = true;
+      room.currentTime = currentTime;
+    }
+    socket.to(code).emit("duo:receive-play", { currentTime, songId });
   });
 
-  // End session
-  socket.on("duo:end-session", (data: { code: string } | undefined) => {
-    if (!data?.code) return;
-    const room = rooms.get(data.code);
+  // ── Sync pause ──────────────────────────────────────────────────────
+  // Frontend sends: { currentTime }
+  socket.on("duo:sync-pause", ({ currentTime }: any) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (room) {
+      room.isPlaying = false;
+      room.currentTime = currentTime;
+    }
+    socket.to(code).emit("duo:receive-pause", { currentTime });
+  });
+
+  // ── Sync seek ───────────────────────────────────────────────────────
+  // Frontend sends: { currentTime }
+  socket.on("duo:sync-seek", ({ currentTime }: any) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (room) room.currentTime = currentTime;
+    socket.to(code).emit("duo:receive-seek", { currentTime });
+  });
+
+  // ── Sync song change ───────────────────────────────────────────────
+  // Frontend sends: { song, queue, queueIndex }
+  socket.on("duo:sync-song-change", ({ song, queue, queueIndex }: any) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (room) {
+      if (room.currentSong) {
+        room.songHistory.push(room.currentSong);
+      }
+      room.currentSong = song;
+      room.stats.songsPlayed++;
+    }
+    socket
+      .to(code)
+      .emit("duo:receive-song-change", { song, queue, queueIndex });
+  });
+
+  // ── Messages ────────────────────────────────────────────────────────
+  // Frontend sends: { text }
+  socket.on("duo:message", ({ text }: { text: string }) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+
+    // Figure out sender name from room data
+    const isHost = room.host.socketId === socket.id;
+    const fromRole = isHost ? "host" : "guest";
+    const fromName = isHost ? room.host.name : room.guest.name || "Guest";
+
+    const msg = { text, from: fromRole, fromName, at: Date.now() };
+    room.messages.push(msg);
+    room.stats.messagesCount++;
+
+    socket.to(code).emit("duo:receive-message", msg);
+  });
+
+  // ── Reactions ───────────────────────────────────────────────────────
+  socket.on("duo:reaction", ({ emoji }: { emoji: string }) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+
+    const isHost = room.host.socketId === socket.id;
+    const fromName = isHost ? room.host.name : room.guest.name || "Guest";
+    room.stats.reactionsCount++;
+
+    socket.to(code).emit("duo:receive-reaction", { emoji, from: fromName });
+  });
+
+  // ── Heartbeat ───────────────────────────────────────────────────────
+  // Frontend sends: { code }
+  socket.on("duo:heartbeat", (data: { code?: string } | undefined) => {
+    const code = data?.code?.toUpperCase() || findSocketRoom(socket.id);
+    if (!code) return;
+    socket.to(code).emit("duo:partner-active", { lastSeen: Date.now() });
+  });
+
+  // ── End session ─────────────────────────────────────────────────────
+  // Frontend sends no code — we find it from socket
+  socket.on("duo:end-session", () => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
     if (room) {
       room.stats.duration = Math.floor((Date.now() - room.createdAt) / 1000);
-      io.to(data.code).emit("duo:session-ended", {
+      io.to(code).emit("duo:session-ended", {
         stats: room.stats,
         songHistory: room.songHistory,
       });
-      rooms.delete(data.code);
+      rooms.delete(code);
     }
   });
 
-  // Handle disconnect
+  // ── Handle disconnect ──────────────────────────────────────────────
   socket.on("disconnect", () => {
     for (const [code, room] of rooms) {
       if (room.host.socketId === socket.id) {
