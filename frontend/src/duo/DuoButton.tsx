@@ -1,4 +1,6 @@
 import { useDuoStore } from "./duoStore";
+import { useAuth } from "../auth/AuthContext";
+import toast from "react-hot-toast";
 
 const HeadphoneIcon = ({
   size = 18,
@@ -35,6 +37,7 @@ interface DuoButtonProps {
 export function DuoButton({ variant = "auto" }: DuoButtonProps) {
   const { active, partnerConnected, partnerName, setModalOpen, setPanelOpen } =
     useDuoStore();
+  const { isAuthenticated } = useAuth();
 
   if (active) {
     return (
@@ -161,7 +164,13 @@ export function DuoButton({ variant = "auto" }: DuoButtonProps) {
 
   return (
     <button
-      onClick={() => setModalOpen(true)}
+      onClick={() => {
+        if (!isAuthenticated) {
+          toast.error("Please log in to use SoulLink");
+          return;
+        }
+        setModalOpen(true);
+      }}
       className={`relative flex items-center transition-all duration-300 group overflow-hidden active:scale-[0.97] ${
         variant === "sidebar"
           ? "w-full gap-3 px-4 py-3 rounded-xl hover:scale-[1.01]"
