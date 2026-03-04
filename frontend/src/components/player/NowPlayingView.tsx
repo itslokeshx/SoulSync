@@ -101,19 +101,14 @@ export const NowPlayingView = ({
   const volPct = Math.round(volume * 100);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{
-        background: `linear-gradient(165deg,${bgColor} 0%,${bgColor}88 25%,#0a0a0a 50%,#050505 100%)`,
-      }}
-    >
-      {/* Ambient blurred orb */}
+    <div className="fixed inset-0 z-50 flex flex-col bg-black">
+      {/* Subtle ambient tint — very faint so it stays dark */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-20 blur-[100px] pointer-events-none animate-breathe"
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full opacity-[0.12] blur-[120px] pointer-events-none"
         style={{ background: bgColor }}
       />
 
-      <div className="flex items-center justify-between px-6 md:px-8 pt-5 pb-2 relative">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 pt-3 sm:pt-5 pb-1 sm:pb-2 relative">
         <button
           onClick={onClose}
           className="text-white/60 hover:text-white transition-all p-2 rounded-xl hover:bg-white/10 backdrop-blur-sm"
@@ -136,42 +131,43 @@ export const NowPlayingView = ({
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-10 gap-10 min-h-0 relative overflow-y-auto thin-scrollbar pb-8">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-8 md:px-10 gap-4 sm:gap-6 md:gap-8 min-h-0 relative overflow-y-auto thin-scrollbar py-2 sm:pb-8">
         <div
-          className={`transition-all duration-700 ease-out relative vinyl-ring rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"}`}
+          className={`transition-all duration-700 ease-out relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"}`}
           style={{
-            boxShadow: `0 40px 120px ${bgColor}90, 0 0 60px ${bgColor}40`,
+            boxShadow: `0 30px 80px ${bgColor}60, 0 0 40px ${bgColor}30`,
           }}
         >
           <img
             src={img}
             onError={onImgErr}
-            className="w-64 h-64 md:w-80 md:h-80 rounded-3xl object-cover"
-            style={{ boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}
+            className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-2xl sm:rounded-3xl object-cover"
+            style={{ boxShadow: "0 16px 60px rgba(0,0,0,0.7)" }}
           />
-          {/* Subtle animated ring when playing */}
           {isPlaying && (
-            <div className="absolute -inset-1 rounded-3xl border border-white/[0.06] animate-breathe pointer-events-none" />
+            <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.06] animate-breathe pointer-events-none" />
           )}
         </div>
 
         {/* Controls + Vertical Volume side by side */}
-        <div className="w-full max-w-sm flex gap-4">
+        <div className="w-full max-w-sm flex gap-3 sm:gap-4">
           {/* Main controls column */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex items-start justify-between mb-3 sm:mb-5">
               <div className="min-w-0 flex-1">
-                <p className="text-2xl md:text-3xl font-black text-white truncate leading-tight">
+                <p className="text-xl sm:text-2xl md:text-3xl font-black text-white truncate leading-tight">
                   {currentSong.name}
                 </p>
-                <p className="text-white/50 mt-1 text-sm">{artists}</p>
+                <p className="text-white/50 mt-0.5 sm:mt-1 text-xs sm:text-sm">
+                  {artists}
+                </p>
               </div>
               <button
                 onClick={() => onLike(currentSong)}
-                className="mt-1 ml-4 flex-shrink-0 p-2 rounded-full hover:bg-white/10 transition-all duration-200"
+                className="mt-1 ml-3 flex-shrink-0 p-1.5 sm:p-2 rounded-full hover:bg-white/10 transition-all duration-200"
               >
                 <Heart
-                  size={22}
+                  size={20}
                   className={
                     liked
                       ? "text-sp-green fill-sp-green"
@@ -182,27 +178,27 @@ export const NowPlayingView = ({
             </div>
 
             {/* Top features: Shuffle & Repeat */}
-            <div className="flex items-center justify-center gap-10 mb-4">
+            <div className="flex items-center justify-center gap-8 sm:gap-10 mb-3 sm:mb-4">
               <button
                 onClick={onShuffle}
-                className={`transition-all duration-200 p-3 rounded-full ${shuffle ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+                className={`transition-all duration-200 p-2 sm:p-3 rounded-full ${shuffle ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/5"}`}
               >
-                <Shuffle size={22} />
+                <Shuffle size={20} />
               </button>
               <button
                 onClick={onRepeat}
-                className={`transition-all duration-200 p-3 rounded-full ${repeat !== "off" ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+                className={`transition-all duration-200 p-2 sm:p-3 rounded-full ${repeat !== "off" ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/5"}`}
               >
                 {repeat === "one" ? (
-                  <Repeat1 size={22} />
+                  <Repeat1 size={20} />
                 ) : (
-                  <Repeat size={22} />
+                  <Repeat size={20} />
                 )}
               </button>
             </div>
 
             {/* Song progress bar */}
-            <div className="mb-2">
+            <div className="mb-1 sm:mb-2">
               <input
                 type="range"
                 min={0}
@@ -230,48 +226,66 @@ export const NowPlayingView = ({
             </div>
 
             {/* Bottom features: Skip & Play controls */}
-            <div className="flex items-center justify-center gap-6 mt-4 mb-4">
+            <div className="flex items-center justify-center gap-5 sm:gap-6 mt-2 sm:mt-4 mb-2 sm:mb-4">
               <button
                 onClick={onPrev}
                 className="text-white hover:scale-110 transition-all p-1"
               >
-                <SkipBack size={30} className="fill-current" />
+                <SkipBack
+                  size={26}
+                  className="fill-current sm:w-[30px] sm:h-[30px]"
+                />
               </button>
               <button
                 onClick={onPlayPause}
-                className="w-[4.5rem] h-[4.5rem] rounded-full bg-white flex items-center justify-center hover:scale-[1.06] active:scale-95 transition-all duration-200"
+                className="w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] rounded-full bg-white flex items-center justify-center hover:scale-[1.06] active:scale-95 transition-all duration-200"
                 style={{ boxShadow: "0 6px 36px rgba(255,255,255,0.2)" }}
               >
                 {isPlaying ? (
-                  <Pause size={26} className="text-black fill-black" />
+                  <Pause
+                    size={22}
+                    className="text-black fill-black sm:w-[26px] sm:h-[26px]"
+                  />
                 ) : (
-                  <Play size={26} className="text-black fill-black ml-1" />
+                  <Play
+                    size={22}
+                    className="text-black fill-black ml-0.5 sm:w-[26px] sm:h-[26px] sm:ml-1"
+                  />
                 )}
               </button>
               <button
                 onClick={onNext}
                 className="text-white hover:scale-110 transition-all p-1"
               >
-                <SkipForward size={30} className="fill-current" />
+                <SkipForward
+                  size={26}
+                  className="fill-current sm:w-[30px] sm:h-[30px]"
+                />
               </button>
             </div>
           </div>
 
           {/* Vertical Volume Slider — right side */}
-          <div className="flex flex-col items-center gap-2 pt-14 flex-shrink-0">
+          <div className="flex flex-col items-center gap-1.5 sm:gap-2 pt-10 sm:pt-14 flex-shrink-0">
             <button
               onClick={() => onVolume(1)}
               className="text-white/40 hover:text-white transition-colors"
             >
-              <Volume2 size={16} />
+              <Volume2 size={14} className="sm:w-4 sm:h-4" />
             </button>
 
             {/* Vertical track */}
             <div
-              className="relative w-[6px] h-36 rounded-full bg-white/[0.08] cursor-pointer"
+              className="relative w-[5px] sm:w-[6px] h-28 sm:h-36 rounded-full bg-white/[0.08] cursor-pointer"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const y = e.clientY - rect.top;
+                const pct = 1 - y / rect.height;
+                onVolume(Math.max(0, Math.min(1, pct)));
+              }}
+              onTouchMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const y = e.touches[0].clientY - rect.top;
                 const pct = 1 - y / rect.height;
                 onVolume(Math.max(0, Math.min(1, pct)));
               }}
@@ -283,8 +297,8 @@ export const NowPlayingView = ({
               />
               {/* Thumb dot */}
               <div
-                className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-lg shadow-black/40 transition-all duration-100"
-                style={{ bottom: `calc(${volPct}% - 6px)` }}
+                className="absolute left-1/2 -translate-x-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white shadow-lg shadow-black/40 transition-all duration-100"
+                style={{ bottom: `calc(${volPct}% - 5px)` }}
               />
             </div>
 
@@ -292,9 +306,9 @@ export const NowPlayingView = ({
               onClick={() => onVolume(volume > 0 ? 0 : 0.8)}
               className="text-white/40 hover:text-white transition-colors"
             >
-              <VolumeX size={16} />
+              <VolumeX size={14} className="sm:w-4 sm:h-4" />
             </button>
-            <span className="text-[10px] text-white/30 tabular-nums font-medium">
+            <span className="text-[9px] sm:text-[10px] text-white/30 tabular-nums font-medium">
               {volPct}%
             </span>
           </div>

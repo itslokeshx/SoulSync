@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Search, Heart, Library, Download } from "lucide-react";
+import { Home, Search, Library, Download } from "lucide-react";
 import { DuoButton } from "../../duo";
 
 export const MobileNav = () => {
@@ -23,7 +23,6 @@ export const MobileNav = () => {
         { id: "search", Icon: Search, label: "Search", path: "/search" },
         { id: "downloads", Icon: Download, label: "Saves", path: "/downloads" },
         { id: "library", Icon: Library, label: "Library", path: "/library" },
-        { id: "liked", Icon: Heart, label: "Liked", path: "/liked" },
       ].map(({ id, Icon, label, path }) => (
         <button
           key={id}
