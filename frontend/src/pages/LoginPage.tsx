@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 pointer-events-none">
           {/* Green gradient orb */}
           <div
-            className="absolute w-[280px] h-[280px] sm:w-[500px] sm:h-[500px] -top-20 -left-20 sm:-top-32 sm:-left-32 opacity-[0.12]"
+            className="absolute w-[280px] h-[280px] sm:w-[500px] sm:h-[500px] -top-20 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-left-32 sm:-top-32 opacity-[0.12]"
             style={{
               background:
                 "radial-gradient(circle, #1db954 0%, transparent 70%)",
@@ -80,13 +80,13 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="relative z-10 max-w-md w-full">
+        <div className="relative z-10 max-w-md w-full text-center lg:text-left">
           {/* Logo */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="flex items-center gap-3 sm:gap-3.5 mb-7 sm:mb-10 lg:mb-14"
+            className="flex items-center gap-3 sm:gap-3.5 mb-7 sm:mb-10 lg:mb-14 justify-center lg:justify-start"
           >
             <div
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sp-green flex items-center justify-center flex-shrink-0"
@@ -121,7 +121,7 @@ export default function LoginPage() {
                 your way.
               </span>
             </h2>
-            <p className="text-white/35 text-[13px] sm:text-base mt-3 sm:mt-4 leading-relaxed max-w-sm">
+            <p className="text-white/35 text-[13px] sm:text-base mt-3 sm:mt-4 leading-relaxed max-w-sm mx-auto lg:mx-0">
               AI-powered playlists, real-time duo sessions, and 50 million songs
               — completely free, forever.
             </p>
@@ -135,14 +135,14 @@ export default function LoginPage() {
             className="mt-7 sm:mt-10 lg:mt-14"
           >
             {/* EQ visualizer */}
-            <div className="flex items-end gap-[3px] h-5 sm:h-6 mb-4 sm:mb-6">
+            <div className="flex items-end gap-[3px] h-5 sm:h-6 mb-4 sm:mb-6 justify-center lg:justify-start">
               {[6, 10, 4, 14, 8, 12, 5, 9, 7, 11, 6, 13, 5, 8].map((h, i) => (
                 <EqBar key={i} delay={i * 0.08} h={h} />
               ))}
             </div>
 
             {/* Features */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
               {[
                 { icon: Headphones, label: "AI Playlists" },
                 { icon: Users, label: "Duo Mode" },
