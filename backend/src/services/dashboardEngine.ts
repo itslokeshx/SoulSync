@@ -288,8 +288,8 @@ async function buildLanguageSection(
     english: [
       "Ed Sheeran best songs",
       "The Weeknd top hits",
-      "top english pop hits 2025",
-      "best english songs 2024",
+      "top english pop hits 2026",
+      "best english songs 2026",
     ],
     punjabi: [
       "best punjabi songs",
@@ -398,16 +398,16 @@ async function buildTrending(
       ? languages[Math.floor(Math.random() * languages.length)]
       : "english";
   const trendingQueries: Record<string, string> = {
-    tamil: "trending tamil hits 2025",
-    english: "trending english hits 2025",
-    hindi: "trending bollywood hits 2025",
-    telugu: "trending telugu hits 2025",
-    punjabi: "trending punjabi hits 2025",
-    kannada: "trending kannada hits 2025",
-    malayalam: "trending malayalam hits 2025",
+    tamil: "trending tamil hits 2026",
+    english: "trending english hits 2026",
+    hindi: "trending bollywood hits 2026",
+    telugu: "trending telugu hits 2026",
+    punjabi: "trending punjabi hits 2026",
+    kannada: "trending kannada hits 2026",
+    malayalam: "trending malayalam hits 2026",
   };
   const result = await searchSongs(
-    trendingQueries[lang] || `trending ${lang} hits 2025`,
+    trendingQueries[lang] || `trending ${lang} hits 2026`,
     20,
   );
   if (result.results.length === 0) return null;
@@ -491,7 +491,7 @@ export async function buildDashboard(
       searchSongs("best telugu songs", 15).catch(() => ({
         results: [] as JioSaavnSong[],
       })),
-      searchSongs("best english songs 2024", 15).catch(() => ({
+      searchSongs("best english songs 2026", 15).catch(() => ({
         results: [] as JioSaavnSong[],
       })),
       buildTimeMoodSection(timeMood, defaultLangs).catch(() => null),
