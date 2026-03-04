@@ -518,10 +518,24 @@ export async function buildDashboard(
     const moodGrid = await buildMoodGrid();
     if (moodGrid) sections.push(moodGrid);
 
+    // Deduplicate songs across guest sections
+    const guestSeen = new Set<string>();
+    for (const section of sections) {
+      if (section.type === "mood_grid") continue;
+      section.songs = section.songs.filter((song: any) => {
+        const id = song.id || song.songId;
+        if (!id || guestSeen.has(id)) return false;
+        guestSeen.add(id);
+        return true;
+      });
+    }
+
     const response: DashboardResponse = {
       greeting,
       subtitle,
-      sections,
+      sections: sections.filter(
+        (s) => s.type === "mood_grid" || s.songs.length > 0,
+      ),
       generatedAt: Date.now(),
     };
     await redisSet(cacheKey, JSON.stringify(response), 1800);
@@ -614,10 +628,27 @@ export async function buildDashboard(
     }
   }
 
+  // ── Deduplicate songs across sections ──
+  // Track seen song IDs and remove duplicates, keeping the first occurrence
+  const seenSongIds = new Set<string>();
+  for (const section of sections) {
+    if (section.type === "mood_grid") continue; // mood_grid has no songs
+    section.songs = section.songs.filter((song: any) => {
+      const id = song.id || song.songId;
+      if (!id || seenSongIds.has(id)) return false;
+      seenSongIds.add(id);
+      return true;
+    });
+  }
+  // Remove sections that ended up empty after dedup
+  const finalSections = sections.filter(
+    (s) => s.type === "mood_grid" || s.songs.length > 0,
+  );
+
   const response: DashboardResponse = {
     greeting,
     subtitle,
-    sections,
+    sections: finalSections,
     generatedAt: Date.now(),
   };
 
