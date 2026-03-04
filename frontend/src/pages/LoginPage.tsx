@@ -2,9 +2,23 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { motion } from "framer-motion";
-import { Music2 } from "lucide-react";
+import { Music2, Headphones, Users, Zap, ShieldOff } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import toast from "react-hot-toast";
+
+/* ── EQ visualizer bars ─────────────────────────────────────── */
+const EqBar = ({ delay, h }: { delay: number; h: number }) => (
+  <motion.div
+    className="w-[3px] rounded-full bg-sp-green"
+    animate={{ height: [h, h * 2.5, h * 0.7, h * 1.8, h] }}
+    transition={{
+      duration: 1.4,
+      delay,
+      repeat: Infinity,
+      ease: "easeInOut",
+    }}
+  />
+);
 
 export default function LoginPage() {
   const { isAuthenticated, login, isLoading } = useAuth();
@@ -15,17 +29,16 @@ export default function LoginPage() {
     if (isAuthenticated) navigate("/", { replace: true });
   }, [isAuthenticated, navigate]);
 
-  /* ── Loading splash ──────────────────────────────────────────── */
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-[#050505] flex items-center justify-center">
+      <div className="h-screen w-screen bg-sp-black flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <div className="w-12 h-12 rounded-2xl bg-sp-green flex items-center justify-center">
-            <Music2 size={24} className="text-black" strokeWidth={2.5} />
+          <div className="w-14 h-14 rounded-2xl bg-sp-green flex items-center justify-center">
+            <Music2 size={26} className="text-black" strokeWidth={2.5} />
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-1 h-1 rounded-full bg-white/30 animate-bounce [animation-delay:0ms]" />
@@ -37,104 +50,268 @@ export default function LoginPage() {
     );
   }
 
-  /* ── Main ────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center p-5">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-[360px] flex flex-col items-center"
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-11 h-11 rounded-xl bg-sp-green flex items-center justify-center">
-            <Music2 size={22} className="text-black" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-white tracking-tight leading-none">
-              Soul
-              <span className="text-sp-green">Sync</span>
-            </h1>
-            <p className="text-[9px] text-white/25 font-medium tracking-[0.2em] uppercase">
-              Feel every beat
-            </p>
-          </div>
+    <div className="min-h-[100dvh] bg-sp-black flex flex-col lg:flex-row overflow-hidden">
+      {/* ═══════════════ LEFT: Hero ═══════════════ */}
+      <div className="relative lg:w-[52%] flex flex-col justify-center items-center px-6 py-12 sm:py-16 lg:py-0 lg:px-16 overflow-hidden">
+        {/* Background layers */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Green gradient orb */}
+          <div
+            className="absolute w-[500px] h-[500px] -top-32 -left-32 opacity-[0.12]"
+            style={{
+              background:
+                "radial-gradient(circle, #1db954 0%, transparent 70%)",
+            }}
+          />
+          <div
+            className="absolute w-[300px] h-[300px] bottom-0 right-0 opacity-[0.06]"
+            style={{
+              background:
+                "radial-gradient(circle, #1db954 0%, transparent 70%)",
+            }}
+          />
+          {/* Noise texture overlay */}
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")`,
+            }}
+          />
         </div>
 
-        {/* Card */}
-        <div className="w-full rounded-2xl bg-white/[0.03] border border-white/[0.06] p-7 sm:p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-xl font-bold text-white">Welcome back</h2>
-            <p className="text-sm text-white/30 mt-1">
-              Sign in to your account
-            </p>
-          </div>
+        <div className="relative z-10 max-w-md w-full">
+          {/* Logo */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex items-center gap-3.5 mb-10 lg:mb-14"
+          >
+            <div
+              className="w-12 h-12 rounded-xl bg-sp-green flex items-center justify-center flex-shrink-0"
+              style={{ boxShadow: "0 0 24px rgba(29,185,84,0.3)" }}
+            >
+              <Music2 size={24} className="text-black" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-white tracking-tight leading-none">
+                Soul<span className="text-sp-green">Sync</span>
+              </h1>
+              <p className="text-[10px] text-white/20 font-medium tracking-[0.18em] uppercase mt-0.5">
+                Feel every beat
+              </p>
+            </div>
+          </motion.div>
 
-          {/* Google Login */}
-          <div className="flex flex-col items-center gap-5">
-            <div className="relative w-full flex justify-center">
-              {loggingIn && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50 rounded-full backdrop-blur-sm">
-                  <div className="w-5 h-5 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
+          {/* Headline */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+          >
+            <h2 className="text-[2rem] sm:text-[2.5rem] lg:text-[2.8rem] font-black text-white leading-[1.1] tracking-tight">
+              Your music,
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sp-green via-emerald-300 to-teal-400">
+                your way.
+              </span>
+            </h2>
+            <p className="text-white/35 text-sm sm:text-base mt-4 leading-relaxed max-w-sm">
+              AI-powered playlists, real-time duo sessions, and 50 million songs
+              — completely free, forever.
+            </p>
+          </motion.div>
+
+          {/* EQ + feature chips */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mt-10 lg:mt-14"
+          >
+            {/* EQ visualizer */}
+            <div className="flex items-end gap-[3px] h-6 mb-6">
+              {[6, 10, 4, 14, 8, 12, 5, 9, 7, 11, 6, 13, 5, 8].map((h, i) => (
+                <EqBar key={i} delay={i * 0.08} h={h} />
+              ))}
+            </div>
+
+            {/* Features */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { icon: Headphones, label: "AI Playlists" },
+                { icon: Users, label: "Duo Mode" },
+                { icon: Zap, label: "Offline Play" },
+                { icon: ShieldOff, label: "No Ads" },
+              ].map(({ icon: Icon, label }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]"
+                >
+                  <Icon size={13} className="text-sp-green" />
+                  <span className="text-xs text-white/50 font-medium">
+                    {label}
+                  </span>
                 </div>
-              )}
-              <GoogleLogin
-                onSuccess={async (response) => {
-                  if (response.credential) {
-                    setLoggingIn(true);
-                    try {
-                      const { isNewUser } = await login(response.credential);
-                      navigate(isNewUser ? "/onboarding" : "/", {
-                        replace: true,
-                      });
-                    } catch {
-                      toast.error("Login failed. Please try again.");
-                    } finally {
-                      setLoggingIn(false);
+              ))}
+            </div>
+
+            {/* Stats — desktop only */}
+            <div className="hidden lg:flex items-center gap-8 mt-10">
+              {[
+                { val: "50M+", label: "Songs" },
+                { val: "200K+", label: "Artists" },
+                { val: "100%", label: "Free" },
+              ].map(({ val, label }, i) => (
+                <div key={label} className="flex items-center gap-6">
+                  {i > 0 && <div className="w-px h-8 bg-white/[0.06]" />}
+                  <div>
+                    <p className="text-2xl font-black text-white">{val}</p>
+                    <p className="text-[10px] text-white/20 uppercase tracking-wider font-medium mt-0.5">
+                      {label}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ═══════════════ RIGHT: Login ═══════════════ */}
+      <div className="relative lg:w-[48%] flex flex-col items-center justify-center px-6 pb-10 sm:pb-12 lg:py-0 lg:px-16">
+        {/* Vertical divider — desktop */}
+        <div className="hidden lg:block absolute left-0 top-[15%] bottom-[15%] w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent" />
+
+        {/* Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.25 }}
+          className="w-full max-w-sm"
+        >
+          {/* Card */}
+          <div
+            className="rounded-3xl p-7 sm:p-9"
+            style={{
+              background:
+                "linear-gradient(160deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              boxShadow:
+                "0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)",
+            }}
+          >
+            {/* Top green accent line */}
+            <div className="w-12 h-1 rounded-full bg-sp-green mx-auto mb-7" />
+
+            <div className="text-center mb-7">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">
+                Get started
+              </h2>
+              <p className="text-sm text-white/30 mt-1.5 leading-relaxed">
+                One click to your personalized
+                <br className="hidden sm:block" /> music experience
+              </p>
+            </div>
+
+            {/* Google Login */}
+            <div className="flex flex-col items-center">
+              <div className="relative w-full flex justify-center">
+                {loggingIn && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="absolute inset-0 flex items-center justify-center z-10 bg-black/50 rounded-full backdrop-blur-sm"
+                  >
+                    <div className="w-5 h-5 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
+                  </motion.div>
+                )}
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (response.credential) {
+                      setLoggingIn(true);
+                      try {
+                        const { isNewUser } = await login(response.credential);
+                        navigate(isNewUser ? "/onboarding" : "/", {
+                          replace: true,
+                        });
+                      } catch {
+                        toast.error("Login failed. Please try again.");
+                      } finally {
+                        setLoggingIn(false);
+                      }
                     }
-                  }
-                }}
-                onError={() => toast.error("Google sign-in failed")}
-                theme="filled_black"
-                size="large"
-                shape="pill"
-                text="continue_with"
-                width="300"
-              />
+                  }}
+                  onError={() => toast.error("Google sign-in failed")}
+                  theme="filled_black"
+                  size="large"
+                  shape="pill"
+                  text="continue_with"
+                  width="300"
+                />
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-white/[0.06]" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-1 h-1 rounded-full bg-sp-green/50" />
+                <span className="text-[10px] text-white/20 font-medium">
+                  Encrypted & Secure
+                </span>
+              </div>
+              <div className="flex-1 h-px bg-white/[0.06]" />
+            </div>
+
+            {/* Testimonial-style social proof */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+              {/* Stacked avatars */}
+              <div className="flex -space-x-2 flex-shrink-0">
+                {["🎵", "🎧", "🎶"].map((e, i) => (
+                  <div
+                    key={i}
+                    className="w-7 h-7 rounded-full bg-white/[0.06] border-2 border-sp-black flex items-center justify-center text-xs"
+                  >
+                    {e}
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-[11px] text-white/50 leading-snug">
+                  Join thousands of music lovers already vibing on SoulSync
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-white/[0.06]" />
-            <span className="text-[10px] text-white/15 font-medium uppercase tracking-wider">
-              Secured with Google
-            </span>
-            <div className="flex-1 h-px bg-white/[0.06]" />
-          </div>
-
-          {/* Features */}
-          <div className="grid grid-cols-3 gap-3 text-center">
+          {/* Mobile stats */}
+          <div className="flex lg:hidden items-center justify-center gap-5 mt-6">
             {[
-              { label: "50M+ Songs", sub: "Free forever" },
-              { label: "AI Playlists", sub: "Smart curation" },
-              { label: "Duo Mode", sub: "Listen together" },
-            ].map(({ label, sub }) => (
-              <div key={label}>
-                <p className="text-xs font-semibold text-white/60">{label}</p>
-                <p className="text-[10px] text-white/20 mt-0.5">{sub}</p>
+              { val: "50M+", label: "Songs" },
+              { val: "200K+", label: "Artists" },
+              { val: "100%", label: "Free" },
+            ].map(({ val, label }, i) => (
+              <div key={label} className="flex items-center gap-4">
+                {i > 0 && <div className="w-px h-4 bg-white/[0.06]" />}
+                <div className="text-center">
+                  <p className="text-sm font-bold text-white/60">{val}</p>
+                  <p className="text-[9px] text-white/15 uppercase tracking-wider font-medium">
+                    {label}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Terms */}
-        <p className="text-[10px] text-white/15 text-center mt-5 leading-relaxed max-w-xs">
-          By continuing, you agree to SoulSync's Terms of Service and Privacy
-          Policy.
-        </p>
-      </motion.div>
+          {/* Terms */}
+          <p className="text-[10px] text-white/10 text-center mt-5 leading-relaxed">
+            By continuing, you agree to SoulSync's Terms of Service and Privacy
+            Policy.
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 }
