@@ -136,74 +136,64 @@ export const NowPlayingView = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col transition-colors duration-1000"
+      className="fixed inset-0 z-50 flex flex-col"
       style={{
-        background: `linear-gradient(160deg, ${bgColor}30 0%, ${bgColor}18 20%, #0a0a0a 45%, #050505 100%)`,
+        background: `linear-gradient(160deg, ${bgColor}15 0%, #070707 30%, #040404 60%, #020202 100%)`,
       }}
     >
-      {/* Ambient glow orbs */}
+      {/* Very subtle ambient glow */}
       <div
-        className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full opacity-[0.08] blur-[160px] pointer-events-none animate-breathe"
+        className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full opacity-[0.04] blur-[180px] pointer-events-none"
         style={{ background: bgColor }}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[140px] pointer-events-none"
-        style={{ background: bgColor }}
-      />
-      {/* Noise texture overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
-        }}
       />
 
-      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 pt-3 sm:pt-5 pb-1 sm:pb-2 relative">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 lg:px-12 pt-3 sm:pt-4 pb-1 sm:pb-2 relative z-10 flex-shrink-0">
         <button
           onClick={onClose}
-          className="text-white/60 hover:text-white transition-all p-2 rounded-xl hover:bg-white/10 backdrop-blur-sm"
+          className="text-white/70 hover:text-white transition-all p-2.5 rounded-xl hover:bg-white/10 active:scale-95"
+          aria-label="Close now playing"
         >
-          <ChevronDown size={24} />
+          <ChevronDown size={26} />
         </button>
         <div className="text-center">
-          <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.2em]">
+          <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.2em]">
             Now Playing
           </p>
-          <p className="text-white/30 text-[11px] mt-0.5 truncate max-w-[220px]">
+          <p className="text-white/25 text-[11px] mt-0.5 truncate max-w-[220px]">
             {currentSong.album?.name || ""}
           </p>
         </div>
         <button
           onClick={(e) => showContextMenu(e.clientX, e.clientY, currentSong)}
-          className="text-white/30 hover:text-white transition-all p-2 rounded-xl hover:bg-white/10 backdrop-blur-sm"
+          className="text-white/40 hover:text-white transition-all p-2.5 rounded-xl hover:bg-white/10 active:scale-95"
         >
           <MoreHorizontal size={20} />
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row items-center justify-center px-4 sm:px-8 md:px-10 lg:px-16 xl:px-24 gap-4 sm:gap-6 lg:gap-16 min-h-0 relative overflow-y-auto lg:overflow-hidden thin-scrollbar py-2 sm:pb-8 lg:py-0">
-        {/* Album art — centered on mobile, left side on desktop */}
-        <div className="flex-shrink-0 flex items-center justify-center lg:flex-1 lg:justify-end">
+      <div className="flex-1 flex flex-col lg:flex-row items-center justify-center px-4 sm:px-8 lg:px-0 gap-4 sm:gap-6 lg:gap-0 min-h-0 relative overflow-y-auto lg:overflow-hidden thin-scrollbar py-2 sm:pb-8 lg:py-0">
+        {/* Album art — centered on mobile, left half on desktop */}
+        <div className="flex-shrink-0 flex items-center justify-center lg:w-1/2 lg:justify-center">
           <div
             className={`transition-all duration-700 ease-out relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"}`}
             style={{
-              boxShadow: `0 30px 80px ${bgColor}60, 0 0 40px ${bgColor}30`,
+              boxShadow: `0 20px 60px ${bgColor}30, 0 0 30px ${bgColor}15`,
             }}
           >
             <img
               src={img}
               onError={onImgErr}
-              className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96 rounded-2xl sm:rounded-3xl object-cover"
-              style={{ boxShadow: "0 16px 60px rgba(0,0,0,0.7)" }}
+              className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-2xl sm:rounded-3xl object-cover"
+              style={{ boxShadow: "0 16px 50px rgba(0,0,0,0.8)" }}
             />
             {isPlaying && (
-              <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.06] animate-breathe pointer-events-none" />
+              <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.04] animate-breathe pointer-events-none" />
             )}
           </div>
         </div>
 
-        {/* Controls column — right side on desktop */}
-        <div className="w-full max-w-sm lg:flex-1 lg:max-w-md flex flex-col justify-center">
+        {/* Controls column — right half on desktop */}
+        <div className="w-full max-w-sm lg:w-1/2 lg:max-w-none lg:px-16 xl:px-24 flex flex-col justify-center">
           <div className="flex items-start justify-between mb-1">
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl md:text-3xl font-black text-white truncate leading-tight">
