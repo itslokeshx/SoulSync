@@ -118,6 +118,11 @@ export function AppLayout() {
     csRef.current = currentSong;
   }, [currentSong]);
 
+  // Auto-close NowPlaying fullscreen on route change
+  useEffect(() => {
+    setNpOpen(false);
+  }, [location.pathname]);
+
   // Debounced search → navigate to /search
   useEffect(() => {
     const t = setTimeout(() => {

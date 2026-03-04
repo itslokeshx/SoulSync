@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm run build:frontend",
+  "outputDirectory": "frontend/dist",
   "headers": [
     {
       "source": "/(.*)",

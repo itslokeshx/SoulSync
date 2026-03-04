@@ -21,7 +21,12 @@ export const MobileNav = () => {
       {[
         { id: "home", Icon: Home, label: "Home", path: "/" },
         { id: "search", Icon: Search, label: "Search", path: "/search" },
-        { id: "downloads", Icon: Download, label: "Saves", path: "/downloads" },
+        {
+          id: "downloads",
+          Icon: Download,
+          label: "Downloads",
+          path: "/downloads",
+        },
         { id: "library", Icon: Library, label: "Library", path: "/library" },
       ].map(({ id, Icon, label, path }) => (
         <button

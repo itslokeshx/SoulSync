@@ -67,10 +67,11 @@ router.post(
       );
 
       // Set httpOnly cookie
+      const isProd = process.env.NODE_ENV === "production";
       res.cookie("saavn_token", ourToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
@@ -84,7 +85,12 @@ router.post(
 
 // POST /api/auth/logout
 router.post("/logout", (_req: AuthRequest, res: Response): void => {
-  res.clearCookie("saavn_token");
+  const isProd = process.env.NODE_ENV === "production";
+  res.clearCookie("saavn_token", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+  });
   res.json({ success: true });
 });
 
