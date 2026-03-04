@@ -72,7 +72,7 @@ export const NowPlayingView = ({
   onLike,
   onPlaySong,
 }: NowPlayingViewProps) => {
-  const [bgColor, setBgColor] = useState("#121212");
+  const [bgColor, setBgColor] = useState("#18181a");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showVol, setShowVol] = useState(false);
   const volTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,18 +138,11 @@ export const NowPlayingView = ({
     <div
       className="fixed inset-0 z-50 flex flex-col"
       style={{
-        background: `linear-gradient(160deg, ${bgColor}18 0%, ${bgColor}0c 15%, #020202 40%, #000000 70%, #000000 100%)`,
+        background:
+          "linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
       }}
     >
-      {/* Ambient glow from album art colour */}
-      <div
-        className="absolute top-0 left-1/4 w-[450px] h-[450px] rounded-full opacity-[0.06] blur-[220px] pointer-events-none"
-        style={{ background: bgColor }}
-      />
-      <div
-        className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full opacity-[0.03] blur-[180px] pointer-events-none"
-        style={{ background: bgColor }}
-      />
+      {/* ...no ambient orbs, pure dark gradient... */}
 
       <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 lg:px-12 pt-3 sm:pt-4 pb-1 sm:pb-2 relative z-10 flex-shrink-0">
         <button
