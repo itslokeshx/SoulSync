@@ -138,12 +138,12 @@ export const NowPlayingView = ({
     <div
       className="fixed inset-0 z-50 flex flex-col"
       style={{
-        background: `linear-gradient(160deg, ${bgColor}15 0%, #070707 30%, #040404 60%, #020202 100%)`,
+        background: `linear-gradient(160deg, ${bgColor}08 0%, #050505 25%, #030303 50%, #010101 80%, #000000 100%)`,
       }}
     >
-      {/* Very subtle ambient glow */}
+      {/* Ultra-subtle ambient glow */}
       <div
-        className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full opacity-[0.04] blur-[180px] pointer-events-none"
+        className="absolute top-0 left-1/4 w-[350px] h-[350px] rounded-full opacity-[0.025] blur-[200px] pointer-events-none"
         style={{ background: bgColor }}
       />
 

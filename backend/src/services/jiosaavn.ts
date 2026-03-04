@@ -3,9 +3,9 @@ import axios from "axios";
 const JIOSAAVN_API =
   process.env.JIOSAAVN_API || "https://jiosaavn.rajputhemant.dev";
 
-// ── rate-limit queue: 1 request per second to avoid 429s ───────────
+// ── rate-limit queue: throttle requests to avoid 429s ───────────
 let lastReq = 0;
-const REQ_GAP = 1100; // ms between requests
+const REQ_GAP = 300; // ms between requests
 
 async function throttledGet(url: string, opts: Record<string, any> = {}) {
   const now = Date.now();

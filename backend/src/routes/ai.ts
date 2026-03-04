@@ -27,9 +27,22 @@ interface MatchedSong {
 // POST /api/ai/build-playlist
 router.post(
   "/build-playlist",
-  rateLimiter(10, 60000),
+  rateLimiter(15, 60000),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      // Check if Groq keys are configured
+      const hasKeys = [
+        process.env.GROQ_KEY_1,
+        process.env.GROQ_KEY_2,
+        process.env.GROQ_KEY_3,
+      ].some(Boolean);
+      if (!hasKeys) {
+        res
+          .status(503)
+          .json({ error: "AI service not configured. Add GROQ_KEY env vars." });
+        return;
+      }
+
       const { songs, mood } = req.body;
 
       if (!songs && !mood) {

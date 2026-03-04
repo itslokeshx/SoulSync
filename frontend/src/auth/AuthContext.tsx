@@ -50,6 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await api.logout();
     setUser(null);
+    // Clear dashboard cache so fresh data loads on next login
+    try {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith("ss_dashboard_")) sessionStorage.removeItem(key);
+      }
+    } catch {}
   }, []);
 
   const updateUser = useCallback((u: User) => setUser(u), []);

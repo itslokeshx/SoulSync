@@ -88,8 +88,10 @@ export function AIPlaylistModal() {
           .filter(Boolean),
       );
       setSelected(ids);
-    } catch {
-      toast.error("AI generation failed. Make sure Groq API keys are set.");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error || "AI generation failed. Please try again.";
+      toast.error(msg);
     } finally {
       setGenerating(false);
     }

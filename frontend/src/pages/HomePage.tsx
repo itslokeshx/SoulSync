@@ -81,13 +81,28 @@ export const HomePage = () => {
     try {
       const data: any = user ? await getDashboard() : await getGuestDashboard();
       setDashboard(data);
+      setError(false);
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
     } catch {
+      // If authenticated dashboard fails (401 etc), fall back to guest dashboard
+      if (user) {
+        try {
+          const guestData: any = await getGuestDashboard();
+          setDashboard(guestData);
+          setError(false);
+          return;
+        } catch {}
+      }
       setError(true);
     } finally {
       setLoading(false);
     }
   }, [user, cacheKey]);
+
+  // Re-fetch when user changes (login/logout)
+  useEffect(() => {
+    fetched.current = false;
+  }, [user]);
 
   useEffect(() => {
     if (fetched.current) return;
