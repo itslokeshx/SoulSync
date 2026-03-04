@@ -251,3 +251,21 @@ input[type="range"]:active::-moz-range-thumb {
 .progress-glow::-webkit-slider-runnable-track {
   box-shadow: 0 0 8px rgba(29, 185, 84, 0.3);
 }
+
+/* ── Vertical volume bar (mobile popup) ────────────────────────── */
+.volume-bar-vertical::-webkit-slider-runnable-track {
+  width: 4px;
+  height: 100%;
+  border-radius: 9999px;
+}
+.volume-bar-vertical::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-left: -5px;
+  opacity: 1;
+}
+.volume-bar-vertical::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  opacity: 1;
+}
