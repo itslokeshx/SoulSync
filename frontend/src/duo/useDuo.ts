@@ -80,7 +80,13 @@ export function useDuo({
         console.log("[Duo] Starting socket connection for host…");
         waitForConnection()
           .then((sock) => {
-            console.log("[Duo] Socket connected for host");
+            console.log("[Duo] Socket connected for host, id:", sock.id);
+            // Emit duo:join directly as safety net
+            sock.emit("duo:join", {
+              code: data.code,
+              name: hostName,
+              role: "host",
+            });
             // Sync current song to room so guest gets it on join
             const cs = currentSongRef?.current;
             if (cs) {
@@ -167,13 +173,23 @@ export function useDuo({
         // Start socket connection in background — don't block.
         // The onConnect handler emits duo:join when connected.
         console.log("[Duo] Starting socket connection for guest…");
-        waitForConnection().catch((err) => {
-          console.warn(
-            "[Duo] Socket connection slow:",
-            err.message,
-            "— will auto-reconnect",
-          );
-        });
+        waitForConnection()
+          .then((sock) => {
+            console.log("[Duo] Socket connected for guest, id:", sock.id);
+            // Emit duo:join directly as safety net
+            sock.emit("duo:join", {
+              code: code.toUpperCase(),
+              name: guestName,
+              role: "guest",
+            });
+          })
+          .catch((err) => {
+            console.warn(
+              "[Duo] Socket connection slow:",
+              err.message,
+              "— will auto-reconnect",
+            );
+          });
 
         addToast("Joined SoulLink session! 🎧", "success");
         return true;

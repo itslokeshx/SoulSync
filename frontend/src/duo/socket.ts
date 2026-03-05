@@ -13,7 +13,6 @@ export function getSocket(): Socket {
     console.log("[DuoSocket] Creating socket →", BACKEND_URL);
     socket = io(BACKEND_URL, {
       autoConnect: false,
-      withCredentials: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -23,9 +22,10 @@ export function getSocket(): Socket {
       // Upgrades to websocket automatically after handshake.
       transports: ["polling", "websocket"],
       upgrade: true,
-      auth: () => {
+      // MUST use the callback pattern — Socket.IO ignores the return value!
+      auth: (cb) => {
         const token = getNativeToken();
-        return token ? { token } : {};
+        cb(token ? { token } : {});
       },
     });
 
