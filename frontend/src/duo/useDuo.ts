@@ -116,8 +116,15 @@ export function useDuo({
             clearInterval(pollInterval);
             return;
           }
-          console.log(`[Duo] Polling room state (attempt ${pollCount})…`);
-          getSocket().emit("duo:request-state", { code: data.code });
+          const pollSocket = getSocket();
+          if (pollSocket.connected) {
+            console.log(`[Duo] Polling room state (attempt ${pollCount})…`);
+            pollSocket.emit("duo:request-state", { code: data.code });
+          } else {
+            console.log(
+              `[Duo] Polling skipped (attempt ${pollCount}) — socket not connected`,
+            );
+          }
         }, 3000);
 
         return data.code;
@@ -250,7 +257,11 @@ export function useDuo({
         .catch(() => {
           console.warn("[Duo] Rejoin failed — clearing stale session");
           store.getState().fullReset();
-          disconnectSocket();
+          // DON'T call disconnectSocket() here — it destroys the singleton
+          // and its listeners, breaking any future session.
+          // Just reset the ref so listeners re-attach for the next session.
+          listenersAttachedRef.current = false;
+          hasConnectedOnceRef.current = false;
         });
     }
   }, []); // eslint-disable-line
