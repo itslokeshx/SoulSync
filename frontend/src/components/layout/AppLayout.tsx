@@ -31,6 +31,7 @@ import {
   registerMediaControls,
   updateMediaMetadata,
   clearMediaMetadata,
+  updatePositionState,
 } from "../../capacitor/musicControls";
 import {
   initBackgroundAudio,
@@ -548,17 +549,27 @@ export function AppLayout() {
       onPause: handlePlayPause,
       onNext: handleNext,
       onPrev: handlePrev,
+      onSeek: handleSeek,
     });
-  }, [handlePlayPause, handleNext, handlePrev]);
+  }, [handlePlayPause, handleNext, handlePrev, handleSeek]);
 
   // Update media metadata when current song changes
   useEffect(() => {
     if (currentSong) {
       updateMediaMetadata(currentSong, isPlaying);
+      // Update position state for notification seek bar
+      updatePositionState(currentTime, duration);
     } else {
       clearMediaMetadata();
     }
   }, [currentSong?.id, isPlaying]); // eslint-disable-line
+
+  // Keep notification seek bar position updated during playback
+  useEffect(() => {
+    if (currentSong && duration > 0) {
+      updatePositionState(currentTime, duration);
+    }
+  }, [currentTime, duration]); // eslint-disable-line
 
   // ── Background audio lifecycle (native only) ──
   useEffect(() => {
