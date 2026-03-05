@@ -1,9 +1,39 @@
 /**
- * Lock-screen / notification media controls wrapper.
- * Uses the browser MediaSession API on web, and
- * @capacitor/local-notifications on native as a basic implementation.
+ * Media controls — lock screen + notification bar.
+ *
+ * On native Android: uses the custom MusicControls Capacitor plugin which
+ * runs a foreground MediaPlaybackService with proper MediaSession so the
+ * notification appears with album art, play/pause/next/prev buttons,
+ * seek bar, and shows on the lock screen.
+ *
+ * On web: uses the standard MediaSession API.
  */
 import { bestImg, getArtists } from "../lib/helpers";
+import { isNative } from "../utils/platform";
+import { registerPlugin } from "@capacitor/core";
+
+// ── Native plugin interface ─────────────────────────────────────────────
+
+interface MusicControlsPluginType {
+  updateNotification(opts: {
+    title: string;
+    artist: string;
+    albumArt: string;
+    isPlaying: boolean;
+    duration: number;
+    position: number;
+  }): Promise<void>;
+  dismissNotification(): Promise<void>;
+  addListener(
+    event: "controlsAction",
+    handler: (data: { action: string; seekTime?: number }) => void,
+  ): Promise<{ remove: () => void }>;
+}
+
+const NativeMusicControls =
+  registerPlugin<MusicControlsPluginType>("MusicControls");
+
+// ── Callbacks ───────────────────────────────────────────────────────────
 
 interface MediaCallbacks {
   onPlay: () => void;
@@ -14,6 +44,7 @@ interface MediaCallbacks {
 }
 
 let _callbacks: MediaCallbacks | null = null;
+let _nativeListenerRegistered = false;
 
 /**
  * Register playback action handlers (call once from AppLayout).
@@ -21,13 +52,13 @@ let _callbacks: MediaCallbacks | null = null;
 export function registerMediaControls(callbacks: MediaCallbacks) {
   _callbacks = callbacks;
 
+  // ── Web: MediaSession API ──────────────────────────────────────────
   if ("mediaSession" in navigator) {
     navigator.mediaSession.setActionHandler("play", callbacks.onPlay);
     navigator.mediaSession.setActionHandler("pause", callbacks.onPause);
     navigator.mediaSession.setActionHandler("nexttrack", callbacks.onNext);
     navigator.mediaSession.setActionHandler("previoustrack", callbacks.onPrev);
 
-    // Seek controls for notification / lock screen
     try {
       navigator.mediaSession.setActionHandler("seekto", (details) => {
         if (details.seekTime != null && callbacks.onSeek) {
@@ -61,7 +92,41 @@ export function registerMediaControls(callbacks: MediaCallbacks) {
       /* seekbackward/seekforward not supported */
     }
   }
+
+  // ── Native: Register listener for service → JS events ──────────────
+  if (isNative() && !_nativeListenerRegistered) {
+    _nativeListenerRegistered = true;
+    NativeMusicControls.addListener("controlsAction", (data) => {
+      if (!_callbacks) return;
+      switch (data.action) {
+        case "play":
+          _callbacks.onPlay();
+          break;
+        case "pause":
+          _callbacks.onPause();
+          break;
+        case "next":
+          _callbacks.onNext();
+          break;
+        case "prev":
+          _callbacks.onPrev();
+          break;
+        case "seek":
+          if (data.seekTime != null) _callbacks.onSeek?.(data.seekTime);
+          break;
+        case "stop":
+          _callbacks.onPause();
+          break;
+      }
+    });
+  }
 }
+
+// ── Track current state for native position updates ─────────────────────
+
+let _positionTimer: ReturnType<typeof setInterval> | null = null;
+let _lastSong: any = null;
+let _lastIsPlaying = false;
 
 /**
  * Update the now-playing metadata shown on the lock screen / notification.
@@ -69,6 +134,10 @@ export function registerMediaControls(callbacks: MediaCallbacks) {
 export function updateMediaMetadata(song: any, isPlaying: boolean) {
   if (!song) return;
 
+  _lastSong = song;
+  _lastIsPlaying = isPlaying;
+
+  // ── Web: MediaSession API ──
   if ("mediaSession" in navigator) {
     const artwork: MediaImage[] = [];
     const img150 = bestImg(song.image, "150x150");
@@ -87,6 +156,19 @@ export function updateMediaMetadata(song: any, isPlaying: boolean) {
 
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
   }
+
+  // ── Native: Update the foreground service notification ──
+  if (isNative()) {
+    const audio = document.querySelector("audio") as HTMLAudioElement;
+    NativeMusicControls.updateNotification({
+      title: song.name || "Unknown",
+      artist: getArtists(song) || "Unknown",
+      albumArt: bestImg(song.image, "500x500") || "",
+      isPlaying,
+      duration: audio?.duration || Number(song.duration) || 0,
+      position: audio?.currentTime || 0,
+    }).catch(() => {});
+  }
 }
 
 /**
@@ -98,6 +180,7 @@ export function updatePositionState(
   duration: number,
   playbackRate = 1,
 ) {
+  // ── Web ──
   if ("mediaSession" in navigator && navigator.mediaSession.setPositionState) {
     try {
       if (duration && isFinite(duration) && duration > 0) {
@@ -111,10 +194,27 @@ export function updatePositionState(
       /* position state not supported */
     }
   }
+
+  // ── Native: Throttled position updates to the notification ──
+  if (isNative() && duration > 0 && !_positionTimer) {
+    _positionTimer = setInterval(() => {
+      if (!_lastSong) return;
+      const audio = document.querySelector("audio") as HTMLAudioElement;
+      if (!audio) return;
+      NativeMusicControls.updateNotification({
+        title: _lastSong.name || "Unknown",
+        artist: getArtists(_lastSong) || "Unknown",
+        albumArt: bestImg(_lastSong.image, "500x500") || "",
+        isPlaying: _lastIsPlaying,
+        duration: audio.duration || 0,
+        position: audio.currentTime || 0,
+      }).catch(() => {});
+    }, 5000);
+  }
 }
 
 /**
- * Clear media session metadata.
+ * Clear media session metadata and dismiss native notification.
  */
 export function clearMediaMetadata() {
   if ("mediaSession" in navigator) {
@@ -123,4 +223,16 @@ export function clearMediaMetadata() {
       navigator.mediaSession.setPositionState();
     } catch {}
   }
+
+  if (isNative()) {
+    NativeMusicControls.dismissNotification().catch(() => {});
+  }
+
+  if (_positionTimer) {
+    clearInterval(_positionTimer);
+    _positionTimer = null;
+  }
+
+  _lastSong = null;
+  _lastIsPlaying = false;
 }
