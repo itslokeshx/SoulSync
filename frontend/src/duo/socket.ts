@@ -51,10 +51,13 @@ export function ensureConnected(): Promise<Socket> {
   if (s.connected) return Promise.resolve(s);
 
   return new Promise<Socket>((resolve, reject) => {
-    if (!s.active) s.connect();
+    // If socket is not active (was disconnected), start connecting
+    if (!s.connected && !s.active) s.connect();
 
     const timer = setTimeout(() => {
       s.off("connect", onConnect);
+      // Stop the reconnection loop so we don't leave a zombie socket
+      s.disconnect();
       reject(new Error("Connection timed out — check your network"));
     }, 15_000);
 
