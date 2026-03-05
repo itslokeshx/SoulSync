@@ -115,13 +115,21 @@ export const useDuoStore = create<DuoState>((set, get) => ({
   setSessionState: (room) => {
     const role = get().role;
     const isHost = role === "host";
+    const partnerFromRoom = isHost
+      ? room.guest?.connected || false
+      : room.host?.connected || false;
+    const partnerNameFromRoom = isHost
+      ? room.guest?.name || ""
+      : room.host?.name || "";
+
+    // NEVER downgrade partnerConnected from true→false via session-state.
+    // Only duo:partner-disconnected should set it to false.
+    const currentlyConnected = get().partnerConnected;
     set({
       songHistory: room.songHistory || [],
       messages: room.messages || [],
-      partnerConnected: isHost
-        ? room.guest?.connected || false
-        : room.host?.connected || false,
-      partnerName: isHost ? room.guest?.name || "" : room.host?.name || "",
+      partnerConnected: currentlyConnected || partnerFromRoom,
+      partnerName: partnerNameFromRoom || get().partnerName,
     });
   },
 

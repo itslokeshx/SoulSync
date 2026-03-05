@@ -64,10 +64,6 @@ export function waitForConnection(timeoutMs = 10_000): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       s.off("connect", onConnect);
-      // Stop reconnection attempts on timeout
-      if (!s.connected) {
-        s.disconnect();
-      }
       reject(new Error("Socket connection timed out"));
     }, timeoutMs);
 
@@ -85,9 +81,28 @@ export function connectSocket(): Socket {
   return s;
 }
 
+const DUO_EVENTS = [
+  "duo:partner-joined",
+  "duo:partner-disconnected",
+  "duo:partner-reconnected",
+  "duo:partner-active",
+  "duo:session-state",
+  "duo:receive-play",
+  "duo:receive-pause",
+  "duo:receive-seek",
+  "duo:receive-song-change",
+  "duo:receive-message",
+  "duo:session-ended",
+  "duo:error",
+] as const;
+
+/**
+ * Fully destroy the socket singleton.
+ * ONLY call when the session is intentionally ended.
+ */
 export function disconnectSocket(): void {
   if (socket) {
-    socket.removeAllListeners();
+    for (const ev of DUO_EVENTS) socket.removeAllListeners(ev);
     socket.disconnect();
     socket = null;
   }
