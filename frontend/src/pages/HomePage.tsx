@@ -112,13 +112,28 @@ export const HomePage = () => {
 
   const firstName = user?.name?.split(" ")[0] || "there";
 
-  // ── Client-side greeting (server runs in UTC, so we override with local time)
-  const localGreeting = (() => {
+  // ── Client-side greeting + subtitle (server runs in UTC, so we override with local time)
+  const { localGreeting, localSubtitle } = (() => {
     const hr = new Date().getHours();
-    if (hr >= 5 && hr < 12) return `Good morning, ${firstName}`;
-    if (hr >= 12 && hr < 17) return `Good afternoon, ${firstName}`;
-    if (hr >= 17 && hr < 21) return `Good evening, ${firstName}`;
-    return `Good night, ${firstName}`;
+    if (hr >= 5 && hr < 12)
+      return {
+        localGreeting: `Good morning, ${firstName}`,
+        localSubtitle: "Start your day with great music",
+      };
+    if (hr >= 12 && hr < 17)
+      return {
+        localGreeting: `Good afternoon, ${firstName}`,
+        localSubtitle: "Perfect tunes for the afternoon",
+      };
+    if (hr >= 17 && hr < 21)
+      return {
+        localGreeting: `Good evening, ${firstName}`,
+        localSubtitle: "Wind down with your favourites",
+      };
+    return {
+      localGreeting: `Good night, ${firstName}`,
+      localSubtitle: "Late night vibes, just for you",
+    };
   })();
 
   // ── Mood click handler
@@ -177,9 +192,7 @@ export const HomePage = () => {
         <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
           {localGreeting}
         </h1>
-        <p className="text-white/30 text-sm mt-1">
-          {dashboard?.subtitle || "Your music, your way"}
-        </p>
+        <p className="text-white/30 text-sm mt-1">{localSubtitle}</p>
       </div>
 
       {/* Recently played — always from local state */}
