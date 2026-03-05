@@ -9,7 +9,10 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    console.log("[DuoSocket] Creating socket →", BACKEND_URL || "(same origin)");
+    console.log(
+      "[DuoSocket] Creating socket →",
+      BACKEND_URL || "(same origin)",
+    );
     socket = io(BACKEND_URL, {
       autoConnect: false,
       withCredentials: true,

@@ -211,7 +211,10 @@ export function useDuo({
   useEffect(() => {
     const saved = getPersistedSession();
     if (saved?.roomCode && saved?.myName && saved?.role) {
-      console.log("[Duo] Found persisted session, reconnecting…", saved.roomCode);
+      console.log(
+        "[Duo] Found persisted session, reconnecting…",
+        saved.roomCode,
+      );
       connectSocket();
     }
   }, []); // eslint-disable-line
@@ -224,7 +227,10 @@ export function useDuo({
     const onReconnect = () => {
       const saved = getPersistedSession();
       if (saved?.roomCode && saved?.myName && saved?.role) {
-        console.log("[Duo] Socket connected/reconnected → joining room", saved.roomCode);
+        console.log(
+          "[Duo] Socket connected/reconnected → joining room",
+          saved.roomCode,
+        );
         socket.emit("duo:join", {
           code: saved.roomCode,
           name: saved.myName,

@@ -61,7 +61,9 @@ export function initializeSocket(httpServer: HttpServer): Server {
 
   io.on("connection", (socket: AuthenticatedSocket) => {
     const transport = socket.conn.transport.name;
-    console.log(`[Socket] ✅ Connected: ${socket.id} via ${transport} (userId: ${socket.userId || "anon"})`);
+    console.log(
+      `[Socket] ✅ Connected: ${socket.id} via ${transport} (userId: ${socket.userId || "anon"})`,
+    );
     setupRoomHandlers(io, socket);
 
     socket.conn.on("upgrade", (t: any) => {
