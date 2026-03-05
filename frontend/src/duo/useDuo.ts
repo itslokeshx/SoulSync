@@ -107,6 +107,20 @@ export function useDuo({
         }
 
         addToast(`SoulLink room created! Code: ${data.code}`, "success", 5000);
+
+        // Safety-net: poll room state a few times to catch missed partner-join events
+        let pollCount = 0;
+        const pollInterval = setInterval(() => {
+          pollCount++;
+          const s = store.getState();
+          if (s.partnerConnected || !s.active || pollCount >= 10) {
+            clearInterval(pollInterval);
+            return;
+          }
+          console.log(`[Duo] Polling room state (attempt ${pollCount})…`);
+          getSocket().emit("duo:request-state", { code: data.code });
+        }, 3000);
+
         return data.code;
       } catch {
         addToast("Failed to create SoulLink session", "error");
@@ -258,20 +272,28 @@ export function useDuo({
       }
     };
 
-    const onPartnerJoined = ({ name, room }: any) => {
+    const onPartnerJoined = ({ name, role: eventRole, room }: any) => {
       const state = store.getState();
-      // Ignore if this is about ourselves
-      if (name === state.myName) {
-        console.log("[Duo] duo:partner-joined for self, ignoring");
+      // Ignore events about our own role (e.g. host told about host)
+      if (eventRole && eventRole === state.role) {
+        console.log(
+          `[Duo] duo:partner-joined for own role (${eventRole}), ignoring`,
+        );
         return;
       }
-      console.log("[Duo] ✅ duo:partner-joined received:", name);
+      console.log(
+        "[Duo] ✅ duo:partner-joined received:",
+        name,
+        "role:",
+        eventRole,
+      );
 
       // Dedup: only toast if partner wasn't already connected with this name
       const wasConnected = state.partnerConnected && state.partnerName === name;
 
-      store.getState().partnerJoined({ name });
+      // Apply room state first, then explicitly mark partner joined
       if (room) store.getState().setSessionState(room);
+      store.getState().partnerJoined({ name });
 
       if (!wasConnected) {
         addToast(`${name} joined SoulLink! 🎉`, "success");
@@ -310,10 +332,10 @@ export function useDuo({
       addToast("Your partner disconnected — they can rejoin", "info");
     };
 
-    const onPartnerReconnected = ({ name }: any) => {
+    const onPartnerReconnected = ({ name, role: eventRole }: any) => {
       const state = store.getState();
-      // Ignore if this is about ourselves
-      if (name === state.myName) return;
+      // Ignore events about our own role
+      if (eventRole && eventRole === state.role) return;
 
       store.getState().partnerReconnected({ name });
 

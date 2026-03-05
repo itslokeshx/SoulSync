@@ -59,19 +59,36 @@ export function initializeSocket(httpServer: HttpServer): Server {
     next();
   });
 
+  console.log(`\n╔══════════════════════════════════════════════╗`);
+  console.log(`║  🔌 Socket.IO Server Ready                   ║`);
+  console.log(`║  Allowed origin: ${FRONTEND_URL.padEnd(27)}║`);
+  console.log(`║  Transports: polling, websocket              ║`);
+  console.log(`╚══════════════════════════════════════════════╝\n`);
+
   io.on("connection", (socket: AuthenticatedSocket) => {
     const transport = socket.conn.transport.name;
+    const connectedCount = io.sockets.sockets.size;
     console.log(
-      `[Socket] ✅ Connected: ${socket.id} via ${transport} (userId: ${socket.userId || "anon"})`,
+      `\n[Socket] ✅ New connection: ${socket.id}\n` +
+        `         ├─ Transport: ${transport}\n` +
+        `         ├─ User: ${socket.userId || "anonymous"}\n` +
+        `         └─ Total connected: ${connectedCount}`,
     );
     setupRoomHandlers(io, socket);
 
     socket.conn.on("upgrade", (t: any) => {
-      console.log(`[Socket] ⬆ Upgraded ${socket.id}: ${transport} → ${t.name}`);
+      console.log(
+        `[Socket] ⬆  Upgraded ${socket.id}: ${transport} → ${t.name}`,
+      );
     });
 
     socket.on("disconnect", (reason) => {
-      console.log(`[Socket] ❌ Disconnected: ${socket.id} (${reason})`);
+      const remaining = io.sockets.sockets.size;
+      console.log(
+        `\n[Socket] ❌ Disconnected: ${socket.id}\n` +
+          `         ├─ Reason: ${reason}\n` +
+          `         └─ Remaining connected: ${remaining}`,
+      );
     });
   });
 
