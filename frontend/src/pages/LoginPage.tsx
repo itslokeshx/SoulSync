@@ -40,7 +40,13 @@ export default function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-sp-black flex items-center justify-center" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div
+        className="h-screen w-screen bg-sp-black flex items-center justify-center"
+        style={{
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -60,7 +66,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-sp-black flex flex-col lg:flex-row overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <div
+      className="min-h-[100dvh] bg-sp-black flex flex-col lg:flex-row overflow-hidden"
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
+    >
       {/* ═══════════════ LEFT: Hero ═══════════════ */}
       <div className="relative lg:w-[52%] flex flex-col justify-center items-center px-5 sm:px-6 py-8 sm:py-14 lg:py-0 lg:px-16 overflow-hidden">
         {/* Background layers */}

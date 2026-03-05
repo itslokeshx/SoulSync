@@ -57,7 +57,10 @@ export function DuoModal({ onCreate, onJoin }: DuoModalProps) {
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-      style={{ paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))', paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))",
+      }}
       onClick={close}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
