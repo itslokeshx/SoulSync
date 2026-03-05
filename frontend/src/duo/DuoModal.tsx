@@ -113,40 +113,69 @@ export function DuoModal({ onCreate, onJoin }: DuoModalProps) {
         <div className="px-6 pb-6">
           {createdCode ? (
             <div className="text-center py-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-sp-green/10 mb-4">
-                <Check size={28} className="text-sp-green" />
-              </div>
-              <p className="text-white font-semibold mb-2">Room Created!</p>
-              <p className="text-sp-sub/60 text-sm mb-5">
-                Share this code with your partner
-              </p>
-              <div
-                className="flex items-center justify-center gap-3 py-4 px-6 rounded-2xl mb-5"
-                style={{
-                  background: "rgba(29,185,84,0.06)",
-                  border: "1px solid rgba(29,185,84,0.15)",
-                }}
-              >
-                <span className="text-3xl font-black tracking-[0.3em] text-sp-green font-mono">
-                  {createdCode}
-                </span>
-                <button
-                  onClick={copyCode}
-                  className="p-2 rounded-lg hover:bg-sp-green/10 text-sp-green transition-all"
-                  title="Copy code"
-                >
-                  {copied ? <Check size={18} /> : <Copy size={18} />}
-                </button>
-              </div>
-              <p className="text-[12px] text-sp-sub/40">
-                Waiting for partner to join…
-              </p>
-              <button
-                onClick={close}
-                className="mt-4 px-6 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white text-[13px] font-semibold transition-all"
-              >
-                Done
-              </button>
+              {partnerConnected ? (
+                <>
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-sp-green/15 mb-4 animate-scaleIn">
+                    <Check size={28} className="text-sp-green" />
+                  </div>
+                  <p className="text-white font-semibold mb-1 text-lg">
+                    Connected! 🎉
+                  </p>
+                  <p className="text-sp-green/70 text-sm mb-5">
+                    You&apos;re now listening with your partner
+                  </p>
+                  <button
+                    onClick={close}
+                    className="px-8 py-3 rounded-full bg-sp-green hover:bg-sp-green-light text-black font-bold text-[14px] transition-all hover:scale-[1.02] active:scale-100"
+                    style={{ boxShadow: "0 4px 24px rgba(29,185,84,0.3)" }}
+                  >
+                    Start Listening
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-sp-green/10 mb-4">
+                    <Check size={28} className="text-sp-green" />
+                  </div>
+                  <p className="text-white font-semibold mb-2">Room Created!</p>
+                  <p className="text-sp-sub/60 text-sm mb-5">
+                    Share this code with your partner
+                  </p>
+                  <div
+                    className="flex items-center justify-center gap-3 py-4 px-6 rounded-2xl mb-5"
+                    style={{
+                      background: "rgba(29,185,84,0.06)",
+                      border: "1px solid rgba(29,185,84,0.15)",
+                    }}
+                  >
+                    <span className="text-3xl font-black tracking-[0.3em] text-sp-green font-mono">
+                      {createdCode}
+                    </span>
+                    <button
+                      onClick={copyCode}
+                      className="p-2 rounded-lg hover:bg-sp-green/10 text-sp-green transition-all"
+                      title="Copy code"
+                    >
+                      {copied ? <Check size={18} /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+                    </span>
+                    <p className="text-[12px] text-sp-sub/40">
+                      Waiting for partner to join…
+                    </p>
+                  </div>
+                  <button
+                    onClick={close}
+                    className="px-6 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white text-[13px] font-semibold transition-all"
+                  >
+                    Done
+                  </button>
+                </>
+              )}
             </div>
           ) : tab === "create" ? (
             <div className="space-y-4">

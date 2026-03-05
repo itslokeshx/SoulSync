@@ -113,7 +113,16 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
             role: "guest",
             room,
           });
-          // Tell guest that host reconnected (broadcast to room, excludes this socket)
+          // Tell guest that host reconnected — direct emit to guest socket
+          const guestSocket = io.sockets.sockets.get(room.guest.socketId!);
+          if (guestSocket) {
+            guestSocket.emit("duo:partner-reconnected", {
+              name,
+              role: "host",
+              room,
+            });
+          }
+          // Also broadcast to room as fallback
           socket.to(roomCode).emit("duo:partner-reconnected", {
             name,
             role: "host",
@@ -124,15 +133,41 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
         socket.emit("duo:session-state", { room });
       } else {
         room.guest = { name, socketId: socket.id, connected: true };
-        // Notify host via room broadcast (excludes this guest socket, reaches host)
         console.log(
-          `[Duo] Guest "${name}" joined → broadcasting duo:partner-joined to room ${roomCode}`,
+          `[Duo] Guest "${name}" joined room ${roomCode} → notifying host`,
         );
+
+        // 1. Direct-emit to host socket (most reliable — bypasses room membership)
+        const hostSocket = io.sockets.sockets.get(room.host.socketId);
+        if (hostSocket) {
+          console.log(
+            `[Duo] Emitting duo:partner-joined directly to host socket ${room.host.socketId}`,
+          );
+          hostSocket.emit("duo:partner-joined", {
+            name,
+            role: "guest",
+            room,
+          });
+        } else {
+          console.warn(
+            `[Duo] Host socket ${room.host.socketId} not found in connected sockets`,
+          );
+        }
+
+        // 2. Also broadcast to room as fallback (reaches host if in Socket.IO room)
         socket.to(roomCode).emit("duo:partner-joined", {
           name,
           role: "guest",
           room,
         });
+
+        // 3. Tell the guest about the host
+        socket.emit("duo:partner-joined", {
+          name: room.host.name,
+          role: "host",
+          room,
+        });
+
         // Send current room state to this socket
         socket.emit("duo:session-state", { room });
       }
@@ -268,18 +303,26 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       if (room.host.socketId === socket.id) {
         room.host.connected = false;
         changed = true;
-        // Notify everyone else in the room (the guest)
-        io.to(code).emit("duo:partner-disconnected", {
-          name: room.host.name,
-        });
+        // Direct-emit to guest socket (most reliable)
+        if (room.guest.socketId) {
+          const guestSocket = io.sockets.sockets.get(room.guest.socketId);
+          if (guestSocket) {
+            guestSocket.emit("duo:partner-disconnected", {
+              name: room.host.name,
+            });
+          }
+        }
       }
       if (room.guest.socketId === socket.id) {
         room.guest.connected = false;
         changed = true;
-        // Notify everyone else in the room (the host)
-        io.to(code).emit("duo:partner-disconnected", {
-          name: room.guest.name,
-        });
+        // Direct-emit to host socket (most reliable)
+        const hostSocket = io.sockets.sockets.get(room.host.socketId);
+        if (hostSocket) {
+          hostSocket.emit("duo:partner-disconnected", {
+            name: room.guest.name,
+          });
+        }
       }
       // Don't delete room on disconnect — allow reconnection
       // Stale rooms get cleaned by the interval above

@@ -259,10 +259,23 @@ export function useDuo({
     };
 
     const onPartnerJoined = ({ name, room }: any) => {
+      const state = store.getState();
+      // Ignore if this is about ourselves
+      if (name === state.myName) {
+        console.log("[Duo] duo:partner-joined for self, ignoring");
+        return;
+      }
       console.log("[Duo] ✅ duo:partner-joined received:", name);
+
+      // Dedup: only toast if partner wasn't already connected with this name
+      const wasConnected = state.partnerConnected && state.partnerName === name;
+
       store.getState().partnerJoined({ name });
       if (room) store.getState().setSessionState(room);
-      addToast(`${name} joined SoulLink! 🎉`, "success");
+
+      if (!wasConnected) {
+        addToast(`${name} joined SoulLink! 🎉`, "success");
+      }
 
       // If we're host, resync the current song
       if (store.getState().role === "host") {
@@ -298,8 +311,16 @@ export function useDuo({
     };
 
     const onPartnerReconnected = ({ name }: any) => {
+      const state = store.getState();
+      // Ignore if this is about ourselves
+      if (name === state.myName) return;
+
       store.getState().partnerReconnected({ name });
-      addToast(`${name} reconnected! 🎉`, "success");
+
+      // Dedup toast
+      if (!state.partnerConnected || state.partnerName !== name) {
+        addToast(`${name} reconnected! 🎉`, "success");
+      }
 
       // If we're host, resync the current song
       if (store.getState().role === "host") {
@@ -343,6 +364,24 @@ export function useDuo({
         room?.guest?.connected,
       );
       store.getState().setSessionState(room);
+
+      // Safety net: if the room shows a connected partner but the store
+      // doesn't reflect it, explicitly trigger partnerJoined
+      const state = store.getState();
+      const isHost = state.role === "host";
+      const partnerInRoom = isHost ? room?.guest : room?.host;
+      if (
+        partnerInRoom?.connected &&
+        partnerInRoom?.name &&
+        !state.partnerConnected
+      ) {
+        console.log(
+          "[Duo] Safety-net: partner is connected but store missed it →",
+          partnerInRoom.name,
+        );
+        store.getState().partnerJoined({ name: partnerInRoom.name });
+      }
+
       if (room.currentSong) {
         playSongRef.current?.(room.currentSong, [room.currentSong], true);
       }

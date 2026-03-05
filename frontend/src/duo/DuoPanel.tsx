@@ -68,18 +68,25 @@ export function DuoPanel({ onSendMessage, onEndSession }: DuoPanelProps) {
       <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-white/[0.04] pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-2.5">
           <div className="relative">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-700 ${partnerConnected ? "bg-gradient-to-br from-sp-green to-emerald-400" : "bg-gradient-to-br from-amber-400/80 to-amber-500/60"}`}
+            >
               <Music size={14} className="text-black" />
             </div>
             <span
-              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0a0a0a] ${partnerConnected ? "bg-sp-green" : "bg-amber-400"}`}
+              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0a0a0a] transition-colors duration-500 ${partnerConnected ? "bg-sp-green" : "bg-amber-400 animate-pulse"}`}
             />
+            {partnerConnected && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-sp-green animate-ping opacity-40" />
+            )}
           </div>
           <div>
             <h3 className="font-semibold text-white text-[13px]">SoulLink</h3>
-            <p className="text-[10px] text-sp-sub/50">
+            <p
+              className={`text-[10px] transition-colors duration-500 ${partnerConnected ? "text-sp-green/70" : "text-sp-sub/50"}`}
+            >
               {partnerConnected
-                ? `with ${partnerName}`
+                ? `Connected with ${partnerName}`
                 : "Waiting for partner…"}
             </p>
           </div>
