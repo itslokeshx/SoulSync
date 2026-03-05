@@ -113,17 +113,15 @@ export const useDuoStore = create<DuoState>((set, get) => ({
     set({ partnerName: name, partnerConnected: true }),
 
   setSessionState: (room) => {
-    if (!room) return;
     const role = get().role;
     const isHost = role === "host";
     set({
+      songHistory: room.songHistory || [],
+      messages: room.messages || [],
       partnerConnected: isHost
         ? room.guest?.connected || false
         : room.host?.connected || false,
       partnerName: isHost ? room.guest?.name || "" : room.host?.name || "",
-      // Only update these if present (not sent in all ack responses)
-      ...(room.songHistory ? { songHistory: room.songHistory } : {}),
-      ...(room.messages ? { messages: room.messages } : {}),
     });
   },
 
