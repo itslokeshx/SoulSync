@@ -3,6 +3,7 @@ import {
   Download,
   Trash2,
   Play,
+  Pause,
   HardDrive,
   Music2,
   Loader2,
@@ -12,6 +13,9 @@ import {
   ArrowDownToLine,
   Check,
   X,
+  Shuffle,
+  GripVertical,
+  ListMusic,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import {
@@ -23,7 +27,7 @@ import {
   OfflineSong,
 } from "../utils/offlineDB";
 import { useDownloadStore } from "../store/downloadStore";
-import { bestImg, onImgErr } from "../lib/helpers";
+import { bestImg, onImgErr, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import toast from "react-hot-toast";
 
@@ -44,6 +48,19 @@ function getAudioDuration(file: File): Promise<number> {
   });
 }
 
+const PLAYLIST_ORDER_KEY = "downloads_playlist_order";
+
+function loadOrder(): string[] {
+  try {
+    const raw = localStorage.getItem(PLAYLIST_ORDER_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveOrder(ids: string[]) {
+  try { localStorage.setItem(PLAYLIST_ORDER_KEY, JSON.stringify(ids)); } catch {}
+}
+
 export default function DownloadsPage() {
   const { playSong, currentSong, isPlaying } = useApp();
   const [songs, setSongs] = useState<OfflineSong[]>([]);
@@ -52,6 +69,27 @@ export default function DownloadsPage() {
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
   const activeDownloads = useDownloadStore((s) => s.active);
   const prevDoneRef = useRef(new Set<string>());
+  const [reorderMode, setReorderMode] = useState(false);
+  const dragIdx = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  // ── File import ──
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  const applySavedOrder = useCallback((raw: OfflineSong[]): OfflineSong[] => {
+    const order = loadOrder();
+    if (!order.length) return raw;
+    const map = new Map(raw.map((s) => [s.id, s]));
+    const ordered: OfflineSong[] = [];
+    for (const id of order) {
+      const s = map.get(id);
+      if (s) { ordered.push(s); map.delete(id); }
+    }
+    // Append any new songs not in saved order
+    map.forEach((s) => ordered.push(s));
+    return ordered;
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -60,242 +98,220 @@ export default function DownloadsPage() {
         getOfflineSongs(),
         getOfflineStorageSize(),
       ]);
-      setSongs(s.sort((a, b) => b.savedAt - a.savedAt));
+      const sorted = s.sort((a: OfflineSong, b: OfflineSong) => b.savedAt - a.savedAt);
+      setSongs(applySavedOrder(sorted));
       setStorageSize(size);
     } catch {
       setSongs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applySavedOrder]);
 
   useEffect(() => {
     refresh();
-    // Cleanup blob URLs on unmount
     return () => {
       blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       blobUrlsRef.current.clear();
     };
   }, [refresh]);
 
-  // Auto-refresh saved songs when any download completes
+  // Auto-refresh when download completes
   useEffect(() => {
     const doneIds = new Set(
       activeDownloads.filter((d) => d.status === "done").map((d) => d.id),
     );
-    // Check if there's a new completion we haven't refreshed for
     for (const id of doneIds) {
-      if (!prevDoneRef.current.has(id)) {
-        refresh();
-        break;
-      }
+      if (!prevDoneRef.current.has(id)) { refresh(); break; }
     }
     prevDoneRef.current = doneIds;
   }, [activeDownloads, refresh]);
 
-  const handleRemove = async (id: string, name: string) => {
-    // Revoke any existing blob URL for this song
-    const existing = blobUrlsRef.current.get(id);
-    if (existing) {
-      URL.revokeObjectURL(existing);
-      blobUrlsRef.current.delete(id);
+  // ── Drag-to-reorder ──
+  const handleDragStart = (idx: number) => { dragIdx.current = idx; };
+  const handleDragEnter = (idx: number) => { setDragOverIdx(idx); };
+  const handleDragEnd = () => {
+    if (dragIdx.current !== null && dragOverIdx !== null && dragIdx.current !== dragOverIdx) {
+      const copy = [...songs];
+      const [moved] = copy.splice(dragIdx.current, 1);
+      copy.splice(dragOverIdx, 0, moved);
+      setSongs(copy);
+      saveOrder(copy.map((s) => s.id));
     }
+    dragIdx.current = null;
+    setDragOverIdx(null);
+  };
+
+  // ── Touch drag for mobile ──
+  const touchStartY = useRef<number>(0);
+  const touchStartIdx = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (idx: number, e: React.TouchEvent) => {
+    touchStartIdx.current = idx;
+    dragIdx.current = idx;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartIdx.current === null || !listRef.current) return;
+    const touch = e.touches[0];
+    const items = listRef.current.querySelectorAll("[data-song-row]");
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        setDragOverIdx(i);
+        break;
+      }
+    }
+  };
+  const handleTouchEnd = () => {
+    handleDragEnd();
+    touchStartIdx.current = null;
+  };
+
+  // ── Play helpers ──
+  const buildSongObj = async (song: OfflineSong) => {
+    const blob = await getOfflineBlob(song.id);
+    if (!blob) { toast.error("Audio file not found locally"); return null; }
+    const oldUrl = blobUrlsRef.current.get(song.id);
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+    const blobUrl = URL.createObjectURL(blob);
+    blobUrlsRef.current.set(song.id, blobUrl);
+    return {
+      id: song.id,
+      name: song.name,
+      image: song.image?.length ? song.image : [{ quality: "500x500", url: "" }],
+      duration: song.duration,
+      primaryArtists: song.artist,
+      downloadUrl: [{ quality: "320kbps", url: blobUrl }],
+      _isOffline: true,
+    } as any;
+  };
+
+  const handlePlay = async (song: OfflineSong) => {
+    const obj = await buildSongObj(song);
+    if (!obj) return;
+    // Build full queue from current song list order
+    const queueObjs = [obj];
+    playSong(obj, queueObjs);
+  };
+
+  const handlePlayAll = async () => {
+    if (!songs.length) return;
+    const first = await buildSongObj(songs[0]);
+    if (!first) return;
+    // For the queue, only load the first song's blob; others will load on demand
+    const queueObjs = songs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
+      duration: s.duration,
+      primaryArtists: s.artist,
+      downloadUrl: s.id === songs[0].id ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }] : s.downloadUrl,
+      _isOffline: true,
+    })) as any[];
+    // Replace the first entry with the one that has the blob URL
+    queueObjs[0] = first;
+    playSong(first, queueObjs);
+  };
+
+  const handleShuffleAll = async () => {
+    if (!songs.length) return;
+    const shuffled = [...songs].sort(() => Math.random() - 0.5);
+    const first = await buildSongObj(shuffled[0]);
+    if (!first) return;
+    const queueObjs = shuffled.map((s) => ({
+      id: s.id,
+      name: s.name,
+      image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
+      duration: s.duration,
+      primaryArtists: s.artist,
+      downloadUrl: s.id === shuffled[0].id ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }] : s.downloadUrl,
+      _isOffline: true,
+    })) as any[];
+    queueObjs[0] = first;
+    playSong(first, queueObjs);
+  };
+
+  const handleRemove = async (id: string, name: string) => {
+    const existing = blobUrlsRef.current.get(id);
+    if (existing) { URL.revokeObjectURL(existing); blobUrlsRef.current.delete(id); }
     await removeOfflineSong(id);
+    // Remove from saved order
+    const order = loadOrder().filter((oid) => oid !== id);
+    saveOrder(order);
     toast.success(`Removed "${name}"`);
     refresh();
   };
 
-  const handlePlay = async (song: OfflineSong, allSongs: OfflineSong[]) => {
-    try {
-      // Get the audio blob from IndexedDB
-      const blob = await getOfflineBlob(song.id);
-      if (!blob) {
-        toast.error("Audio file not found locally");
-        return;
-      }
-
-      // Revoke old blob URL if exists
-      const oldUrl = blobUrlsRef.current.get(song.id);
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
-
-      // Create blob URL
-      const blobUrl = URL.createObjectURL(blob);
-      blobUrlsRef.current.set(song.id, blobUrl);
-
-      // Build song object with the blob URL as the highest quality download
-      const songObj = {
-        id: song.id,
-        name: song.name,
-        image: song.image,
-        duration: song.duration,
-        primaryArtists: song.artist,
-        downloadUrl: [{ quality: "320kbps", url: blobUrl }],
-        _isOffline: true,
-      } as any;
-
-      // Build queue: only the clicked song uses blob URL, others will load on demand
-      playSong(songObj, [songObj]);
-    } catch {
-      toast.error("Failed to play offline song");
-    }
-  };
-
-  // ── Import local audio files from device ──
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
-
   const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     setImporting(true);
     let imported = 0;
-
     for (const file of Array.from(files)) {
-      // Validate audio type
-      if (!file.type.startsWith("audio/")) {
-        toast.error(`"${file.name}" is not an audio file`);
-        continue;
-      }
-
+      if (!file.type.startsWith("audio/")) { toast.error(`"${file.name}" is not an audio file`); continue; }
       try {
-        // Get duration from audio element
         const duration = await getAudioDuration(file);
-
-        // Generate a stable ID from filename
         const id = `local_${file.name.replace(/[^a-zA-Z0-9]/g, "_")}_${file.size}`;
-
-        // Clean up display name (remove extension)
         const displayName = file.name.replace(/\.[^.]+$/, "");
-
         const offlineSong: OfflineSong = {
-          id,
-          name: displayName,
-          artist: "Local File",
-          albumArt: "",
-          duration: Math.round(duration),
-          downloadUrl: [],
-          image: [],
-          savedAt: Date.now(),
+          id, name: displayName, artist: "Local File", albumArt: "",
+          duration: Math.round(duration), downloadUrl: [], image: [], savedAt: Date.now(),
         };
-
         await saveOfflineSong(offlineSong, file);
         imported++;
-      } catch {
-        toast.error(`Failed to import "${file.name}"`);
-      }
+      } catch { toast.error(`Failed to import "${file.name}"`); }
     }
-
-    if (imported > 0) {
-      toast.success(
-        `Imported ${imported} song${imported > 1 ? "s" : ""} from device`,
-      );
-      refresh();
-    }
-
-    // Reset input so the same files can be re-selected
+    if (imported > 0) { toast.success(`Imported ${imported} song${imported > 1 ? "s" : ""} from device`); refresh(); }
     if (fileInputRef.current) fileInputRef.current.value = "";
     setImporting(false);
   };
 
-  const handlePlayLocal = async (song: OfflineSong) => {
-    try {
-      const blob = await getOfflineBlob(song.id);
-      if (!blob) {
-        toast.error("Audio file not found");
-        return;
-      }
-
-      const oldUrl = blobUrlsRef.current.get(song.id);
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
-
-      const blobUrl = URL.createObjectURL(blob);
-      blobUrlsRef.current.set(song.id, blobUrl);
-
-      const songObj = {
-        id: song.id,
-        name: song.name,
-        image: song.image?.length
-          ? song.image
-          : [{ quality: "500x500", url: "" }],
-        duration: song.duration,
-        primaryArtists: song.artist,
-        downloadUrl: [{ quality: "320kbps", url: blobUrl }],
-        _isOffline: true,
-      } as any;
-
-      playSong(songObj, [songObj]);
-    } catch {
-      toast.error("Failed to play local song");
-    }
-  };
-
   return (
     <div className="animate-fadeIn">
-      {/* Hidden file input for importing local songs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        multiple
-        className="hidden"
-        onChange={handleImportFiles}
-      />
+      <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={handleImportFiles} />
 
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center">
             <Download size={18} className="text-white/60" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              Downloads & Device Music
-            </h1>
-            <p className="text-xs text-white/30 mt-0.5">
-              {songs.length} songs · {storageSize} used
-            </p>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Downloads</h1>
+            <p className="text-xs text-white/30 mt-0.5">{songs.length} songs · {storageSize} used</p>
           </div>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.10] text-white/70 hover:text-white text-sm font-medium transition-all disabled:opacity-50"
-          >
-            {importing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <FolderOpen size={16} />
-            )}
-            <span className="hidden sm:inline">
-              {importing ? "Importing…" : "Import from device"}
-            </span>
-          </button>
-        </div>
-        {/* Offline playback banner */}
-        <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-sp-green/[0.08] border border-sp-green/[0.15]">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-sp-green/20">
-            <Music2 size={16} className="text-sp-green" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-sp-green">
-              Play songs directly from your device
-            </p>
-            <p className="text-[11px] text-white/40 mt-0.5">
-              Import MP3s, AAC, or any audio files — plays offline, no internet
-              needed
-            </p>
-          </div>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="flex-shrink-0 px-3 py-1.5 rounded-full bg-sp-green/20 hover:bg-sp-green/30 text-sp-green text-[11px] font-semibold transition-all"
-          >
-            {importing ? "…" : "+ Add"}
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.10] text-white/70 hover:text-white text-sm font-medium transition-all disabled:opacity-50">
+            {importing ? <Loader2 size={16} className="animate-spin" /> : <FolderOpen size={16} />}
+            <span className="hidden sm:inline">{importing ? "Importing…" : "Import"}</span>
           </button>
         </div>
       </div>
 
-      {/* ── Active Downloads ── */}
+      {/* Playlist Controls */}
+      {songs.length > 0 && (
+        <div className="flex items-center gap-2.5 mb-5">
+          <button onClick={handlePlayAll}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all">
+            <Play size={16} className="fill-current" />Play All
+          </button>
+          <button onClick={handleShuffleAll}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all">
+            <Shuffle size={14} />Shuffle
+          </button>
+          <div className="flex-1" />
+          <button onClick={() => setReorderMode(!reorderMode)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${
+              reorderMode ? "bg-sp-green/20 text-sp-green border border-sp-green/30" : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
+            }`}>
+            <ListMusic size={13} />{reorderMode ? "Done" : "Reorder"}
+          </button>
+        </div>
+      )}
+
+      {/* Active Downloads */}
       {activeDownloads.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -310,80 +326,33 @@ export default function DownloadsPage() {
               const isError = dl.status === "error";
               const isSaving = dl.status === "saving";
               return (
-                <div
-                  key={`dl-${dl.id}`}
-                  className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${isDone
-                      ? "bg-sp-green/[0.06]"
-                      : isError
-                        ? "bg-red-500/[0.06]"
-                        : "bg-white/[0.03]"
-                    }`}
-                >
-                  {/* Album art */}
+                <div key={`dl-${dl.id}`}
+                  className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${
+                    isDone ? "bg-sp-green/[0.06]" : isError ? "bg-red-500/[0.06]" : "bg-white/[0.03]"
+                  }`}>
                   <div className="relative flex-shrink-0 w-10 h-10">
                     {dl.albumArt ? (
-                      <img
-                        src={dl.albumArt}
-                        onError={onImgErr}
-                        className="w-10 h-10 rounded-lg object-cover"
-                      />
+                      <img src={dl.albumArt} onError={onImgErr} className="w-10 h-10 rounded-lg object-cover" />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center">
                         <Music2 size={16} className="text-white/30" />
                       </div>
                     )}
-                    {/* Overlay icon */}
                     <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40">
-                      {isDone ? (
-                        <Check size={16} className="text-sp-green" />
-                      ) : isError ? (
-                        <X size={16} className="text-red-400" />
-                      ) : (
-                        <ArrowDownToLine
-                          size={14}
-                          className="text-white animate-bounce"
-                        />
-                      )}
+                      {isDone ? <Check size={16} className="text-sp-green" /> : isError ? <X size={16} className="text-red-400" /> : <ArrowDownToLine size={14} className="text-white animate-bounce" />}
                     </div>
                   </div>
-
-                  {/* Song info + progress bar */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-[13px] font-medium text-white truncate">
-                        {dl.name}
-                      </p>
-                      <span
-                        className={`text-[11px] font-semibold tabular-nums flex-shrink-0 ${isDone
-                            ? "text-sp-green"
-                            : isError
-                              ? "text-red-400"
-                              : "text-white/50"
-                          }`}
-                      >
-                        {isDone
-                          ? "Saved"
-                          : isError
-                            ? "Failed"
-                            : isSaving
-                              ? "Saving…"
-                              : `${dl.progress}%`}
+                      <p className="text-[13px] font-medium text-white truncate">{dl.name}</p>
+                      <span className={`text-[11px] font-semibold tabular-nums flex-shrink-0 ${isDone ? "text-sp-green" : isError ? "text-red-400" : "text-white/50"}`}>
+                        {isDone ? "Saved" : isError ? "Failed" : isSaving ? "Saving…" : `${dl.progress}%`}
                       </span>
                     </div>
-                    <p className="text-[11px] text-white/30 truncate mb-1.5">
-                      {dl.artist}
-                    </p>
-                    {/* Progress bar */}
+                    <p className="text-[11px] text-white/30 truncate mb-1.5">{dl.artist}</p>
                     <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ease-out ${isDone
-                            ? "bg-sp-green"
-                            : isError
-                              ? "bg-red-400"
-                              : "bg-sp-green shadow-[0_0_8px_rgba(29,185,84,0.4)]"
-                          }`}
-                        style={{ width: `${isDone ? 100 : dl.progress}%` }}
-                      />
+                      <div className={`h-full rounded-full transition-all duration-300 ease-out ${isDone ? "bg-sp-green" : isError ? "bg-red-400" : "bg-sp-green shadow-[0_0_8px_rgba(29,185,84,0.4)]"}`}
+                        style={{ width: `${isDone ? 100 : dl.progress}%` }} />
                     </div>
                   </div>
                 </div>
@@ -393,6 +362,7 @@ export default function DownloadsPage() {
         </div>
       )}
 
+      {/* Song List */}
       {loading ? (
         <div className="flex items-center justify-center h-40">
           <Loader2 size={24} className="text-white/30 animate-spin" />
@@ -403,90 +373,80 @@ export default function DownloadsPage() {
             <HardDrive size={28} className="text-white/20" />
           </div>
           <div>
-            <p className="text-white font-semibold text-lg">
-              Your Music Library
-            </p>
-            <p className="text-white/40 text-sm mt-1 max-w-xs">
-              Download songs for offline play, or import audio files directly
-              from your device to listen anywhere — no internet required.
-            </p>
+            <p className="text-white font-semibold text-lg">Your Music Library</p>
+            <p className="text-white/40 text-sm mt-1 max-w-xs">Download songs for offline play, or import audio files directly from your device</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50"
-            >
-              {importing ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <FileAudio size={16} />
-              )}
-              {importing ? "Importing…" : "Import from device"}
-            </button>
-          </div>
-          <p className="text-white/20 text-[11px] mt-1">
-            Supports MP3, AAC, WAV, OGG, FLAC & more
-          </p>
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50">
+            {importing ? <Loader2 size={16} className="animate-spin" /> : <FileAudio size={16} />}
+            {importing ? "Importing…" : "Import from device"}
+          </button>
+          <p className="text-white/20 text-[11px] mt-1">Supports MP3, AAC, WAV, OGG, FLAC & more</p>
         </div>
       ) : (
-        <div className="space-y-0.5">
+        <div ref={listRef} className="space-y-0.5" onTouchMove={reorderMode ? handleTouchMove : undefined} onTouchEnd={reorderMode ? handleTouchEnd : undefined}>
           {songs.map((s, i) => {
             const img = bestImg(s.image, "50x50") || s.albumArt || FALLBACK_IMG;
             const isCurrent = currentSong?.id === s.id;
+            const isDragOver = dragOverIdx === i;
             return (
               <div
                 key={s.id}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 group ${isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
-                  }`}
+                data-song-row
+                draggable={reorderMode}
+                onDragStart={() => handleDragStart(i)}
+                onDragEnter={() => handleDragEnter(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDragEnd={handleDragEnd}
+                onTouchStart={reorderMode ? (e) => handleTouchStart(i, e) : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                  isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
+                } ${isDragOver ? "border-t-2 border-sp-green" : ""} ${reorderMode ? "cursor-grab active:cursor-grabbing" : ""}`}
               >
-                <span className="w-5 text-center text-xs text-white/25 tabular-nums">
-                  {i + 1}
-                </span>
-                <button
-                  onClick={() => handlePlay(s, songs)}
-                  className="relative flex-shrink-0"
-                >
-                  <img
-                    src={img}
-                    onError={onImgErr}
-                    className="w-10 h-10 rounded-lg object-cover"
-                  />
-                  <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play size={14} className="text-white fill-white" />
+                {reorderMode ? (
+                  <div className="w-5 flex items-center justify-center text-white/25 touch-none">
+                    <GripVertical size={16} />
                   </div>
+                ) : (
+                  <span className="w-5 text-center text-xs text-white/25 tabular-nums">{i + 1}</span>
+                )}
+                <button onClick={() => handlePlay(s)} className="relative flex-shrink-0">
+                  <img src={img} onError={onImgErr} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                  <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isCurrent && isPlaying ? <Pause size={14} className="text-white fill-white" /> : <Play size={14} className="text-white fill-white" />}
+                  </div>
+                  {isCurrent && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-sp-green rounded-full" />}
                 </button>
-                <div
-                  className="flex-1 min-w-0"
-                  onClick={() => handlePlay(s, songs)}
-                >
-                  <p
-                    className={`text-[13px] font-medium truncate cursor-pointer ${isCurrent ? "text-sp-green" : "text-white"
-                      }`}
-                  >
-                    {s.name}
-                  </p>
-                  <p className="text-[11px] text-white/30 truncate">
-                    {s.artist}
-                  </p>
+                <div className="flex-1 min-w-0" onClick={() => handlePlay(s)}>
+                  <p className={`text-[13px] font-medium truncate cursor-pointer ${isCurrent ? "text-sp-green" : "text-white"}`}>{s.name}</p>
+                  <p className="text-[11px] text-white/30 truncate">{s.artist}</p>
                 </div>
+                <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">{fmt(s.duration)}</span>
                 <div className="flex items-center gap-1">
                   {s.id.startsWith("local_") ? (
                     <FileAudio size={14} className="text-white/30" />
                   ) : (
                     <CheckCircle2 size={14} className="text-sp-green/50" />
                   )}
-                  <button
-                    onClick={() => handleRemove(s.id, s.name)}
-                    className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-white/[0.04] transition-all opacity-0 group-hover:opacity-100"
-                    title="Remove download"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {!reorderMode && (
+                    <button onClick={() => handleRemove(s.id, s.name)}
+                      className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-white/[0.04] transition-all opacity-0 group-hover:opacity-100"
+                      title="Remove download">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Footer stats */}
+      {songs.length > 0 && (
+        <div className="mt-6 flex items-center justify-center gap-2 text-white/15 text-[11px]">
+          <HardDrive size={11} />
+          <span>{songs.length} songs · {storageSize}</span>
         </div>
       )}
     </div>
