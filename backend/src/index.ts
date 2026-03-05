@@ -49,7 +49,23 @@ app.use(
 );
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      // Allow Capacitor native WebView origins
+      if (
+        origin === "https://localhost" ||
+        origin === "capacitor://localhost" ||
+        origin === "http://localhost"
+      ) {
+        return callback(null, true);
+      }
+      // Allow configured frontend URL
+      if (origin === FRONTEND_URL) return callback(null, true);
+      // Allow localhost dev ports
+      if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
