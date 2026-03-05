@@ -238,8 +238,12 @@ export default function ProfilePage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-24 rounded-2xl bg-white/[0.03] animate-pulse"
-            />
+              className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.04] text-center"
+            >
+              <div className="w-5 h-5 rounded-full bg-white/[0.06] mx-auto mb-2 animate-pulse" />
+              <div className="h-7 w-12 rounded-lg bg-white/[0.06] mx-auto mb-1.5 animate-pulse" />
+              <div className="h-3 w-16 rounded bg-white/[0.04] mx-auto animate-pulse" />
+            </div>
           ))}
         </div>
       ) : (
@@ -291,7 +295,26 @@ export default function ProfilePage() {
       )}
 
       {/* Top Artists */}
-      {stats?.topArtists && stats.topArtists.length > 0 && (
+      {loading ? (
+        <div className="mb-8">
+          <div className="h-3.5 w-24 rounded bg-white/[0.06] mb-4 animate-pulse" />
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.02]"
+              >
+                <div className="w-5 h-4 rounded bg-white/[0.04] animate-pulse" />
+                <div className="w-10 h-10 rounded-full bg-white/[0.06] animate-pulse" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 w-28 rounded bg-white/[0.06] animate-pulse" />
+                  <div className="h-2.5 w-14 rounded bg-white/[0.04] animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : stats?.topArtists && stats.topArtists.length > 0 ? (
         <div className="mb-8">
           <h3 className="text-sm font-bold text-white/60 uppercase tracking-wider mb-4">
             Top Artists
@@ -326,10 +349,23 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Language breakdown */}
-      {stats?.languageBreakdown && stats.languageBreakdown.length > 0 && (
+      {loading ? (
+        <div className="mb-8">
+          <div className="h-3.5 w-20 rounded bg-white/[0.06] mb-4 animate-pulse" />
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-7 rounded-full bg-white/[0.04] animate-pulse"
+                style={{ width: `${60 + i * 12}px` }}
+              />
+            ))}
+          </div>
+        </div>
+      ) : stats?.languageBreakdown && stats.languageBreakdown.length > 0 ? (
         <div className="mb-8">
           <h3 className="text-sm font-bold text-white/60 uppercase tracking-wider mb-4">
             Languages
@@ -345,7 +381,7 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Preferences (editable) */}
       <div className="mb-8">

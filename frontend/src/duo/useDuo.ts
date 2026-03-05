@@ -57,6 +57,7 @@ export function useDuo({
   addToast,
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const didInitialConnectRef = useRef(false);
   const store = useDuoStore;
 
   // ═══ CREATE SESSION ════════════════════════════════════════════════
@@ -236,7 +237,13 @@ export function useDuo({
     const socket = getSocket();
 
     // Auto-rejoin room on socket reconnect (network drop / server restart)
+    // Skip the very first connect — createSession/joinSession handle that.
     const onReconnect = () => {
+      if (!didInitialConnectRef.current) {
+        didInitialConnectRef.current = true;
+        console.log("[Duo] Initial socket connect (skipping auto-rejoin)");
+        return;
+      }
       const saved = getPersistedSession();
       if (saved?.roomCode && saved?.myName && saved?.role) {
         console.log("[Duo] Socket reconnected, rejoining room", saved.roomCode);
@@ -250,6 +257,7 @@ export function useDuo({
     };
 
     const onPartnerJoined = ({ name, room }: any) => {
+      console.log("[Duo] ✅ duo:partner-joined received:", name);
       store.getState().partnerJoined({ name });
       if (room) store.getState().setSessionState(room);
       addToast(`${name} joined SoulLink! 🎉`, "success");
@@ -324,6 +332,14 @@ export function useDuo({
     };
 
     const onSessionState = ({ room }: any) => {
+      console.log(
+        "[Duo] duo:session-state received → host:",
+        room?.host?.name,
+        "guest:",
+        room?.guest?.name,
+        "guestConnected:",
+        room?.guest?.connected,
+      );
       store.getState().setSessionState(room);
       if (room.currentSong) {
         playSongRef.current?.(room.currentSong, [room.currentSong], true);
