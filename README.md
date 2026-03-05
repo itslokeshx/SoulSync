@@ -1,32 +1,35 @@
 <div align="center">
+
 <br/>
 
-# SoulSync
+# 🎧 SoulSync
+
+### _Listen together. Feel together._
 
 **A free music app with AI-generated playlists, real-time listening with friends, and offline downloads — no ads, no subscription.**
 
 <br/>
 
-|                                                                 |                                                                                                       |
-| :-------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------: |
-|                      🌐 &nbsp;**Web App**                       |                                       📱 &nbsp;**Android App**                                        |
-| [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app/) | [Download SoulSync.apk](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk) |
-|                   Open in browser, no install                   |       Android 7.0+ · 8.14 MB · [All Releases](https://github.com/itslokeshx/SoulSync/releases)        |
+[![Open Web App](https://img.shields.io/badge/🌐%20Open%20Web%20App-soul--sync--beta.vercel.app-1DB954?style=for-the-badge)](https://soul-sync-beta.vercel.app/)
+&nbsp;&nbsp;
+[![Download APK](https://img.shields.io/badge/📱%20Download%20APK-Android%208.14%20MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
+
+<sub>Android 7.0+ required &nbsp;·&nbsp; No Play Store needed &nbsp;·&nbsp; <a href="https://github.com/itslokeshx/SoulSync/releases">All Releases</a></sub>
 
 <br/>
 
-<br/>
+---
 
 <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white" />
 <img src="https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react&logoColor=black" />
 <img src="https://img.shields.io/badge/Vite-6.1-646CFF?style=flat-square&logo=vite&logoColor=white" />
 <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
-<img src="https://img.shields.io/badge/Capacitor-6-119EFF?style=flat-square&logo=capacitor&logoColor=white" />
+<img src="https://img.shields.io/badge/Capacitor-8.1-119EFF?style=flat-square&logo=capacitor&logoColor=white" />
 <img src="https://img.shields.io/badge/MongoDB-8.9-47A248?style=flat-square&logo=mongodb&logoColor=white" />
 <img src="https://img.shields.io/badge/Express-4.21-000000?style=flat-square&logo=express&logoColor=white" />
 <img src="https://img.shields.io/badge/Socket.io-4.8-010101?style=flat-square&logo=socketdotio&logoColor=white" />
 <img src="https://img.shields.io/badge/Groq_AI-LLaMA_3.3_70B-FF6600?style=flat-square&logo=meta&logoColor=white" />
-<img src="https://img.shields.io/badge/Android-APK-3DDC84?style=flat-square&logo=android&logoColor=white" />
+<img src="https://img.shields.io/badge/Android-API_24+-3DDC84?style=flat-square&logo=android&logoColor=white" />
 
 <br/><br/>
 
