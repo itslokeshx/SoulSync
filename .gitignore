@@ -24,6 +24,9 @@ dist-ssr/
 # OS files
 Thumbs.db
 
+# Android APK builds — released via GitHub Releases, not committed to repo
+*.apk
+
 # Logs
 *.log
 npm-debug.log*

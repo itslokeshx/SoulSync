@@ -11,7 +11,7 @@
 
 [![Live Demo](https://img.shields.io/badge/🔴_LIVE_DEMO-soul--sync--beta.vercel.app-1DB954?style=for-the-badge)](https://soul-sync-beta.vercel.app/)
 &nbsp;&nbsp;
-[![Download APK](https://img.shields.io/badge/📱_Download_APK-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](SoulSync.apk)
+[![Download APK](https://img.shields.io/badge/📱_Download_APK-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
 
 <br/>
 
@@ -80,7 +80,7 @@
 
 <div align="center">
 
-[![Download APK](https://img.shields.io/badge/⬇️_Download_SoulSync.apk-8.2_MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](SoulSync.apk)
+[![Download APK](https://img.shields.io/badge/⬇️_Download_SoulSync.apk-8.2_MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
 
 _Requires Android 7.0+ (API 24) · No Play Store needed — sideload directly_
 
@@ -632,7 +632,6 @@ Event listeners are attached inside `getSocket()` at creation time and forward t
 
 ```
 SoulSync/
-├── SoulSync.apk                    # 📱 Pre-built Android APK (8.2 MB)
 ├── package.json                    # Monorepo root — workspace scripts
 ├── vercel.json                     # Vercel deployment config
 ├── render.yaml                     # Render deployment config
@@ -890,7 +889,7 @@ UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 1. Set `.env.production` with production URLs
 2. Run `cd frontend && npm run apk`
 3. APK output at `android/app/build/outputs/apk/debug/`
-4. Or grab the pre-built [`SoulSync.apk`](SoulSync.apk) from the repo root (8.2 MB)
+4. Or download the pre-built APK from the [**GitHub Releases page**](https://github.com/itslokeshx/SoulSync/releases/latest) — no build needed
 5. Sideload to any Android 7.0+ device
 
 </td>
@@ -1203,6 +1202,6 @@ _Listen together. Feel together._
 
 [![GitHub](https://img.shields.io/badge/GitHub-itslokeshx-181717?style=for-the-badge&logo=github)](https://github.com/itslokeshx)
 &nbsp;&nbsp;
-[![Download APK](https://img.shields.io/badge/📱_APK-Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](SoulSync.apk)
+[![Download APK](https://img.shields.io/badge/📱_APK-Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
 
 </div>
