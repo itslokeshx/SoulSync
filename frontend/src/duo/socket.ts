@@ -8,6 +8,33 @@ const BACKEND_URL =
 
 let socket: Socket | null = null;
 
+// ── Callback bridge ────────────────────────────────────────────────
+// Instead of letting external code attach listeners to the socket
+// (which breaks when the singleton is recreated by HMR / disconnectSocket),
+// we forward events through a stable callback. The callback is set once
+// by useDuo and always references fresh React state via callbackRefs.
+type DuoCallback = (event: string, data?: any) => void;
+let _duoCallback: DuoCallback | null = null;
+
+export function registerDuoCallback(cb: DuoCallback | null): void {
+  _duoCallback = cb;
+}
+
+const DUO_EVENTS = [
+  "duo:partner-joined",
+  "duo:partner-disconnected",
+  "duo:partner-reconnected",
+  "duo:partner-active",
+  "duo:session-state",
+  "duo:receive-play",
+  "duo:receive-pause",
+  "duo:receive-seek",
+  "duo:receive-song-change",
+  "duo:receive-message",
+  "duo:session-ended",
+  "duo:error",
+] as const;
+
 export function getSocket(): Socket {
   if (!socket) {
     console.log("[DuoSocket] Creating socket →", BACKEND_URL);
@@ -18,17 +45,15 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20_000,
-      // polling first — reliable HTTP transport that works through any middleware.
-      // Upgrades to websocket automatically after handshake.
       transports: ["polling", "websocket"],
       upgrade: true,
-      // MUST use the callback pattern — Socket.IO ignores the return value!
       auth: (cb) => {
         const token = getNativeToken();
         cb(token ? { token } : {});
       },
     });
 
+    // ── Lifecycle logging ────────────────────────────────────────
     socket.on("connect", () => {
       console.log(
         "[DuoSocket] ✅ Connected:",
@@ -36,6 +61,8 @@ export function getSocket(): Socket {
         "transport:",
         socket?.io?.engine?.transport?.name,
       );
+      // Forward to callback bridge
+      _duoCallback?.("connect");
     });
 
     socket.on("disconnect", (reason) => {
@@ -46,7 +73,6 @@ export function getSocket(): Socket {
       console.warn("[DuoSocket] ❌ Connection error:", err.message);
     });
 
-    // Manager-level reconnect events (not available on Socket)
     socket.io.on("reconnect_attempt", (attempt) => {
       console.log("[DuoSocket] 🔄 Reconnect attempt", attempt);
     });
@@ -58,6 +84,15 @@ export function getSocket(): Socket {
     socket.io.on("error", (err) => {
       console.warn("[DuoSocket] ❌ Manager error:", err.message);
     });
+
+    // ── Forward ALL duo events through the callback bridge ───────
+    // These listeners live on THIS socket instance and die with it.
+    // The _duoCallback is module-level and survives socket recreation.
+    for (const ev of DUO_EVENTS) {
+      socket.on(ev, (data: any) => {
+        _duoCallback?.(ev, data);
+      });
+    }
   }
   return socket;
 }
@@ -73,7 +108,6 @@ export function waitForConnection(timeoutMs = 15_000): Promise<Socket> {
     return Promise.resolve(s);
   }
 
-  // Always call connect() — even if active (might be stuck in reconnection)
   console.log(
     "[DuoSocket] Connecting… (connected:",
     s.connected,
@@ -108,28 +142,14 @@ export function connectSocket(): Socket {
   return s;
 }
 
-const DUO_EVENTS = [
-  "duo:partner-joined",
-  "duo:partner-disconnected",
-  "duo:partner-reconnected",
-  "duo:partner-active",
-  "duo:session-state",
-  "duo:receive-play",
-  "duo:receive-pause",
-  "duo:receive-seek",
-  "duo:receive-song-change",
-  "duo:receive-message",
-  "duo:session-ended",
-  "duo:error",
-] as const;
-
 /**
  * Fully destroy the socket singleton.
  * ONLY call when the session is intentionally ended.
+ * The callback bridge (_duoCallback) is NOT cleared — it persists
+ * so that a future getSocket() call will forward events correctly.
  */
 export function disconnectSocket(): void {
   if (socket) {
-    for (const ev of DUO_EVENTS) socket.removeAllListeners(ev);
     socket.disconnect();
     socket = null;
   }

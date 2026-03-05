@@ -1,6 +1,11 @@
 /* @refresh reset */
 import { useEffect, useRef, useCallback } from "react";
-import { disconnectSocket, getSocket, waitForConnection } from "./socket";
+import {
+  disconnectSocket,
+  getSocket,
+  waitForConnection,
+  registerDuoCallback,
+} from "./socket";
 import { useDuoStore, getPersistedSession } from "./duoStore";
 import { getNativeToken } from "../api/backend";
 import { isNative } from "../utils/platform";
@@ -53,7 +58,6 @@ export function useDuo({
   addToast,
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const listenersAttachedRef = useRef(false);
   const hasConnectedOnceRef = useRef(false);
   const store = useDuoStore;
 
@@ -245,7 +249,6 @@ export function useDuo({
     getSocket().emit("duo:end-session");
     store.getState().endSession();
     disconnectSocket();
-    listenersAttachedRef.current = false;
     hasConnectedOnceRef.current = false;
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     addToast("SoulLink session ended", "info");
@@ -273,22 +276,16 @@ export function useDuo({
         .catch(() => {
           console.warn("[Duo] Rejoin failed — clearing stale session");
           store.getState().fullReset();
-          // DON'T call disconnectSocket() here — it destroys the singleton
-          // and its listeners, breaking any future session.
-          // Just reset the ref so listeners re-attach for the next session.
-          listenersAttachedRef.current = false;
           hasConnectedOnceRef.current = false;
         });
     }
   }, []); // eslint-disable-line
 
-  // ═══ SOCKET EVENT LISTENERS ═══════════════════════════════════════
-  // Attach listeners ONCE. Use a ref to guarantee idempotency across
-  // React 18 StrictMode double-mount. Never remove them during the
-  // component lifecycle — they must survive.
-  //
-  // We use refs for callbacks that need fresh closure values so the
-  // listener wiring doesn't depend on any deps array.
+  // ═══ SOCKET EVENT LISTENERS (callback bridge) ═════════════════════
+  // Instead of attaching listeners to a socket instance (which breaks
+  // when the singleton is recreated by HMR or disconnectSocket), we
+  // register a single callback in socket.ts that forwards ALL events.
+  // The callback uses callbackRefs for fresh closure values.
   const callbackRefs = useRef({
     addToast,
     currentSongRef,
@@ -311,250 +308,267 @@ export function useDuo({
   });
 
   useEffect(() => {
-    // If listeners are already attached from a prior mount, skip.
-    if (listenersAttachedRef.current) {
-      console.log("[Duo] Listeners already attached, skipping re-attach");
-      return;
-    }
-    listenersAttachedRef.current = true;
-
-    const socket = getSocket();
-    console.log("[Duo] Attaching socket event listeners (once)");
-
-    // Join room on every socket connect (first connect & reconnects)
-    const onConnect = () => {
-      const saved = getPersistedSession();
-      if (
-        saved?.roomCode &&
-        saved?.myName &&
-        saved?.role &&
-        store.getState().active
-      ) {
-        const isReconnect = hasConnectedOnceRef.current;
-        hasConnectedOnceRef.current = true;
-        console.log(
-          `[Duo] Socket ${isReconnect ? "re" : ""}connected, joining room`,
-          saved.roomCode,
-        );
-        socket.emit("duo:join", {
-          code: saved.roomCode,
-          name: saved.myName,
-          role: saved.role,
-        });
-        if (isReconnect) {
-          callbackRefs.current.addToast("Reconnected to SoulLink!", "success");
-        }
-      }
-    };
-
-    const onPartnerJoined = ({ name, role: eventRole, room }: any) => {
-      const state = store.getState();
-      // Ignore events about our own role (e.g. host told about host)
-      if (eventRole && eventRole === state.role) {
-        console.log(
-          `[Duo] duo:partner-joined for own role (${eventRole}), ignoring`,
-        );
-        return;
-      }
-      console.log(
-        "[Duo] ✅ duo:partner-joined received:",
-        name,
-        "role:",
-        eventRole,
-      );
-
-      // Dedup: only toast if partner wasn't already connected with this name
-      const wasConnected = state.partnerConnected && state.partnerName === name;
-
-      // Apply room state first, then explicitly mark partner joined
-      if (room) store.getState().setSessionState(room);
-      store.getState().partnerJoined({ name });
-
-      if (!wasConnected) {
-        callbackRefs.current.addToast(`${name} joined SoulLink! 🎉`, "success");
-      }
-
-      // If we're host, resync the current song
-      if (store.getState().role === "host") {
-        const cs = callbackRefs.current.currentSongRef?.current;
-        if (cs) {
-          const q = callbackRefs.current.queueRef?.current;
-          setTimeout(() => {
-            getSocket().emit("duo:sync-song-change", {
-              song: cs,
-              queue: q?.length ? q : [cs],
-              queueIndex: q?.length
-                ? Math.max(
-                    q.findIndex((s: any) => s.id === cs.id),
-                    0,
-                  )
-                : 0,
+    const handleEvent = (event: string, data?: any) => {
+      switch (event) {
+        // ── Socket connected (first connect or reconnect) ──────
+        case "connect": {
+          const saved = getPersistedSession();
+          if (
+            saved?.roomCode &&
+            saved?.myName &&
+            saved?.role &&
+            store.getState().active
+          ) {
+            const isReconnect = hasConnectedOnceRef.current;
+            hasConnectedOnceRef.current = true;
+            console.log(
+              `[Duo] Socket ${isReconnect ? "re" : ""}connected, joining room`,
+              saved.roomCode,
+            );
+            getSocket().emit("duo:join", {
+              code: saved.roomCode,
+              name: saved.myName,
+              role: saved.role,
             });
-            const audio = callbackRefs.current.audioRef.current;
-            if (audio && !audio.paused) {
-              getSocket().emit("duo:sync-play", {
-                currentTime: audio.currentTime,
-                songId: cs.id,
-              });
+            if (isReconnect) {
+              callbackRefs.current.addToast(
+                "Reconnected to SoulLink!",
+                "success",
+              );
             }
-          }, 500);
+          }
+          break;
+        }
+
+        // ── Partner joined ─────────────────────────────────────
+        case "duo:partner-joined": {
+          const { name, role: eventRole, room } = data || {};
+          const state = store.getState();
+          if (eventRole && eventRole === state.role) {
+            console.log(
+              `[Duo] duo:partner-joined for own role (${eventRole}), ignoring`,
+            );
+            break;
+          }
+          console.log(
+            "[Duo] ✅ duo:partner-joined received:",
+            name,
+            "role:",
+            eventRole,
+          );
+
+          const wasConnected =
+            state.partnerConnected && state.partnerName === name;
+          if (room) store.getState().setSessionState(room);
+          store.getState().partnerJoined({ name });
+
+          if (!wasConnected) {
+            callbackRefs.current.addToast(
+              `${name} joined SoulLink! 🎉`,
+              "success",
+            );
+          }
+
+          // If host, resync current song to partner
+          if (store.getState().role === "host") {
+            const cs = callbackRefs.current.currentSongRef?.current;
+            if (cs) {
+              const q = callbackRefs.current.queueRef?.current;
+              setTimeout(() => {
+                getSocket().emit("duo:sync-song-change", {
+                  song: cs,
+                  queue: q?.length ? q : [cs],
+                  queueIndex: q?.length
+                    ? Math.max(
+                        q.findIndex((s: any) => s.id === cs.id),
+                        0,
+                      )
+                    : 0,
+                });
+                const audio = callbackRefs.current.audioRef.current;
+                if (audio && !audio.paused) {
+                  getSocket().emit("duo:sync-play", {
+                    currentTime: audio.currentTime,
+                    songId: cs.id,
+                  });
+                }
+              }, 500);
+            }
+          }
+          break;
+        }
+
+        // ── Partner disconnected ───────────────────────────────
+        case "duo:partner-disconnected": {
+          store.getState().partnerDisconnected();
+          callbackRefs.current.addToast(
+            "Your partner disconnected — they can rejoin",
+            "info",
+          );
+          break;
+        }
+
+        // ── Partner reconnected ────────────────────────────────
+        case "duo:partner-reconnected": {
+          const { name, role: eventRole } = data || {};
+          const state = store.getState();
+          if (eventRole && eventRole === state.role) break;
+
+          store.getState().partnerReconnected({ name });
+
+          if (!state.partnerConnected || state.partnerName !== name) {
+            callbackRefs.current.addToast(`${name} reconnected! 🎉`, "success");
+          }
+
+          if (store.getState().role === "host") {
+            const cs = callbackRefs.current.currentSongRef?.current;
+            if (cs) {
+              const q = callbackRefs.current.queueRef?.current;
+              setTimeout(() => {
+                getSocket().emit("duo:sync-song-change", {
+                  song: cs,
+                  queue: q?.length ? q : [cs],
+                  queueIndex: q?.length
+                    ? Math.max(
+                        q.findIndex((s: any) => s.id === cs.id),
+                        0,
+                      )
+                    : 0,
+                });
+                const audio = callbackRefs.current.audioRef.current;
+                if (audio && !audio.paused) {
+                  getSocket().emit("duo:sync-play", {
+                    currentTime: audio.currentTime,
+                    songId: cs.id,
+                  });
+                }
+              }, 500);
+            }
+          }
+          break;
+        }
+
+        // ── Heartbeat ──────────────────────────────────────────
+        case "duo:partner-active": {
+          store.getState().updateHeartbeat();
+          break;
+        }
+
+        // ── Session state (room snapshot) ──────────────────────
+        case "duo:session-state": {
+          const { room } = data || {};
+          console.log(
+            "[Duo] duo:session-state received → host:",
+            room?.host?.name,
+            "guest:",
+            room?.guest?.name,
+            "guestConnected:",
+            room?.guest?.connected,
+          );
+          store.getState().setSessionState(room);
+
+          // Safety net
+          const state = store.getState();
+          const isHost = state.role === "host";
+          const partnerInRoom = isHost ? room?.guest : room?.host;
+          if (
+            partnerInRoom?.connected &&
+            partnerInRoom?.name &&
+            !state.partnerConnected
+          ) {
+            console.log(
+              "[Duo] Safety-net: partner connected but store missed it →",
+              partnerInRoom.name,
+            );
+            store.getState().partnerJoined({ name: partnerInRoom.name });
+          }
+
+          if (room?.currentSong) {
+            callbackRefs.current.playSongRef.current?.(
+              room.currentSong,
+              [room.currentSong],
+              true,
+            );
+          }
+          break;
+        }
+
+        // ── Playback sync ──────────────────────────────────────
+        case "duo:receive-play": {
+          const audio = callbackRefs.current.audioRef.current;
+          if (audio) {
+            const ct = data?.currentTime;
+            if (ct != null && Math.abs(audio.currentTime - ct) > 2)
+              audio.currentTime = ct;
+            audio
+              .play()
+              .then(() => callbackRefs.current.setIsPlaying(true))
+              .catch(() => {});
+          }
+          break;
+        }
+        case "duo:receive-pause": {
+          const audio = callbackRefs.current.audioRef.current;
+          if (audio) {
+            const ct = data?.currentTime;
+            audio.pause();
+            if (ct != null) {
+              audio.currentTime = ct;
+              callbackRefs.current.setCurrentTime(ct);
+            }
+            callbackRefs.current.setIsPlaying(false);
+          }
+          break;
+        }
+        case "duo:receive-seek": {
+          const audio = callbackRefs.current.audioRef.current;
+          if (audio && data?.currentTime != null) {
+            audio.currentTime = data.currentTime;
+            callbackRefs.current.setCurrentTime(data.currentTime);
+          }
+          break;
+        }
+        case "duo:receive-song-change": {
+          if (data?.song) {
+            callbackRefs.current.playSongRef.current?.(
+              data.song,
+              data.queue || [data.song],
+              true,
+            );
+          }
+          break;
+        }
+
+        // ── Messages ───────────────────────────────────────────
+        case "duo:receive-message": {
+          if (data) store.getState().addMessage(data);
+          break;
+        }
+
+        // ── Session ended by partner ───────────────────────────
+        case "duo:session-ended": {
+          store.getState().endSession(data?.songHistory);
+          disconnectSocket();
+          if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+          hasConnectedOnceRef.current = false;
+          callbackRefs.current.addToast("SoulLink ended by partner", "info");
+          break;
+        }
+
+        // ── Errors ─────────────────────────────────────────────
+        case "duo:error": {
+          callbackRefs.current.addToast(
+            data?.message || "SoulLink error",
+            "error",
+          );
+          break;
         }
       }
     };
 
-    const onPartnerDisconnected = () => {
-      store.getState().partnerDisconnected();
-      callbackRefs.current.addToast(
-        "Your partner disconnected — they can rejoin",
-        "info",
-      );
-    };
-
-    const onPartnerReconnected = ({ name, role: eventRole }: any) => {
-      const state = store.getState();
-      if (eventRole && eventRole === state.role) return;
-
-      store.getState().partnerReconnected({ name });
-
-      if (!state.partnerConnected || state.partnerName !== name) {
-        callbackRefs.current.addToast(`${name} reconnected! 🎉`, "success");
-      }
-
-      if (store.getState().role === "host") {
-        const cs = callbackRefs.current.currentSongRef?.current;
-        if (cs) {
-          const q = callbackRefs.current.queueRef?.current;
-          setTimeout(() => {
-            getSocket().emit("duo:sync-song-change", {
-              song: cs,
-              queue: q?.length ? q : [cs],
-              queueIndex: q?.length
-                ? Math.max(
-                    q.findIndex((s: any) => s.id === cs.id),
-                    0,
-                  )
-                : 0,
-            });
-            const audio = callbackRefs.current.audioRef.current;
-            if (audio && !audio.paused) {
-              getSocket().emit("duo:sync-play", {
-                currentTime: audio.currentTime,
-                songId: cs.id,
-              });
-            }
-          }, 500);
-        }
-      }
-    };
-
-    const onPartnerActive = () => {
-      store.getState().updateHeartbeat();
-    };
-
-    const onSessionState = ({ room }: any) => {
-      console.log(
-        "[Duo] duo:session-state received → host:",
-        room?.host?.name,
-        "guest:",
-        room?.guest?.name,
-        "guestConnected:",
-        room?.guest?.connected,
-      );
-      store.getState().setSessionState(room);
-
-      // Safety net: if the room shows a connected partner but the store
-      // doesn't reflect it, explicitly trigger partnerJoined
-      const state = store.getState();
-      const isHost = state.role === "host";
-      const partnerInRoom = isHost ? room?.guest : room?.host;
-      if (
-        partnerInRoom?.connected &&
-        partnerInRoom?.name &&
-        !state.partnerConnected
-      ) {
-        console.log(
-          "[Duo] Safety-net: partner is connected but store missed it →",
-          partnerInRoom.name,
-        );
-        store.getState().partnerJoined({ name: partnerInRoom.name });
-      }
-
-      if (room.currentSong) {
-        callbackRefs.current.playSongRef.current?.(
-          room.currentSong,
-          [room.currentSong],
-          true,
-        );
-      }
-    };
-
-    const onReceivePlay = ({ currentTime: ct }: any) => {
-      const audio = callbackRefs.current.audioRef.current;
-      if (audio) {
-        if (Math.abs(audio.currentTime - ct) > 2) audio.currentTime = ct;
-        audio
-          .play()
-          .then(() => callbackRefs.current.setIsPlaying(true))
-          .catch(() => {});
-      }
-    };
-
-    const onReceivePause = ({ currentTime: ct }: any) => {
-      const audio = callbackRefs.current.audioRef.current;
-      if (audio) {
-        audio.pause();
-        audio.currentTime = ct;
-        callbackRefs.current.setCurrentTime(ct);
-        callbackRefs.current.setIsPlaying(false);
-      }
-    };
-
-    const onReceiveSeek = ({ currentTime: ct }: any) => {
-      const audio = callbackRefs.current.audioRef.current;
-      if (audio) {
-        audio.currentTime = ct;
-        callbackRefs.current.setCurrentTime(ct);
-      }
-    };
-
-    const onReceiveSongChange = ({ song, queue }: any) => {
-      if (song)
-        callbackRefs.current.playSongRef.current?.(song, queue || [song], true);
-    };
-
-    const onReceiveMessage = (msg: any) => {
-      store.getState().addMessage(msg);
-    };
-
-    const onSessionEnded = ({ songHistory }: any) => {
-      store.getState().endSession(songHistory);
-      disconnectSocket();
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      listenersAttachedRef.current = false;
-      hasConnectedOnceRef.current = false;
-      callbackRefs.current.addToast("SoulLink ended by partner", "info");
-    };
-
-    const onError = ({ message }: any) => {
-      callbackRefs.current.addToast(message || "SoulLink error", "error");
-    };
-
-    socket.on("connect", onConnect);
-    socket.on("duo:partner-joined", onPartnerJoined);
-    socket.on("duo:partner-disconnected", onPartnerDisconnected);
-    socket.on("duo:partner-reconnected", onPartnerReconnected);
-    socket.on("duo:partner-active", onPartnerActive);
-    socket.on("duo:session-state", onSessionState);
-    socket.on("duo:receive-play", onReceivePlay);
-    socket.on("duo:receive-pause", onReceivePause);
-    socket.on("duo:receive-seek", onReceiveSeek);
-    socket.on("duo:receive-song-change", onReceiveSongChange);
-    socket.on("duo:receive-message", onReceiveMessage);
-    socket.on("duo:session-ended", onSessionEnded);
-    socket.on("duo:error", onError);
-
-    // NO CLEANUP — these listeners must survive StrictMode double-mount.
-    // They are cleaned up by disconnectSocket() when the session ends.
+    console.log("[Duo] Registering duo event callback");
+    registerDuoCallback(handleEvent);
+    return () => registerDuoCallback(null);
   }, []); // eslint-disable-line
 
   // ═══ HEARTBEAT ════════════════════════════════════════════════════
