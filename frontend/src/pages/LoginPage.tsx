@@ -253,7 +253,7 @@ export default function LoginPage() {
                       try {
                         const backendUrl =
                           import.meta.env.VITE_BACKEND_URL ||
-                          "http://localhost:4000";
+                          "https://soulsync-backend-a5fs.onrender.com";
                         const { Browser } = await import("@capacitor/browser");
                         await Browser.open({
                           url: `${backendUrl}/api/auth/google/native`,

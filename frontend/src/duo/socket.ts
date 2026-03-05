@@ -1,6 +1,8 @@
 import { io, Socket } from "socket.io-client";
 
-const BACKEND_URL = import.meta.env.VITE_DUO_BACKEND || "http://localhost:4000";
+const BACKEND_URL =
+  import.meta.env.VITE_DUO_BACKEND ||
+  "https://soulsync-backend-a5fs.onrender.com";
 
 let socket: Socket | null = null;
 

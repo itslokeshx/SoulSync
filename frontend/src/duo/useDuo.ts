@@ -2,7 +2,9 @@ import { useEffect, useRef, useCallback } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "./socket";
 import { useDuoStore, getPersistedSession } from "./duoStore";
 
-const BACKEND_URL = import.meta.env.VITE_DUO_BACKEND || "http://localhost:4000";
+const BACKEND_URL =
+  import.meta.env.VITE_DUO_BACKEND ||
+  "https://soulsync-backend-a5fs.onrender.com";
 
 interface UseDuoOpts {
   playSongRef: React.MutableRefObject<

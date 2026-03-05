@@ -163,6 +163,26 @@ export function AppLayout() {
       if (!audio) return;
       try {
         let target = song;
+
+        // Offline / local songs already have a blob URL — skip API fetch
+        if (target._isOffline) {
+          const offlineUrl =
+            bestUrl(target.downloadUrl) || bestUrl(target.download_url);
+          if (!offlineUrl) {
+            toast.error("No audio for this offline song.");
+            return;
+          }
+          audio.pause();
+          audio.src = offlineUrl;
+          audio.volume = vlRef.current;
+          setCurrentSong(target);
+          setIsPlaying(true);
+          setCurrentTime(0);
+          addRecent(target);
+          audio.play().catch(() => {});
+          return;
+        }
+
         if (!target.download_url?.length && !target.downloadUrl?.length) {
           if (!song.id) {
             toast.error("Cannot play: missing song ID.");

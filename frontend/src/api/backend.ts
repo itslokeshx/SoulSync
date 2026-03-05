@@ -4,7 +4,9 @@ import { User, UserStats } from "../types/user";
 import { isNative } from "../utils/platform";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || "http://localhost:4000",
+  baseURL:
+    import.meta.env.VITE_BACKEND_URL ||
+    "https://soulsync-backend-a5fs.onrender.com",
   withCredentials: true,
   timeout: 30000,
 });
