@@ -171,10 +171,9 @@ router.get(
         { expiresIn: 7 * 24 * 60 * 60 },
       );
 
-      // Redirect back to app with token via deep link
-      const appScheme = "com.soulsync.app";
+      // Redirect back to app via custom URL scheme deep link
       res.redirect(
-        `https://${appScheme}/auth-callback?token=${encodeURIComponent(ourToken)}&isNew=${!user.onboardingComplete}`,
+        `soulsync://auth-callback?token=${encodeURIComponent(ourToken)}&isNew=${!user.onboardingComplete}`,
       );
     } catch (err) {
       console.error("[Auth] Native Google callback error:", err);

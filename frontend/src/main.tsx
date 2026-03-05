@@ -17,14 +17,19 @@ initCapacitor();
 if (isNative()) {
   import("@capacitor/app").then(({ App: CapApp }) => {
     CapApp.addListener("appUrlOpen", async ({ url }) => {
-      // Handle auth-callback deep link: com.soulsync.app://auth-callback?token=...
+      // Handle auth-callback deep link: soulsync://auth-callback?token=...
       if (url.includes("auth-callback")) {
-        const params = new URL(url).searchParams;
-        const token = params.get("token");
-        if (token) {
-          await saveNativeToken(token);
-          // Reload to let AuthContext pick up the new token
-          window.location.href = "/";
+        try {
+          // Custom scheme URLs: extract query string manually
+          const qs = url.split("?")[1] || "";
+          const params = new URLSearchParams(qs);
+          const token = params.get("token");
+          if (token) {
+            await saveNativeToken(token);
+            window.location.href = "/";
+          }
+        } catch (e) {
+          console.error("[DeepLink] Failed to parse auth callback:", e);
         }
       }
     });
