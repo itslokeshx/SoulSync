@@ -60,11 +60,16 @@ export function initializeSocket(httpServer: HttpServer): Server {
   });
 
   io.on("connection", (socket: AuthenticatedSocket) => {
-    console.log(`[Socket] Connected: ${socket.id}`);
+    const transport = socket.conn.transport.name;
+    console.log(`[Socket] ✅ Connected: ${socket.id} via ${transport} (userId: ${socket.userId || "anon"})`);
     setupRoomHandlers(io, socket);
 
+    socket.conn.on("upgrade", (t: any) => {
+      console.log(`[Socket] ⬆ Upgraded ${socket.id}: ${transport} → ${t.name}`);
+    });
+
     socket.on("disconnect", (reason) => {
-      console.log(`[Socket] Disconnected: ${socket.id} (${reason})`);
+      console.log(`[Socket] ❌ Disconnected: ${socket.id} (${reason})`);
     });
   });
 

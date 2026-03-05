@@ -1,5 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
-import { connectSocket, disconnectSocket, getSocket } from "./socket";
+import {
+  connectSocket,
+  disconnectSocket,
+  getSocket,
+  waitForConnection,
+} from "./socket";
 import { useDuoStore, getPersistedSession } from "./duoStore";
 import { getNativeToken } from "../api/backend";
 import { isNative } from "../utils/platform";
@@ -58,32 +63,41 @@ export function useDuo({
           return null;
         }
 
+        console.log("[Duo] Session created, code:", data.code);
+
         store.getState().startSession({
           role: "host",
           roomCode: data.code,
           myName: hostName,
         });
 
-        const socket = connectSocket();
-        socket.emit("duo:join", {
-          code: data.code,
-          name: hostName,
-          role: "host",
-        });
-
-        const cs = currentSongRef?.current;
-        if (cs) {
-          const q = queueRef?.current;
-          socket.emit("duo:sync-song-change", {
-            song: cs,
-            queue: q?.length ? q : [cs],
-            queueIndex: q?.length
-              ? Math.max(
-                  q.findIndex((s) => s.id === cs.id),
-                  0,
-                )
-              : 0,
+        // Connect + join room (waitForConnection ensures socket is live)
+        try {
+          const socket = await waitForConnection();
+          console.log("[Duo] Socket ready, emitting duo:join as host");
+          socket.emit("duo:join", {
+            code: data.code,
+            name: hostName,
+            role: "host",
           });
+
+          const cs = currentSongRef?.current;
+          if (cs) {
+            const q = queueRef?.current;
+            socket.emit("duo:sync-song-change", {
+              song: cs,
+              queue: q?.length ? q : [cs],
+              queueIndex: q?.length
+                ? Math.max(
+                    q.findIndex((s) => s.id === cs.id),
+                    0,
+                  )
+                : 0,
+            });
+          }
+        } catch (sockErr) {
+          console.warn("[Duo] Socket connection failed:", sockErr);
+          addToast("Socket connection failed — try again", "error");
         }
 
         addToast(`SoulLink room created! Code: ${data.code}`, "success", 5000);
@@ -118,18 +132,26 @@ export function useDuo({
           return false;
         }
 
+        console.log("[Duo] Joining session, code:", code.toUpperCase());
+
         store.getState().startSession({
           role: "guest",
           roomCode: code.toUpperCase(),
           myName: guestName,
         });
 
-        const socket = connectSocket();
-        socket.emit("duo:join", {
-          code: code.toUpperCase(),
-          name: guestName,
-          role: "guest",
-        });
+        try {
+          const socket = await waitForConnection();
+          console.log("[Duo] Socket ready, emitting duo:join as guest");
+          socket.emit("duo:join", {
+            code: code.toUpperCase(),
+            name: guestName,
+            role: "guest",
+          });
+        } catch (sockErr) {
+          console.warn("[Duo] Socket connection failed:", sockErr);
+          addToast("Socket connection failed — try again", "error");
+        }
 
         addToast("Joined SoulLink session! 🎧", "success");
         return true;
@@ -185,17 +207,12 @@ export function useDuo({
     addToast("SoulLink session ended", "info");
   }, [addToast]);
 
-  // Auto-rejoin after page reload
+  // Auto-rejoin after page reload — just connect, the connect handler below handles the join
   useEffect(() => {
     const saved = getPersistedSession();
     if (saved?.roomCode && saved?.myName && saved?.role) {
-      const socket = connectSocket();
-      socket.emit("duo:join", {
-        code: saved.roomCode,
-        name: saved.myName,
-        role: saved.role,
-      });
-      addToast("Reconnecting to SoulLink…", "info");
+      console.log("[Duo] Found persisted session, reconnecting…", saved.roomCode);
+      connectSocket();
     }
   }, []); // eslint-disable-line
 
@@ -203,11 +220,11 @@ export function useDuo({
   useEffect(() => {
     const socket = getSocket();
 
-    // Auto-rejoin room on socket reconnect (network drop / server restart)
+    // Rejoin room on every connect (initial + reconnect)
     const onReconnect = () => {
       const saved = getPersistedSession();
       if (saved?.roomCode && saved?.myName && saved?.role) {
-        console.log("[Duo] Socket reconnected, rejoining room", saved.roomCode);
+        console.log("[Duo] Socket connected/reconnected → joining room", saved.roomCode);
         socket.emit("duo:join", {
           code: saved.roomCode,
           name: saved.myName,
@@ -218,6 +235,7 @@ export function useDuo({
     };
 
     const onPartnerJoined = ({ name, role: _role, room }: any) => {
+      console.log("[Duo] ✅ Partner joined:", name, "room:", room);
       store.getState().partnerJoined({ name });
       store.getState().setSessionState(room);
       addToast(`${name} joined SoulLink! 🎉`, "success");
@@ -277,6 +295,12 @@ export function useDuo({
     };
 
     const onSessionState = ({ room }: any) => {
+      console.log("[Duo] Session state received:", {
+        hostConnected: room?.host?.connected,
+        guestConnected: room?.guest?.connected,
+        hostName: room?.host?.name,
+        guestName: room?.guest?.name,
+      });
       store.getState().setSessionState(room);
       if (room.currentSong) {
         playSongRef.current?.(room.currentSong, [room.currentSong], true);

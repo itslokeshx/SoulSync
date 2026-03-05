@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Copy, Check } from "lucide-react";
 import { useDuoStore } from "./duoStore";
 
@@ -8,13 +8,21 @@ interface DuoModalProps {
 }
 
 export function DuoModal({ onCreate, onJoin }: DuoModalProps) {
-  const { modalOpen, setModalOpen } = useDuoStore();
+  const { modalOpen, setModalOpen, partnerConnected } = useDuoStore();
   const [tab, setTab] = useState<"create" | "join">("create");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Auto-close modal when partner connects
+  useEffect(() => {
+    if (partnerConnected && createdCode && modalOpen) {
+      setModalOpen(false);
+      setCreatedCode(null);
+    }
+  }, [partnerConnected, createdCode, modalOpen, setModalOpen]);
 
   if (!modalOpen) return null;
 

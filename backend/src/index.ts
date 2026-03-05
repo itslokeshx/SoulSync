@@ -44,7 +44,7 @@ const FRONTEND_URL = (
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    crossOriginOpenerPolicy: false, // disabled — interferes with postMessage & Vite HMR
   }),
 );
 app.use(
