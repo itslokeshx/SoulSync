@@ -24,6 +24,20 @@ export async function initCapacitor() {
   // Auto-hidden after 2 s (config), but we can hide earlier:
   SplashScreen.hide();
 
+  // ── Notification permission (Android 13+ / API 33+) ────────
+  // Ask immediately on first launch, like Spotify & YT Music.
+  // This is needed for the media playback notification to appear.
+  try {
+    const { LocalNotifications } =
+      await import("@capacitor/local-notifications");
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display !== "granted") {
+      await LocalNotifications.requestPermissions();
+    }
+  } catch {
+    /* non-critical */
+  }
+
   // ── Back-button behaviour ───────────────────────────────────
   App.addListener("backButton", ({ canGoBack }) => {
     if (!canGoBack) {

@@ -54,11 +54,15 @@ function loadOrder(): string[] {
   try {
     const raw = localStorage.getItem(PLAYLIST_ORDER_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 function saveOrder(ids: string[]) {
-  try { localStorage.setItem(PLAYLIST_ORDER_KEY, JSON.stringify(ids)); } catch {}
+  try {
+    localStorage.setItem(PLAYLIST_ORDER_KEY, JSON.stringify(ids));
+  } catch {}
 }
 
 export default function DownloadsPage() {
@@ -84,7 +88,10 @@ export default function DownloadsPage() {
     const ordered: OfflineSong[] = [];
     for (const id of order) {
       const s = map.get(id);
-      if (s) { ordered.push(s); map.delete(id); }
+      if (s) {
+        ordered.push(s);
+        map.delete(id);
+      }
     }
     // Append any new songs not in saved order
     map.forEach((s) => ordered.push(s));
@@ -98,7 +105,9 @@ export default function DownloadsPage() {
         getOfflineSongs(),
         getOfflineStorageSize(),
       ]);
-      const sorted = s.sort((a: OfflineSong, b: OfflineSong) => b.savedAt - a.savedAt);
+      const sorted = s.sort(
+        (a: OfflineSong, b: OfflineSong) => b.savedAt - a.savedAt,
+      );
       setSongs(applySavedOrder(sorted));
       setStorageSize(size);
     } catch {
@@ -122,16 +131,27 @@ export default function DownloadsPage() {
       activeDownloads.filter((d) => d.status === "done").map((d) => d.id),
     );
     for (const id of doneIds) {
-      if (!prevDoneRef.current.has(id)) { refresh(); break; }
+      if (!prevDoneRef.current.has(id)) {
+        refresh();
+        break;
+      }
     }
     prevDoneRef.current = doneIds;
   }, [activeDownloads, refresh]);
 
   // ── Drag-to-reorder ──
-  const handleDragStart = (idx: number) => { dragIdx.current = idx; };
-  const handleDragEnter = (idx: number) => { setDragOverIdx(idx); };
+  const handleDragStart = (idx: number) => {
+    dragIdx.current = idx;
+  };
+  const handleDragEnter = (idx: number) => {
+    setDragOverIdx(idx);
+  };
   const handleDragEnd = () => {
-    if (dragIdx.current !== null && dragOverIdx !== null && dragIdx.current !== dragOverIdx) {
+    if (
+      dragIdx.current !== null &&
+      dragOverIdx !== null &&
+      dragIdx.current !== dragOverIdx
+    ) {
       const copy = [...songs];
       const [moved] = copy.splice(dragIdx.current, 1);
       copy.splice(dragOverIdx, 0, moved);
@@ -172,7 +192,10 @@ export default function DownloadsPage() {
   // ── Play helpers ──
   const buildSongObj = async (song: OfflineSong) => {
     const blob = await getOfflineBlob(song.id);
-    if (!blob) { toast.error("Audio file not found locally"); return null; }
+    if (!blob) {
+      toast.error("Audio file not found locally");
+      return null;
+    }
     const oldUrl = blobUrlsRef.current.get(song.id);
     if (oldUrl) URL.revokeObjectURL(oldUrl);
     const blobUrl = URL.createObjectURL(blob);
@@ -180,7 +203,9 @@ export default function DownloadsPage() {
     return {
       id: song.id,
       name: song.name,
-      image: song.image?.length ? song.image : [{ quality: "500x500", url: "" }],
+      image: song.image?.length
+        ? song.image
+        : [{ quality: "500x500", url: "" }],
       duration: song.duration,
       primaryArtists: song.artist,
       downloadUrl: [{ quality: "320kbps", url: blobUrl }],
@@ -191,8 +216,21 @@ export default function DownloadsPage() {
   const handlePlay = async (song: OfflineSong) => {
     const obj = await buildSongObj(song);
     if (!obj) return;
-    // Build full queue from current song list order
-    const queueObjs = [obj];
+    // Build full queue from current song list so next/prev works
+    const queueObjs = songs.map((s) => ({
+      id: s.id,
+      name: s.name,
+      image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
+      duration: s.duration,
+      primaryArtists: s.artist,
+      downloadUrl:
+        s.id === song.id
+          ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }]
+          : s.downloadUrl,
+      _isOffline: true,
+    })) as any[];
+    const idx = queueObjs.findIndex((s) => s.id === song.id);
+    if (idx >= 0) queueObjs[idx] = obj;
     playSong(obj, queueObjs);
   };
 
@@ -207,7 +245,10 @@ export default function DownloadsPage() {
       image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
       duration: s.duration,
       primaryArtists: s.artist,
-      downloadUrl: s.id === songs[0].id ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }] : s.downloadUrl,
+      downloadUrl:
+        s.id === songs[0].id
+          ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }]
+          : s.downloadUrl,
       _isOffline: true,
     })) as any[];
     // Replace the first entry with the one that has the blob URL
@@ -226,7 +267,10 @@ export default function DownloadsPage() {
       image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
       duration: s.duration,
       primaryArtists: s.artist,
-      downloadUrl: s.id === shuffled[0].id ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }] : s.downloadUrl,
+      downloadUrl:
+        s.id === shuffled[0].id
+          ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }]
+          : s.downloadUrl,
       _isOffline: true,
     })) as any[];
     queueObjs[0] = first;
@@ -235,7 +279,10 @@ export default function DownloadsPage() {
 
   const handleRemove = async (id: string, name: string) => {
     const existing = blobUrlsRef.current.get(id);
-    if (existing) { URL.revokeObjectURL(existing); blobUrlsRef.current.delete(id); }
+    if (existing) {
+      URL.revokeObjectURL(existing);
+      blobUrlsRef.current.delete(id);
+    }
     await removeOfflineSong(id);
     // Remove from saved order
     const order = loadOrder().filter((oid) => oid !== id);
@@ -250,27 +297,50 @@ export default function DownloadsPage() {
     setImporting(true);
     let imported = 0;
     for (const file of Array.from(files)) {
-      if (!file.type.startsWith("audio/")) { toast.error(`"${file.name}" is not an audio file`); continue; }
+      if (!file.type.startsWith("audio/")) {
+        toast.error(`"${file.name}" is not an audio file`);
+        continue;
+      }
       try {
         const duration = await getAudioDuration(file);
         const id = `local_${file.name.replace(/[^a-zA-Z0-9]/g, "_")}_${file.size}`;
         const displayName = file.name.replace(/\.[^.]+$/, "");
         const offlineSong: OfflineSong = {
-          id, name: displayName, artist: "Local File", albumArt: "",
-          duration: Math.round(duration), downloadUrl: [], image: [], savedAt: Date.now(),
+          id,
+          name: displayName,
+          artist: "Local File",
+          albumArt: "",
+          duration: Math.round(duration),
+          downloadUrl: [],
+          image: [],
+          savedAt: Date.now(),
         };
         await saveOfflineSong(offlineSong, file);
         imported++;
-      } catch { toast.error(`Failed to import "${file.name}"`); }
+      } catch {
+        toast.error(`Failed to import "${file.name}"`);
+      }
     }
-    if (imported > 0) { toast.success(`Imported ${imported} song${imported > 1 ? "s" : ""} from device`); refresh(); }
+    if (imported > 0) {
+      toast.success(
+        `Imported ${imported} song${imported > 1 ? "s" : ""} from device`,
+      );
+      refresh();
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
     setImporting(false);
   };
 
   return (
     <div className="animate-fadeIn">
-      <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={handleImportFiles} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        multiple
+        className="hidden"
+        onChange={handleImportFiles}
+      />
 
       {/* Header */}
       <div className="mb-6">
@@ -279,13 +349,26 @@ export default function DownloadsPage() {
             <Download size={18} className="text-white/60" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Downloads</h1>
-            <p className="text-xs text-white/30 mt-0.5">{songs.length} songs · {storageSize} used</p>
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+              Downloads
+            </h1>
+            <p className="text-xs text-white/30 mt-0.5">
+              {songs.length} songs · {storageSize} used
+            </p>
           </div>
-          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.10] text-white/70 hover:text-white text-sm font-medium transition-all disabled:opacity-50">
-            {importing ? <Loader2 size={16} className="animate-spin" /> : <FolderOpen size={16} />}
-            <span className="hidden sm:inline">{importing ? "Importing…" : "Import"}</span>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.10] text-white/70 hover:text-white text-sm font-medium transition-all disabled:opacity-50"
+          >
+            {importing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FolderOpen size={16} />
+            )}
+            <span className="hidden sm:inline">
+              {importing ? "Importing…" : "Import"}
+            </span>
           </button>
         </div>
       </div>
@@ -293,20 +376,31 @@ export default function DownloadsPage() {
       {/* Playlist Controls */}
       {songs.length > 0 && (
         <div className="flex items-center gap-2.5 mb-5">
-          <button onClick={handlePlayAll}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all">
-            <Play size={16} className="fill-current" />Play All
+          <button
+            onClick={handlePlayAll}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
+          >
+            <Play size={16} className="fill-current" />
+            Play All
           </button>
-          <button onClick={handleShuffleAll}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all">
-            <Shuffle size={14} />Shuffle
+          <button
+            onClick={handleShuffleAll}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
+          >
+            <Shuffle size={14} />
+            Shuffle
           </button>
           <div className="flex-1" />
-          <button onClick={() => setReorderMode(!reorderMode)}
+          <button
+            onClick={() => setReorderMode(!reorderMode)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${
-              reorderMode ? "bg-sp-green/20 text-sp-green border border-sp-green/30" : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
-            }`}>
-            <ListMusic size={13} />{reorderMode ? "Done" : "Reorder"}
+              reorderMode
+                ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
+                : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
+            }`}
+          >
+            <ListMusic size={13} />
+            {reorderMode ? "Done" : "Reorder"}
           </button>
         </div>
       )}
@@ -317,7 +411,13 @@ export default function DownloadsPage() {
           <div className="flex items-center gap-2 mb-3">
             <ArrowDownToLine size={14} className="text-sp-green" />
             <span className="text-sm font-semibold text-white/60">
-              Downloading ({activeDownloads.filter((d) => d.status === "downloading" || d.status === "saving").length})
+              Downloading (
+              {
+                activeDownloads.filter(
+                  (d) => d.status === "downloading" || d.status === "saving",
+                ).length
+              }
+              )
             </span>
           </div>
           <div className="space-y-1">
@@ -326,33 +426,66 @@ export default function DownloadsPage() {
               const isError = dl.status === "error";
               const isSaving = dl.status === "saving";
               return (
-                <div key={`dl-${dl.id}`}
+                <div
+                  key={`dl-${dl.id}`}
                   className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${
-                    isDone ? "bg-sp-green/[0.06]" : isError ? "bg-red-500/[0.06]" : "bg-white/[0.03]"
-                  }`}>
+                    isDone
+                      ? "bg-sp-green/[0.06]"
+                      : isError
+                        ? "bg-red-500/[0.06]"
+                        : "bg-white/[0.03]"
+                  }`}
+                >
                   <div className="relative flex-shrink-0 w-10 h-10">
                     {dl.albumArt ? (
-                      <img src={dl.albumArt} onError={onImgErr} className="w-10 h-10 rounded-lg object-cover" />
+                      <img
+                        src={dl.albumArt}
+                        onError={onImgErr}
+                        className="w-10 h-10 rounded-lg object-cover"
+                      />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center">
                         <Music2 size={16} className="text-white/30" />
                       </div>
                     )}
                     <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40">
-                      {isDone ? <Check size={16} className="text-sp-green" /> : isError ? <X size={16} className="text-red-400" /> : <ArrowDownToLine size={14} className="text-white animate-bounce" />}
+                      {isDone ? (
+                        <Check size={16} className="text-sp-green" />
+                      ) : isError ? (
+                        <X size={16} className="text-red-400" />
+                      ) : (
+                        <ArrowDownToLine
+                          size={14}
+                          className="text-white animate-bounce"
+                        />
+                      )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-[13px] font-medium text-white truncate">{dl.name}</p>
-                      <span className={`text-[11px] font-semibold tabular-nums flex-shrink-0 ${isDone ? "text-sp-green" : isError ? "text-red-400" : "text-white/50"}`}>
-                        {isDone ? "Saved" : isError ? "Failed" : isSaving ? "Saving…" : `${dl.progress}%`}
+                      <p className="text-[13px] font-medium text-white truncate">
+                        {dl.name}
+                      </p>
+                      <span
+                        className={`text-[11px] font-semibold tabular-nums flex-shrink-0 ${isDone ? "text-sp-green" : isError ? "text-red-400" : "text-white/50"}`}
+                      >
+                        {isDone
+                          ? "Saved"
+                          : isError
+                            ? "Failed"
+                            : isSaving
+                              ? "Saving…"
+                              : `${dl.progress}%`}
                       </span>
                     </div>
-                    <p className="text-[11px] text-white/30 truncate mb-1.5">{dl.artist}</p>
+                    <p className="text-[11px] text-white/30 truncate mb-1.5">
+                      {dl.artist}
+                    </p>
                     <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-300 ease-out ${isDone ? "bg-sp-green" : isError ? "bg-red-400" : "bg-sp-green shadow-[0_0_8px_rgba(29,185,84,0.4)]"}`}
-                        style={{ width: `${isDone ? 100 : dl.progress}%` }} />
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ease-out ${isDone ? "bg-sp-green" : isError ? "bg-red-400" : "bg-sp-green shadow-[0_0_8px_rgba(29,185,84,0.4)]"}`}
+                        style={{ width: `${isDone ? 100 : dl.progress}%` }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -373,18 +506,37 @@ export default function DownloadsPage() {
             <HardDrive size={28} className="text-white/20" />
           </div>
           <div>
-            <p className="text-white font-semibold text-lg">Your Music Library</p>
-            <p className="text-white/40 text-sm mt-1 max-w-xs">Download songs for offline play, or import audio files directly from your device</p>
+            <p className="text-white font-semibold text-lg">
+              Your Music Library
+            </p>
+            <p className="text-white/40 text-sm mt-1 max-w-xs">
+              Download songs for offline play, or import audio files directly
+              from your device
+            </p>
           </div>
-          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50">
-            {importing ? <Loader2 size={16} className="animate-spin" /> : <FileAudio size={16} />}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50"
+          >
+            {importing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FileAudio size={16} />
+            )}
             {importing ? "Importing…" : "Import from device"}
           </button>
-          <p className="text-white/20 text-[11px] mt-1">Supports MP3, AAC, WAV, OGG, FLAC & more</p>
+          <p className="text-white/20 text-[11px] mt-1">
+            Supports MP3, AAC, WAV, OGG, FLAC & more
+          </p>
         </div>
       ) : (
-        <div ref={listRef} className="space-y-0.5" onTouchMove={reorderMode ? handleTouchMove : undefined} onTouchEnd={reorderMode ? handleTouchEnd : undefined}>
+        <div
+          ref={listRef}
+          className="space-y-0.5"
+          onTouchMove={reorderMode ? handleTouchMove : undefined}
+          onTouchEnd={reorderMode ? handleTouchEnd : undefined}
+        >
           {songs.map((s, i) => {
             const img = bestImg(s.image, "50x50") || s.albumArt || FALLBACK_IMG;
             const isCurrent = currentSong?.id === s.id;
@@ -398,7 +550,9 @@ export default function DownloadsPage() {
                 onDragEnter={() => handleDragEnter(i)}
                 onDragOver={(e) => e.preventDefault()}
                 onDragEnd={handleDragEnd}
-                onTouchStart={reorderMode ? (e) => handleTouchStart(i, e) : undefined}
+                onTouchStart={
+                  reorderMode ? (e) => handleTouchStart(i, e) : undefined
+                }
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                   isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
                 } ${isDragOver ? "border-t-2 border-sp-green" : ""} ${reorderMode ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -408,20 +562,44 @@ export default function DownloadsPage() {
                     <GripVertical size={16} />
                   </div>
                 ) : (
-                  <span className="w-5 text-center text-xs text-white/25 tabular-nums">{i + 1}</span>
+                  <span className="w-5 text-center text-xs text-white/25 tabular-nums">
+                    {i + 1}
+                  </span>
                 )}
-                <button onClick={() => handlePlay(s)} className="relative flex-shrink-0">
-                  <img src={img} onError={onImgErr} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                <button
+                  onClick={() => handlePlay(s)}
+                  className="relative flex-shrink-0"
+                >
+                  <img
+                    src={img}
+                    onError={onImgErr}
+                    className="w-10 h-10 rounded-lg object-cover"
+                    alt=""
+                  />
                   <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isCurrent && isPlaying ? <Pause size={14} className="text-white fill-white" /> : <Play size={14} className="text-white fill-white" />}
+                    {isCurrent && isPlaying ? (
+                      <Pause size={14} className="text-white fill-white" />
+                    ) : (
+                      <Play size={14} className="text-white fill-white" />
+                    )}
                   </div>
-                  {isCurrent && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-sp-green rounded-full" />}
+                  {isCurrent && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-sp-green rounded-full" />
+                  )}
                 </button>
                 <div className="flex-1 min-w-0" onClick={() => handlePlay(s)}>
-                  <p className={`text-[13px] font-medium truncate cursor-pointer ${isCurrent ? "text-sp-green" : "text-white"}`}>{s.name}</p>
-                  <p className="text-[11px] text-white/30 truncate">{s.artist}</p>
+                  <p
+                    className={`text-[13px] font-medium truncate cursor-pointer ${isCurrent ? "text-sp-green" : "text-white"}`}
+                  >
+                    {s.name}
+                  </p>
+                  <p className="text-[11px] text-white/30 truncate">
+                    {s.artist}
+                  </p>
                 </div>
-                <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">{fmt(s.duration)}</span>
+                <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+                  {fmt(s.duration)}
+                </span>
                 <div className="flex items-center gap-1">
                   {s.id.startsWith("local_") ? (
                     <FileAudio size={14} className="text-white/30" />
@@ -429,9 +607,11 @@ export default function DownloadsPage() {
                     <CheckCircle2 size={14} className="text-sp-green/50" />
                   )}
                   {!reorderMode && (
-                    <button onClick={() => handleRemove(s.id, s.name)}
+                    <button
+                      onClick={() => handleRemove(s.id, s.name)}
                       className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-white/[0.04] transition-all opacity-0 group-hover:opacity-100"
-                      title="Remove download">
+                      title="Remove download"
+                    >
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -446,7 +626,9 @@ export default function DownloadsPage() {
       {songs.length > 0 && (
         <div className="mt-6 flex items-center justify-center gap-2 text-white/15 text-[11px]">
           <HardDrive size={11} />
-          <span>{songs.length} songs · {storageSize}</span>
+          <span>
+            {songs.length} songs · {storageSize}
+          </span>
         </div>
       )}
     </div>

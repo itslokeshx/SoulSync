@@ -137,20 +137,32 @@ export function updateMediaMetadata(song: any, isPlaying: boolean) {
   _lastSong = song;
   _lastIsPlaying = isPlaying;
 
+  const title = song.name || "Unknown";
+  const artist = getArtists(song) || "Unknown";
+  const album = song.album?.name || "";
+
+  // Resolve album art — handle offline/local songs with empty or missing images
+  const img500 = bestImg(song.image, "500x500");
+  const img150 = bestImg(song.image, "150x150");
+  const albumArt = img500 && img500.length > 0 ? img500 : "";
+  const albumArtSmall = img150 && img150.length > 0 ? img150 : albumArt;
+
   // ── Web: MediaSession API ──
   if ("mediaSession" in navigator) {
     const artwork: MediaImage[] = [];
-    const img150 = bestImg(song.image, "150x150");
-    const img500 = bestImg(song.image, "500x500");
-    if (img150)
-      artwork.push({ src: img150, sizes: "150x150", type: "image/jpeg" });
-    if (img500)
-      artwork.push({ src: img500, sizes: "500x500", type: "image/jpeg" });
+    if (albumArtSmall)
+      artwork.push({
+        src: albumArtSmall,
+        sizes: "150x150",
+        type: "image/jpeg",
+      });
+    if (albumArt)
+      artwork.push({ src: albumArt, sizes: "500x500", type: "image/jpeg" });
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.name || "Unknown",
-      artist: getArtists(song) || "Unknown",
-      album: song.album?.name || "",
+      title,
+      artist,
+      album,
       artwork,
     });
 
@@ -161,9 +173,9 @@ export function updateMediaMetadata(song: any, isPlaying: boolean) {
   if (isNative()) {
     const audio = document.querySelector("audio") as HTMLAudioElement;
     NativeMusicControls.updateNotification({
-      title: song.name || "Unknown",
-      artist: getArtists(song) || "Unknown",
-      albumArt: bestImg(song.image, "500x500") || "",
+      title,
+      artist,
+      albumArt,
       isPlaying,
       duration: audio?.duration || Number(song.duration) || 0,
       position: audio?.currentTime || 0,
