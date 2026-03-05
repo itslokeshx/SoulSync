@@ -8,12 +8,24 @@ interface AuthenticatedSocket extends Socket {
 }
 
 export function initializeSocket(httpServer: HttpServer): Server {
+  const FRONTEND_URL = (
+    process.env.FRONTEND_URL || "http://localhost:5173"
+  ).replace(/\/+$/, "");
   const io = new Server(httpServer, {
     cors: {
-      origin: (process.env.FRONTEND_URL || "http://localhost:5173").replace(
-        /\/+$/,
-        "",
-      ),
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (
+          origin === "https://localhost" ||
+          origin === "capacitor://localhost" ||
+          origin === "http://localhost"
+        )
+          return callback(null, true);
+        if (origin === FRONTEND_URL) return callback(null, true);
+        if (/^http:\/\/localhost:\d+$/.test(origin))
+          return callback(null, true);
+        callback(new Error("Not allowed by CORS"));
+      },
       methods: ["GET", "POST"],
       credentials: true,
     },

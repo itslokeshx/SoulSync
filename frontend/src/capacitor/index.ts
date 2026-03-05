@@ -17,6 +17,8 @@ export async function initCapacitor() {
   // ── Status bar ──────────────────────────────────────────────
   await StatusBar.setStyle({ style: Style.Dark });
   await StatusBar.setBackgroundColor({ color: "#060606" });
+  // Don't render the WebView under the status bar
+  await StatusBar.setOverlaysWebView({ overlay: false });
 
   // ── Splash screen ───────────────────────────────────────────
   // Auto-hidden after 2 s (config), but we can hide earlier:

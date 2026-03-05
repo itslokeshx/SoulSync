@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { getNativeToken } from "../api/backend";
 
 const BACKEND_URL =
   import.meta.env.VITE_DUO_BACKEND ||
@@ -17,6 +18,10 @@ export function getSocket(): Socket {
       reconnectionDelayMax: 5000,
       timeout: 15_000,
       transports: ["websocket", "polling"],
+      auth: () => {
+        const token = getNativeToken();
+        return token ? { token } : {};
+      },
     });
 
     // Auto-rejoin room on reconnect

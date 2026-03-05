@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { connectSocket, disconnectSocket, getSocket } from "./socket";
 import { useDuoStore, getPersistedSession } from "./duoStore";
+import { getNativeToken } from "../api/backend";
+import { isNative } from "../utils/platform";
 
 const BACKEND_URL =
   import.meta.env.VITE_DUO_BACKEND ||
@@ -37,9 +39,16 @@ export function useDuo({
   const createSession = useCallback(
     async (hostName: string) => {
       try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (isNative()) {
+          const tk = getNativeToken();
+          if (tk) headers["Authorization"] = `Bearer ${tk}`;
+        }
         const res = await fetch(`${BACKEND_URL}/api/session/create`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           credentials: "include",
           body: JSON.stringify({ hostName }),
         });
@@ -90,9 +99,16 @@ export function useDuo({
   const joinSession = useCallback(
     async (code: string, guestName: string) => {
       try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (isNative()) {
+          const tk = getNativeToken();
+          if (tk) headers["Authorization"] = `Bearer ${tk}`;
+        }
         const res = await fetch(`${BACKEND_URL}/api/session/join`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           credentials: "include",
           body: JSON.stringify({ code, guestName }),
         });
