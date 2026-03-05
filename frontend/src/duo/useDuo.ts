@@ -1,3 +1,4 @@
+/* @refresh reset */
 import { useEffect, useRef, useCallback } from "react";
 import {
   connectSocket,
@@ -228,6 +229,7 @@ export function useDuo({
         .catch(() => {
           console.warn("[Duo] Rejoin failed — clearing stale session");
           store.getState().fullReset();
+          disconnectSocket();
         });
     }
   }, []); // eslint-disable-line

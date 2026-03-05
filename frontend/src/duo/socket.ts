@@ -64,6 +64,10 @@ export function waitForConnection(timeoutMs = 10_000): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       s.off("connect", onConnect);
+      // Stop reconnection attempts on timeout
+      if (!s.connected) {
+        s.disconnect();
+      }
       reject(new Error("Socket connection timed out"));
     }, timeoutMs);
 
@@ -82,7 +86,9 @@ export function connectSocket(): Socket {
 }
 
 export function disconnectSocket(): void {
-  if (socket?.connected) {
+  if (socket) {
+    socket.removeAllListeners();
     socket.disconnect();
+    socket = null;
   }
 }
