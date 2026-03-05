@@ -6,6 +6,10 @@ import { AuthProvider } from "./auth/AuthContext";
 import { Toaster } from "react-hot-toast";
 import App from "./App";
 import "./index.css";
+import { initCapacitor } from "./capacitor";
+
+// Initialise native plugins (no-op on web)
+initCapacitor();
 
 const queryClient = new QueryClient({
   defaultOptions: {

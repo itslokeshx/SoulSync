@@ -8,6 +8,7 @@ import React, {
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { User } from "../types/user";
 import * as api from "../api/backend";
+import { loadNativeToken } from "../api/backend";
 
 interface AuthContextType {
   user: User | null;
@@ -31,13 +32,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check existing session on mount
+  // Check existing session on mount (load native token first)
   useEffect(() => {
-    api
-      .getMe()
-      .then((u) => setUser(u))
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
+    async function init() {
+      try {
+        await loadNativeToken();
+        const u = await api.getMe();
+        setUser(u);
+      } catch {
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    init();
   }, []);
 
   const login = useCallback(async (googleCredential: string) => {

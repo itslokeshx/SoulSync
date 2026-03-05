@@ -21,6 +21,7 @@ export function ProtectedRoute({ children }: Props) {
     );
   }
 
+  // Not logged in → go to login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

@@ -11,7 +11,14 @@ export function authMiddleware(
   res: Response,
   next: NextFunction,
 ): void {
-  const token = req.cookies?.saavn_token;
+  // Accept token from cookie OR Authorization header (for native APK)
+  let token = req.cookies?.saavn_token;
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.slice(7);
+    }
+  }
 
   if (!token) {
     res.status(401).json({ error: "Authentication required" });

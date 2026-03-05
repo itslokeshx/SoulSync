@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import OfflinePage from "./pages/OfflinePage";
 import {
   HomePage,
   SearchPage,
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/offline" element={<OfflinePage />} />
 
       <Route
         path="/onboarding"

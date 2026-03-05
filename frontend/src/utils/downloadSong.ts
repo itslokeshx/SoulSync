@@ -4,6 +4,10 @@ import { getArtists } from "./queryParser";
 import { saveOfflineSong } from "./offlineDB";
 import { bestImg } from "../lib/helpers";
 import { useDownloadStore } from "../store/downloadStore";
+import { useOfflineStore } from "../store/offlineStore";
+import { isNative } from "./platform";
+import { saveAudioToDevice } from "../capacitor/filesystem";
+import { impactFeedback, notificationFeedback } from "../capacitor/haptics";
 import toast from "react-hot-toast";
 
 export async function downloadSong(
@@ -36,6 +40,9 @@ export async function downloadSong(
     albumArt: bestImg(song.image) || "",
   });
 
+  // Haptic feedback on download start (native only)
+  impactFeedback("medium");
+
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Download failed");
@@ -58,10 +65,14 @@ export async function downloadSong(
 
         const progress = Math.round((receivedBytes / contentLength) * 100);
         store.updateProgress(song.id, progress);
+
+        // Haptic milestones at 25%, 50%, 75%
+        if (progress === 25 || progress === 50 || progress === 75) {
+          impactFeedback("light");
+        }
       }
     } else {
       // Fallback: no Content-Length or no readable stream
-      // Read as blob and simulate progress
       const blob = await response.blob();
       chunks.push(new Uint8Array(await blob.arrayBuffer()));
       receivedBytes = blob.size;
@@ -72,7 +83,7 @@ export async function downloadSong(
     const blob = new Blob(chunks, { type: "audio/mp4" });
     store.updateProgress(song.id, 100);
 
-    // Save to IndexedDB
+    // Save to IndexedDB + optionally native filesystem
     if (saveOffline) {
       store.setStatus(song.id, "saving");
       try {
@@ -97,22 +108,41 @@ export async function downloadSong(
           },
           blob,
         );
+
+        // On native, also write to device filesystem for lock-screen / background playback
+        if (isNative()) {
+          const nativePath = await saveAudioToDevice(song.id, blob, filename);
+          // Save metadata to offlineStore for native offline mode
+          useOfflineStore.getState().addDownloadedSong({
+            songId: song.id,
+            title,
+            artist,
+            albumArt: bestImg(song.image) || "",
+            duration: Number(song.duration) || 0,
+            filePath: nativePath,
+            downloadedAt: Date.now(),
+            fileSize: blob.size,
+          });
+        }
       } catch {
-        /* IndexedDB save failed, still download file */
+        /* IndexedDB / native save failed, still download file */
       }
     }
 
-    // Also trigger browser download
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objectUrl);
+    // Trigger browser download only on web (not on native APK)
+    if (!isNative()) {
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    }
 
     store.setStatus(song.id, "done");
+    notificationFeedback("success");
     toast.success(`${title} saved!`);
 
     // Auto-remove from active list after 2s
@@ -121,6 +151,7 @@ export async function downloadSong(
     }, 2000);
   } catch {
     store.setStatus(song.id, "error");
+    notificationFeedback("error");
     toast.error(`Failed to download ${title}`);
 
     // Auto-remove error after 4s

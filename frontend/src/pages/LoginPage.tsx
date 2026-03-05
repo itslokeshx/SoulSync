@@ -2,8 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { motion } from "framer-motion";
-import { Music2, Headphones, Users, Zap, ShieldOff } from "lucide-react";
+import {
+  Music2,
+  Headphones,
+  Users,
+  Zap,
+  ShieldOff,
+  Download,
+  Chrome,
+} from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 
 /* ── EQ visualizer bars ─────────────────────────────────────── */
@@ -236,30 +245,71 @@ export default function LoginPage() {
                     <div className="w-5 h-5 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
                   </motion.div>
                 )}
-                <GoogleLogin
-                  onSuccess={async (response) => {
-                    if (response.credential) {
+                {isNative() ? (
+                  /* Native APK: open Google OAuth in system browser */
+                  <button
+                    onClick={async () => {
                       setLoggingIn(true);
                       try {
-                        const { isNewUser } = await login(response.credential);
-                        navigate(isNewUser ? "/onboarding" : "/", {
-                          replace: true,
+                        const backendUrl =
+                          import.meta.env.VITE_BACKEND_URL ||
+                          "http://localhost:4000";
+                        const { Browser } = await import("@capacitor/browser");
+                        await Browser.open({
+                          url: `${backendUrl}/api/auth/google/native`,
+                          windowName: "_system",
                         });
                       } catch {
-                        toast.error("Login failed. Please try again.");
+                        toast.error("Could not open browser for sign-in");
                       } finally {
                         setLoggingIn(false);
                       }
-                    }
-                  }}
-                  onError={() => toast.error("Google sign-in failed")}
-                  theme="filled_black"
-                  size="large"
-                  shape="pill"
-                  text="continue_with"
-                  width="280"
-                />
+                    }}
+                    className="flex items-center gap-3 px-6 py-3 rounded-full bg-white text-black text-[14px] font-semibold hover:bg-gray-100 active:scale-95 transition-all shadow-lg"
+                  >
+                    <Chrome size={18} />
+                    Continue with Google
+                  </button>
+                ) : (
+                  /* Web: use standard Google OAuth component */
+                  <GoogleLogin
+                    onSuccess={async (response) => {
+                      if (response.credential) {
+                        setLoggingIn(true);
+                        try {
+                          const { isNewUser } = await login(
+                            response.credential,
+                          );
+                          navigate(isNewUser ? "/onboarding" : "/", {
+                            replace: true,
+                          });
+                        } catch {
+                          toast.error("Login failed. Please try again.");
+                        } finally {
+                          setLoggingIn(false);
+                        }
+                      }
+                    }}
+                    onError={() => toast.error("Google sign-in failed")}
+                    theme="filled_black"
+                    size="large"
+                    shape="pill"
+                    text="continue_with"
+                    width="280"
+                  />
+                )}
               </div>
+
+              {/* Native APK: skip login → offline mode */}
+              {isNative() && (
+                <button
+                  onClick={() => navigate("/offline", { replace: true })}
+                  className="mt-3 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] border border-white/[0.06] hover:bg-white/[0.1] transition-all text-white/50 text-sm font-medium"
+                >
+                  <Download size={14} className="text-amber-400" />
+                  Continue offline
+                </button>
+              )}
             </div>
 
             {/* Divider */}

@@ -1,11 +1,64 @@
 import axios from "axios";
 import { Playlist, AIPlaylistResult } from "../types/playlist";
 import { User, UserStats } from "../types/user";
+import { isNative } from "../utils/platform";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL || "http://localhost:4000",
   withCredentials: true,
   timeout: 30000,
+});
+
+// ── Native token management ──
+let _nativeToken: string | null = null;
+
+export function setNativeToken(token: string | null) {
+  _nativeToken = token;
+}
+
+export function getNativeToken(): string | null {
+  return _nativeToken;
+}
+
+/** Load token from Capacitor Preferences (call once on app start) */
+export async function loadNativeToken(): Promise<string | null> {
+  if (!isNative()) return null;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key: "auth_token" });
+    if (value) _nativeToken = value;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+/** Save token to Capacitor Preferences */
+export async function saveNativeToken(token: string): Promise<void> {
+  _nativeToken = token;
+  if (!isNative()) return;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key: "auth_token", value: token });
+  } catch {}
+}
+
+/** Clear stored native token */
+export async function clearNativeToken(): Promise<void> {
+  _nativeToken = null;
+  if (!isNative()) return;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.remove({ key: "auth_token" });
+  } catch {}
+}
+
+// Attach Bearer token for native requests
+api.interceptors.request.use((config) => {
+  if (isNative() && _nativeToken) {
+    config.headers.Authorization = `Bearer ${_nativeToken}`;
+  }
+  return config;
 });
 
 // Wake up backend on first load (Render free tier sleeps after 15 min)
@@ -37,6 +90,10 @@ export async function loginWithGoogle(
           timeout: 30000,
         },
       );
+      // On native, store the JWT token for session persistence
+      if (data.token) {
+        await saveNativeToken(data.token);
+      }
       return data;
     } catch (err) {
       lastErr = err;
@@ -50,6 +107,7 @@ export async function loginWithGoogle(
 
 export async function logout(): Promise<void> {
   await api.post("/api/auth/logout");
+  await clearNativeToken();
 }
 
 export async function getMe(): Promise<User | null> {

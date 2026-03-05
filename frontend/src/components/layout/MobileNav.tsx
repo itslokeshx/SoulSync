@@ -10,8 +10,8 @@ export const MobileNav = () => {
     location.pathname === "/"
       ? "home"
       : location.pathname.slice(1).split("/")[0];
-  const hasActiveDownloads = useDownloadStore(
-    (s) => s.active.some((d) => d.status === "downloading" || d.status === "saving"),
+  const hasActiveDownloads = useDownloadStore((s) =>
+    s.active.some((d) => d.status === "downloading" || d.status === "saving"),
   );
 
   return (
@@ -37,8 +37,9 @@ export const MobileNav = () => {
         <button
           key={id}
           onClick={() => navigate(path)}
-          className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${view === id ? "text-sp-green" : "text-white/40 active:text-white"
-            }`}
+          className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${
+            view === id ? "text-sp-green" : "text-white/40 active:text-white"
+          }`}
         >
           {view === id && (
             <span

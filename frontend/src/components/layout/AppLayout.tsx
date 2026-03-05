@@ -27,6 +27,16 @@ import { useUIStore } from "../../store/uiStore";
 import { AppContext } from "../../context/AppContext";
 import { ContextMenu } from "../ui/ContextMenu";
 import { AIPlaylistModal } from "../ui/AIPlaylistModal";
+import {
+  registerMediaControls,
+  updateMediaMetadata,
+  clearMediaMetadata,
+} from "../../capacitor/musicControls";
+import {
+  initBackgroundAudio,
+  registerPlayerGetters,
+} from "../../capacitor/lifecycle";
+import { isNative } from "../../utils/platform";
 import toast from "react-hot-toast";
 
 const API =
@@ -500,6 +510,35 @@ export function AppLayout() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [handlePlayPause, handleNext, handlePrev, handleVolume]);
+
+  // ── Media controls (lock screen / notification) ──
+  useEffect(() => {
+    registerMediaControls({
+      onPlay: handlePlayPause,
+      onPause: handlePlayPause,
+      onNext: handleNext,
+      onPrev: handlePrev,
+    });
+  }, [handlePlayPause, handleNext, handlePrev]);
+
+  // Update media metadata when current song changes
+  useEffect(() => {
+    if (currentSong) {
+      updateMediaMetadata(currentSong, isPlaying);
+    } else {
+      clearMediaMetadata();
+    }
+  }, [currentSong?.id, isPlaying]); // eslint-disable-line
+
+  // ── Background audio lifecycle (native only) ──
+  useEffect(() => {
+    if (!isNative()) return;
+    registerPlayerGetters(
+      () => csRef.current,
+      () => (audioRef.current ? !audioRef.current.paused : false),
+    );
+    initBackgroundAudio();
+  }, []);
 
   const jumpToQueue = useCallback(
     (idx: number) => {
