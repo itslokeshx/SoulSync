@@ -45,6 +45,8 @@ function findSocketRoom(socketId: string): string | null {
 }
 
 export function setupRoomHandlers(io: Server, socket: Socket): void {
+  console.log(`[Duo] Setting up handlers for socket ${socket.id}`);
+
   // ── Join a room ─────────────────────────────────────────────────────
   // Frontend sends: { code, name, role }
   socket.on(
@@ -58,7 +60,13 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       name: string;
       role: "host" | "guest";
     }) => {
-      if (!code || !name) return;
+      console.log(
+        `[Duo] duo:join received → code=${code}, name=${name}, role=${role}, socket=${socket.id}`,
+      );
+      if (!code || !name) {
+        console.warn(`[Duo] duo:join rejected: missing code or name`);
+        return;
+      }
       const roomCode = code.toUpperCase();
 
       // Leave any previous rooms this socket was in
@@ -130,6 +138,10 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       console.log(
         `[Duo] ${role} "${name}" joined room ${roomCode} (socket: ${socket.id})`,
       );
+      console.log(
+        `[Duo] Room ${roomCode} state → host: ${room.host.name}(${room.host.connected ? "✅" : "❌"}), guest: ${room.guest.name || "none"}(${room.guest.connected ? "✅" : "❌"})`,
+      );
+      console.log(`[Duo] Active rooms: ${rooms.size}`);
     },
   );
 

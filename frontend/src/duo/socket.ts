@@ -18,8 +18,9 @@ export function getSocket(): Socket {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      timeout: 15_000,
-      transports: ["websocket", "polling"],
+      timeout: 20_000,
+      // Must match server order: polling first, then upgrade to websocket
+      transports: ["polling", "websocket"],
       auth: () => {
         const token = getNativeToken();
         return token ? { token } : {};
@@ -27,7 +28,12 @@ export function getSocket(): Socket {
     });
 
     socket.on("connect", () => {
-      console.log("[DuoSocket] ✅ Connected:", socket?.id);
+      console.log(
+        "[DuoSocket] ✅ Connected:",
+        socket?.id,
+        "transport:",
+        socket?.io?.engine?.transport?.name,
+      );
     });
 
     socket.on("disconnect", (reason) => {
@@ -36,6 +42,10 @@ export function getSocket(): Socket {
 
     socket.on("connect_error", (err) => {
       console.warn("[DuoSocket] Connection error:", err.message);
+    });
+
+    socket.on("reconnect_attempt", (attempt) => {
+      console.log("[DuoSocket] Reconnect attempt", attempt);
     });
   }
   return socket;
