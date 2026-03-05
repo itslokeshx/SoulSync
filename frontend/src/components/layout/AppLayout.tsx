@@ -459,6 +459,23 @@ export function AppLayout() {
     toast.success("Removed from queue");
   }, []);
 
+  const shuffleQueue = useCallback(() => {
+    setQueue((prev) => {
+      const idx = qiRef.current;
+      const before = prev.slice(0, idx + 1);
+      const after = [...prev.slice(idx + 1)];
+      // Fisher-Yates shuffle on upcoming songs
+      for (let i = after.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [after[i], after[j]] = [after[j], after[i]];
+      }
+      const next = [...before, ...after];
+      qRef.current = next;
+      return next;
+    });
+    toast.success("Queue shuffled");
+  }, []);
+
   // ── Keyboard shortcuts ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -671,6 +688,12 @@ export function AppLayout() {
             onRepeat={cycleRepeat}
             onLike={handleLike}
             onPlaySong={(song: any) => playSong(song, [])}
+            queue={queue}
+            queueIndex={queueIndex}
+            onJump={jumpToQueue}
+            onMove={moveInQueue}
+            onRemove={removeFromQueue}
+            onShuffleQueue={shuffleQueue}
           />
         )}
 

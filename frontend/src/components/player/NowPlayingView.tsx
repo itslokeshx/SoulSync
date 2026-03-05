@@ -13,6 +13,10 @@ import {
   Heart,
   ChevronDown,
   MoreHorizontal,
+  ListMusic,
+  GripVertical,
+  Trash2,
+  Music,
 } from "lucide-react";
 import {
   bestImg,
@@ -23,6 +27,7 @@ import {
 } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
+import { EqBars } from "../ui/EqBars";
 
 const API =
   import.meta.env.VITE_JIOSAAVN_API || "https://jiosaavn.rajputhemant.dev";
@@ -48,6 +53,13 @@ interface NowPlayingViewProps {
   onRepeat: () => void;
   onLike: (song: any) => void;
   onPlaySong?: (song: any) => void;
+  // Queue props
+  queue?: any[];
+  queueIndex?: number;
+  onJump?: (index: number) => void;
+  onMove?: (from: number, to: number) => void;
+  onRemove?: (index: number) => void;
+  onShuffleQueue?: () => void;
 }
 
 export const NowPlayingView = ({
@@ -71,10 +83,63 @@ export const NowPlayingView = ({
   onRepeat,
   onLike,
   onPlaySong,
+  queue = [],
+  queueIndex = -1,
+  onJump,
+  onMove,
+  onRemove,
+  onShuffleQueue,
 }: NowPlayingViewProps) => {
   const [bgColor, setBgColor] = useState("#18181a");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showVol, setShowVol] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
+
+  // Queue drag state
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const dragNodeRef = useRef<HTMLDivElement | null>(null);
+  const upcoming = queue.slice(queueIndex + 1);
+  const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
+
+  const handleDragStart = useCallback((e: React.DragEvent, relIdx: number) => {
+    setDragIdx(relIdx);
+    dragNodeRef.current = e.currentTarget as HTMLDivElement;
+    e.dataTransfer.effectAllowed = "move";
+    const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
+    ghost.style.opacity = "0.6";
+    ghost.style.position = "absolute";
+    ghost.style.top = "-1000px";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 20, 20);
+    requestAnimationFrame(() => document.body.removeChild(ghost));
+  }, []);
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, relIdx: number) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (dragIdx !== null && relIdx !== dragIdx) setOverIdx(relIdx);
+    },
+    [dragIdx],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, relIdx: number) => {
+      e.preventDefault();
+      if (dragIdx !== null && dragIdx !== relIdx) {
+        onMove?.(toAbsolute(dragIdx), toAbsolute(relIdx));
+      }
+      setDragIdx(null);
+      setOverIdx(null);
+    },
+    [dragIdx, onMove, queueIndex],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragIdx(null);
+    setOverIdx(null);
+  }, []);
   const volTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const volRef = useRef<HTMLDivElement>(null);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
@@ -160,12 +225,21 @@ export const NowPlayingView = ({
             {currentSong.album?.name || ""}
           </p>
         </div>
-        <button
-          onClick={(e) => showContextMenu(e.clientX, e.clientY, currentSong)}
-          className="text-white/40 hover:text-white transition-all p-2.5 rounded-xl hover:bg-white/10 active:scale-95"
-        >
-          <MoreHorizontal size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowQueue((q) => !q)}
+            className={`transition-all p-2.5 rounded-xl active:scale-95 ${showQueue ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/10"}`}
+            aria-label="Up Next"
+          >
+            <ListMusic size={20} />
+          </button>
+          <button
+            onClick={(e) => showContextMenu(e.clientX, e.clientY, currentSong)}
+            className="text-white/40 hover:text-white transition-all p-2.5 rounded-xl hover:bg-white/10 active:scale-95"
+          >
+            <MoreHorizontal size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row items-center justify-center px-4 sm:px-8 lg:px-0 gap-4 sm:gap-6 lg:gap-0 min-h-0 relative overflow-y-auto lg:overflow-hidden thin-scrollbar py-2 sm:pb-8 lg:py-0">
@@ -359,43 +433,166 @@ export const NowPlayingView = ({
             </button>
           </div>
 
-          {/* Song Suggestions */}
-          {suggestions.length > 0 && (
+          {/* Song Suggestions / Up Next Queue toggle */}
+          {showQueue ? (
+            /* ── Up Next Queue ────────────────────────────── */
             <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.06]">
-              <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3">
-                Similar Songs
+              {/* Now playing row */}
+              <p className="text-[10px] font-bold text-sp-green uppercase tracking-[0.15em] mb-2">
+                Now Playing
               </p>
-              <div className="space-y-1.5">
-                {suggestions.map((s: any) => {
-                  const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => onPlaySong?.(s)}
-                      className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] transition-all group"
-                    >
-                      <img
-                        src={sImg}
-                        onError={onImgErr}
-                        className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">
-                          {s.name}
-                        </p>
-                        <p className="text-[11px] text-white/30 truncate">
-                          {getArtists(s)}
-                        </p>
+              <div className="flex items-center gap-3 p-2 rounded-xl bg-sp-green/[0.08] border border-sp-green/10 mb-4">
+                <img
+                  src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
+                  onError={onImgErr}
+                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-sp-green truncate">
+                    {currentSong.name}
+                  </p>
+                  <p className="text-[11px] text-white/40 truncate">
+                    {artists}
+                  </p>
+                </div>
+                <EqBars />
+              </div>
+
+              {/* Next Up header */}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.15em]">
+                  Next Up · {upcoming.length}{" "}
+                  {upcoming.length === 1 ? "song" : "songs"}
+                </p>
+                {upcoming.length > 1 && (
+                  <button
+                    onClick={onShuffleQueue}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 active:scale-95 bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white"
+                    title="Shuffle upcoming queue"
+                  >
+                    <Shuffle size={12} />
+                    Shuffle
+                  </button>
+                )}
+              </div>
+
+              {/* Queue list */}
+              <div className="max-h-48 sm:max-h-56 lg:max-h-72 overflow-y-auto hide-scrollbar space-y-0.5">
+                {upcoming.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Music size={32} className="text-white/10 mb-3" />
+                    <p className="text-white/30 text-sm font-medium">
+                      Nothing queued up
+                    </p>
+                    <p className="text-white/15 text-xs mt-1">
+                      Play a song to get started
+                    </p>
+                  </div>
+                ) : (
+                  upcoming.map((s, i) => {
+                    const isDragging = dragIdx === i;
+                    const isOver = overIdx === i;
+                    const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
+                    return (
+                      <div
+                        key={`${s.id}-${i}`}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, i)}
+                        onDragOver={(e) => handleDragOver(e, i)}
+                        onDrop={(e) => handleDrop(e, i)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${
+                          isDragging
+                            ? "opacity-30 scale-95"
+                            : isOver
+                              ? "bg-sp-green/10 border border-sp-green/20"
+                              : "hover:bg-white/[0.04] border border-transparent"
+                        }`}
+                      >
+                        {/* Drag handle */}
+                        <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">
+                          <GripVertical size={14} />
+                        </div>
+
+                        {/* Song info — tap to jump */}
+                        <button
+                          onClick={() => onJump?.(toAbsolute(i))}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          <img
+                            src={sImg}
+                            onError={onImgErr}
+                            className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] text-white truncate">
+                              {s.name}
+                            </p>
+                            <p className="text-[11px] text-white/30 truncate">
+                              {getArtists(s)}
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Duration + remove */}
+                        <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+                          {fmt(s.duration)}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemove?.(toAbsolute(i));
+                          }}
+                          className="p-1 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          title="Remove from queue"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
-                      <Play
-                        size={14}
-                        className="text-white/20 group-hover:text-white flex-shrink-0 transition-colors"
-                      />
-                    </button>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
+          ) : (
+            /* ── Song Suggestions (default) ──────────────── */
+            suggestions.length > 0 && (
+              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.06]">
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3">
+                  Similar Songs
+                </p>
+                <div className="space-y-1.5">
+                  {suggestions.map((s: any) => {
+                    const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => onPlaySong?.(s)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] transition-all group"
+                      >
+                        <img
+                          src={sImg}
+                          onError={onImgErr}
+                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">
+                            {s.name}
+                          </p>
+                          <p className="text-[11px] text-white/30 truncate">
+                            {getArtists(s)}
+                          </p>
+                        </div>
+                        <Play
+                          size={14}
+                          className="text-white/20 group-hover:text-white flex-shrink-0 transition-colors"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )
           )}
         </div>
       </div>
