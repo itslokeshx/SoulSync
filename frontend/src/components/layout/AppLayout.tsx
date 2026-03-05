@@ -179,6 +179,16 @@ export function AppLayout() {
           setIsPlaying(true);
           setCurrentTime(0);
           addRecent(target);
+
+          // Set queue for offline songs too
+          if (newQueue.length > 0) {
+            setQueue(newQueue);
+            const idx = newQueue.findIndex((s: any) => s.id === song.id);
+            setQueueIndex(idx);
+            qRef.current = newQueue;
+            qiRef.current = idx;
+          }
+
           audio.play().catch(() => {});
           return;
         }

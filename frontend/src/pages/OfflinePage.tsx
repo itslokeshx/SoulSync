@@ -61,28 +61,37 @@ export default function OfflinePage({ playSong }: OfflinePageProps) {
   const handlePlay = async (song: OfflineSong, allSongs: OfflineSong[]) => {
     if (!playSong) return;
     try {
-      const blob = await getOfflineBlob(song.id);
-      if (!blob) {
+      // Build playable song objects for all songs in the queue
+      const queueObjs: any[] = [];
+      for (const s of allSongs) {
+        const blob = await getOfflineBlob(s.id);
+        if (!blob) continue;
+
+        const oldUrl = blobUrlsRef.current.get(s.id);
+        if (oldUrl) URL.revokeObjectURL(oldUrl);
+
+        const blobUrl = URL.createObjectURL(blob);
+        blobUrlsRef.current.set(s.id, blobUrl);
+
+        queueObjs.push({
+          id: s.id,
+          name: s.name,
+          image: s.image,
+          duration: s.duration,
+          primaryArtists: s.artist,
+          downloadUrl: [{ quality: "320kbps", url: blobUrl }],
+          _isOffline: true,
+        });
+      }
+
+      // Find the target song in the built queue
+      const target = queueObjs.find((s) => s.id === song.id);
+      if (!target) {
         toast.error("Audio file not found");
         return;
       }
-      const oldUrl = blobUrlsRef.current.get(song.id);
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
 
-      const blobUrl = URL.createObjectURL(blob);
-      blobUrlsRef.current.set(song.id, blobUrl);
-
-      const songObj = {
-        id: song.id,
-        name: song.name,
-        image: song.image,
-        duration: song.duration,
-        primaryArtists: song.artist,
-        downloadUrl: [{ quality: "320kbps", url: blobUrl }],
-        _isOffline: true,
-      } as any;
-
-      playSong(songObj, [songObj]);
+      playSong(target, queueObjs);
     } catch {
       toast.error("Failed to play song");
     }
