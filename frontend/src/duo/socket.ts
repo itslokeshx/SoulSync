@@ -13,11 +13,15 @@ export function getSocket(): Socket {
       autoConnect: false,
       withCredentials: true,
       reconnection: true,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: 15,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      timeout: 15_000,
-      transports: ["websocket", "polling"],
+      timeout: 20_000,
+      // Start with polling (works reliably through any proxy/CDN),
+      // then upgrade to websocket once the connection is established.
+      transports: ["polling", "websocket"],
+      upgrade: true,
+      rememberUpgrade: true,
       auth: () => {
         const token = getNativeToken();
         return token ? { token } : {};

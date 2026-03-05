@@ -12,6 +12,9 @@ export function initializeSocket(httpServer: HttpServer): Server {
     process.env.FRONTEND_URL || "http://localhost:5173"
   ).replace(/\/+$/, "");
   const io = new Server(httpServer, {
+    // Start with polling then upgrade — matches client config
+    transports: ["polling", "websocket"],
+    allowUpgrades: true,
     cors: {
       origin: (origin, callback) => {
         if (!origin) return callback(null, true);
@@ -24,6 +27,9 @@ export function initializeSocket(httpServer: HttpServer): Server {
         if (origin === FRONTEND_URL) return callback(null, true);
         if (/^http:\/\/localhost:\d+$/.test(origin))
           return callback(null, true);
+        // Allow any Vercel preview / production deploy
+        if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+        console.warn(`[Socket CORS] Blocked origin: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       },
       methods: ["GET", "POST"],

@@ -64,6 +64,8 @@ app.use(
       if (origin === FRONTEND_URL) return callback(null, true);
       // Allow localhost dev ports
       if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
+      // Allow any Vercel preview / production deploy
+      if (/\.vercel\.app$/.test(origin)) return callback(null, true);
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
