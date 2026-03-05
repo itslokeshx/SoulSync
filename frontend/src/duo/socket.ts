@@ -19,8 +19,9 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20_000,
-      // Must match server order: polling first, then upgrade to websocket
-      transports: ["polling", "websocket"],
+      // websocket first — bypasses Express middleware (helmet/cors/rate-limiter)
+      // polling as fallback for restrictive networks
+      transports: ["websocket", "polling"],
       auth: () => {
         const token = getNativeToken();
         return token ? { token } : {};
@@ -49,6 +50,29 @@ export function getSocket(): Socket {
     });
   }
   return socket;
+}
+
+/**
+ * Connect the socket and return a Promise that resolves once connected.
+ * If already connected, resolves immediately.
+ */
+export function waitForConnection(timeoutMs = 10_000): Promise<Socket> {
+  const s = getSocket();
+  if (s.connected) return Promise.resolve(s);
+  if (!s.active) s.connect();
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      s.off("connect", onConnect);
+      reject(new Error("Socket connection timed out"));
+    }, timeoutMs);
+
+    function onConnect() {
+      clearTimeout(timer);
+      resolve(s);
+    }
+    s.once("connect", onConnect);
+  });
 }
 
 export function connectSocket(): Socket {

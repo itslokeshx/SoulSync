@@ -1,5 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
-import { connectSocket, disconnectSocket, getSocket } from "./socket";
+import {
+  connectSocket,
+  disconnectSocket,
+  getSocket,
+  waitForConnection,
+} from "./socket";
 import { useDuoStore, getPersistedSession } from "./duoStore";
 import { getNativeToken } from "../api/backend";
 import { isNative } from "../utils/platform";
@@ -65,17 +70,22 @@ export function useDuo({
           return null;
         }
 
-        const socket = connectSocket();
-        socket.emit("duo:join", {
-          code: data.code,
-          name: hostName,
-          role: "host",
-        });
-
+        // Set store FIRST so role is ready for socket event handlers
         store.getState().startSession({
           role: "host",
           roomCode: data.code,
           myName: hostName,
+        });
+
+        // Wait for socket to actually connect before emitting
+        console.log("[Duo] Connecting socket for host…");
+        const socket = await waitForConnection();
+        console.log("[Duo] Socket connected, emitting duo:join as host");
+
+        socket.emit("duo:join", {
+          code: data.code,
+          name: hostName,
+          role: "host",
         });
 
         // Sync current song to the room so guest gets it on join
@@ -118,17 +128,28 @@ export function useDuo({
           return false;
         }
 
-        const socket = connectSocket();
-        socket.emit("duo:join", {
-          code: code.toUpperCase(),
-          name: guestName,
-          role: "guest",
-        });
-
+        // Set store FIRST so role is ready for socket event handlers
         store.getState().startSession({
           role: "guest",
           roomCode: code.toUpperCase(),
           myName: guestName,
+        });
+
+        // Extract host name from HTTP response and mark partner connected
+        const hostName = data.session?.host?.name;
+        if (hostName) {
+          store.getState().partnerJoined({ name: hostName });
+        }
+
+        // Wait for socket to actually connect before emitting
+        console.log("[Duo] Connecting socket for guest…");
+        const socket = await waitForConnection();
+        console.log("[Duo] Socket connected, emitting duo:join as guest");
+
+        socket.emit("duo:join", {
+          code: code.toUpperCase(),
+          name: guestName,
+          role: "guest",
         });
 
         addToast("Joined SoulLink session! 🎧", "success");
@@ -192,13 +213,21 @@ export function useDuo({
   useEffect(() => {
     const saved = getPersistedSession();
     if (saved?.roomCode && saved?.myName && saved?.role) {
-      const socket = connectSocket();
-      socket.emit("duo:join", {
-        code: saved.roomCode,
-        name: saved.myName,
-        role: saved.role,
-      });
+      console.log("[Duo] Persisted session found, rejoining…", saved.roomCode);
       addToast("Reconnecting to SoulLink…", "info");
+      waitForConnection()
+        .then((socket) => {
+          console.log("[Duo] Reconnected, emitting duo:join");
+          socket.emit("duo:join", {
+            code: saved.roomCode,
+            name: saved.myName,
+            role: saved.role,
+          });
+        })
+        .catch(() => {
+          console.warn("[Duo] Rejoin failed — clearing stale session");
+          store.getState().fullReset();
+        });
     }
   }, []); // eslint-disable-line
 
