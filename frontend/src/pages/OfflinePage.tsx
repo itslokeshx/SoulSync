@@ -8,13 +8,14 @@ import {
   Music2,
   LogIn,
   HardDrive,
+  FolderOpen,
 } from "lucide-react";
-import { useNetwork } from "../hooks/useNetwork";
 import {
   getOfflineSongs,
   getOfflineBlob,
   removeOfflineSong,
   getOfflineStorageSize,
+  saveOfflineSong,
   type OfflineSong,
 } from "../utils/offlineDB";
 import { bestImg, onImgErr, fmt } from "../lib/helpers";
@@ -27,11 +28,11 @@ interface OfflinePageProps {
 }
 
 export default function OfflinePage({ playSong }: OfflinePageProps) {
-  const { isOnline } = useNetwork();
   const [songs, setSongs] = useState<OfflineSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [storageSize, setStorageSize] = useState("0 KB");
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -109,8 +110,74 @@ export default function OfflinePage({ playSong }: OfflinePageProps) {
     refresh();
   };
 
+  const handleImportLocal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    let imported = 0;
+    for (const file of Array.from(files)) {
+      try {
+        const name = file.name.replace(/\.[^/.]+$/, ""); // strip extension
+        const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        // Try to get duration from audio element
+        let duration = 0;
+        try {
+          const tempUrl = URL.createObjectURL(file);
+          const audio = new Audio(tempUrl);
+          duration = await new Promise<number>((resolve) => {
+            audio.addEventListener("loadedmetadata", () => {
+              resolve(Math.round(audio.duration));
+              URL.revokeObjectURL(tempUrl);
+            });
+            audio.addEventListener("error", () => {
+              resolve(0);
+              URL.revokeObjectURL(tempUrl);
+            });
+          });
+        } catch {
+          // ignore duration detection errors
+        }
+
+        const song: OfflineSong = {
+          id,
+          name,
+          artist: "Local file",
+          albumArt: "",
+          image: [],
+          downloadUrl: [],
+          duration,
+          savedAt: Date.now(),
+        };
+
+        await saveOfflineSong(song, file);
+        imported++;
+      } catch {
+        toast.error(`Failed to import "${file.name}"`);
+      }
+    }
+
+    if (imported > 0) {
+      toast.success(`Imported ${imported} song${imported > 1 ? "s" : ""}`);
+      refresh();
+    }
+
+    // Reset input so same file can be re-imported
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <div className="min-h-screen bg-sp-black">
+      {/* Hidden file input for local import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        multiple
+        className="hidden"
+        onChange={handleImportLocal}
+      />
+
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-2xl bg-[#060606]/90 border-b border-white/[0.04]">
         <div className="flex items-center justify-between px-5 py-4">
@@ -133,10 +200,7 @@ export default function OfflinePage({ playSong }: OfflinePageProps) {
         {/* Offline banner */}
         <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-500/[0.08] border-l-[3px] border-amber-500">
           <span className="text-amber-200/80 text-[12px]">
-            📶 {isOnline ? "Offline mode active" : "No internet connection"}
-          </span>
-          <span className="text-amber-200/50 text-[11px] hidden sm:block">
-            — Playing your downloaded songs
+            📶 Offline mode — Playing your downloaded songs
           </span>
         </div>
       </div>
@@ -162,6 +226,13 @@ export default function OfflinePage({ playSong }: OfflinePageProps) {
                   <span>{storageSize} stored on device</span>
                 </div>
               </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/50 text-[12px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
+              >
+                <FolderOpen size={13} />
+                Import
+              </button>
             </div>
 
             {/* Action buttons */}
@@ -242,17 +313,24 @@ export default function OfflinePage({ playSong }: OfflinePageProps) {
               No offline songs yet
             </h3>
             <p className="text-white/20 text-sm mb-8 max-w-xs">
-              Download songs while online to listen here without internet
+              Import songs from your device or download songs while online
             </p>
-            {isOnline && (
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
+              >
+                <FolderOpen size={16} />
+                Import from device
+              </button>
               <button
                 onClick={() => (window.location.href = "/login")}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
+                className="flex items-center gap-2 px-6 py-3 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
               >
                 <LogIn size={16} />
                 Sign in to download
               </button>
-            )}
+            </div>
           </div>
         )}
 
@@ -262,14 +340,12 @@ export default function OfflinePage({ playSong }: OfflinePageProps) {
             <p className="text-white/20 text-[12px] mb-3">
               Sign in when online to access millions of songs
             </p>
-            {isOnline && (
-              <button
-                onClick={() => (window.location.href = "/login")}
-                className="px-5 py-2 rounded-full bg-sp-green text-black text-[12px] font-bold hover:brightness-110 active:scale-95 transition-all"
-              >
-                Sign In
-              </button>
-            )}
+            <button
+              onClick={() => (window.location.href = "/login")}
+              className="px-5 py-2 rounded-full bg-sp-green text-black text-[12px] font-bold hover:brightness-110 active:scale-95 transition-all"
+            >
+              Sign In
+            </button>
           </div>
         )}
       </div>

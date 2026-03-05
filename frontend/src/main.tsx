@@ -7,9 +7,29 @@ import { Toaster } from "react-hot-toast";
 import App from "./App";
 import "./index.css";
 import { initCapacitor } from "./capacitor";
+import { isNative } from "./utils/platform";
+import { saveNativeToken } from "./api/backend";
 
 // Initialise native plugins (no-op on web)
 initCapacitor();
+
+// Listen for deep link auth callback (native Google OAuth flow)
+if (isNative()) {
+  import("@capacitor/app").then(({ App: CapApp }) => {
+    CapApp.addListener("appUrlOpen", async ({ url }) => {
+      // Handle auth-callback deep link: com.soulsync.app://auth-callback?token=...
+      if (url.includes("auth-callback")) {
+        const params = new URL(url).searchParams;
+        const token = params.get("token");
+        if (token) {
+          await saveNativeToken(token);
+          // Reload to let AuthContext pick up the new token
+          window.location.href = "/";
+        }
+      }
+    });
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
