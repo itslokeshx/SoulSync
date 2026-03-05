@@ -58,17 +58,17 @@ export function useDuo({
           return null;
         }
 
+        store.getState().startSession({
+          role: "host",
+          roomCode: data.code,
+          myName: hostName,
+        });
+
         const socket = connectSocket();
         socket.emit("duo:join", {
           code: data.code,
           name: hostName,
           role: "host",
-        });
-
-        store.getState().startSession({
-          role: "host",
-          roomCode: data.code,
-          myName: hostName,
         });
 
         const cs = currentSongRef?.current;
@@ -118,17 +118,17 @@ export function useDuo({
           return false;
         }
 
+        store.getState().startSession({
+          role: "guest",
+          roomCode: code.toUpperCase(),
+          myName: guestName,
+        });
+
         const socket = connectSocket();
         socket.emit("duo:join", {
           code: code.toUpperCase(),
           name: guestName,
           role: "guest",
-        });
-
-        store.getState().startSession({
-          role: "guest",
-          roomCode: code.toUpperCase(),
-          myName: guestName,
         });
 
         addToast("Joined SoulLink session! 🎧", "success");

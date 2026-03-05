@@ -95,7 +95,7 @@ export const useDuoStore = create<DuoState>((set, get) => ({
       roomCode,
       myName,
       modalOpen: false,
-      partnerConnected: false,
+      // Don't reset partnerConnected — setSessionState handles it
       songHistory: [],
       messages: [],
     });

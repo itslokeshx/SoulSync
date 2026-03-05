@@ -112,6 +112,15 @@ export const HomePage = () => {
 
   const firstName = user?.name?.split(" ")[0] || "there";
 
+  // ── Client-side greeting (server runs in UTC, so we override with local time)
+  const localGreeting = (() => {
+    const hr = new Date().getHours();
+    if (hr >= 5 && hr < 12) return `Good morning, ${firstName}`;
+    if (hr >= 12 && hr < 17) return `Good afternoon, ${firstName}`;
+    if (hr >= 17 && hr < 21) return `Good evening, ${firstName}`;
+    return `Good night, ${firstName}`;
+  })();
+
   // ── Mood click handler
   const onMoodClick = (mood: string) => {
     const q =
@@ -166,7 +175,7 @@ export const HomePage = () => {
       {/* Greeting */}
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-          {dashboard?.greeting || `Hey, ${firstName}`}
+          {localGreeting}
         </h1>
         <p className="text-white/30 text-sm mt-1">
           {dashboard?.subtitle || "Your music, your way"}

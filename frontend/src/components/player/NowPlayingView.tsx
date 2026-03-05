@@ -203,6 +203,8 @@ export const NowPlayingView = ({
     <div
       className="fixed inset-0 z-50 flex flex-col"
       style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         background:
           "radial-gradient(circle at 20% 30%, #1e1e20, transparent 60%),\n           radial-gradient(circle at 80% 70%, #101012, transparent 80%),\n           linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
       }}

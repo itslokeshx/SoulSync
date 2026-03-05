@@ -269,7 +269,7 @@ export default function OfflinePage() {
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-sp-black flex flex-col">
+    <div className="min-h-screen bg-sp-black flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={handleImportLocal} />
 
       {/* Header */}
@@ -364,7 +364,7 @@ export default function OfflinePage() {
 
       {/* Mini Player — tappable to open full-screen */}
       {currentSong && !npOpen && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-2xl border-t border-white/[0.06] px-4 pt-2 pb-5">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-2xl border-t border-white/[0.06] px-4 pt-2" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex items-center gap-2 mb-2.5">
             <span className="text-[10px] text-white/30 tabular-nums w-7 text-right">{fmt(currentTime)}</span>
             <div className="flex-1 relative h-1 bg-white/10 rounded-full overflow-hidden">
@@ -400,7 +400,7 @@ export default function OfflinePage() {
 
       {/* ══════ Full-Screen Now Playing View ══════ */}
       {currentSong && npOpen && (
-        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-[#1a1a1a] to-[#060606] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-[#1a1a1a] to-[#060606] flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           {/* Top bar */}
           <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
             <button onClick={() => setNpOpen(false)} className="p-2 -ml-2 text-white/60 hover:text-white transition-colors">
