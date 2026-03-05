@@ -94,7 +94,8 @@ export const useDuoStore = create<DuoState>((set, get) => ({
       role,
       roomCode,
       myName,
-      modalOpen: false,
+      // Don't set modalOpen here — let the caller decide.
+      // Create flow keeps modal open for room code; join flow closes it via handleJoin.
       partnerConnected: false,
       partnerName: "",
       songHistory: [],

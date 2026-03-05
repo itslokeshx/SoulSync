@@ -54,6 +54,7 @@ export function useDuo({
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const listenersAttachedRef = useRef(false);
+  const hasConnectedOnceRef = useRef(false);
   const store = useDuoStore;
 
   // ═══ CREATE SESSION ════════════════════════════════════════════════
@@ -74,32 +75,35 @@ export function useDuo({
           myName: hostName,
         });
 
-        // Wait for socket to actually connect before emitting
-        console.log("[Duo] Connecting socket for host…");
-        const socket = await waitForConnection();
-        console.log("[Duo] Socket connected, emitting duo:join as host");
-
-        socket.emit("duo:join", {
-          code: data.code,
-          name: hostName,
-          role: "host",
-        });
-
-        // Sync current song to the room so guest gets it on join
-        const cs = currentSongRef?.current;
-        if (cs) {
-          const q = queueRef?.current;
-          socket.emit("duo:sync-song-change", {
-            song: cs,
-            queue: q?.length ? q : [cs],
-            queueIndex: q?.length
-              ? Math.max(
-                  q.findIndex((s: any) => s.id === cs.id),
-                  0,
-                )
-              : 0,
+        // Start socket connection in background — don't block.
+        // The onConnect handler emits duo:join when connected.
+        console.log("[Duo] Starting socket connection for host…");
+        waitForConnection()
+          .then((sock) => {
+            console.log("[Duo] Socket connected for host");
+            // Sync current song to room so guest gets it on join
+            const cs = currentSongRef?.current;
+            if (cs) {
+              const q = queueRef?.current;
+              sock.emit("duo:sync-song-change", {
+                song: cs,
+                queue: q?.length ? q : [cs],
+                queueIndex: q?.length
+                  ? Math.max(
+                      q.findIndex((s: any) => s.id === cs.id),
+                      0,
+                    )
+                  : 0,
+              });
+            }
+          })
+          .catch((err) => {
+            console.warn(
+              "[Duo] Socket connection slow:",
+              err.message,
+              "— will auto-reconnect",
+            );
           });
-        }
 
         addToast(`SoulLink room created! Code: ${data.code}`, "success", 5000);
 
@@ -117,7 +121,8 @@ export function useDuo({
         }, 3000);
 
         return data.code;
-      } catch {
+      } catch (err) {
+        console.error("[Duo] Create error:", err);
         addToast("Failed to create SoulLink session", "error");
         return null;
       }
@@ -152,20 +157,21 @@ export function useDuo({
           store.getState().partnerJoined({ name: hostName });
         }
 
-        // Wait for socket to actually connect before emitting
-        console.log("[Duo] Connecting socket for guest…");
-        const socket = await waitForConnection();
-        console.log("[Duo] Socket connected, emitting duo:join as guest");
-
-        socket.emit("duo:join", {
-          code: code.toUpperCase(),
-          name: guestName,
-          role: "guest",
+        // Start socket connection in background — don't block.
+        // The onConnect handler emits duo:join when connected.
+        console.log("[Duo] Starting socket connection for guest…");
+        waitForConnection().catch((err) => {
+          console.warn(
+            "[Duo] Socket connection slow:",
+            err.message,
+            "— will auto-reconnect",
+          );
         });
 
         addToast("Joined SoulLink session! 🎧", "success");
         return true;
-      } catch {
+      } catch (err) {
+        console.error("[Duo] Join error:", err);
         addToast("Failed to join SoulLink session", "error");
         return false;
       }
@@ -217,6 +223,7 @@ export function useDuo({
     store.getState().endSession();
     disconnectSocket();
     listenersAttachedRef.current = false;
+    hasConnectedOnceRef.current = false;
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     addToast("SoulLink session ended", "info");
   }, [addToast]);
@@ -287,7 +294,7 @@ export function useDuo({
     const socket = getSocket();
     console.log("[Duo] Attaching socket event listeners (once)");
 
-    // Auto-rejoin room on socket reconnect (network drop / server restart)
+    // Join room on every socket connect (first connect & reconnects)
     const onConnect = () => {
       const saved = getPersistedSession();
       if (
@@ -296,13 +303,20 @@ export function useDuo({
         saved?.role &&
         store.getState().active
       ) {
-        console.log("[Duo] Socket reconnected, rejoining room", saved.roomCode);
+        const isReconnect = hasConnectedOnceRef.current;
+        hasConnectedOnceRef.current = true;
+        console.log(
+          `[Duo] Socket ${isReconnect ? "re" : ""}connected, joining room`,
+          saved.roomCode,
+        );
         socket.emit("duo:join", {
           code: saved.roomCode,
           name: saved.myName,
           role: saved.role,
         });
-        callbackRefs.current.addToast("Reconnected to SoulLink!", "success");
+        if (isReconnect) {
+          callbackRefs.current.addToast("Reconnected to SoulLink!", "success");
+        }
       }
     };
 
@@ -490,6 +504,7 @@ export function useDuo({
       disconnectSocket();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       listenersAttachedRef.current = false;
+      hasConnectedOnceRef.current = false;
       callbackRefs.current.addToast("SoulLink ended by partner", "info");
     };
 
