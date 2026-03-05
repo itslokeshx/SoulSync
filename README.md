@@ -38,44 +38,6 @@
 
 ---
 
-<br/>
-
-<div align="center">
-<table>
-<tr>
-<td align="center" width="20%">
-<img width="56" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f916.png" alt="AI" /><br/>
-<strong>AI Playlists</strong><br/>
-<sub>Describe a mood → get a<br/>curated playlist via LLaMA 3.3</sub>
-</td>
-<td align="center" width="20%">
-<img width="56" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f3a7.png" alt="SoulLink" /><br/>
-<strong>SoulLink</strong><br/>
-<sub>Listen together in real-time<br/>with synced playback & chat</sub>
-</td>
-<td align="center" width="20%">
-<img width="56" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/2728.png" alt="Smart" /><br/>
-<strong>Smart Dashboard</strong><br/>
-<sub>Personalized home built from<br/>your history & preferences</sub>
-</td>
-<td align="center" width="20%">
-<img width="56" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f4e5.png" alt="Offline" /><br/>
-<strong>Offline Mode</strong><br/>
-<sub>Download songs & play locally<br/>even without an account (APK)</sub>
-</td>
-<td align="center" width="20%">
-<img width="56" src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/1f4f1.png" alt="APK" /><br/>
-<strong>Native Android</strong><br/>
-<sub>Full APK via Capacitor —<br/>lock screen, haptics & more</sub>
-</td>
-</tr>
-</table>
-</div>
-
-<br/>
-
----
-
 ## 📱 Android APK
 
 > _One codebase. One backend. Two platforms. Zero compromise._
@@ -184,7 +146,7 @@ cd android && ./gradlew assembleRelease
 
 <div align="center">
 
-| Feature                       |       🟢 SoulSync       |  🔴 Spotify Free  |    🟡 Spotify Premium    |
+| Feature                       |        SoulSync         |   Spotify Free    |     Spotify Premium      |
 | ----------------------------- | :---------------------: | :---------------: | :----------------------: |
 | **Ad-free listening**         |        ✅ Always        | ❌ Ads every song |         ✅ Paid          |
 | **AI Playlist Builder**       |   ✅ Free, unlimited    | ❌ Not available  |     ❌ Not available     |
@@ -204,8 +166,6 @@ cd android && ./gradlew assembleRelease
 | **Monthly Price**             |     **₹0 forever**      |    ₹0 with ads    |      **₹119/month**      |
 
 </div>
-
-> 💬 **Bottom line** — SoulSync is what Spotify would look like if they actually cared about users more than revenue. And now it's a real Android app too.
 
 <br/>
 
@@ -318,17 +278,17 @@ The mobile player is a completely separate, touch-native design shared between m
 
 Built dynamically from your **listening history**, **language preferences**, and **time of day**.
 
-| Section                     | Description                                                                |
-| --------------------------- | -------------------------------------------------------------------------- |
-| 🎵 **Quick Grid**           | 6 recently played songs for instant replay                                 |
-| 🔄 **Continue Listening**   | Last 10 songs with album art                                               |
-| 🎤 **Artist Spotlight**     | Top listened artist with their songs                                       |
-| 🌍 **Language Sections**    | Personalized sections in your preferred languages                          |
-| ⏰ **Time-Based Mood**      | "Morning Fresh Hits", "Late Night Chill", etc.                             |
-| 💡 **Because You Listened** | Recommendations based on recent tracks                                     |
-| 📈 **Trending Now**         | Trending songs filtered by your languages                                  |
-| 😊 **Mood Grid**            | Clickable mood cards — Happy, Heartbreak, Party, Chill, Workout, Rainy Day |
-| 🆕 **New Releases**         | Latest songs in preferred languages                                        |
+| Section                  | Description                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| **Quick Grid**           | 6 recently played songs for instant replay                                       |
+| **Continue Listening**   | Last 10 songs as a horizontal scroll row                                         |
+| **Artist Spotlight**     | Most-played artist with their top songs                                          |
+| **Language Sections**    | Trending/top sections in each of your preferred languages                        |
+| **Time-Based Mood**      | "Morning Fresh Hits", "Afternoon Vibes", "Late Night Chill" based on time of day |
+| **Because You Listened** | Recommendations seeded from your 3 most recent tracks                            |
+| **Trending Now**         | Trending songs filtered by your language preferences                             |
+| **Mood Grid**            | 6 mood cards — Happy, Heartbreak, Party, Chill, Workout, Rainy Day               |
+| **New Releases**         | Latest releases in your preferred languages                                      |
 
 </details>
 
