@@ -7,6 +7,7 @@ interface KeyState {
   errors: number;
   lastErrorTime: number;
   rateLimitedUntil: number;
+  isInvalid?: boolean;
 }
 
 class GroqKeyManager {
@@ -50,8 +51,8 @@ class GroqKeyManager {
       this.roundRobinIndex++;
       const ks = this.keys[idx];
 
-      // Skip rate-limited keys
-      if (ks.rateLimitedUntil > now) continue;
+      // Skip invalid or rate-limited keys
+      if (ks.isInvalid || ks.rateLimitedUntil > now) continue;
 
       // Reset errors after cooldown period
       if (ks.errors > 0 && now - ks.lastErrorTime > cooldownMs) {
@@ -138,11 +139,18 @@ class GroqKeyManager {
 
         return cleaned;
       } catch (err) {
-        const errMsg = (err as Error).message || "";
+        const errMsg = (err as any).message || "";
         const isRateLimit =
           errMsg.includes("rate_limit") ||
           errMsg.includes("429") ||
           errMsg.includes("quota");
+
+        const isInvalid = errMsg.includes("401") || errMsg.includes("invalid_api_key");
+        if (isInvalid) {
+          ks.isInvalid = true;
+          console.error(`[Groq] Key #${ks.index + 1} is PERMANENTLY INVALID (401).`);
+        }
+
         this.reportError(ks.key, isRateLimit);
         lastError = err as Error;
         console.error(

@@ -75,8 +75,7 @@ async function searchOneSong(
   searchQuery: string,
 ): Promise<MatchedSong> {
   try {
-    const result = await searchSongs(searchQuery, 5);
-    const songs = result.results;
+    const songs = await searchSongs(searchQuery, 5);
     if (songs.length === 0)
       return { original, song: null, confidence: "none", score: 0 };
 
@@ -195,8 +194,14 @@ router.post(
           const parsed = JSON.parse(moodResult);
           songList = (parsed.songs || []).slice(0, maxSongs);
           playlistName = parsed.playlistName || playlistName;
-        } catch {
-          res.status(500).json({ error: "AI response parsing failed" });
+        } catch (err) {
+          console.error("[AI] Mood suggestion parsing failed:", err, moodResult);
+          if (res.headersSent) {
+            sseEvent(res, "error", { error: "AI response parsing failed" });
+            res.end();
+          } else {
+            res.status(500).json({ error: "AI response parsing failed" });
+          }
           return;
         }
 
@@ -291,7 +296,7 @@ router.post(
             res.end();
           } else res.json(parsed);
           return;
-        } catch {}
+        } catch { }
       }
 
       emit("progress", {
@@ -414,7 +419,7 @@ router.post(
     } catch (err) {
       console.error("[AI] Build playlist error:", err);
       const errMsg = { error: "AI playlist generation failed" };
-      if ((res as any).headersSent) {
+      if (res.headersSent) {
         sseEvent(res, "error", errMsg);
         res.end();
       } else {

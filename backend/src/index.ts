@@ -53,20 +53,20 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
-      // Allow Capacitor native WebView origins
-      if (
+
+      const isAllowed =
         origin === "https://localhost" ||
         origin === "capacitor://localhost" ||
-        origin === "http://localhost"
-      ) {
+        origin === "http://localhost" ||
+        origin === FRONTEND_URL ||
+        /^http:\/\/localhost:\d+$/.test(origin) ||
+        /\.vercel\.app$/.test(origin);
+
+      if (isAllowed) {
         return callback(null, true);
       }
-      // Allow configured frontend URL
-      if (origin === FRONTEND_URL) return callback(null, true);
-      // Allow localhost dev ports
-      if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
-      // Allow any Vercel preview / production deploy
-      if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,

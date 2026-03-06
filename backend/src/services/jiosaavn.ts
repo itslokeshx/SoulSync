@@ -55,20 +55,55 @@ export function hasActiveUserQueries() {
   return activeUserQueries > 0;
 }
 
-// ── Shared fetcher ─────────────────────────────────────────────
-async function fetchSafe(url: string, timeout = REQUEST_TIMEOUT): Promise<any> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeout)
-  try {
-    const res = await fetch(url, { signal: controller.signal })
-    clearTimeout(timer)
-    if (!res.ok) return null
-    return await res.json()
-  } catch {
-    clearTimeout(timer)
-    return null
+// ── Shared fetcher with Retry (Handles 429, 500) ──────────────────
+async function fetchWithRetry(url: string, attempts = 3, timeout = REQUEST_TIMEOUT): Promise<any> {
+  const isUserQuery = hasActiveUserQueries()
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
+
+  for (let i = 0; i < attempts; i++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), i === 0 ? timeout : timeout + 1000)
+
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      })
+      clearTimeout(timer)
+
+      if (res.status === 429) {
+        const wait = isUserQuery ? 800 : 1500 * (i + 1)
+        console.warn(`[JioSaavn] 429, waiting ${wait}ms (attempt ${i + 1}/${attempts})`)
+        await delay(wait)
+        continue
+      }
+
+      if (!res.ok) {
+        if (res.status >= 500 && i < attempts - 1) {
+          console.warn(`[JioSaavn] ${res.status} on ${url}, retrying...`)
+          await delay(500 * (i + 1))
+          continue
+        }
+        return null
+      }
+
+      return await res.json()
+    } catch (err: any) {
+      clearTimeout(timer)
+      if (err.name === 'AbortError') {
+        if (i < attempts - 1) continue
+        return null
+      }
+      console.error(`[JioSaavn API Error] Request failed: ${err.message} on ${url}`)
+      return null
+    }
   }
 }
+
+// Keep fetchSafe as a lightweight alias for non-critical calls
+const fetchSafe = (url: string) => fetchWithRetry(url, 2)
 
 // ── Search Functions ───────────────────────────────────────────
 export async function searchSongs(query: string, limit = 50): Promise<any[]> {

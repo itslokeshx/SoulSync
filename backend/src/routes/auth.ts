@@ -13,7 +13,7 @@ const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI ||
-    "http://localhost:4000/api/auth/google/callback",
+  "http://localhost:4000/api/auth/google/callback",
 );
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -26,13 +26,16 @@ function signJwt(userId: string, extra?: Record<string, string>) {
 }
 
 function setAuthCookie(res: Response, token: string) {
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = process.env.NODE_ENV === "production" || !!process.env.RENDER;
   res.cookie("saavn_token", token, {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
+  if (isProd) {
+    console.log("[Auth] Setting secure cross-site cookie");
+  }
 }
 
 // ── Validation schemas ──────────────────────────────────────────────────────
@@ -519,7 +522,7 @@ router.get(
 
 // POST /api/auth/logout
 router.post("/logout", (_req: AuthRequest, res: Response): void => {
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = process.env.NODE_ENV === "production" || !!process.env.RENDER;
   res.clearCookie("saavn_token", {
     httpOnly: true,
     secure: isProd,
