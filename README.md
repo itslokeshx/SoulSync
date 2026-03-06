@@ -12,7 +12,7 @@
 
 [![Open Web App](https://img.shields.io/badge/🌐%20Open%20Web%20App-soul--sync--beta.vercel.app-1DB954?style=for-the-badge)](https://soul-sync-beta.vercel.app/)
 &nbsp;&nbsp;
-[![Download APK](https://img.shields.io/badge/📱%20Download%20APK-Android%208.14%20MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
+[![Download APK](https://img.shields.io/badge/📱%20Download%20APK-Android%205.1%20MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
 
 <sub>Android 7.0+ required &nbsp;·&nbsp; No Play Store needed &nbsp;·&nbsp; <a href="https://github.com/itslokeshx/SoulSync/releases">All Releases</a></sub>
 
