@@ -47,7 +47,8 @@ function parseSongList(input: string): string[] {
 // ─── Helper: chunk array ────────────────────────────────────────────────────
 function chunk<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  for (let i = 0; i < arr.length; i += size)
+    chunks.push(arr.slice(i, i + size));
   return chunks;
 }
 
@@ -69,23 +70,35 @@ async function withConcurrency<T>(
 }
 
 // ─── Search a single song with scoring ─────────────────────────────────────
-async function searchOneSong(original: string, searchQuery: string): Promise<MatchedSong> {
+async function searchOneSong(
+  original: string,
+  searchQuery: string,
+): Promise<MatchedSong> {
   try {
     const result = await searchSongs(searchQuery, 5);
     const songs = result.results;
-    if (songs.length === 0) return { original, song: null, confidence: "none", score: 0 };
+    if (songs.length === 0)
+      return { original, song: null, confidence: "none", score: 0 };
 
-    const queryWords = original.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    const queryWords = original
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2);
     const topSong = songs[0];
     const songNameLower = (topSong.name || "").toLowerCase();
-    const artistLower = ((topSong.primaryArtists || topSong.artists?.primary?.[0]?.name || "") as string).toLowerCase();
+    const artistLower = (
+      topSong.artists?.primary?.[0]?.name || ""
+    ).toLowerCase();
     const combined = songNameLower + " " + artistLower;
 
     const matchCount = queryWords.filter((w) => combined.includes(w)).length;
-    const score = queryWords.length > 0 ? (matchCount / queryWords.length) * 100 : 50;
+    const score =
+      queryWords.length > 0 ? (matchCount / queryWords.length) * 100 : 50;
 
-    if (score > 65) return { original, song: topSong, confidence: "high", score };
-    if (score > 30) return { original, song: topSong, confidence: "partial", score };
+    if (score > 65)
+      return { original, song: topSong, confidence: "high", score };
+    if (score > 30)
+      return { original, song: topSong, confidence: "partial", score };
     // Still include with low confidence — better than nothing
     return { original, song: topSong, confidence: "partial", score: 25 };
   } catch {
@@ -132,7 +145,9 @@ router.post(
         process.env.GROQ_KEY_3,
       ].some(Boolean);
       if (!hasKeys) {
-        res.status(503).json({ error: "AI service not configured. Add GROQ_KEY env vars." });
+        res
+          .status(503)
+          .json({ error: "AI service not configured. Add GROQ_KEY env vars." });
         return;
       }
 
@@ -140,7 +155,9 @@ router.post(
       const maxSongs = Math.min(parseInt(targetCount) || 20, MAX_TARGET_COUNT);
 
       if (!songs && !mood) {
-        res.status(400).json({ error: "Provide song names or a mood description" });
+        res
+          .status(400)
+          .json({ error: "Provide song names or a mood description" });
         return;
       }
 
@@ -159,7 +176,11 @@ router.post(
 
       // ── Mood-based generation ──
       if (mood && !songs) {
-        emit("progress", { step: "thinking", message: `Crafting ${maxSongs} songs for your mood...`, percent: 5 });
+        emit("progress", {
+          step: "thinking",
+          message: `Crafting ${maxSongs} songs for your mood...`,
+          percent: 5,
+        });
 
         const moodResult = await groqManager.callWithFallback(
           "You are a world-class music curator. Return ONLY valid JSON, no explanation.",
@@ -180,34 +201,58 @@ router.post(
         }
 
         if (songList.length === 0) {
-          res.status(400).json({ error: "Could not generate songs for this mood" });
+          res
+            .status(400)
+            .json({ error: "Could not generate songs for this mood" });
           return;
         }
 
-        emit("progress", { step: "searching", message: `Searching ${songList.length} songs...`, percent: 30 });
+        emit("progress", {
+          step: "searching",
+          message: `Searching ${songList.length} songs...`,
+          percent: 30,
+        });
 
-        const tasks = songList.map((s, i) => () =>
-          searchOneSong(s, parseQuery(s).expandedQueries[0] || s).then((result) => {
-            const pct = 30 + Math.round(((i + 1) / songList.length) * 60);
-            emit("song", { ...result, index: i, total: songList.length, percent: pct });
-            return result;
-          }),
+        const tasks = songList.map(
+          (s, i) => () =>
+            searchOneSong(s, parseQuery(s).expandedQueries[0] || s).then(
+              (result) => {
+                const pct = 30 + Math.round(((i + 1) / songList.length) * 60);
+                emit("song", {
+                  ...result,
+                  index: i,
+                  total: songList.length,
+                  percent: pct,
+                });
+                return result;
+              },
+            ),
         );
 
         const allResults = await withConcurrency(tasks, MAX_SEARCH_CONCURRENT);
         const matched = allResults.filter((r) => r.confidence === "high");
         const partial = allResults.filter((r) => r.confidence === "partial");
-        const unmatched = allResults.filter((r) => r.confidence === "none").map((r) => r.original);
+        const unmatched = allResults
+          .filter((r) => r.confidence === "none")
+          .map((r) => r.original);
 
         const finalResult = {
           playlistName,
           matched,
           partial,
           unmatched,
-          stats: { total: songList.length, found: matched.length + partial.length, notFound: unmatched.length },
+          stats: {
+            total: songList.length,
+            found: matched.length + partial.length,
+            notFound: unmatched.length,
+          },
         };
 
-        emit("progress", { step: "done", message: "Playlist ready!", percent: 100 });
+        emit("progress", {
+          step: "done",
+          message: "Playlist ready!",
+          percent: 100,
+        });
         if (isSSE) {
           emit("done", finalResult);
           res.end();
@@ -228,19 +273,32 @@ router.post(
       }
 
       // Cache check
-      const cacheKey = `ai:playlist:v2:${crypto.createHash("md5").update(songList.join("|") + maxSongs).digest("hex")}`;
+      const cacheKey = `ai:playlist:v2:${crypto
+        .createHash("md5")
+        .update(songList.join("|") + maxSongs)
+        .digest("hex")}`;
       const cached = await redisGet(cacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          emit("progress", { step: "done", message: "Retrieved from cache!", percent: 100 });
-          if (isSSE) { emit("done", parsed); res.end(); }
-          else res.json(parsed);
+          emit("progress", {
+            step: "done",
+            message: "Retrieved from cache!",
+            percent: 100,
+          });
+          if (isSSE) {
+            emit("done", parsed);
+            res.end();
+          } else res.json(parsed);
           return;
         } catch {}
       }
 
-      emit("progress", { step: "thinking", message: `Optimizing ${songList.length} songs with AI...`, percent: 5 });
+      emit("progress", {
+        step: "thinking",
+        message: `Optimizing ${songList.length} songs with AI...`,
+        percent: 5,
+      });
 
       // ── Chunked Groq processing ──
       let allQueries: AIQuery[] = [];
@@ -248,61 +306,105 @@ router.post(
       if (songList.length <= 5) {
         allQueries = songList.map((s) => {
           const parsed = parseQuery(s);
-          return { original: s, searchQuery: parsed.expandedQueries[0] || s, artistHint: parsed.entities.artist, movieHint: parsed.entities.movie };
+          return {
+            original: s,
+            searchQuery: parsed.expandedQueries[0] || s,
+            artistHint: parsed.entities.artist,
+            movieHint: parsed.entities.movie,
+          };
         });
       } else {
         const chunks = chunk(songList, CHUNK_SIZE);
-        emit("progress", { step: "thinking", message: `Processing ${chunks.length} batches...`, percent: 10 });
+        emit("progress", {
+          step: "thinking",
+          message: `Processing ${chunks.length} batches...`,
+          percent: 10,
+        });
 
         const chunkTasks = chunks.map((c, ci) => async () => {
           const queries = await processChunkWithGroq(c);
           const pct = 10 + Math.round(((ci + 1) / chunks.length) * 20);
-          emit("progress", { step: "thinking", message: `Processed batch ${ci + 1}/${chunks.length}`, percent: pct });
+          emit("progress", {
+            step: "thinking",
+            message: `Processed batch ${ci + 1}/${chunks.length}`,
+            percent: pct,
+          });
           return queries;
         });
 
-        const chunkedResults = await withConcurrency(chunkTasks, MAX_GROQ_CONCURRENT);
+        const chunkedResults = await withConcurrency(
+          chunkTasks,
+          MAX_GROQ_CONCURRENT,
+        );
         allQueries = chunkedResults.flat();
       }
 
       // Generate playlist name in parallel
       const [playlistName] = await Promise.all([
-        groqManager.callWithFallback(
-          "Return ONLY a creative 4-word playlist name. No quotes, no explanation.",
-          `Creative 4-word playlist name for: ${songList.slice(0, 5).join(", ")}`,
-          60,
-        ).then((n) => n.replace(/['"]/g, "").trim() || "My SoulSync Mix").catch(() => "My SoulSync Mix"),
+        groqManager
+          .callWithFallback(
+            "Return ONLY a creative 4-word playlist name. No quotes, no explanation.",
+            `Creative 4-word playlist name for: ${songList.slice(0, 5).join(", ")}`,
+            60,
+          )
+          .then((n) => n.replace(/['"]/g, "").trim() || "My SoulSync Mix")
+          .catch(() => "My SoulSync Mix"),
       ]);
 
-      emit("progress", { step: "searching", message: `Searching ${allQueries.length} songs on JioSaavn...`, percent: 35 });
+      emit("progress", {
+        step: "searching",
+        message: `Searching ${allQueries.length} songs on JioSaavn...`,
+        percent: 35,
+      });
 
       // ── Parallel search with progress ──
-      const searchTasks = allQueries.map((q, i) => () =>
-        searchOneSong(q.original, q.searchQuery || q.original).then((result) => {
-          const pct = 35 + Math.round(((i + 1) / allQueries.length) * 55);
-          emit("song", { ...result, index: i, total: allQueries.length, percent: pct });
-          return result;
-        }),
+      const searchTasks = allQueries.map(
+        (q, i) => () =>
+          searchOneSong(q.original, q.searchQuery || q.original).then(
+            (result) => {
+              const pct = 35 + Math.round(((i + 1) / allQueries.length) * 55);
+              emit("song", {
+                ...result,
+                index: i,
+                total: allQueries.length,
+                percent: pct,
+              });
+              return result;
+            },
+          ),
       );
 
-      const allResults = await withConcurrency(searchTasks, MAX_SEARCH_CONCURRENT);
+      const allResults = await withConcurrency(
+        searchTasks,
+        MAX_SEARCH_CONCURRENT,
+      );
 
       const matched = allResults.filter((r) => r.confidence === "high");
       const partial = allResults.filter((r) => r.confidence === "partial");
-      const unmatched = allResults.filter((r) => r.confidence === "none").map((r) => r.original);
+      const unmatched = allResults
+        .filter((r) => r.confidence === "none")
+        .map((r) => r.original);
 
       const finalResult = {
         playlistName,
         matched,
         partial,
         unmatched,
-        stats: { total: allQueries.length, found: matched.length + partial.length, notFound: unmatched.length },
+        stats: {
+          total: allQueries.length,
+          found: matched.length + partial.length,
+          notFound: unmatched.length,
+        },
       };
 
       // Cache 30 min
       await redisSet(cacheKey, JSON.stringify(finalResult), 1800);
 
-      emit("progress", { step: "done", message: `Found ${finalResult.stats.found} songs!`, percent: 100 });
+      emit("progress", {
+        step: "done",
+        message: `Found ${finalResult.stats.found} songs!`,
+        percent: 100,
+      });
       if (isSSE) {
         emit("done", finalResult);
         res.end();
