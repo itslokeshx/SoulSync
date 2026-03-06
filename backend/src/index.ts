@@ -15,6 +15,7 @@ import aiRoutes from "./routes/ai.js";
 import sessionRoutes from "./routes/session.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
+import { warmupSearchCache } from "./startup/warmup.js";
 
 // Logger
 export const logger = winston.createLogger({
@@ -127,6 +128,10 @@ async function start() {
 
     // Start keep-alive after server boots
     startKeepAlive();
+
+    // Pre-warm search cache in background (non-blocking)
+    // 10 s delay so the server is fully ready before hitting JioSaavn
+    setTimeout(() => warmupSearchCache().catch(console.error), 10_000);
   });
 }
 

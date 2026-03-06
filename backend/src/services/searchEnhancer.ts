@@ -1,9 +1,4 @@
-import {
-  searchSongs,
-  searchAlbums,
-  searchArtists,
-  JioSaavnSong,
-} from "./jiosaavn.js";
+import { searchSongs, searchSongsDirect, JioSaavnSong } from "./jiosaavn.js";
 import { redisGet, redisSet } from "./redis.js";
 
 // ─── ARTIST DICTIONARY (500+ entries) ────────────────────────────────────────
@@ -677,7 +672,7 @@ export interface ScoredSong extends JioSaavnSong {
   isTopResult: boolean;
 }
 
-function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
+export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
   let score = 0;
   const reasons: string[] = [];
   const titleLower = (song.name || "").toLowerCase();
@@ -837,7 +832,22 @@ function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
     isTopResult: score > 80,
   };
 }
+// ─── KEY HELPERS ────────────────────────────────────────────────────────────
 
+/**
+ * Normalise a query string for Redis key generation.
+ * Sorts words alphabetically so "sad hindi songs" and "hindi sad songs"
+ * resolve to the same cache entry.
+ */
+export function normalizeSearchKey(q: string): string {
+  return q
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join("_");
+}
 // ─── ENHANCED SEARCH (main export) ──────────────────────────────────────────
 
 export async function enhancedSearch(
@@ -852,9 +862,9 @@ export async function enhancedSearch(
   total: number;
   displayContext: string;
 }> {
-  // Cache check
-  const cacheKey = `search:v2:${query.toLowerCase().replace(/\s+/g, "_")}:${type}`;
-  const cached = await redisGet(cacheKey);
+  // Cache check — word-sorted key so "sad hindi" and "hindi sad" share one entry
+  const ck = `search:v3:${normalizeSearchKey(query)}:${type}`;
+  const cached = await redisGet(ck);
   if (cached) {
     try {
       return JSON.parse(cached);
@@ -866,10 +876,10 @@ export async function enhancedSearch(
   const parsed = parseQuery(query);
   let allResults: JioSaavnSong[] = [];
 
-  // ── Step 1: Fire primary + secondary queries in parallel ──
+  // ── Step 1: Fire primary queries in TRUE parallel (bypass throttle queue) ──
   const primaryQueries = parsed.expandedQueries.slice(0, 3);
   const primaryPromises = primaryQueries.map((q) =>
-    searchSongs(q, Math.min(limit, 20)),
+    searchSongsDirect(q, Math.min(limit, 20)),
   );
   const settled = await Promise.allSettled(primaryPromises);
 
@@ -891,14 +901,14 @@ export async function enhancedSearch(
   let scored = deduped.map((s) => scoreSong(s, parsed));
   scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-  // ── Step 3: If weak results, fire more queries ──
+  // ── Step 3: If weak results, fire more queries (also in parallel) ──
   if (
     (scored.length === 0 || scored[0].relevanceScore < 60) &&
     parsed.expandedQueries.length > 3
   ) {
     const moreQueries = parsed.expandedQueries.slice(3, 6);
     const moreSettled = await Promise.allSettled(
-      moreQueries.map((q) => searchSongs(q, 10)),
+      moreQueries.map((q) => searchSongsDirect(q, 10)),
     );
     for (const res of moreSettled) {
       if (res.status === "fulfilled") {
@@ -929,6 +939,6 @@ export async function enhancedSearch(
   };
 
   // Cache 1 hour
-  await redisSet(cacheKey, JSON.stringify(result), 3600);
+  await redisSet(ck, JSON.stringify(result), 3600);
   return result;
 }
