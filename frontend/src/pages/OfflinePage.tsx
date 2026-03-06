@@ -18,6 +18,9 @@ import {
   Repeat1,
   GripVertical,
   ChevronUp,
+  ListMusic,
+  Music,
+  UserPlus,
 } from "lucide-react";
 import {
   getOfflineSongs,
@@ -45,6 +48,7 @@ export default function OfflinePage() {
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [npOpen, setNpOpen] = useState(false);
   const [isDragging, setIsDragging] = useState<number | null>(null);
+  const [showQueue, setShowQueue] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
@@ -432,11 +436,20 @@ export default function OfflinePage() {
               Soul<span className="text-sp-green">Sync</span>
             </span>
           </div>
-          <div className="flex items-center gap-2 text-white/40">
-            <WifiOff size={16} />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">
-              Offline
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 text-white/35">
+              <WifiOff size={14} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider">
+                Offline
+              </span>
+            </div>
+            <button
+              onClick={() => (window.location.href = "/login?mode=register")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sp-green text-black text-[11px] font-bold hover:brightness-110 active:scale-95 transition-all"
+            >
+              <UserPlus size={12} />
+              Sign Up
+            </button>
           </div>
         </div>
       </div>
@@ -708,150 +721,329 @@ export default function OfflinePage() {
       {/* ══════ Full-Screen Now Playing View ══════ */}
       {currentSong && npOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-gradient-to-b from-[#1a1a1a] to-[#060606] flex flex-col overflow-hidden"
+          className="fixed inset-0 z-[100] flex flex-col overflow-hidden"
           style={{
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            background:
+              "linear-gradient(180deg, #1c1c1e 0%, #0e0e0f 45%, #060606 100%)",
           }}
         >
           {/* Top bar */}
           <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0">
             <button
-              onClick={() => setNpOpen(false)}
+              onClick={() => {
+                setNpOpen(false);
+                setShowQueue(false);
+              }}
               className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
             >
               <ChevronDown size={24} />
             </button>
             <div className="text-center">
               <p className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">
-                Now Playing
+                {showQueue ? "Up Next" : "Now Playing"}
               </p>
-              <p className="text-[11px] text-white/50 font-medium">
-                Offline Mode
+              <p className="text-[11px] text-white/50 font-medium truncate max-w-[180px]">
+                {showQueue
+                  ? `${Math.max(0, queue.length - queueIndex - 1)} tracks left`
+                  : "Offline Mode"}
               </p>
             </div>
-            <div className="w-10" />
-          </div>
-
-          {/* Album Art */}
-          <div className="flex-1 flex items-center justify-center px-10 py-6">
-            <div className="w-full max-w-[320px] aspect-square rounded-2xl overflow-hidden shadow-2xl shadow-black/60">
-              <img
-                src={songImgLg(currentSong)}
-                onError={onImgErr}
-                className="w-full h-full object-cover"
-                alt=""
-              />
-            </div>
-          </div>
-
-          {/* Song Info */}
-          <div className="px-8 mb-4">
-            <p className="text-xl font-bold text-white truncate">
-              {currentSong.name}
-            </p>
-            <p className="text-[14px] text-white/50 truncate mt-0.5">
-              {currentSong.artist}
-            </p>
-          </div>
-
-          {/* Seek Bar */}
-          <div className="px-8 mb-3">
-            <div className="relative h-1.5 bg-white/10 rounded-full overflow-hidden group">
-              <div
-                className="absolute inset-y-0 left-0 bg-sp-green rounded-full"
-                style={{ width: `${progress}%` }}
-              />
-              <input
-                type="range"
-                min={0}
-                max={duration || 1}
-                value={currentTime}
-                step={0.5}
-                onChange={handleSeek}
-                className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
-              />
-            </div>
-            <div className="flex justify-between mt-1.5">
-              <span className="text-[11px] text-white/35 tabular-nums">
-                {fmt(currentTime)}
-              </span>
-              <span className="text-[11px] text-white/35 tabular-nums">
-                {fmt(duration)}
-              </span>
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-6 px-8 mb-8">
             <button
-              onClick={() => setShuffled((s) => !s)}
-              className={`p-2 transition-colors ${shuffled ? "text-sp-green" : "text-white/35"}`}
+              onClick={() => setShowQueue((q) => !q)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-all border ${
+                showQueue
+                  ? "text-sp-green bg-sp-green/10 border-sp-green/20"
+                  : "text-white/40 hover:text-white hover:bg-white/[0.08] border-transparent"
+              }`}
             >
-              <Shuffle size={20} />
-            </button>
-            <button
-              onClick={handlePrev}
-              className="p-2 text-white/70 hover:text-white transition-colors"
-            >
-              <SkipBack size={28} />
-            </button>
-            <button
-              onClick={handlePlayPause}
-              className="w-16 h-16 rounded-full bg-sp-green flex items-center justify-center text-black hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-sp-green/30"
-            >
-              {isPlaying ? (
-                <Pause size={28} className="fill-current" />
-              ) : (
-                <Play size={28} className="fill-current ml-1" />
-              )}
-            </button>
-            <button
-              onClick={handleNext}
-              className="p-2 text-white/70 hover:text-white transition-colors"
-            >
-              <SkipForward size={28} />
-            </button>
-            <button
-              onClick={cycleRepeat}
-              className={`p-2 transition-colors ${repeat !== "off" ? "text-sp-green" : "text-white/35"}`}
-            >
-              {repeat === "one" ? <Repeat1 size={20} /> : <Repeat size={20} />}
+              <ListMusic size={17} />
+              <span className="text-[12px] font-bold tracking-wide">Queue</span>
             </button>
           </div>
 
-          {/* Queue Preview */}
-          {queue.length > 1 && (
-            <div className="px-6 pb-8">
-              <p className="text-[11px] text-white/25 font-semibold uppercase tracking-wider mb-2">
-                Up Next
-              </p>
-              <div className="space-y-1 max-h-28 overflow-y-auto hide-scrollbar">
-                {queue.slice(queueIndex + 1, queueIndex + 4).map((s, i) => (
-                  <button
-                    key={`${s.id}-${i}`}
-                    onClick={() => playIndex(queue, queueIndex + 1 + i)}
-                    className="flex items-center gap-2.5 w-full p-2 rounded-lg hover:bg-white/[0.04] transition-all text-left"
+          {/* Main content area */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {!showQueue ? (
+              /* ── Now Playing ── */
+              <>
+                {/* Album Art */}
+                <div className="flex-1 flex items-center justify-center px-10 py-4">
+                  <motion.div
+                    animate={isPlaying ? { scale: 1 } : { scale: 0.9 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden shadow-2xl shadow-black/70 relative"
                   >
                     <img
-                      src={songImg(s)}
+                      src={songImgLg(currentSong)}
                       onError={onImgErr}
-                      className="w-8 h-8 rounded-md object-cover flex-shrink-0"
+                      className="w-full h-full object-cover"
                       alt=""
                     />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[12px] text-white/60 font-medium truncate">
-                        {s.name}
-                      </p>
-                      <p className="text-[10px] text-white/25 truncate">
-                        {s.artist}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-white/20 tabular-nums">
-                      {fmt(s.duration)}
+                    {isPlaying && (
+                      <div className="absolute inset-0 rounded-2xl border border-white/[0.04] animate-breathe pointer-events-none" />
+                    )}
+                  </motion.div>
+                </div>
+
+                {/* Song Info */}
+                <div className="px-8 mb-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xl font-bold text-white truncate">
+                      {currentSong.name}
+                    </p>
+                    <p className="text-[14px] text-white/50 truncate mt-0.5">
+                      {currentSong.artist}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/[0.06] text-white/30 text-[10px] font-semibold tabular-nums">
+                    {queueIndex + 1} / {queue.length}
+                  </span>
+                </div>
+
+                {/* Seek Bar */}
+                <div className="px-8 mb-3">
+                  <div className="relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="absolute inset-y-0 left-0 bg-sp-green rounded-full"
+                      style={{ width: `${progress}%` }}
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={duration || 1}
+                      value={currentTime}
+                      step={0.5}
+                      onChange={handleSeek}
+                      className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1.5">
+                    <span className="text-[11px] text-white/35 tabular-nums">
+                      {fmt(currentTime)}
                     </span>
+                    <span className="text-[11px] text-white/35 tabular-nums">
+                      {fmt(duration)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center justify-center gap-6 px-8 mb-10">
+                  <button
+                    onClick={() => setShuffled((s) => !s)}
+                    className={`p-2 transition-colors ${
+                      shuffled ? "text-sp-green" : "text-white/35"
+                    }`}
+                  >
+                    <Shuffle size={20} />
                   </button>
-                ))}
+                  <button
+                    onClick={handlePrev}
+                    className="p-2 text-white/70 hover:text-white transition-colors"
+                  >
+                    <SkipBack size={28} />
+                  </button>
+                  <button
+                    onClick={handlePlayPause}
+                    className="w-16 h-16 rounded-full bg-sp-green flex items-center justify-center text-black hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-sp-green/30"
+                  >
+                    {isPlaying ? (
+                      <Pause size={28} className="fill-current" />
+                    ) : (
+                      <Play size={28} className="fill-current ml-1" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="p-2 text-white/70 hover:text-white transition-colors"
+                  >
+                    <SkipForward size={28} />
+                  </button>
+                  <button
+                    onClick={cycleRepeat}
+                    className={`p-2 transition-colors ${
+                      repeat !== "off" ? "text-sp-green" : "text-white/35"
+                    }`}
+                  >
+                    {repeat === "one" ? (
+                      <Repeat1 size={20} />
+                    ) : (
+                      <Repeat size={20} />
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* ── Up Next Queue ── */
+              <div className="flex-1 overflow-y-auto px-5 pb-4 thin-scrollbar">
+                {/* Now Playing highlighted row */}
+                <p className="text-[10px] font-bold text-sp-green uppercase tracking-[0.15em] mb-2 mt-1">
+                  Now Playing
+                </p>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-sp-green/[0.08] border border-sp-green/10 mb-5">
+                  <img
+                    src={songImg(currentSong)}
+                    onError={onImgErr}
+                    className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+                    alt=""
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-sp-green truncate">
+                      {currentSong.name}
+                    </p>
+                    <p className="text-[11px] text-white/40 truncate">
+                      {currentSong.artist}
+                    </p>
+                  </div>
+                  {/* Equalizer animation */}
+                  <div className="flex items-end gap-[3px] h-4 flex-shrink-0 pr-1">
+                    {[0.2, 0.5, 0.3, 0.6].map((d, idx) => (
+                      <motion.div
+                        key={idx}
+                        animate={
+                          isPlaying ? { height: [4, 14, 4] } : { height: 4 }
+                        }
+                        transition={{
+                          duration: 0.7,
+                          delay: d,
+                          repeat: Infinity,
+                        }}
+                        className="w-[3px] bg-sp-green rounded-full"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Up Next header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="px-2.5 py-[3px] rounded-full text-[10px] font-black uppercase tracking-[0.12em]"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(29,185,84,0.18), rgba(16,185,129,0.08))",
+                        border: "1px solid rgba(29,185,84,0.28)",
+                        color: "#1db954",
+                      }}
+                    >
+                      Up Next
+                    </span>
+                    <span className="text-white/25 text-[11px] tabular-nums">
+                      {Math.max(0, queue.length - queueIndex - 1)}{" "}
+                      {Math.max(0, queue.length - queueIndex - 1) === 1
+                        ? "track"
+                        : "tracks"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleShuffleAll}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all active:scale-95 bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white"
+                  >
+                    <Shuffle size={12} />
+                    Shuffle
+                  </button>
+                </div>
+
+                {/* Queue items */}
+                {queue.length <= queueIndex + 1 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Music size={40} className="text-white/10 mb-3" />
+                    <p className="text-white/30 text-sm font-medium">
+                      Nothing queued up
+                    </p>
+                    <p className="text-white/15 text-xs mt-1">End of queue</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {queue.slice(queueIndex + 1).map((s, i) => {
+                      const absIdx = queueIndex + 1 + i;
+                      return (
+                        <div
+                          key={`${s.id}-${i}`}
+                          className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-white/[0.04] transition-all group"
+                        >
+                          <GripVertical
+                            size={14}
+                            className="text-white/15 flex-shrink-0"
+                          />
+                          <button
+                            onClick={() => {
+                              playIndex(queue, absIdx);
+                              setShowQueue(false);
+                            }}
+                            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                          >
+                            <img
+                              src={songImg(s)}
+                              onError={onImgErr}
+                              className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                              alt=""
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[13px] text-white/80 truncate group-hover:text-white transition-colors">
+                                {s.name}
+                              </p>
+                              <p className="text-[11px] text-white/30 truncate">
+                                {s.artist}
+                              </p>
+                            </div>
+                          </button>
+                          <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+                            {fmt(s.duration)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sticky mini-controls shown only when queue panel is open */}
+          {showQueue && (
+            <div className="flex-shrink-0 border-t border-white/[0.06] bg-black/40 backdrop-blur-xl px-5 py-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={songImg(currentSong)}
+                  onError={onImgErr}
+                  className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+                  alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-white truncate">
+                    {currentSong.name}
+                  </p>
+                  <p className="text-[11px] text-white/35 truncate">
+                    {currentSong.artist}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handlePrev}
+                    className="p-2 text-white/50 hover:text-white transition-colors"
+                  >
+                    <SkipBack size={20} />
+                  </button>
+                  <button
+                    onClick={handlePlayPause}
+                    className="w-11 h-11 rounded-full bg-sp-green flex items-center justify-center text-black hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    {isPlaying ? (
+                      <Pause size={20} className="fill-current" />
+                    ) : (
+                      <Play size={20} className="fill-current ml-0.5" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="p-2 text-white/50 hover:text-white transition-colors"
+                  >
+                    <SkipForward size={20} />
+                  </button>
+                </div>
               </div>
             </div>
           )}
