@@ -277,20 +277,23 @@ export function AppLayout() {
   duoQueueRef.current = queue;
 
   // ── Queue auto-fill (200+ songs) ──
+  const handleAutoFillAddSongs = useCallback((newSongs: any[]) => {
+    setQueue((prev) => {
+      const existingIds = new Set(prev.map((s) => s.id));
+      const filtered = newSongs.filter((s: any) => !existingIds.has(s.id));
+      if (filtered.length === 0) return prev;
+      const updated = [...prev, ...filtered];
+      qRef.current = updated;
+      return updated;
+    });
+  }, []);
+
   useQueueAutoFill({
     queue,
     queueIndex,
     currentSong,
     enabled: !!currentSong,
-    onAddSongs: (newSongs) => {
-      setQueue((prev) => {
-        const existingIds = new Set(prev.map((s) => s.id));
-        const filtered = newSongs.filter((s: any) => !existingIds.has(s.id));
-        const updated = [...prev, ...filtered];
-        qRef.current = updated;
-        return updated;
-      });
-    },
+    onAddSongs: handleAutoFillAddSongs,
   });
 
   // ── Audio event listeners ──

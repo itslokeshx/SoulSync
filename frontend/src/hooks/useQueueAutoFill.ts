@@ -1,8 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
 import { getRelatedSongs } from "../api/backend";
 
-const REFILL_THRESHOLD = 10; // Start fetching when fewer than N songs remain
+const REFILL_THRESHOLD = 10; // trigger when fewer than N songs remain
 const PREFETCH_LIMIT = 50;
+const FETCH_COOLDOWN_MS = 15_000; // minimum ms between fetches
+const MAX_EMPTY_ROUNDS = 2; // give up after N consecutive empty fetches
 
 interface UseQueueAutoFillOptions {
   queue: any[];
@@ -12,10 +14,6 @@ interface UseQueueAutoFillOptions {
   onAddSongs: (songs: any[]) => void;
 }
 
-/**
- * Automatically fills the queue with related songs when it runs low.
- * Triggers when fewer than REFILL_THRESHOLD songs remain after current index.
- */
 export function useQueueAutoFill({
   queue,
   queueIndex,
@@ -23,32 +21,51 @@ export function useQueueAutoFill({
   enabled = true,
   onAddSongs,
 }: UseQueueAutoFillOptions) {
+  // Use refs so fetchRelated never needs to be recreated
+  const queueRef = useRef(queue);
+  const onAddSongsRef = useRef(onAddSongs);
+  queueRef.current = queue;
+  onAddSongsRef.current = onAddSongs;
+
   const fetchingRef = useRef(false);
   const lastSongIdRef = useRef<string | null>(null);
   const pageRef = useRef(1);
   const addedIdsRef = useRef<Set<string>>(new Set());
+  const lastFetchAtRef = useRef<number>(0);
+  const emptyRoundsRef = useRef(0);
 
-  // Reset page counter when the base song changes
+  // Reset all counters when the song changes
   useEffect(() => {
     if (currentSong?.id !== lastSongIdRef.current) {
       lastSongIdRef.current = currentSong?.id ?? null;
       pageRef.current = 1;
+      addedIdsRef.current = new Set();
+      emptyRoundsRef.current = 0;
+      lastFetchAtRef.current = 0;
+      fetchingRef.current = false;
     }
   }, [currentSong?.id]);
 
+  // Stable fetch function — deps are only refs, never changes
   const fetchRelated = useCallback(async () => {
-    if (!currentSong?.id || fetchingRef.current) return;
+    const songId = lastSongIdRef.current;
+    if (!songId) return;
+    if (fetchingRef.current) return;
+    if (emptyRoundsRef.current >= MAX_EMPTY_ROUNDS) return;
+    const now = Date.now();
+    if (now - lastFetchAtRef.current < FETCH_COOLDOWN_MS) return;
+
     fetchingRef.current = true;
+    lastFetchAtRef.current = now;
 
     try {
       const { songs, hasMore } = await getRelatedSongs(
-        currentSong.id,
+        songId,
         pageRef.current,
         PREFETCH_LIMIT,
       );
 
-      // Filter out songs already in the queue or already added
-      const existingIds = new Set(queue.map((s) => s.id));
+      const existingIds = new Set(queueRef.current.map((s) => s.id));
       const newSongs = songs.filter(
         (s: any) =>
           s?.id && !existingIds.has(s.id) && !addedIdsRef.current.has(s.id),
@@ -56,18 +73,19 @@ export function useQueueAutoFill({
 
       if (newSongs.length > 0) {
         newSongs.forEach((s: any) => addedIdsRef.current.add(s.id));
-        onAddSongs(newSongs);
-      }
-
-      if (hasMore) {
-        pageRef.current += 1;
+        onAddSongsRef.current(newSongs);
+        emptyRoundsRef.current = 0;
+        if (hasMore) pageRef.current += 1;
+      } else {
+        // No new songs — increment exhaustion counter
+        emptyRoundsRef.current += 1;
       }
     } catch {
-      // Silent fail — queue auto-fill is non-critical
+      // Silent fail
     } finally {
       fetchingRef.current = false;
     }
-  }, [currentSong?.id, queue, onAddSongs]);
+  }, []); // stable — no deps needed since we use refs
 
   useEffect(() => {
     if (!enabled || !currentSong) return;
@@ -75,5 +93,7 @@ export function useQueueAutoFill({
     if (remaining < REFILL_THRESHOLD) {
       fetchRelated();
     }
-  }, [enabled, queue.length, queueIndex, currentSong, fetchRelated]);
+    // Only re-run when structural conditions change, NOT when fetchRelated changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, queue.length, queueIndex, currentSong?.id]);
 }
