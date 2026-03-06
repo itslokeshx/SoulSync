@@ -8,6 +8,18 @@ const REQ_GAP = 1100; // ms between requests (1.1s to stay safe)
 let lastReq = 0;
 let queueTail: Promise<void> = Promise.resolve();
 
+// Priority flag: warmup checks this and pauses when user queries are running
+let activeUserQueries = 0;
+export function markUserQueryStart() {
+  activeUserQueries++;
+}
+export function markUserQueryEnd() {
+  activeUserQueries = Math.max(0, activeUserQueries - 1);
+}
+export function hasActiveUserQueries() {
+  return activeUserQueries > 0;
+}
+
 /**
  * Enqueue a GET request so that only ONE request is in-flight at a time
  * and each request is spaced at least REQ_GAP ms from the previous one.

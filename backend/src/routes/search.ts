@@ -13,6 +13,8 @@ import {
   searchSongsDirect,
   getTopSearches,
   getSuggestions,
+  markUserQueryStart,
+  markUserQueryEnd,
   JioSaavnSong,
 } from "../services/jiosaavn.js";
 import { rateLimiter } from "../middleware/rateLimiter.js";
@@ -130,17 +132,18 @@ router.get(
   "/smart",
   rateLimiter(60, 60000),
   async (req: any, res: Response): Promise<void> => {
+    const q = req.query.q as string;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+
+    if (!q || q.trim().length < 2) {
+      res.status(400).json({ error: "Query must be at least 2 characters" });
+      return;
+    }
+
+    markUserQueryStart();
     try {
-      const q = req.query.q as string;
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-
-      if (!q || q.trim().length < 2) {
-        res.status(400).json({ error: "Query must be at least 2 characters" });
-        return;
-      }
-
-      const cacheKey = `smart:${q.toLowerCase().replace(/\s+/g, "_")}:p${page}:l${limit}`;
+      const cacheKey = `smart:${normalizeSearchKey(q)}:p${page}:l${limit}`;
       const cached = await redisGet(cacheKey);
       if (cached) {
         try {
@@ -149,7 +152,6 @@ router.get(
         } catch {}
       }
 
-      // Fire all in parallel (direct = no throttle queue)
       const [searchResult, albums, artists] = await Promise.all([
         enhancedSearch(q, "all", limit * page + 10),
         searchAlbumsDirect(q, 6).catch(() => []),
@@ -161,7 +163,6 @@ router.get(
       const pageSongs = allSongs.slice(start, start + limit);
       const hasMore = allSongs.length > start + limit;
 
-      // Related searches: extract artist/mood context
       const parsed = searchResult.parsedIntent;
       const relatedSearches: string[] = [];
       if (parsed.entities.artist) {
@@ -201,12 +202,13 @@ router.get(
         matchReason: searchResult.displayContext,
       };
 
-      // Cache for 30 min (shorter than full search)
       await redisSet(cacheKey, JSON.stringify(result), 1800);
       res.json(result);
     } catch (err) {
       console.error("[Search] Smart error:", err);
       res.status(500).json({ error: "Search failed" });
+    } finally {
+      markUserQueryEnd();
     }
   },
 );
@@ -262,18 +264,19 @@ router.get(
 );
 
 // GET /api/search/stream — SSE streaming search
-// Sends a `partial` event (~400 ms TTFB) when the first JioSaavn query
-// resolves, then a `complete` event once all queries + albums/artists finish.
-// Cache hits are returned as a single `complete` event instantly.
+// Strategy: fire 1 primary query first. If results are strong (score ≥ 60,
+// count ≥ 5), send `complete` immediately — total time ≈ 1 throttled req + HTTP.
+// Otherwise fire 1 more expanded query then complete. Albums/artists are sent
+// only if client is still connected after songs are done.
+// Cache hits are returned as a single `complete` event instantly (< 5 ms).
 router.get(
   "/stream",
   rateLimiter(30, 60000),
   async (req: any, res: Response): Promise<void> => {
-    // Set SSE headers before any async work so the client sees the stream
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no"); // prevent nginx buffering
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
     let active = true;
@@ -293,8 +296,9 @@ router.get(
       return;
     }
 
+    markUserQueryStart();
     try {
-      // ── Cache hit → single complete event, no partial needed ──────────
+      // ── Cache hit → instant complete ─────────────────────────────────
       const ck = normalizeSearchKey(q);
       const cached = await redisGet(`smart:${ck}:p1:l20`);
       if (cached && active) {
@@ -303,19 +307,15 @@ router.get(
           res.end();
           return;
         } catch {
-          /* corrupted cache entry — fall through to fresh fetch */
+          /* corrupted — fall through */
         }
       }
-
       if (!active) {
         res.end();
         return;
       }
 
-      // ── Live fetch: all queries fire in TRUE parallel ─────────────────
       const parsed = parseQuery(q);
-      const queries = parsed.expandedQueries.slice(0, 3);
-
       const allSongs: JioSaavnSong[] = [];
       const seen = new Set<string>();
 
@@ -334,101 +334,114 @@ router.get(
           .sort((a, b) => b.relevanceScore - a.relevanceScore)
           .filter((s) => s.relevanceScore >= 5);
 
-      let partialSent = false;
-
-      // Kick off all song queries simultaneously — no throttle queue
-      const songPromises = queries.map((pq) => searchSongsDirect(pq, 20));
-
-      // Send `partial` as soon as ANY query resolves (≈ 400 ms TTFB)
-      songPromises.forEach((p) => {
-        p.then((result) => {
-          if (!active) return;
-          addSongs(result.results);
-          if (!partialSent && allSongs.length > 0) {
-            partialSent = true;
-            const scored = computeScored().slice(0, 10);
-            sendEvent("partial", {
-              songs: scored,
-              total: scored.length,
-              phase: "partial",
-            });
-          }
-        }).catch(() => {});
-      });
-
-      // Collect everything
-      const settled = await Promise.allSettled(songPromises);
-      if (!active) {
-        res.end();
-        return;
-      }
-      for (const r of settled) {
-        if (r.status === "fulfilled") addSongs(r.value.results);
-      }
-
-      // Albums + artists in parallel (also direct, no queue)
-      const [albums, artists] = await Promise.all([
-        searchAlbumsDirect(q, 6).catch(() => []),
-        searchArtistsDirect(q, 6).catch(() => []),
-      ]);
-
-      if (!active) {
-        res.end();
-        return;
-      }
-
-      const finalScored = computeScored().slice(0, 25);
-      const topResult =
-        finalScored.length > 0 && finalScored[0].relevanceScore > 70
-          ? finalScored[0]
-          : null;
-
-      const relatedSearches: string[] = [];
-      if (parsed.entities.artist) {
-        relatedSearches.push(
-          `Best of ${parsed.entities.artist}`,
-          `${parsed.entities.artist} latest`,
-        );
-      }
-      if (parsed.entities.mood) {
-        relatedSearches.push(
-          `${parsed.entities.mood} songs`,
-          `${parsed.entities.mood} playlist`,
-        );
-      }
-
-      const completeData = {
-        query: q,
-        page: 1,
-        limit: 20,
-        hasMore: finalScored.length > 20,
-        total: finalScored.length,
-        topResult,
-        songs: finalScored.slice(0, 20),
-        albums: (albums as any[]) || [],
-        artists: (artists as any[]) || [],
-        parsedIntent: {
-          intent: parsed.intent,
-          artist: parsed.entities.artist,
-          mood: parsed.entities.mood,
-          language: parsed.entities.language,
-          displayContext: parsed.displayContext,
-        },
-        relatedSearches: relatedSearches.slice(0, 4),
-        matchReason: parsed.displayContext,
+      const buildComplete = (albums: any[], artists: any[]) => {
+        const scored = computeScored();
+        const topResult =
+          scored.length > 0 && scored[0].relevanceScore > 70 ? scored[0] : null;
+        const relatedSearches: string[] = [];
+        if (parsed.entities.artist) {
+          relatedSearches.push(
+            `Best of ${parsed.entities.artist}`,
+            `${parsed.entities.artist} latest`,
+          );
+        }
+        if (parsed.entities.mood) {
+          relatedSearches.push(
+            `${parsed.entities.mood} songs`,
+            `${parsed.entities.mood} playlist`,
+          );
+        }
+        return {
+          query: q,
+          page: 1,
+          limit: 20,
+          hasMore: scored.length > 20,
+          total: scored.length,
+          topResult,
+          songs: scored.slice(0, 20),
+          albums,
+          artists,
+          parsedIntent: {
+            intent: parsed.intent,
+            artist: parsed.entities.artist,
+            mood: parsed.entities.mood,
+            language: parsed.entities.language,
+            displayContext: parsed.displayContext,
+          },
+          relatedSearches: relatedSearches.slice(0, 4),
+          matchReason: parsed.displayContext,
+        };
       };
 
-      // Cache 30 min so next visit is instant
+      // ── Phase 1: fire primary query only (1 throttled req ≈ 1.2 s) ───
+      const primary = await searchSongsDirect(parsed.expandedQueries[0], 20);
+      if (!active) {
+        res.end();
+        return;
+      }
+      addSongs(primary.results);
+
+      const afterPrimary = computeScored();
+      const strongEnough =
+        afterPrimary.length >= 5 && afterPrimary[0]?.relevanceScore >= 60;
+
+      if (!strongEnough && parsed.expandedQueries.length > 1) {
+        // ── Phase 2: 1 more expanded query to improve weak results ──────
+        const extra = await searchSongsDirect(parsed.expandedQueries[1], 15);
+        if (active) addSongs(extra.results);
+      }
+
+      if (!active) {
+        res.end();
+        return;
+      }
+
+      // ── Partial event: send scored songs immediately so UI updates fast ──
+      // Albums/artists haven't loaded yet but songs are ready now.
+      const scoredForPartial = computeScored();
+      if (scoredForPartial.length > 0) {
+        sendEvent("partial", {
+          query: q,
+          total: scoredForPartial.length,
+          songs: scoredForPartial.slice(0, 20),
+          hasMore: scoredForPartial.length > 20,
+        });
+      }
+
+      // ── Albums + artists: fire both, race against a hard 2.5 s cap ────
+      // This way songs are visible immediately and albums/artists arrive
+      // shortly after (or are empty if throttle queue is backed up).
+      let albums: any[] = [];
+      let artists: any[] = [];
+      if (active) {
+        const albumsP = searchAlbumsDirect(q, 5).catch((): any[] => []);
+        const artistsP = searchArtistsDirect(q, 5).catch((): any[] => []);
+        const cap = new Promise<[any[], any[]]>((r) =>
+          setTimeout(() => r([[], []]), 2500),
+        );
+        [albums, artists] = await Promise.race([
+          Promise.all([albumsP, artistsP]),
+          cap,
+        ]);
+      }
+
+      if (!active) {
+        res.end();
+        return;
+      }
+
+      const completeData = buildComplete(albums, artists);
       redisSet(`smart:${ck}:p1:l20`, JSON.stringify(completeData), 1800).catch(
         () => {},
       );
-
       sendEvent("complete", completeData);
       res.end();
     } catch (err) {
       console.error("[Search] Stream error:", err);
       sendEvent("error", { message: "Search failed" });
       res.end();
+    } finally {
+      markUserQueryEnd();
     }
   },
 );

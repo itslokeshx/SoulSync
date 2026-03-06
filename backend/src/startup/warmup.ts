@@ -14,6 +14,7 @@ import {
   normalizeSearchKey,
 } from "../services/searchEnhancer.js";
 import { redisGet } from "../services/redis.js";
+import { hasActiveUserQueries } from "../services/jiosaavn.js";
 
 const POPULAR_QUERIES = [
   // Top Bollywood artists
@@ -69,6 +70,12 @@ export async function warmupSearchCache() {
         skipped++;
         console.log(`[Warmup] ↩ ${q} (already cached)`);
         continue;
+      }
+
+      // Yield to active user searches before consuming the throttle queue
+      if (hasActiveUserQueries()) {
+        console.log(`[Warmup] ⏸ ${q} — waiting for user query to finish…`);
+        await delay(3000);
       }
 
       await enhancedSearch(q, "all", 20);
