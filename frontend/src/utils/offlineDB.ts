@@ -29,6 +29,27 @@ export interface OfflineSong {
   downloadUrl: { quality: string; url: string }[];
   image: { quality: string; url: string }[];
   savedAt: number;
+  order?: number;
+}
+
+export async function updateOfflineSongOrder(songIds: string[]): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORE_SONGS, "readwrite");
+  const store = tx.objectStore(STORE_SONGS);
+  for (let i = 0; i < songIds.length; i++) {
+    const song = await new Promise<OfflineSong>((res) => {
+      const getReq = store.get(songIds[i]);
+      getReq.onsuccess = () => res(getReq.result);
+    });
+    if (song) {
+      song.order = i;
+      store.put(song);
+    }
+  }
+  return new Promise((res, rej) => {
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
 }
 
 export async function saveOfflineSong(

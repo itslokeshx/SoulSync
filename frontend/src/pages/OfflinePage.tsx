@@ -15,6 +15,8 @@ import {
   ChevronDown,
   Repeat,
   Repeat1,
+  GripVertical,
+  ChevronUp,
 } from "lucide-react";
 import {
   getOfflineSongs,
@@ -22,6 +24,7 @@ import {
   removeOfflineSong,
   getOfflineStorageSize,
   saveOfflineSong,
+  updateOfflineSongOrder,
   type OfflineSong,
 } from "../utils/offlineDB";
 import { bestImg, onImgErr, fmt } from "../lib/helpers";
@@ -40,6 +43,7 @@ export default function OfflinePage() {
   const [shuffled, setShuffled] = useState(false);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [npOpen, setNpOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState<number | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
@@ -58,9 +62,13 @@ export default function OfflinePage() {
         getOfflineSongs(),
         getOfflineStorageSize(),
       ]);
-      setSongs(
-        s.sort((a: OfflineSong, b: OfflineSong) => b.savedAt - a.savedAt),
-      );
+      // Sort by order if it exists, else by savedAt
+      const sorted = s.sort((a: OfflineSong, b: OfflineSong) => {
+        if (a.order !== undefined && b.order !== undefined)
+          return a.order - b.order;
+        return b.savedAt - a.savedAt;
+      });
+      setSongs(sorted);
       setStorageSize(size);
     } catch {
       setSongs([]);
@@ -305,6 +313,34 @@ export default function OfflinePage() {
     refresh();
   };
 
+  const onDragStart = (e: React.DragEvent, index: number) => {
+    setIsDragging(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `${index}`);
+  };
+
+  const onDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (isDragging === null || isDragging === index) return;
+
+    const newList = [...songs];
+    const item = newList[isDragging];
+    newList.splice(isDragging, 1);
+    newList.splice(index, 0, item);
+
+    setIsDragging(index);
+    setSongs(newList);
+  };
+
+  const onDragEnd = async () => {
+    setIsDragging(null);
+    try {
+      await updateOfflineSongOrder(songs.map((s) => s.id));
+    } catch {
+      toast.error("Failed to save order");
+    }
+  };
+
   const handleImportLocal = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -451,38 +487,53 @@ export default function OfflinePage() {
               </button>
             </div>
             <div className="space-y-1">
-              {songs.map((s) => {
+              {songs.map((s, i) => {
                 const isActive = currentSong?.id === s.id;
                 return (
                   <div
                     key={s.id}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+                    draggable
+                    onDragStart={(e) => onDragStart(e, i)}
+                    onDragOver={(e) => onDragOver(e, i)}
+                    onDragEnd={onDragEnd}
+                    onClick={() => {
+                      handlePlay(s, songs);
+                      setNpOpen(true);
+                    }}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all cursor-pointer active:scale-[0.98] ${
+                      isDragging === i ? "opacity-30 bg-white/[0.08]" : ""
+                    } ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                   >
-                    <button
-                      onClick={() => handlePlay(s, songs)}
-                      className="relative flex-shrink-0"
-                    >
+                    <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <GripVertical size={16} className="text-white/20" />
+                    </div>
+                    <div className="relative flex-shrink-0">
                       <img
                         src={songImg(s)}
                         onError={onImgErr}
                         className="w-12 h-12 rounded-xl object-cover"
                         alt=""
                       />
-                      <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        {isActive && isPlaying ? (
-                          <Pause size={18} className="text-white fill-white" />
-                        ) : (
-                          <Play
-                            size={18}
-                            className="text-white fill-white ml-0.5"
-                          />
-                        )}
-                      </div>
-                      {isActive && (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-sp-green rounded-full" />
+                      {isActive && isPlaying && (
+                        <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
+                          <div className="flex items-end gap-[2px] h-3">
+                            {[0.2, 0.4, 0.3, 0.5].map((d, idx) => (
+                              <motion.div
+                                key={idx}
+                                animate={{ height: [4, 12, 4] }}
+                                transition={{
+                                  duration: 0.6,
+                                  delay: d,
+                                  repeat: Infinity,
+                                }}
+                                className="w-1 bg-sp-green rounded-full"
+                              />
+                            ))}
+                          </div>
+                        </div>
                       )}
-                    </button>
-                    <div className="min-w-0 flex-1">
+                    </div>
+                    <div className="min-w-0 flex-1 ml-1">
                       <p
                         className={`text-[13px] font-semibold truncate ${isActive ? "text-sp-green" : "text-white"}`}
                       >
@@ -496,7 +547,10 @@ export default function OfflinePage() {
                       {fmt(s.duration)}
                     </span>
                     <button
-                      onClick={() => handleRemove(s.id, s.name)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemove(s.id, s.name);
+                      }}
                       className="p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
                     >
                       <Trash2 size={14} />
