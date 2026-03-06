@@ -269,7 +269,7 @@ export async function searchAlbumsDirect(q: string, limit = 5) {
   return await searchAlbums(q, limit)
 }
 
-export async function getSuggestions(songId: string, limit = 10): Promise<any[]> {
+export async function getSuggestions(songId: string, limit = 50): Promise<any[]> {
   const data = await fetchSafe(`${JIOSAAVN_BASE}/songs/${songId}/suggestions?limit=${limit}`) as any
   return data?.data || []
 }

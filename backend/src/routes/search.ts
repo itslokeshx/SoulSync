@@ -42,7 +42,7 @@ router.get("/related", async (req: any, res: Response): Promise<void> => {
   try {
     markUserQueryStart();
     const songId = req.query.songId as string;
-    const limit = Math.min(parseInt(req.query.limit as string) || 30, 50);
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
     if (!songId) {
       res.status(400).json({ error: "Song ID required" });

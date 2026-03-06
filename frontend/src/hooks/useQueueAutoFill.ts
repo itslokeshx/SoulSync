@@ -1,10 +1,11 @@
 import { useEffect, useRef, useCallback } from "react";
 import { getRelatedSongs } from "../api/backend";
 
-const REFILL_THRESHOLD = 10; // trigger when fewer than N songs remain
-const PREFETCH_LIMIT = 50;
-const FETCH_COOLDOWN_MS = 15_000; // minimum ms between fetches
-const MAX_EMPTY_ROUNDS = 2; // give up after N consecutive empty fetches
+const REFILL_THRESHOLD = 100; // trigger when fewer than N songs remain
+const PREFETCH_LIMIT = 100;
+const MAX_QUEUE_SIZE = 300;
+const FETCH_COOLDOWN_MS = 5_000; // faster refill for large targets
+const MAX_EMPTY_ROUNDS = 3;
 
 interface UseQueueAutoFillOptions {
   queue: any[];
@@ -90,10 +91,9 @@ export function useQueueAutoFill({
   useEffect(() => {
     if (!enabled || !currentSong) return;
     const remaining = queue.length - queueIndex - 1;
-    if (remaining < REFILL_THRESHOLD) {
+    // Aggressively fill if under 300 songs OR approaching end
+    if (queue.length < MAX_QUEUE_SIZE || remaining < REFILL_THRESHOLD) {
       fetchRelated();
     }
-    // Only re-run when structural conditions change, NOT when fetchRelated changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, queue.length, queueIndex, currentSong?.id]);
 }

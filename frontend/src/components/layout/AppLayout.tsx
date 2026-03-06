@@ -263,10 +263,10 @@ export function AppLayout() {
         }
 
         if (newQueue.length <= 1) {
-          fetch(`${API}/songs/${target.id}/suggestions?limit=10`)
+          fetch(`${API}/api/search/related?songId=${target.id}&limit=50`)
             .then((r) => r.json())
             .then((d) => {
-              const suggs = Array.isArray(d?.data) ? d.data : [];
+              const suggs = Array.isArray(d?.songs) ? d.songs : [];
               if (suggs.length)
                 setQueue((prev) =>
                   prev.length <= 1 ? [target, ...suggs] : [...prev, ...suggs],
