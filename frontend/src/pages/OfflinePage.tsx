@@ -156,7 +156,7 @@ export default function OfflinePage() {
       const rep = repeatRef.current;
       if (rep === "one") {
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
         return;
       }
       if (!q.length) return;
@@ -223,7 +223,7 @@ export default function OfflinePage() {
     const audio = audioRef.current;
     if (!audio.src) return;
     if (isPlaying) audio.pause();
-    else audio.play().catch(() => {});
+    else audio.play().catch(() => { });
   }, [isPlaying]);
 
   const handleNext = useCallback(() => {
@@ -274,10 +274,26 @@ export default function OfflinePage() {
           setCurrentTime(d.seekTime);
         }
       });
-    } catch {}
+    } catch { }
   }, [handlePlayPause, handleNext, handlePrev]);
 
   // Update media metadata when song changes
+  useEffect(() => {
+    if (currentSong) {
+      updateMediaMetadata(currentSong, isPlaying);
+      // Update position state for notification seek bar
+      updatePositionState(currentTime, duration);
+    } else {
+      clearMediaMetadata();
+    }
+  }, [currentSong?.id, isPlaying]); // eslint-disable-line
+
+  // Keep notification seek bar position updated during playback
+  useEffect(() => {
+    if (currentSong && duration > 0) {
+      updatePositionState(currentTime, duration);
+    }
+  }, [currentTime, duration]); // eslint-disable-line
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value);
@@ -352,7 +368,7 @@ export default function OfflinePage() {
               URL.revokeObjectURL(tempUrl);
             });
           });
-        } catch {}
+        } catch { }
         const song: OfflineSong = {
           id,
           name,
@@ -498,9 +514,8 @@ export default function OfflinePage() {
                       handlePlay(s, songs);
                       setNpOpen(true);
                     }}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all cursor-pointer active:scale-[0.98] ${
-                      isDragging === i ? "opacity-30 bg-white/[0.08]" : ""
-                    } ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all cursor-pointer active:scale-[0.98] ${isDragging === i ? "opacity-30 bg-white/[0.08]" : ""
+                      } ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                   >
                     <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <GripVertical size={16} className="text-white/20" />
@@ -708,11 +723,10 @@ export default function OfflinePage() {
             </div>
             <button
               onClick={() => setShowQueue((q) => !q)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-all border ${
-                showQueue
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-all border ${showQueue
                   ? "text-sp-green bg-sp-green/10 border-sp-green/20"
                   : "text-white/40 hover:text-white hover:bg-white/[0.08] border-transparent"
-              }`}
+                }`}
             >
               <ListMusic size={17} />
               <span className="text-[12px] font-bold tracking-wide">Queue</span>
@@ -789,9 +803,8 @@ export default function OfflinePage() {
                 <div className="flex items-center justify-center gap-6 px-8 mb-10">
                   <button
                     onClick={() => setShuffled((s) => !s)}
-                    className={`p-2 transition-colors ${
-                      shuffled ? "text-sp-green" : "text-white/35"
-                    }`}
+                    className={`p-2 transition-colors ${shuffled ? "text-sp-green" : "text-white/35"
+                      }`}
                   >
                     <Shuffle size={20} />
                   </button>
@@ -819,9 +832,8 @@ export default function OfflinePage() {
                   </button>
                   <button
                     onClick={cycleRepeat}
-                    className={`p-2 transition-colors ${
-                      repeat !== "off" ? "text-sp-green" : "text-white/35"
-                    }`}
+                    className={`p-2 transition-colors ${repeat !== "off" ? "text-sp-green" : "text-white/35"
+                      }`}
                   >
                     {repeat === "one" ? (
                       <Repeat1 size={20} />
