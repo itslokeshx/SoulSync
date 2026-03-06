@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Search, Music2, ChevronLeft, X } from "lucide-react";
+import { Search, Music2, ChevronLeft } from "lucide-react";
 import { useLikedSongs, useRecentlyPlayed } from "../../hooks";
 import {
   bestUrl,
@@ -22,11 +22,11 @@ import {
   useDuo,
   useDuoStore,
 } from "../../duo";
-import { useSearchStore } from "../../store/searchStore";
 import { useUIStore } from "../../store/uiStore";
 import { AppContext } from "../../context/AppContext";
 import { ContextMenu } from "../ui/ContextMenu";
 import { AIPlaylistModal } from "../ui/AIPlaylistModal";
+import { useQueueAutoFill } from "../../hooks/useQueueAutoFill";
 import {
   registerMediaControls,
   updateMediaMetadata,
@@ -49,8 +49,8 @@ export function AppLayout() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekingRef = useRef(false);
 
-  // Search
-  const setSearchQuery = useSearchStore((s) => s.setQuery);
+  // Search — navigate to /search page
+  const isSearchPage = location.pathname === "/search";
   const [liveQuery, setLiveQuery] = useState("");
 
   // Core state
@@ -129,6 +129,18 @@ export function AppLayout() {
     csRef.current = currentSong;
   }, [currentSong]);
 
+  // Ctrl+K / Cmd+K → open search page
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        navigate("/search");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigate]);
+
   // Auto-close NowPlaying fullscreen & minimise DuoPanel on route change
   useEffect(() => {
     setNpOpen(false);
@@ -136,17 +148,6 @@ export function AppLayout() {
       useDuoStore.getState().setPanelOpen(false);
     }
   }, [location.pathname]);
-
-  // Debounced search → navigate to /search
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearchQuery(liveQuery);
-      if (liveQuery.trim() && location.pathname !== "/search") {
-        navigate("/search");
-      }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [liveQuery]); // eslint-disable-line
 
   // Dynamic bg color
   useEffect(() => {
@@ -274,6 +275,23 @@ export function AppLayout() {
   playSongRef.current = playSong;
   duoCurrentSongRef.current = currentSong;
   duoQueueRef.current = queue;
+
+  // ── Queue auto-fill (200+ songs) ──
+  useQueueAutoFill({
+    queue,
+    queueIndex,
+    currentSong,
+    enabled: !!currentSong,
+    onAddSongs: (newSongs) => {
+      setQueue((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
+        const filtered = newSongs.filter((s: any) => !existingIds.has(s.id));
+        const updated = [...prev, ...filtered];
+        qRef.current = updated;
+        return updated;
+      });
+    },
+  });
 
   // ── Audio event listeners ──
   useEffect(() => {
@@ -594,9 +612,8 @@ export function AppLayout() {
   const goHome = useCallback(() => {
     navigate("/");
     setLiveQuery("");
-    setSearchQuery("");
     useDuoStore.getState().setPanelOpen(false);
-  }, [navigate, setSearchQuery]);
+  }, [navigate]);
 
   // ── Context value ──
   const contextValue = useMemo(
@@ -638,74 +655,81 @@ export function AppLayout() {
         <div
           className={`flex-1 ${sidebarCollapsed ? "md:ml-[4.5rem]" : "md:ml-[17rem]"} ${queueOpen || duoPanelOpen ? "md:mr-80" : ""} flex flex-col overflow-hidden transition-all duration-300`}
         >
-          {/* Top bar */}
-          <div
-            className="flex-shrink-0 flex items-center gap-2 md:gap-3 px-4 md:px-6 py-3 md:py-3.5 sticky top-0 z-20 backdrop-blur-2xl"
-            style={{
-              background: `linear-gradient(to bottom,${bgColor}60 0%,transparent 100%)`,
-            }}
-          >
-            {/* Mobile logo */}
-            <button
-              onClick={goHome}
-              className="flex items-center gap-2 md:hidden flex-shrink-0 active:scale-95 transition-transform"
+          {/* Top bar — hidden on /search (SearchPage owns its full header) */}
+          {!isSearchPage && (
+            <div
+              className="flex-shrink-0 flex items-center gap-2 md:gap-3 px-4 md:px-6 py-3 md:py-3.5 sticky top-0 z-20 backdrop-blur-2xl"
+              style={{
+                background: `linear-gradient(to bottom,${bgColor}60 0%,transparent 100%)`,
+              }}
             >
-              <div
-                className="w-8 h-8 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center"
-                style={{ boxShadow: "0 0 16px rgba(29,185,84,0.2)" }}
-              >
-                <Music2 size={14} className="text-black" strokeWidth={2.5} />
-              </div>
-              <span className="text-[15px] font-extrabold tracking-tight text-white">
-                Soul<span className="text-sp-green">Sync</span>
-              </span>
-            </button>
-
-            {/* Desktop nav arrows */}
-            <div className="hidden md:flex gap-1.5 flex-shrink-0">
+              {/* Mobile logo */}
               <button
-                onClick={() => navigate(-1)}
-                className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white hover:bg-white/[0.12] transition-all duration-200"
+                onClick={goHome}
+                className="flex items-center gap-2 md:hidden flex-shrink-0 active:scale-95 transition-transform"
               >
-                <ChevronLeft size={14} />
-              </button>
-              {duoActive && <DuoHeartbeat />}
-            </div>
-
-            {/* Search input */}
-            <div className="flex-1 relative">
-              <Search
-                size={14}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={liveQuery}
-                onChange={(e) => setLiveQuery(e.target.value)}
-                onFocus={() => {
-                  if (!liveQuery.trim()) navigate("/search");
-                }}
-                placeholder="Search songs, artists, albums..."
-                className="w-full text-[13px] text-white placeholder-white/25 rounded-full pl-10 pr-9 py-2.5 outline-none border border-white/[0.06] focus:border-white/[0.15] transition-all duration-200"
-                style={{ background: "rgba(255,255,255,0.06)" }}
-              />
-              {liveQuery && (
-                <button
-                  onClick={() => {
-                    setLiveQuery("");
-                    setSearchQuery("");
-                    navigate("/");
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors"
+                <div
+                  className="w-8 h-8 rounded-xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center"
+                  style={{ boxShadow: "0 0 16px rgba(29,185,84,0.2)" }}
                 >
-                  <X size={13} />
+                  <Music2 size={14} className="text-black" strokeWidth={2.5} />
+                </div>
+                <span className="text-[15px] font-extrabold tracking-tight text-white">
+                  Soul<span className="text-sp-green">Sync</span>
+                </span>
+              </button>
+
+              {/* Desktop nav arrows */}
+              <div className="hidden md:flex gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="w-7 h-7 rounded-full bg-white/[0.06] flex items-center justify-center text-white hover:bg-white/[0.12] transition-all duration-200"
+                >
+                  <ChevronLeft size={14} />
                 </button>
+                {duoActive && <DuoHeartbeat />}
+              </div>
+
+              {/* Search launcher — navigates to /search page, hidden while on it */}
+              {!isSearchPage && (
+                <div className="flex-1 relative">
+                  <Search
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    value={liveQuery}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setLiveQuery(v);
+                      navigate(
+                        v.trim()
+                          ? `/search?q=${encodeURIComponent(v)}`
+                          : "/search",
+                      );
+                    }}
+                    onFocus={() => {
+                      setLiveQuery("");
+                      navigate("/search");
+                    }}
+                    placeholder="Search songs, artists, albums..."
+                    className="w-full text-[13px] text-white placeholder-white/25 rounded-full pl-10 pr-9 py-2.5 outline-none border border-white/[0.06] focus:border-white/[0.15] transition-all duration-200"
+                    style={{ background: "rgba(255,255,255,0.06)" }}
+                  />
+                </div>
               )}
             </div>
-          </div>
+          )}
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28 bg-black/40">
+          <main
+            className={`flex-1 ${
+              isSearchPage
+                ? "overflow-hidden p-0"
+                : "overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28 bg-black/40"
+            }`}
+          >
             <Outlet />
           </main>
         </div>

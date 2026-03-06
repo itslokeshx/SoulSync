@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
-  Search,
   Heart,
   Library,
   Music2,
@@ -12,6 +11,7 @@ import {
 import { useUIStore } from "../../store/uiStore";
 import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
+import { SearchTrigger } from "../ui/SearchTrigger";
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -28,7 +28,6 @@ export const Sidebar = () => {
 
   const navItems = [
     { id: "home", label: "Home", Icon: Home, path: "/" },
-    { id: "search", label: "Search", Icon: Search, path: "/search" },
     { id: "library", label: "Library", Icon: Library, path: "/library" },
     { id: "liked", label: "Liked Songs", Icon: Heart, path: "/liked" },
     { id: "downloads", label: "Downloads", Icon: Download, path: "/downloads" },
@@ -66,6 +65,13 @@ export const Sidebar = () => {
             </span>
           </span>
         )}
+      </div>
+
+      {/* Search trigger — at top of nav */}
+      <div className={`flex-shrink-0 ${collapsed ? "px-1.5" : "px-3"} pb-1`}>
+        <SearchTrigger
+          variant={collapsed ? "sidebar-collapsed" : "sidebar"}
+        />
       </div>
 
       {/* Navigation — scrollable if needed */}

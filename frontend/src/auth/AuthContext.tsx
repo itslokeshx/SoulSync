@@ -15,6 +15,11 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (googleCredential: string) => Promise<{ isNewUser: boolean }>;
+  loginWithCredentials: (
+    identifier: string,
+    password: string,
+  ) => Promise<{ isNewUser: boolean }>;
+  loginAfterRegister: (user: User, token?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
 }
@@ -24,6 +29,8 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAuthenticated: false,
   login: async () => ({ isNewUser: false }),
+  loginWithCredentials: async () => ({ isNewUser: false }),
+  loginAfterRegister: async () => {},
   logout: async () => {},
   updateUser: () => {},
 });
@@ -55,6 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { isNewUser };
   }, []);
 
+  const loginWithCredentials = useCallback(
+    async (identifier: string, password: string) => {
+      const { data } = await api.loginWithCredentials({ identifier, password });
+      if (data.token) await api.saveNativeToken(data.token);
+      setUser(data.user);
+      return { isNewUser: data.isNewUser ?? !data.user.onboardingComplete };
+    },
+    [],
+  );
+
+  const loginAfterRegister = useCallback(async (user: User, token?: string) => {
+    if (token) await api.saveNativeToken(token);
+    setUser(user);
+  }, []);
+
   const logout = useCallback(async () => {
     await api.logout();
     setUser(null);
@@ -73,6 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAuthenticated: !!user,
     login,
+    loginWithCredentials,
+    loginAfterRegister,
     logout,
     updateUser,
   };

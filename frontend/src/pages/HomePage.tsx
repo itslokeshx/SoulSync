@@ -136,7 +136,7 @@ export const HomePage = () => {
     };
   })();
 
-  // ── Mood click handler
+  // ── Mood click handler ── navigates to search page with pre-filled query
   const onMoodClick = (mood: string) => {
     const q =
       mood

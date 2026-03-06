@@ -17,6 +17,8 @@ import {
   GripVertical,
   Trash2,
   Music,
+  Download,
+  CheckCircle2,
 } from "lucide-react";
 import {
   bestImg,
@@ -27,6 +29,9 @@ import {
 } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
+import { useOfflineStore } from "../../store/offlineStore";
+import { useDownloadStore } from "../../store/downloadStore";
+import { downloadSong } from "../../utils/downloadSong";
 import { EqBars } from "../ui/EqBars";
 
 const API =
@@ -94,6 +99,12 @@ export const NowPlayingView = ({
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showVol, setShowVol] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+
+  const isDownloaded = useOfflineStore((s) => s.isDownloaded);
+  const isDownloading = useDownloadStore((s) => s.isDownloading);
+  const dlProgress = useDownloadStore(
+    (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
+  );
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -230,10 +241,11 @@ export const NowPlayingView = ({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowQueue((q) => !q)}
-            className={`transition-all p-2.5 rounded-xl active:scale-95 ${showQueue ? "text-sp-green bg-sp-green/10" : "text-white/40 hover:text-white hover:bg-white/10"}`}
+            className={`flex items-center gap-1.5 transition-all px-3 py-2 rounded-xl active:scale-95 ${showQueue ? "text-sp-green bg-sp-green/10 border border-sp-green/20" : "text-white/40 hover:text-white hover:bg-white/10 border border-transparent"}`}
             aria-label="Up Next"
           >
-            <ListMusic size={20} />
+            <ListMusic size={17} />
+            <span className="text-[12px] font-bold tracking-wide">Up Next</span>
           </button>
           <button
             onClick={(e) => showContextMenu(e.clientX, e.clientY, currentSong)}
@@ -290,6 +302,60 @@ export const NowPlayingView = ({
                   }
                 />
               </button>
+              {/* Download — 3 states */}
+              {isDownloaded(currentSong.id) ? (
+                <button
+                  className="text-sp-green p-1.5 sm:p-2 rounded-full bg-sp-green/10 active:scale-95 transition-all"
+                  aria-label="Downloaded"
+                  title="Already downloaded"
+                >
+                  <CheckCircle2 size={19} />
+                </button>
+              ) : isDownloading(currentSong.id) ? (
+                <div
+                  className="relative p-1.5 sm:p-2"
+                  aria-label={`Downloading ${dlProgress}%`}
+                >
+                  <svg
+                    className="w-[19px] h-[19px] -rotate-90"
+                    viewBox="0 0 20 20"
+                  >
+                    <circle
+                      cx="10"
+                      cy="10"
+                      r="8"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.12)"
+                      strokeWidth="2"
+                    />
+                    <circle
+                      cx="10"
+                      cy="10"
+                      r="8"
+                      fill="none"
+                      stroke="#1db954"
+                      strokeWidth="2"
+                      strokeDasharray={`${2 * Math.PI * 8}`}
+                      strokeDashoffset={`${2 * Math.PI * 8 * (1 - dlProgress / 100)}`}
+                      strokeLinecap="round"
+                      className="transition-all duration-300"
+                    />
+                  </svg>
+                  <Download
+                    size={9}
+                    className="absolute inset-0 m-auto text-white/50"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => downloadSong(currentSong)}
+                  className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 transition-all duration-200 text-white/40 hover:text-white"
+                  aria-label="Download for offline"
+                  title="Download for offline"
+                >
+                  <Download size={19} />
+                </button>
+              )}
               {/* Volume icon + popup */}
               <div ref={volRef} className="relative group">
                 <button
@@ -461,11 +527,24 @@ export const NowPlayingView = ({
               </div>
 
               {/* Next Up header */}
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.15em]">
-                  Next Up · {upcoming.length}{" "}
-                  {upcoming.length === 1 ? "song" : "songs"}
-                </p>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="px-2.5 py-[3px] rounded-full text-[10px] font-black uppercase tracking-[0.12em]"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(29,185,84,0.18), rgba(16,185,129,0.08))",
+                      border: "1px solid rgba(29,185,84,0.28)",
+                      color: "#1db954",
+                    }}
+                  >
+                    Up Next
+                  </span>
+                  <span className="text-white/25 text-[11px] tabular-nums">
+                    {upcoming.length}{" "}
+                    {upcoming.length === 1 ? "track" : "tracks"}
+                  </span>
+                </div>
                 {upcoming.length > 1 && (
                   <button
                     onClick={onShuffleQueue}

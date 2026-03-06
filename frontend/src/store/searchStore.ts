@@ -1,17 +1,13 @@
 import { create } from "zustand";
 
 interface SearchState {
-  query: string;
   recentSearches: string[];
-  isSearching: boolean;
   activeFilter: "all" | "songs" | "albums" | "artists" | "bgm";
 }
 
 interface SearchActions {
-  setQuery: (q: string) => void;
   addRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
-  setIsSearching: (b: boolean) => void;
   setFilter: (f: SearchState["activeFilter"]) => void;
 }
 
@@ -24,12 +20,8 @@ const loadRecent = (): string[] => {
 };
 
 export const useSearchStore = create<SearchState & SearchActions>((set) => ({
-  query: "",
   recentSearches: loadRecent(),
-  isSearching: false,
   activeFilter: "all",
-
-  setQuery: (q) => set({ query: q }),
 
   addRecentSearch: (q) =>
     set((s) => {
@@ -46,6 +38,5 @@ export const useSearchStore = create<SearchState & SearchActions>((set) => ({
     set({ recentSearches: [] });
   },
 
-  setIsSearching: (b) => set({ isSearching: b }),
   setFilter: (f) => set({ activeFilter: f }),
 }));

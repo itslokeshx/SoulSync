@@ -112,6 +112,40 @@ export async function logout(): Promise<void> {
   await clearNativeToken();
 }
 
+export async function loginWithCredentials(data: {
+  identifier: string;
+  password: string;
+}): Promise<{ data: { user: User; isNewUser: boolean; token?: string } }> {
+  return api.post("/api/auth/login", data);
+}
+
+export async function register(data: {
+  name: string;
+  username?: string;
+  email: string;
+  password: string;
+}): Promise<{ data: { user: User; isNewUser: boolean; token?: string } }> {
+  return api.post("/api/auth/register", data);
+}
+
+export async function checkUsername(
+  username: string,
+): Promise<{ available: boolean; reason?: string }> {
+  const { data } = await api.get(`/api/auth/check-username?u=${username}`);
+  return data;
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  await api.post("/api/auth/forgot-password", { email });
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await api.post("/api/auth/reset-password", { token, newPassword });
+}
+
 export async function getMe(): Promise<User | null> {
   try {
     const { data } = await api.get("/api/auth/me");
@@ -259,6 +293,17 @@ export async function getSearchSuggestions(query: string): Promise<unknown> {
 
 export async function getTrending(): Promise<unknown> {
   const { data } = await api.get("/api/search/top");
+  return data;
+}
+
+export async function getRelatedSongs(
+  songId: string,
+  page = 1,
+  limit = 50,
+): Promise<{ songs: any[]; total: number; page: number; hasMore: boolean }> {
+  const { data } = await api.get("/api/search/related", {
+    params: { songId, page, limit },
+  });
   return data;
 }
 

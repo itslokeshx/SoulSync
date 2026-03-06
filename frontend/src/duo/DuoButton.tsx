@@ -79,18 +79,25 @@ export function DuoButton({ variant = "auto" }: DuoButtonProps) {
 
         {variant === "mobile-nav" ? (
           <>
-            <div className="relative">
-              <HeadphoneIcon size={20} className="text-sp-green" />
-              <span className="absolute -top-0.5 -right-1 flex h-2 w-2">
+            <div
+              className="relative w-10 h-10 rounded-full flex items-center justify-center"
+              style={{
+                background: "linear-gradient(145deg, #1db954 0%, #15803d 100%)",
+                boxShadow:
+                  "0 0 20px rgba(29,185,84,0.5), 0 2px 8px rgba(0,0,0,0.4)",
+              }}
+            >
+              <HeadphoneIcon size={19} className="text-black" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                 <span
-                  className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${partnerConnected ? "bg-sp-green animate-ping" : "bg-amber-400 animate-pulse"}`}
+                  className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${partnerConnected ? "bg-white animate-ping" : "bg-amber-300 animate-pulse"}`}
                 />
                 <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${partnerConnected ? "bg-sp-green" : "bg-amber-400"}`}
+                  className={`relative inline-flex rounded-full h-2.5 w-2.5 ${partnerConnected ? "bg-white" : "bg-amber-300"}`}
                 />
               </span>
             </div>
-            <span className="text-[10px] font-medium text-sp-green">
+            <span className="text-[9px] font-black text-sp-green tracking-wider uppercase">
               SoulLink
             </span>
           </>
@@ -202,11 +209,21 @@ export function DuoButton({ variant = "auto" }: DuoButtonProps) {
 
       {variant === "mobile-nav" ? (
         <>
-          <HeadphoneIcon
-            size={20}
-            className="text-sp-sub/60 group-active:text-sp-green transition-colors"
-          />
-          <span className="text-[10px] font-medium text-sp-sub/60 group-active:text-sp-green transition-colors">
+          <div
+            className="relative w-10 h-10 rounded-full flex items-center justify-center border border-sp-green/30 group-active:border-sp-green/60 transition-all"
+            style={{
+              background:
+                "linear-gradient(145deg, rgba(29,185,84,0.14) 0%, rgba(16,185,129,0.06) 100%)",
+              boxShadow:
+                "0 0 14px rgba(29,185,84,0.20), 0 2px 6px rgba(0,0,0,0.3)",
+            }}
+          >
+            <HeadphoneIcon
+              size={19}
+              className="text-sp-green/75 group-active:text-sp-green transition-colors"
+            />
+          </div>
+          <span className="text-[9px] font-bold text-sp-green/60 group-active:text-sp-green tracking-wider transition-colors">
             SoulLink
           </span>
         </>

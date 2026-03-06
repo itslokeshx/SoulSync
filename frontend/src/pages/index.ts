@@ -1,6 +1,4 @@
 export { HomePage } from "./HomePage";
-export { BrowsePage } from "./BrowsePage";
-export { SearchPage } from "./SearchPage";
 export { ArtistPage } from "./ArtistPage";
 export { AlbumPage } from "./AlbumPage";
 export { LikedPage } from "./LikedPage";
@@ -9,3 +7,4 @@ export { default as OnboardingPage } from "./OnboardingPage";
 export { default as LibraryPage } from "./LibraryPage";
 export { default as ProfilePage } from "./ProfilePage";
 export { default as PlaylistPage } from "./PlaylistPage";
+export { SearchPage } from "./SearchPage";

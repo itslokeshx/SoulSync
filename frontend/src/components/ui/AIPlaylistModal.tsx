@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
@@ -16,6 +16,12 @@ import { bestImg, getArtists, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import * as api from "../../api/backend";
 import toast from "react-hot-toast";
+
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  "https://soulsync-backend-a5fs.onrender.com";
+const MAX_SONGS_INPUT = 100;
+const MAX_CHARS = 10000;
 
 const MOOD_CHIPS = [
   "Chill late night",
@@ -43,10 +49,19 @@ export function AIPlaylistModal() {
   const [playlistName, setPlaylistName] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [targetCount, setTargetCount] = useState(20);
+  const [streamProgress, setStreamProgress] = useState({
+    message: "",
+    percent: 0,
+  });
+  const [streamedSongs, setStreamedSongs] = useState<any[]>([]);
+  const esRef = useRef<EventSource | null>(null);
 
   // Reset when closed
   useEffect(() => {
     if (!aiPlaylistOpen) {
+      esRef.current?.close();
+      esRef.current = null;
       setResults(null);
       setMood("");
       setSongList("");
@@ -54,6 +69,8 @@ export function AIPlaylistModal() {
       setPlaylistName("");
       setSelected(new Set());
       setMode("mood");
+      setStreamProgress({ message: "", percent: 0 });
+      setStreamedSongs([]);
     }
   }, [aiPlaylistOpen]);
 
@@ -69,28 +86,95 @@ export function AIPlaylistModal() {
     if (mode === "songs" && !songList.trim()) return;
     setGenerating(true);
     setResults(null);
+    setStreamedSongs([]);
+    setStreamProgress({ message: "Starting AI...", percent: 2 });
+
+    const songs =
+      mode === "songs"
+        ? songList
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined;
+
     try {
-      let res: any;
-      if (mode === "mood") {
-        res = await api.buildAIPlaylist(undefined, mood.trim());
-      } else {
-        const songs = songList
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        res = await api.buildAIPlaylist(songs);
+      const token = api.getNativeToken();
+      const response = await fetch(`${BACKEND_URL}/api/ai/build-playlist`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          songs,
+          mood: mode === "mood" ? mood.trim() : undefined,
+          targetCount,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Generation failed");
       }
-      setResults(res);
-      setPlaylistName(res.playlistName || "AI Mix");
-      const ids = new Set<string>(
-        [...(res.matched || []), ...(res.partial || [])]
-          .map((m: any) => m.song?.id)
-          .filter(Boolean),
-      );
-      setSelected(ids);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let currentEvent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trimEnd();
+          if (trimmed.startsWith("event: ")) {
+            currentEvent = trimmed.slice(7).trim();
+          } else if (trimmed.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (currentEvent === "progress") {
+                setStreamProgress({
+                  message: data.message ?? "",
+                  percent: data.percent ?? 0,
+                });
+              } else if (currentEvent === "song" && data.song) {
+                setStreamedSongs((prev) => {
+                  if (prev.find((s) => s.id === data.song.id)) return prev;
+                  return [...prev, data.song];
+                });
+              } else if (currentEvent === "done") {
+                setResults(data);
+                setPlaylistName(data.playlistName || "AI Mix");
+                const ids = new Set<string>(
+                  [...(data.matched || []), ...(data.partial || [])]
+                    .map((m: any) => m.song?.id)
+                    .filter(Boolean),
+                );
+                setSelected(ids);
+                setGenerating(false);
+                return;
+              } else if (currentEvent === "error") {
+                throw new Error(data.message || "AI error");
+              }
+            } catch (parseErr: any) {
+              if (parseErr?.message) throw parseErr;
+            }
+            currentEvent = "";
+          } else if (trimmed === "") {
+            // blank line = SSE event boundary; currentEvent is reset after data
+          }
+        }
+      }
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.error || "AI generation failed. Please try again.";
+      const msg = err?.message || "AI generation failed. Please try again.";
       toast.error(msg);
     } finally {
       setGenerating(false);
@@ -258,12 +342,22 @@ export function AIPlaylistModal() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <p className="text-white/35 text-xs">
-                        One song per line — typos are totally fine!
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-white/35 text-xs">
+                          One song per line — typos are totally fine!
+                        </p>
+                        <span
+                          className={`text-[11px] ${songList.length > MAX_CHARS * 0.9 ? "text-amber-400" : "text-white/20"}`}
+                        >
+                          {songList.split("\n").filter(Boolean).length}/
+                          {MAX_SONGS_INPUT}
+                        </span>
+                      </div>
                       <textarea
                         value={songList}
-                        onChange={(e) => setSongList(e.target.value)}
+                        onChange={(e) =>
+                          setSongList(e.target.value.slice(0, MAX_CHARS))
+                        }
                         placeholder={
                           "Blinding Lights\nKanimaa\nSawadeeka\nAs It Was\nHeat Waves\nOg Sambavam"
                         }
@@ -284,6 +378,32 @@ export function AIPlaylistModal() {
                     </div>
                   )}
 
+                  {/* Target count slider */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white/40 text-[12px]">
+                        Songs to generate
+                      </span>
+                      <span className="text-sp-green font-bold text-[13px]">
+                        {targetCount}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={5}
+                      max={100}
+                      step={5}
+                      value={targetCount}
+                      onChange={(e) => setTargetCount(Number(e.target.value))}
+                      className="w-full accent-sp-green cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-white/20">
+                      <span>5</span>
+                      <span>50</span>
+                      <span>100</span>
+                    </div>
+                  </div>
+
                   <button
                     onClick={handleGenerate}
                     disabled={mode === "mood" ? !mood.trim() : !songList.trim()}
@@ -295,14 +415,14 @@ export function AIPlaylistModal() {
                     }}
                   >
                     <Sparkles size={16} />
-                    Generate Playlist
+                    Generate {targetCount} Songs
                   </button>
                 </div>
               )}
 
-              {/* Generating animation */}
+              {/* Generating animation with SSE progress */}
               {generating && (
-                <div className="flex flex-col items-center py-14 gap-7">
+                <div className="flex flex-col items-center py-10 gap-5">
                   <div className="relative">
                     <div
                       className="w-20 h-20 rounded-3xl flex items-center justify-center"
@@ -315,28 +435,58 @@ export function AIPlaylistModal() {
                     </div>
                     <div className="absolute -inset-2 rounded-[28px] border-2 border-sp-green/20 animate-ping" />
                   </div>
-                  <div className="text-center space-y-1.5">
-                    <p className="text-white font-semibold">
-                      Crafting your playlist...
-                    </p>
-                    <p className="text-white/35 text-sm">
-                      AI is searching and matching songs
-                    </p>
-                  </div>
-                  <div className="space-y-2 w-40">
-                    {[0, 0.3, 0.6].map((d, i) => (
+
+                  {/* Progress bar */}
+                  <div className="w-full max-w-xs space-y-2">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-white/50">
+                        {streamProgress.message || "Thinking..."}
+                      </span>
+                      <span className="text-sp-green font-bold">
+                        {streamProgress.percent}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                       <div
-                        key={i}
-                        className="h-1 rounded-full overflow-hidden"
-                        style={{ background: "rgba(255,255,255,0.07)" }}
-                      >
-                        <div
-                          className="h-full bg-sp-green rounded-full animate-pulse"
-                          style={{ animationDelay: `${d}s` }}
-                        />
-                      </div>
-                    ))}
+                        className="h-full bg-sp-green rounded-full transition-all duration-300"
+                        style={{ width: `${streamProgress.percent}%` }}
+                      />
+                    </div>
                   </div>
+
+                  {/* Live song preview */}
+                  {streamedSongs.length > 0 && (
+                    <div className="w-full space-y-1 max-h-48 overflow-y-auto thin-scrollbar">
+                      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">
+                        Found so far ({streamedSongs.length})
+                      </p>
+                      {streamedSongs.slice(-8).map((song) => (
+                        <div
+                          key={song.id}
+                          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg"
+                        >
+                          <img
+                            src={bestImg(song.image) || FALLBACK_IMG}
+                            onError={onImgErr}
+                            className="w-7 h-7 rounded-md object-cover flex-shrink-0"
+                            alt=""
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white/70 text-[12px] truncate">
+                              {song.name}
+                            </p>
+                            <p className="text-white/30 text-[11px] truncate">
+                              {getArtists(song)}
+                            </p>
+                          </div>
+                          <Check
+                            size={12}
+                            className="text-sp-green flex-shrink-0"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

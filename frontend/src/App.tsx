@@ -5,17 +5,12 @@ import { AppLayout } from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import OfflinePage from "./pages/OfflinePage";
-import {
-  HomePage,
-  SearchPage,
-  ArtistPage,
-  AlbumPage,
-  LikedPage,
-} from "./pages";
+import { HomePage, ArtistPage, AlbumPage, LikedPage } from "./pages";
 import LibraryPage from "./pages/LibraryPage";
 import ProfilePage from "./pages/ProfilePage";
 import PlaylistPage from "./pages/PlaylistPage";
 import DownloadsPage from "./pages/DownloadsPage";
+import { SearchPage } from "./pages/SearchPage";
 
 export default function App() {
   return (
@@ -41,7 +36,6 @@ export default function App() {
         }
       >
         <Route index element={<HomePage />} />
-        <Route path="search" element={<SearchPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="liked" element={<LikedPage />} />
         <Route path="artist/:id" element={<ArtistPage />} />
@@ -49,6 +43,7 @@ export default function App() {
         <Route path="playlist/:id" element={<PlaylistPage />} />
         <Route path="downloads" element={<DownloadsPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

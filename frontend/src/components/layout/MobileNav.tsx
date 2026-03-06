@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Search, Library, Download, UserCircle } from "lucide-react";
+import { Home, Library, Download, UserCircle } from "lucide-react";
 import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
 
@@ -24,14 +24,40 @@ export const MobileNav = () => {
     >
       {[
         { id: "home", Icon: Home, label: "Home", path: "/" },
-        { id: "search", Icon: Search, label: "Search", path: "/search" },
+        { id: "library", Icon: Library, label: "Library", path: "/library" },
+      ].map(({ id, Icon, label, path }) => (
+        <button
+          key={id}
+          onClick={() => navigate(path)}
+          className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${
+            view === id ? "text-sp-green" : "text-white/40 active:text-white"
+          }`}
+        >
+          {view === id && (
+            <span
+              className="absolute -top-0.5 w-5 h-0.5 rounded-full bg-sp-green"
+              style={{ boxShadow: "0 0 8px rgba(29,185,84,0.5)" }}
+            />
+          )}
+          <Icon size={19} strokeWidth={view === id ? 2.5 : 1.8} />
+          <span
+            className={`text-[9px] font-medium ${view === id ? "text-sp-green" : ""}`}
+          >
+            {label}
+          </span>
+        </button>
+      ))}
+
+      {/* SoulLink / Duo — center */}
+      <DuoButton variant="mobile-nav" />
+
+      {[
         {
           id: "downloads",
           Icon: Download,
           label: "Downloads",
           path: "/downloads",
         },
-        { id: "library", Icon: Library, label: "Library", path: "/library" },
         { id: "profile", Icon: UserCircle, label: "Profile", path: "/profile" },
       ].map(({ id, Icon, label, path }) => (
         <button
@@ -61,7 +87,6 @@ export const MobileNav = () => {
           </span>
         </button>
       ))}
-      <DuoButton variant="mobile-nav" />
     </nav>
   );
 };
