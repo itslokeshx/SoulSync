@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion, Reorder } from "framer-motion";
+import { motion, Reorder, useDragControls } from "framer-motion";
 import {
   Play,
   Shuffle,
@@ -43,6 +43,7 @@ export default function PlaylistPage() {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
+  const [reorderMode, setReorderMode] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -168,6 +169,7 @@ export default function PlaylistPage() {
     );
   }
 
+
   const songs = playlist.songs || [];
   const coverImg = playlist.coverImage || FALLBACK_IMG;
   const totalDur = songs.reduce((a, s) => a + (s.duration || 0), 0);
@@ -284,7 +286,7 @@ export default function PlaylistPage() {
           <span className="hidden sm:inline ml-2">Play All</span>
           <span className="sm:hidden ml-2">Play</span>
         </GreenButton>
-        <div className="flex gap-3 sm:gap-4 flex-1">
+        <div className="flex gap-3 sm:gap-4 flex-1 items-center">
           <button
             onClick={handleShuffle}
             disabled={savingOrder}
@@ -307,6 +309,18 @@ export default function PlaylistPage() {
           >
             <Pencil size={15} />
           </button>
+
+          <button
+            onClick={() => setReorderMode(!reorderMode)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${reorderMode
+              ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
+              : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
+              }`}
+          >
+            <ListMusic size={14} />
+            {reorderMode ? "Done" : "Reorder"}
+          </button>
+
           <button
             onClick={handleDelete}
             title="Delete Playlist"
@@ -341,36 +355,21 @@ export default function PlaylistPage() {
                 const mapped = mapSong(s);
                 if (!s.songId) return null;
                 return (
-                  <Reorder.Item
+                  <PlaylistSongItem
                     key={s.songId}
-                    value={s}
-                    onDragEnd={() => handleSaveOrder(localSongs)}
-                    className="flex items-center group relative bg-transparent"
-                  >
-                    <div className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/0 group-hover:text-white/20 hover:!text-white/60 transition-colors">
-                      <GripVertical size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <SongRow
-                        song={mapped}
-                        index={i}
-                        isCurrent={currentSong?.id === s.songId}
-                        isPlaying={isPlaying}
-                        onPlay={() => playSong(mapped, playableSongs)}
-                        liked={!!likedSongs?.[s.songId]}
-                        onLike={handleLike}
-                      />
-                    </div>
-                    <button
-                      onClick={() =>
-                        handleRemoveSong(s.songId, s.title || s.songId)
-                      }
-                      title="Remove from playlist"
-                      className="ml-1 p-2 rounded-full text-white/0 group-hover:text-red-400/70 hover:!text-red-400 hover:bg-red-400/10 transition-all duration-200 flex-shrink-0"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </Reorder.Item>
+                    s={s}
+                    i={i}
+                    mapped={mapped}
+                    playableSongs={playableSongs}
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    playSong={playSong}
+                    likedSongs={likedSongs}
+                    handleLike={handleLike}
+                    handleRemoveSong={handleRemoveSong}
+                    handleSaveOrder={() => handleSaveOrder(localSongs)}
+                    reorderMode={reorderMode}
+                  />
                 );
               })}
             </Reorder.Group>
@@ -385,6 +384,77 @@ export default function PlaylistPage() {
         onConfirm={confirmAction}
         onCancel={() => setConfirmOpen(false)}
       />
-    </div >
+    </div>
+  );
+}
+
+interface PlaylistSongItemProps {
+  s: PlaylistSong;
+  i: number;
+  mapped: any;
+  playableSongs: any[];
+  currentSong: any;
+  isPlaying: boolean;
+  playSong: (song: any, queue: any[]) => void;
+  likedSongs: Record<string, any>;
+  handleLike: (song: any) => void;
+  handleRemoveSong: (id: string, name: string) => void;
+  handleSaveOrder: () => void;
+  reorderMode: boolean;
+}
+
+function PlaylistSongItem({
+  s,
+  i,
+  mapped,
+  playableSongs,
+  currentSong,
+  isPlaying,
+  playSong,
+  likedSongs,
+  handleLike,
+  handleRemoveSong,
+  handleSaveOrder,
+  reorderMode,
+}: PlaylistSongItemProps) {
+  const controls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={s}
+      dragListener={false}
+      dragControls={controls}
+      onDragEnd={handleSaveOrder}
+      className="flex items-center group relative bg-transparent"
+    >
+      {reorderMode && (
+        <div
+          onPointerDown={(e) => controls.start(e)}
+          className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors"
+        >
+          <GripVertical size={16} />
+        </div>
+      )}
+      <div className="flex-1 min-w-0 ml-1">
+        <SongRow
+          song={mapped}
+          index={i}
+          isCurrent={currentSong?.id === s.songId}
+          isPlaying={isPlaying}
+          onPlay={() => playSong(mapped, playableSongs)}
+          liked={!!likedSongs?.[s.songId]}
+          onLike={handleLike}
+        />
+      </div>
+      {!reorderMode && (
+        <button
+          onClick={() => handleRemoveSong(s.songId, s.title || s.songId)}
+          title="Remove from playlist"
+          className="ml-1 p-2 rounded-full text-white/0 group-hover:text-red-400/70 hover:!text-red-400 hover:bg-red-400/10 transition-all duration-200 flex-shrink-0"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
+    </Reorder.Item>
   );
 }

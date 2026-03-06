@@ -32,7 +32,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     isPlaying: false,
     currentTime: 0,
     duration: 0,
-    volume: 0.8,
+    volume: 1.0,
     isMuted: false,
     isShuffle: false,
     repeatMode: "off",

@@ -23,7 +23,11 @@ export const useToasts = () => {
   return { toasts, add, dismiss };
 };
 
-export const useLikedSongs = (): [Record<string, any>, (song: any) => void] => {
+export const useLikedSongs = (): [
+  Record<string, any>,
+  (song: any) => void,
+  (all: any[]) => void,
+] => {
   const [liked, setLiked] = useState<Record<string, any>>(() => {
     try {
       return JSON.parse(localStorage.getItem("ss_liked") || "{}");
@@ -64,7 +68,7 @@ export const useLikedSongs = (): [Record<string, any>, (song: any) => void] => {
           return merged;
         });
       })
-      .catch(() => {}); // silently fail if not logged in
+      .catch(() => { }); // silently fail if not logged in
     return () => {
       cancelled = true;
     };
@@ -90,7 +94,16 @@ export const useLikedSongs = (): [Record<string, any>, (song: any) => void] => {
     });
   }, []);
 
-  return [liked, toggle];
+  const setAll = useCallback((songs: any[]) => {
+    const next: Record<string, any> = {};
+    for (const s of songs) {
+      if (s.id) next[s.id] = s;
+    }
+    setLiked(next);
+    localStorage.setItem("ss_liked", JSON.stringify(next));
+  }, []);
+
+  return [liked, toggle, setAll];
 };
 
 export const useRecentlyPlayed = (): [any[], (song: any) => void] => {

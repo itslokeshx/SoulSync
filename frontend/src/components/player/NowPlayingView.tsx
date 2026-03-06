@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
   Pause,
@@ -19,6 +20,8 @@ import {
   Music,
   Download,
   CheckCircle2,
+  Minus,
+  Plus,
 } from "lucide-react";
 import {
   bestImg,
@@ -67,6 +70,12 @@ interface NowPlayingViewProps {
   onShuffleQueue?: () => void;
 }
 
+const VolumeIcon = ({ volume }: { volume: number }) => {
+  if (volume === 0) return <VolumeX size={20} />;
+  if (volume < 0.5) return <Volume1 size={20} />;
+  return <Volume2 size={20} />;
+};
+
 export const NowPlayingView = ({
   currentSong,
   isPlaying,
@@ -96,7 +105,6 @@ export const NowPlayingView = ({
   onShuffleQueue,
 }: NowPlayingViewProps) => {
   const [bgColor, setBgColor] = useState("#18181a");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showVol, setShowVol] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
 
@@ -158,7 +166,7 @@ export const NowPlayingView = ({
   // Auto-hide volume popup after inactivity
   const scheduleHideVol = useCallback(() => {
     if (volTimeout.current) clearTimeout(volTimeout.current);
-    volTimeout.current = setTimeout(() => setShowVol(false), 1800);
+    volTimeout.current = setTimeout(() => setShowVol(false), 2500);
   }, []);
 
   const handleVolInteraction = useCallback(() => {
@@ -191,18 +199,6 @@ export const NowPlayingView = ({
     if (img) extractColor(img).then((c) => c && setBgColor(c));
   }, [currentSong?.id]);
 
-  // Fetch song recommendations
-  useEffect(() => {
-    if (!currentSong?.id) return;
-    setSuggestions([]);
-    fetch(`${API}/songs/${currentSong.id}/suggestions?limit=3`)
-      .then((r) => r.json())
-      .then((d) => {
-        const songs = Array.isArray(d?.data) ? d.data.slice(0, 3) : [];
-        setSuggestions(songs);
-      })
-      .catch(() => { });
-  }, [currentSong?.id]);
 
   if (!currentSong) return null;
   const img = bestImg(currentSong.image) || FALLBACK_IMG;
@@ -242,7 +238,7 @@ export const NowPlayingView = ({
           <button
             onClick={() => setShowQueue((q) => !q)}
             className={`flex items-center gap-1.5 transition-all px-3 py-2 rounded-xl active:scale-95 ${showQueue ? "text-sp-green bg-sp-green/10 border border-sp-green/20" : "text-white/40 hover:text-white hover:bg-white/10 border border-transparent"}`}
-            aria-label="Up Next"
+            aria-label="Toggle Queue"
           >
             <ListMusic size={17} />
             <span className="text-[12px] font-bold tracking-wide">Up Next</span>
@@ -357,26 +353,20 @@ export const NowPlayingView = ({
                 </button>
               )}
               {/* Volume icon + popup */}
-              <div ref={volRef} className="relative group">
+              <div ref={volRef} className="relative">
                 <button
                   onClick={handleVolInteraction}
                   onMouseEnter={() => setShowVol(true)}
                   className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 transition-all duration-200 text-white/40 hover:text-white"
                 >
-                  {volume === 0 ? (
-                    <VolumeX size={20} />
-                  ) : volume < 0.5 ? (
-                    <Volume1 size={20} />
-                  ) : (
-                    <Volume2 size={20} />
-                  )}
+                  <VolumeIcon volume={volume} />
                 </button>
-                {/* Vertical volume popup */}
+                {/* Horizontal volume popup */}
                 {showVol && (
                   <div
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col items-center gap-2 py-3 px-2 rounded-2xl z-50"
+                    className="absolute bottom-full right-0 mb-4 flex items-center gap-2 py-2 px-3 rounded-2xl z-50"
                     style={{
-                      background: "rgba(20,20,20,0.95)",
+                      background: "rgba(18,18,18,0.95)",
                       border: "1px solid rgba(255,255,255,0.08)",
                       backdropFilter: "blur(24px)",
                       boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
@@ -386,47 +376,24 @@ export const NowPlayingView = ({
                     }}
                     onMouseLeave={scheduleHideVol}
                   >
-                    <span className="text-[10px] text-white/50 tabular-nums font-semibold">
-                      {volPct}%
-                    </span>
-                    <div
-                      className="relative w-[6px] h-28 sm:h-32 rounded-full bg-white/[0.1] cursor-pointer"
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const pct = 1 - y / rect.height;
-                        onVolume(Math.max(0, Math.min(1, pct)));
-                        scheduleHideVol();
-                      }}
-                      onTouchMove={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const y = e.touches[0].clientY - rect.top;
-                        const pct = 1 - y / rect.height;
-                        onVolume(Math.max(0, Math.min(1, pct)));
-                      }}
-                      onTouchEnd={scheduleHideVol}
+                    <button
+                      onClick={() => onVolume(Math.max(0, volume - 0.1))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all"
+                      title="Decrease Volume"
                     >
-                      <div
-                        className="absolute bottom-0 left-0 right-0 rounded-full bg-sp-green transition-all duration-100"
-                        style={{ height: `${volPct}%` }}
-                      />
-                      <div
-                        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-lg shadow-black/40 transition-all duration-100"
-                        style={{ bottom: `calc(${volPct}% - 6px)` }}
-                      />
+                      <Minus size={14} />
+                    </button>
+                    <div className="w-12 text-center">
+                      <span className="text-[11px] text-white/60 tabular-nums font-bold">
+                        {volPct}%
+                      </span>
                     </div>
                     <button
-                      onClick={() => {
-                        onVolume(volume > 0 ? 0 : 0.8);
-                        scheduleHideVol();
-                      }}
-                      className="text-white/40 hover:text-white transition-colors"
+                      onClick={() => onVolume(Math.min(1, volume + 0.1))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all"
+                      title="Increase Volume"
                     >
-                      {volume === 0 ? (
-                        <Volume2 size={14} />
-                      ) : (
-                        <VolumeX size={14} />
-                      )}
+                      <Plus size={14} />
                     </button>
                   </div>
                 )}
@@ -501,179 +468,125 @@ export const NowPlayingView = ({
             </button>
           </div>
 
-          {/* Song Suggestions / Up Next Queue toggle */}
-          {showQueue ? (
-            /* ── Up Next Queue ────────────────────────────── */
-            <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.06]">
-              {/* Now playing row */}
-              <p className="text-[10px] font-bold text-sp-green uppercase tracking-[0.15em] mb-2">
-                Now Playing
-              </p>
-              <div className="flex items-center gap-3 p-2 rounded-xl bg-sp-green/[0.08] border border-sp-green/10 mb-4">
-                <img
-                  src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
-                  onError={onImgErr}
-                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-sp-green truncate">
-                    {currentSong.name}
-                  </p>
-                  <p className="text-[11px] text-white/40 truncate">
-                    {artists}
-                  </p>
-                </div>
-                <EqBars />
-              </div>
-
-              {/* Next Up header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="px-2.5 py-[3px] rounded-full text-[10px] font-black uppercase tracking-[0.12em]"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, rgba(29,185,84,0.18), rgba(16,185,129,0.08))",
-                      border: "1px solid rgba(29,185,84,0.28)",
-                      color: "#1db954",
-                    }}
-                  >
-                    Up Next
-                  </span>
-                  <span className="text-white/25 text-[11px] tabular-nums">
-                    {upcoming.length}{" "}
-                    {upcoming.length === 1 ? "track" : "tracks"}
-                  </span>
-                </div>
-                {upcoming.length > 1 && (
-                  <button
-                    onClick={onShuffleQueue}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 active:scale-95 bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white"
-                    title="Shuffle upcoming queue"
-                  >
-                    <Shuffle size={12} />
-                    Shuffle
-                  </button>
-                )}
-              </div>
-
-              {/* Queue list */}
-              <div className="max-h-48 sm:max-h-56 lg:max-h-72 overflow-y-auto hide-scrollbar space-y-0.5">
-                {upcoming.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <Music size={32} className="text-white/10 mb-3" />
-                    <p className="text-white/30 text-sm font-medium">
-                      Nothing queued up
-                    </p>
-                    <p className="text-white/15 text-xs mt-1">
-                      Play a song to get started
-                    </p>
+          <AnimatePresence>
+            {showQueue && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.04] w-full overflow-hidden"
+              >
+                {/* Next Up header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="px-2.5 py-[3px] rounded-full text-[10px] font-black uppercase tracking-[0.12em]"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(29,185,84,0.18), rgba(16,185,129,0.08))",
+                        border: "1px solid rgba(29,185,84,0.28)",
+                        color: "#1db954",
+                      }}
+                    >
+                      Up Next
+                    </span>
+                    <span className="text-white/25 text-[11px] tabular-nums">
+                      {upcoming.length}{" "}
+                      {upcoming.length === 1 ? "track" : "tracks"}
+                    </span>
                   </div>
-                ) : (
-                  upcoming.map((s, i) => {
-                    const isDragging = dragIdx === i;
-                    const isOver = overIdx === i;
-                    const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
-                    return (
-                      <div
-                        key={`${s.id}-${i}`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, i)}
-                        onDragOver={(e) => handleDragOver(e, i)}
-                        onDrop={(e) => handleDrop(e, i)}
-                        onDragEnd={handleDragEnd}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${isDragging
+                  {upcoming.length > 1 && (
+                    <button
+                      onClick={onShuffleQueue}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 active:scale-95 bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white"
+                      title="Shuffle upcoming queue"
+                    >
+                      <Shuffle size={12} />
+                      Shuffle
+                    </button>
+                  )}
+                </div>
+
+                {/* Queue list */}
+                <div className="max-h-48 sm:max-h-56 lg:max-h-72 overflow-y-auto hide-scrollbar space-y-0.5">
+                  {upcoming.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <Music size={32} className="text-white/10 mb-3" />
+                      <p className="text-white/30 text-sm font-medium">
+                        Nothing queued up
+                      </p>
+                      <p className="text-white/15 text-xs mt-1">
+                        Play a song to get started
+                      </p>
+                    </div>
+                  ) : (
+                    upcoming.map((s, i) => {
+                      const isDragging = dragIdx === i;
+                      const isOver = overIdx === i;
+                      const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
+                      return (
+                        <div
+                          key={`${s.id}-${i}`}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, i)}
+                          onDragOver={(e) => handleDragOver(e, i)}
+                          onDrop={(e) => handleDrop(e, i)}
+                          onDragEnd={handleDragEnd}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${isDragging
                             ? "opacity-30 scale-95"
                             : isOver
                               ? "bg-sp-green/10 border border-sp-green/20"
                               : "hover:bg-white/[0.04] border border-transparent"
-                          }`}
-                      >
-                        {/* Drag handle */}
-                        <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">
-                          <GripVertical size={14} />
-                        </div>
-
-                        {/* Song info — tap to jump */}
-                        <button
-                          onClick={() => onJump?.(toAbsolute(i))}
-                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                            }`}
                         >
-                          <img
-                            src={sImg}
-                            onError={onImgErr}
-                            className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[13px] text-white truncate">
-                              {s.name}
-                            </p>
-                            <p className="text-[11px] text-white/30 truncate">
-                              {getArtists(s)}
-                            </p>
+                          {/* Drag handle */}
+                          <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">
+                            <GripVertical size={14} />
                           </div>
-                        </button>
 
-                        {/* Duration + remove */}
-                        <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
-                          {fmt(s.duration)}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemove?.(toAbsolute(i));
-                          }}
-                          className="p-1 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-                          title="Remove from queue"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          ) : (
-            /* ── Song Suggestions (default) ──────────────── */
-            suggestions.length > 0 && (
-              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.06]">
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3">
-                  Similar Songs
-                </p>
-                <div className="space-y-1.5">
-                  {suggestions.map((s: any) => {
-                    const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => onPlaySong?.(s)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.06] transition-all group"
-                      >
-                        <img
-                          src={sImg}
-                          onError={onImgErr}
-                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">
-                            {s.name}
-                          </p>
-                          <p className="text-[11px] text-white/30 truncate">
-                            {getArtists(s)}
-                          </p>
+                          {/* Song info — tap to jump */}
+                          <button
+                            onClick={() => onJump?.(toAbsolute(i))}
+                            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                          >
+                            <img
+                              src={sImg}
+                              onError={onImgErr}
+                              className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[13px] text-white truncate">
+                                {s.name}
+                              </p>
+                              <p className="text-[11px] text-white/30 truncate">
+                                {getArtists(s)}
+                              </p>
+                            </div>
+                          </button>
+
+                          {/* Duration + remove */}
+                          <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+                            {fmt(s.duration)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemove?.(toAbsolute(i));
+                            }}
+                            className="p-1 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Remove from queue"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
-                        <Play
-                          size={14}
-                          className="text-white/20 group-hover:text-white flex-shrink-0 transition-colors"
-                        />
-                      </button>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
-              </div>
-            )
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

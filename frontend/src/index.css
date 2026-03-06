@@ -42,6 +42,7 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -51,16 +52,20 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
+
 .thin-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
+
 .thin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .thin-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 4px;
 }
+
 .thin-scrollbar:hover::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
 }
@@ -84,6 +89,7 @@ body {
 .ambient-glow {
   position: relative;
 }
+
 .ambient-glow::before {
   content: "";
   position: absolute;
@@ -95,6 +101,7 @@ body {
   transition: opacity 0.4s ease;
   z-index: -1;
 }
+
 .ambient-glow:hover::before {
   opacity: 1;
 }
@@ -102,16 +109,12 @@ body {
 /* ── Gradient mesh background — subtle monochrome ─────────────── */
 .gradient-mesh {
   background:
-    radial-gradient(
-      ellipse at 20% 0%,
+    radial-gradient(ellipse at 20% 0%,
       rgba(255, 255, 255, 0.02) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 80% 20%,
+      transparent 50%),
+    radial-gradient(ellipse at 80% 20%,
       rgba(255, 255, 255, 0.015) 0%,
-      transparent 50%
-    );
+      transparent 50%);
 }
 
 /* ── Stagger animation delays ──────────────────────────────────── */
@@ -119,30 +122,37 @@ body {
   animation-delay: 0.05s;
   opacity: 0;
 }
+
 .stagger-2 {
   animation-delay: 0.1s;
   opacity: 0;
 }
+
 .stagger-3 {
   animation-delay: 0.15s;
   opacity: 0;
 }
+
 .stagger-4 {
   animation-delay: 0.2s;
   opacity: 0;
 }
+
 .stagger-5 {
   animation-delay: 0.25s;
   opacity: 0;
 }
+
 .stagger-6 {
   animation-delay: 0.3s;
   opacity: 0;
 }
+
 .stagger-7 {
   animation-delay: 0.35s;
   opacity: 0;
 }
+
 .stagger-8 {
   animation-delay: 0.4s;
   opacity: 0;
@@ -160,13 +170,12 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 9999px;
-  background: linear-gradient(
-    to right,
-    #1db954 0%,
-    #1db954 calc(var(--progress, 0) * 100%),
-    rgba(255, 255, 255, 0.1) calc(var(--progress, 0) * 100%),
-    rgba(255, 255, 255, 0.1) 100%
-  );
+  background: linear-gradient(to right,
+      #1db954 0%,
+      #1db954 calc(var(--progress, 0) * 100%),
+      rgba(255, 255, 255, 0.1) calc(var(--progress, 0) * 100%),
+      rgba(255, 255, 255, 0.1) 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 input[type="range"]::-moz-range-track {
@@ -219,19 +228,18 @@ input[type="range"]:active::-moz-range-thumb {
 .volume-bar::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 9999px;
-  background: linear-gradient(
-    to right,
-    #fff 0%,
-    #fff calc(var(--volume, 0.8) * 100%),
-    rgba(255, 255, 255, 0.15) calc(var(--volume, 0.8) * 100%),
-    rgba(255, 255, 255, 0.15) 100%
-  );
+  background: linear-gradient(to right,
+      #22c55e 0%,
+      #22c55e calc(var(--volume, 1.0) * 100%),
+      rgba(255, 255, 255, 0.1) calc(var(--volume, 1.0) * 100%),
+      rgba(255, 255, 255, 0.1) 100%);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .volume-bar::-moz-range-progress {
   height: 4px;
   border-radius: 9999px;
-  background: #fff;
+  background: #22c55e;
 }
 
 .volume-bar::-webkit-slider-thumb {
@@ -255,6 +263,7 @@ input[type="range"]:active::-moz-range-thumb {
 .vinyl-ring {
   position: relative;
 }
+
 .vinyl-ring::after {
   content: "";
   position: absolute;
@@ -275,12 +284,14 @@ input[type="range"]:active::-moz-range-thumb {
   height: 100%;
   border-radius: 9999px;
 }
+
 .volume-bar-vertical::-webkit-slider-thumb {
   width: 14px;
   height: 14px;
   margin-left: -5px;
   opacity: 1;
 }
+
 .volume-bar-vertical::-moz-range-thumb {
   width: 14px;
   height: 14px;

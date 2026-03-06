@@ -6,6 +6,7 @@ export interface AppContextType {
   isPlaying: boolean;
   likedSongs: Record<string, any>;
   handleLike: (song: any) => void;
+  setLikedSongs: (songs: any[]) => void;
   recentlyPlayed: any[];
   handlePlayPause: () => void;
   addToQueue: (song: any) => void;

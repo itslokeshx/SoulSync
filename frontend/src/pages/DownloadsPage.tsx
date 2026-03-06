@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, Reorder, useDragControls } from "framer-motion";
+import { SongRow } from "../components/cards/SongRow";
 import {
   Download,
   Trash2,
@@ -74,8 +76,6 @@ export default function DownloadsPage() {
   const activeDownloads = useDownloadStore((s) => s.active);
   const prevDoneRef = useRef(new Set<string>());
   const [reorderMode, setReorderMode] = useState(false);
-  const dragIdx = useRef<number | null>(null);
-  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"all" | "playlists">("all");
   const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
 
@@ -141,54 +141,9 @@ export default function DownloadsPage() {
     prevDoneRef.current = doneIds;
   }, [activeDownloads, refresh]);
 
-  // ── Drag-to-reorder ──
-  const handleDragStart = (idx: number) => {
-    dragIdx.current = idx;
-  };
-  const handleDragEnter = (idx: number) => {
-    setDragOverIdx(idx);
-  };
-  const handleDragEnd = () => {
-    if (
-      dragIdx.current !== null &&
-      dragOverIdx !== null &&
-      dragIdx.current !== dragOverIdx
-    ) {
-      const copy = [...songs];
-      const [moved] = copy.splice(dragIdx.current, 1);
-      copy.splice(dragOverIdx, 0, moved);
-      setSongs(copy);
-      saveOrder(copy.map((s) => s.id));
-    }
-    dragIdx.current = null;
-    setDragOverIdx(null);
-  };
-
-  // ── Touch drag for mobile ──
-  const touchStartY = useRef<number>(0);
-  const touchStartIdx = useRef<number | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const handleTouchStart = (idx: number, e: React.TouchEvent) => {
-    touchStartIdx.current = idx;
-    dragIdx.current = idx;
-    touchStartY.current = e.touches[0].clientY;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartIdx.current === null || !listRef.current) return;
-    const touch = e.touches[0];
-    const items = listRef.current.querySelectorAll("[data-song-row]");
-    for (let i = 0; i < items.length; i++) {
-      const rect = items[i].getBoundingClientRect();
-      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-        setDragOverIdx(i);
-        break;
-      }
-    }
-  };
-  const handleTouchEnd = () => {
-    handleDragEnd();
-    touchStartIdx.current = null;
+  const handleReorder = (newOrder: OfflineSong[]) => {
+    setSongs(newOrder);
+    saveOrder(newOrder.map(s => s.id));
   };
 
   // ── Play helpers ──
@@ -559,94 +514,25 @@ export default function DownloadsPage() {
           </p>
         </div>
       ) : viewMode === "all" ? (
-        <div
-          ref={listRef}
-          className="space-y-0.5"
-          onTouchMove={reorderMode ? handleTouchMove : undefined}
-          onTouchEnd={reorderMode ? handleTouchEnd : undefined}
+        <Reorder.Group
+          axis="y"
+          values={songs}
+          onReorder={handleReorder}
+          className="space-y-1 pb-20"
         >
-          {songs.map((s, i) => {
-            const img = bestImg(s.image, "50x50") || s.albumArt || FALLBACK_IMG;
-            const isCurrent = currentSong?.id === s.id;
-            const isDragOver = dragOverIdx === i;
-            return (
-              <div
-                key={s.id}
-                data-song-row
-                draggable={reorderMode}
-                onDragStart={() => handleDragStart(i)}
-                onDragEnter={() => handleDragEnter(i)}
-                onDragOver={(e) => e.preventDefault()}
-                onDragEnd={handleDragEnd}
-                onTouchStart={
-                  reorderMode ? (e) => handleTouchStart(i, e) : undefined
-                }
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
-                  } ${isDragOver ? "border-t-2 border-sp-green" : ""} ${reorderMode ? "cursor-grab active:cursor-grabbing" : ""}`}
-              >
-                {reorderMode ? (
-                  <div className="w-5 flex items-center justify-center text-white/25 touch-none">
-                    <GripVertical size={16} />
-                  </div>
-                ) : (
-                  <span className="w-5 text-center text-xs text-white/25 tabular-nums">
-                    {i + 1}
-                  </span>
-                )}
-                <button
-                  onClick={() => handlePlay(s)}
-                  className="relative flex-shrink-0"
-                >
-                  <img
-                    src={img}
-                    onError={onImgErr}
-                    className="w-10 h-10 rounded-lg object-cover"
-                    alt=""
-                  />
-                  <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isCurrent && isPlaying ? (
-                      <Pause size={14} className="text-white fill-white" />
-                    ) : (
-                      <Play size={14} className="text-white fill-white" />
-                    )}
-                  </div>
-                  {isCurrent && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-sp-green rounded-full" />
-                  )}
-                </button>
-                <div className="flex-1 min-w-0" onClick={() => handlePlay(s)}>
-                  <p
-                    className={`text-[13px] font-medium truncate cursor-pointer ${isCurrent ? "text-sp-green" : "text-white"}`}
-                  >
-                    {s.name}
-                  </p>
-                  <p className="text-[11px] text-white/30 truncate">
-                    {s.artist}
-                  </p>
-                </div>
-                <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
-                  {fmt(s.duration)}
-                </span>
-                <div className="flex items-center gap-1">
-                  {s.id.startsWith("local_") ? (
-                    <FileAudio size={14} className="text-white/30" />
-                  ) : (
-                    <CheckCircle2 size={14} className="text-sp-green/50" />
-                  )}
-                  {!reorderMode && (
-                    <button
-                      onClick={() => handleRemove(s.id, s.name)}
-                      className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-white/[0.04] transition-all opacity-0 group-hover:opacity-100"
-                      title="Remove download"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          {songs.map((s, i) => (
+            <DownloadSongItem
+              key={s.id}
+              s={s}
+              i={i}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={() => handlePlay(s)}
+              onRemove={handleRemove}
+              reorderMode={reorderMode}
+            />
+          ))}
+        </Reorder.Group>
       ) : selectedPlaylist ? (
         <div className="animate-fadeIn">
           <div className="flex items-center gap-3 mb-6">
@@ -731,5 +617,72 @@ export default function DownloadsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+interface DownloadSongItemProps {
+  s: OfflineSong;
+  i: number;
+  currentSong: any;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onRemove: (id: string, name: string) => void;
+  reorderMode: boolean;
+}
+
+function DownloadSongItem({
+  s,
+  i,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onRemove,
+  reorderMode,
+}: DownloadSongItemProps) {
+  const controls = useDragControls();
+
+  // Map OfflineSong to the format expected by SongRow
+  const mapped = {
+    id: s.id,
+    name: s.name,
+    primaryArtists: s.artist,
+    image: s.image || (s.albumArt ? [{ quality: "500x500", url: s.albumArt }] : []),
+    duration: s.duration,
+    _isOffline: true,
+  };
+
+  return (
+    <Reorder.Item
+      value={s}
+      dragListener={false}
+      dragControls={controls}
+      className="flex items-center group relative bg-transparent"
+    >
+      {reorderMode && (
+        <div
+          onPointerDown={(e) => controls.start(e)}
+          className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors"
+        >
+          <GripVertical size={16} />
+        </div>
+      )}
+      <div className="flex-1 min-w-0 ml-1">
+        <SongRow
+          song={mapped}
+          index={i}
+          isCurrent={currentSong?.id === s.id}
+          isPlaying={isPlaying}
+          onPlay={onPlay}
+        />
+      </div>
+      {!reorderMode && (
+        <button
+          onClick={() => onRemove(s.id, s.name)}
+          className="ml-1 p-2 rounded-full text-white/0 group-hover:text-red-400/70 hover:!text-red-400 hover:bg-red-400/10 transition-all duration-200 flex-shrink-0"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
+    </Reorder.Item>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, Reorder, useDragControls } from "framer-motion";
 import {
   WifiOff,
   Play,
@@ -53,7 +53,7 @@ export default function OfflinePage() {
   const [shuffled, setShuffled] = useState(false);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
   const [npOpen, setNpOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState<number | null>(null);
+  const [reorderMode, setReorderMode] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [viewMode, setViewMode] = useState<"all" | "playlists">("all");
   const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
@@ -320,29 +320,10 @@ export default function OfflinePage() {
     refresh();
   };
 
-  const onDragStart = (e: React.DragEvent, index: number) => {
-    setIsDragging(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", `${index}`);
-  };
-
-  const onDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (isDragging === null || isDragging === index) return;
-
-    const newList = [...songs];
-    const item = newList[isDragging];
-    newList.splice(isDragging, 1);
-    newList.splice(index, 0, item);
-
-    setIsDragging(index);
+  const handleReorder = async (newList: OfflineSong[]) => {
     setSongs(newList);
-  };
-
-  const onDragEnd = async () => {
-    setIsDragging(null);
     try {
-      await updateOfflineSongOrder(songs.map((s) => s.id));
+      await updateOfflineSongOrder(newList.map((s) => s.id));
     } catch {
       toast.error("Failed to save order");
     }
@@ -528,79 +509,40 @@ export default function OfflinePage() {
                     <Shuffle size={14} />
                     Shuffle
                   </button>
+                  <button
+                    onClick={() => setReorderMode(!reorderMode)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full border transition-all active:scale-95 text-[13px] font-semibold ${reorderMode
+                      ? "bg-sp-green border-sp-green text-black shadow-lg shadow-sp-green/20"
+                      : "border-white/10 text-white/70 hover:bg-white/[0.06] hover:text-white"
+                      }`}
+                  >
+                    <ListMusic size={14} />
+                    {reorderMode ? "Done" : "Reorder"}
+                  </button>
                 </div>
-                <div className="space-y-1">
-                  {songs.map((s, i) => {
-                    const isActive = currentSong?.id === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        draggable
-                        onDragStart={(e) => onDragStart(e, i)}
-                        onDragOver={(e) => onDragOver(e, i)}
-                        onDragEnd={onDragEnd}
-                        onClick={() => {
-                          handlePlay(s, songs);
-                          setNpOpen(true);
-                        }}
-                        className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all cursor-pointer active:scale-[0.98] ${isDragging === i ? "opacity-30 bg-white/[0.08]" : ""
-                          } ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
-                      >
-                        <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <GripVertical size={16} className="text-white/20" />
-                        </div>
-                        <div className="relative flex-shrink-0">
-                          <img
-                            src={songImg(s)}
-                            onError={onImgErr}
-                            className="w-12 h-12 rounded-xl object-cover"
-                            alt=""
-                          />
-                          {isActive && isPlaying && (
-                            <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
-                              <div className="flex items-end gap-[2px] h-3">
-                                {[0.2, 0.4, 0.3, 0.5].map((d, idx) => (
-                                  <motion.div
-                                    key={idx}
-                                    animate={{ height: [4, 12, 4] }}
-                                    transition={{
-                                      duration: 0.6,
-                                      delay: d,
-                                      repeat: Infinity,
-                                    }}
-                                    className="w-1 bg-sp-green rounded-full"
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1 ml-1">
-                          <p
-                            className={`text-[13px] font-semibold truncate ${isActive ? "text-sp-green" : "text-white"}`}
-                          >
-                            {s.name}
-                          </p>
-                          <p className="text-[11px] text-white/35 truncate">
-                            {s.artist}
-                          </p>
-                        </div>
-                        <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
-                          {fmt(s.duration)}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemove(s.id, s.name);
-                          }}
-                          className="p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <Reorder.Group
+                  axis="y"
+                  values={songs}
+                  onReorder={handleReorder}
+                  className="space-y-1"
+                >
+                  {songs.map((s, i) => (
+                    <OfflineSongItem
+                      key={s.id}
+                      s={s}
+                      i={i}
+                      currentSong={currentSong}
+                      isPlaying={isPlaying}
+                      onPlay={() => {
+                        handlePlay(s, songs);
+                        setNpOpen(true);
+                      }}
+                      onRemove={handleRemove}
+                      reorderMode={reorderMode}
+                      songImg={songImg}
+                    />
+                  ))}
+                </Reorder.Group>
               </>
             ) : selectedPlaylist ? (
               <div className="animate-fadeIn">
@@ -1158,5 +1100,106 @@ export default function OfflinePage() {
         </div>
       )}
     </div>
+  );
+}
+
+interface OfflineSongItemProps {
+  s: OfflineSong;
+  i: number;
+  currentSong: any;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onRemove: (id: string, name: string) => void;
+  reorderMode: boolean;
+  songImg: (s: OfflineSong) => string;
+}
+
+function OfflineSongItem({
+  s,
+  i,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onRemove,
+  reorderMode,
+  songImg,
+}: OfflineSongItemProps) {
+  const controls = useDragControls();
+  const isActive = currentSong?.id === s.id;
+
+  return (
+    <Reorder.Item
+      value={s}
+      dragListener={false}
+      dragControls={controls}
+      className="flex items-center group relative bg-transparent"
+    >
+      <div
+        onClick={onPlay}
+        className={`flex items-center gap-3 p-2.5 rounded-xl flex-1 transition-all cursor-pointer active:scale-[0.98] ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
+          }`}
+      >
+        {reorderMode && (
+          <div
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              controls.start(e);
+            }}
+            className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors touch-none"
+          >
+            <GripVertical size={16} />
+          </div>
+        )}
+        <div className="relative flex-shrink-0">
+          <img
+            src={songImg(s)}
+            onError={onImgErr}
+            className="w-12 h-12 rounded-xl object-cover"
+            alt=""
+          />
+          {isActive && isPlaying && (
+            <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
+              <div className="flex items-end gap-[2px] h-3">
+                {[0.2, 0.4, 0.3, 0.5].map((d, idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{ height: [4, 12, 4] }}
+                    transition={{
+                      duration: 0.6,
+                      delay: d,
+                      repeat: Infinity,
+                    }}
+                    className="w-1 bg-sp-green rounded-full"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1 ml-1">
+          <p
+            className={`text-[13px] font-semibold truncate ${isActive ? "text-sp-green" : "text-white"
+              }`}
+          >
+            {s.name}
+          </p>
+          <p className="text-[11px] text-white/35 truncate">{s.artist}</p>
+        </div>
+        <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+          {fmt(s.duration)}
+        </span>
+        {!reorderMode && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(s.id, s.name);
+            }}
+            className="p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+    </Reorder.Item>
   );
 }

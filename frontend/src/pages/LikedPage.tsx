@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { Heart, Play, Shuffle } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { Heart, Play, Shuffle, GripVertical, ListMusic, Trash2, Loader2, Download } from "lucide-react";
+import { motion, Reorder, useDragControls } from "framer-motion";
 import { SongRow } from "../components/cards/SongRow";
 import { useApp } from "../context/AppContext";
 import { GreenButton } from "../components/ui/GreenButton";
 import { downloadPlaylist } from "../utils/downloadSong";
-import { shuffleLikedSongs } from "../api/backend";
-import { Loader2, Download } from "lucide-react";
+import { shuffleLikedSongs, reorderLikedSongs } from "../api/backend";
 import toast from "react-hot-toast";
 
 export const LikedPage = () => {
@@ -15,9 +15,22 @@ export const LikedPage = () => {
     isPlaying,
     playSong: onPlay,
     handleLike: onLike,
+    setLikedSongs,
   } = useApp();
   const [shuffling, setShuffling] = useState(false);
-  const songs = Object.values(likedSongs);
+  const [reorderMode, setReorderMode] = useState(false);
+
+  const songs = useMemo(() => Object.values(likedSongs), [likedSongs]);
+
+  const handleSaveOrder = useCallback(async (newOrder: any[]) => {
+    setLikedSongs(newOrder);
+    try {
+      await reorderLikedSongs(newOrder.map(s => s.id));
+    } catch {
+      toast.error("Failed to save order to cloud");
+    }
+  }, [setLikedSongs]);
+
   return (
     <div className="animate-fadeIn">
       <div
@@ -55,7 +68,7 @@ export const LikedPage = () => {
             <span className="hidden sm:inline ml-2">Play All</span>
             <span className="sm:hidden ml-2">Play</span>
           </GreenButton>
-          <div className="flex gap-3 sm:gap-4">
+          <div className="flex gap-3 sm:gap-4 flex-1 items-center">
             <button
               onClick={async () => {
                 setShuffling(true);
@@ -82,6 +95,17 @@ export const LikedPage = () => {
             >
               <Download size={15} />
             </button>
+
+            <button
+              onClick={() => setReorderMode(!reorderMode)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${reorderMode
+                  ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
+                  : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
+                }`}
+            >
+              <ListMusic size={14} />
+              {reorderMode ? "Done" : "Reorder"}
+            </button>
           </div>
         </div>
       )}
@@ -99,21 +123,77 @@ export const LikedPage = () => {
           </p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <Reorder.Group
+          axis="y"
+          values={songs}
+          onReorder={handleSaveOrder}
+          className="space-y-1 pb-10"
+        >
           {songs.map((s: any, i) => (
-            <SongRow
+            <LikedSongItem
               key={s.id}
-              song={s}
-              index={i}
-              isCurrent={currentSong?.id === s.id}
+              s={s}
+              i={i}
+              currentSong={currentSong}
               isPlaying={isPlaying}
               onPlay={() => onPlay(s, songs)}
-              liked
               onLike={onLike}
+              reorderMode={reorderMode}
             />
           ))}
-        </div>
+        </Reorder.Group>
       )}
     </div>
   );
 };
+
+interface LikedSongItemProps {
+  s: any;
+  i: number;
+  currentSong: any;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onLike: (song: any) => void;
+  reorderMode: boolean;
+}
+
+function LikedSongItem({
+  s,
+  i,
+  currentSong,
+  isPlaying,
+  onPlay,
+  onLike,
+  reorderMode,
+}: LikedSongItemProps) {
+  const controls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={s}
+      dragListener={false}
+      dragControls={controls}
+      className="flex items-center group relative bg-transparent"
+    >
+      {reorderMode && (
+        <div
+          onPointerDown={(e) => controls.start(e)}
+          className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors"
+        >
+          <GripVertical size={16} />
+        </div>
+      )}
+      <div className="flex-1 min-w-0 ml-1">
+        <SongRow
+          song={s}
+          index={i}
+          isCurrent={currentSong?.id === s.id}
+          isPlaying={isPlaying}
+          onPlay={onPlay}
+          liked
+          onLike={onLike}
+        />
+      </div>
+    </Reorder.Item>
+  );
+}

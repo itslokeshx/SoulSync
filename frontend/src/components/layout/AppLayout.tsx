@@ -60,7 +60,7 @@ export function AppLayout() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
+  const [volume, setVolume] = useState(1.0);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<"off" | "all" | "one">("off");
 
@@ -68,7 +68,7 @@ export function AppLayout() {
   const [npOpen, setNpOpen] = useState(false);
   const [bgColor, setBgColor] = useState("#121212");
 
-  const [likedSongs, toggleLike] = useLikedSongs();
+  const [likedSongs, toggleLike, setLikedSongs] = useLikedSongs();
   const [recentlyPlayed, addRecent] = useRecentlyPlayed();
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
 
@@ -108,7 +108,7 @@ export function AppLayout() {
   const qiRef = useRef(-1);
   const sfRef = useRef(false);
   const rpRef = useRef<"off" | "all" | "one">("off");
-  const vlRef = useRef(0.8);
+  const vlRef = useRef(1.0);
   const csRef = useRef<any>(null);
   useEffect(() => {
     qRef.current = queue;
@@ -646,6 +646,7 @@ export function AppLayout() {
       isPlaying,
       likedSongs,
       handleLike,
+      setLikedSongs,
       recentlyPlayed,
       handlePlayPause,
       addToQueue,
@@ -657,6 +658,7 @@ export function AppLayout() {
       isPlaying,
       likedSongs,
       handleLike,
+      setLikedSongs,
       recentlyPlayed,
       handlePlayPause,
       addToQueue,

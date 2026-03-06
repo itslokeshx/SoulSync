@@ -176,6 +176,46 @@ router.post(
   },
 );
 
+// PATCH /api/user/liked/reorder — Reorder liked songs manually
+router.patch(
+  "/liked/reorder",
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { songIds } = req.body;
+      if (!Array.isArray(songIds)) {
+        res.status(400).json({ error: "songIds array required" });
+        return;
+      }
+
+      const user = await User.findById(req.userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const songMap = new Map(user.likedSongs.map((s) => [s.songId, s]));
+      const newOrder: any[] = [];
+      for (const id of songIds) {
+        const s = songMap.get(id);
+        if (s) {
+          newOrder.push(s);
+          songMap.delete(id);
+        }
+      }
+      // Keep any missing ones
+      songMap.forEach((s) => newOrder.push(s));
+
+      user.likedSongs = newOrder;
+      await user.save();
+
+      res.json({ success: true, likedCount: user.likedSongs.length });
+    } catch (err) {
+      console.error("[User] Reorder error:", err);
+      res.status(500).json({ error: "Failed to reorder liked songs" });
+    }
+  },
+);
+
 // DELETE /api/user/liked/:songId — Unlike
 
 // GET /api/user/liked — All liked songs

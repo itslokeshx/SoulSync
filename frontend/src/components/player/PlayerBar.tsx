@@ -230,7 +230,7 @@ export const PlayerBar = ({
                   }
                 />
                 <button
-                  onClick={() => onVolume(volume > 0 ? 0 : 0.8)}
+                  onClick={() => onVolume(volume > 0 ? 0 : 1.0)}
                   className="text-white/40 hover:text-white transition-colors"
                 >
                   <VolumeIcon volume={volume} />
@@ -338,34 +338,39 @@ export const PlayerBar = ({
         </div>
 
         {/* Right: volume (desktop) */}
-        <div className="hidden md:flex items-center gap-2 w-[28%] justify-end">
+        <div className="hidden md:flex items-center gap-2.5 w-[28%] justify-end min-w-0 pr-1">
           <button
             onClick={onToggleQueue}
             title="Queue (Q)"
-            className={`p-1.5 rounded-lg transition-all duration-200 ${
-              queueOpen
-                ? "text-sp-green bg-sp-green/10"
-                : "text-white/30 hover:text-white/60"
-            }`}
+            className={`p-1.5 rounded-lg transition-all duration-200 flex-shrink-0 ${queueOpen
+              ? "text-sp-green bg-sp-green/10"
+              : "text-white/40 hover:text-white/60"
+              }`}
           >
             <ListMusic size={15} />
           </button>
-          <button
-            onClick={() => onVolume(volume > 0 ? 0 : 0.8)}
-            title="Mute (M)"
-            className="text-white/30 hover:text-white/60 transition-colors duration-200"
-          >
-            <VolumeIcon volume={volume} />
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={volPct}
-            onChange={(e) => onVolume(+e.target.value / 100)}
-            className="volume-bar w-24 h-1 rounded-full cursor-pointer"
-            style={{ "--volume": `${volume}` } as React.CSSProperties}
-          />
+
+          <div className="flex items-center gap-2 flex-1 max-w-[150px]">
+            <button
+              onClick={() => onVolume(volume > 0 ? 0 : 1.0)}
+              title="Mute (M)"
+              className="text-white/40 hover:text-white/60 transition-colors duration-200 flex-shrink-0"
+            >
+              <VolumeIcon volume={volume} />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={volPct}
+              onChange={(e) => onVolume(+e.target.value / 100)}
+              className="volume-bar flex-1 h-1 rounded-full cursor-pointer"
+              style={{ "--volume": `${volume}` } as React.CSSProperties}
+            />
+            <span className="text-[10px] text-white/30 min-w-[28px] tabular-nums text-right">
+              {volPct}%
+            </span>
+          </div>
         </div>
       </div>
     </div>
