@@ -84,7 +84,6 @@ export function useSearch() {
     query,
     setQuery,
     state,
-    isStale: false,
     result,
     loadingMore: false,
     loadMore,

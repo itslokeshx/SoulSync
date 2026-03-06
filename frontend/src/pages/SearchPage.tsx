@@ -219,7 +219,7 @@ export function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { query, setQuery, state, isStale, result, loadingMore, loadMore } =
+  const { query, setQuery, state, result, loadingMore, loadMore } =
     useSearch();
 
   // Init from URL and focus
@@ -458,15 +458,6 @@ export function SearchPage() {
         {/* RESULTS (including stale-hint preview) */}
         {state === "results" && result && (
           <div className="py-4 space-y-7 max-w-2xl">
-            {/* Stale: thin progress bar instead of dimming the whole list */}
-            {isStale && (
-              <div className="h-0.5 w-full rounded-full bg-white/[0.04] overflow-hidden -mt-2 mb-1">
-                <div
-                  className="h-full bg-sp-green/60 rounded-full animate-pulse"
-                  style={{ width: "60%" }}
-                />
-              </div>
-            )}
             {result.parsedIntent?.displayContext && (
               <span className="inline-flex px-3 py-1 rounded-full bg-sp-green/10 border border-sp-green/20 text-sp-green text-[11px] font-semibold">
                 {result.parsedIntent.displayContext}
