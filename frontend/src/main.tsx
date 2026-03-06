@@ -9,6 +9,15 @@ import "./index.css";
 import { initCapacitor } from "./capacitor";
 import { isNative } from "./utils/platform";
 import { saveNativeToken } from "./api/backend";
+import { Capacitor } from "@capacitor/core";
+
+// @ts-ignore
+if (import.meta.env.VITE_PREVIEW_OFFLINE === "true") {
+  // @ts-ignore
+  Capacitor.isNativePlatform = () => true;
+  // @ts-ignore
+  Capacitor.getPlatform = () => "android";
+}
 
 // Initialise native plugins (no-op on web)
 initCapacitor();
