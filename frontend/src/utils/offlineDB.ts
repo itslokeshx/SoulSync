@@ -29,6 +29,7 @@ export interface OfflineSong {
   downloadUrl: { quality: string; url: string }[];
   image: { quality: string; url: string }[];
   savedAt: number;
+  playlistName?: string;
   order?: number;
 }
 
@@ -71,7 +72,11 @@ export async function getOfflineSongs(): Promise<OfflineSong[]> {
   return new Promise((res, rej) => {
     const tx = db.transaction(STORE_SONGS, "readonly");
     const req = tx.objectStore(STORE_SONGS).getAll();
-    req.onsuccess = () => res(req.result || []);
+    req.onsuccess = () => {
+      const results = req.result || [];
+      results.sort((a: OfflineSong, b: OfflineSong) => (a.order ?? 0) - (b.order ?? 0));
+      res(results);
+    };
     req.onerror = () => rej(req.error);
   });
 }

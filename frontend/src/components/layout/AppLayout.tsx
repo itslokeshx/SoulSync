@@ -161,6 +161,18 @@ export function AppLayout() {
   const playSong = useCallback(
     async (song: any, newQueue: any[] = [], _fromDuo = false) => {
       if (!song) return;
+
+      // Deduplicate newQueue if provided
+      let finalQueue = newQueue;
+      if (newQueue.length > 0) {
+        const seen = new Set();
+        finalQueue = newQueue.filter(s => {
+          if (seen.has(s.id)) return false;
+          seen.add(s.id);
+          return true;
+        });
+      }
+
       const audio = audioRef.current;
       if (!audio) return;
       try {
@@ -242,11 +254,11 @@ export function AppLayout() {
           language: target.language || "",
         });
 
-        if (newQueue.length > 0) {
-          setQueue(newQueue);
-          const idx = newQueue.findIndex((s: any) => s.id === song.id);
+        if (finalQueue.length > 0) {
+          setQueue(finalQueue);
+          const idx = finalQueue.findIndex((s: any) => s.id === song.id);
           setQueueIndex(idx);
-          qRef.current = newQueue;
+          qRef.current = finalQueue;
           qiRef.current = idx;
         }
 
@@ -477,8 +489,16 @@ export function AppLayout() {
 
   // ── Queue operations ──
   const addToQueue = useCallback((song: any) => {
-    setQueue((prev) => [...prev, song]);
-    toast.success("Added to queue");
+    setQueue((prev) => {
+      if (prev.some(s => s.id === song.id)) {
+        toast("Already in queue", { icon: "ℹ️" });
+        return prev;
+      }
+      toast.success("Added to queue");
+      const next = [...prev, song];
+      qRef.current = next;
+      return next;
+    });
   }, []);
 
   const playNextInQueue = useCallback((song: any) => {
@@ -728,8 +748,8 @@ export function AppLayout() {
           {/* Page content */}
           <main
             className={`flex-1 ${isSearchPage
-                ? "overflow-hidden p-0"
-                : "overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28 bg-black/40"
+              ? "overflow-hidden p-0"
+              : "overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28 bg-black/40"
               }`}
           >
             <Outlet />

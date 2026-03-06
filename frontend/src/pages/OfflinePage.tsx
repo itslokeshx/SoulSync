@@ -55,6 +55,8 @@ export default function OfflinePage() {
   const [npOpen, setNpOpen] = useState(false);
   const [isDragging, setIsDragging] = useState<number | null>(null);
   const [showQueue, setShowQueue] = useState(false);
+  const [viewMode, setViewMode] = useState<"all" | "playlists">("all");
+  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
@@ -484,94 +486,232 @@ export default function OfflinePage() {
                 Import
               </button>
             </div>
-            <div className="flex gap-3 mb-6">
+
+            <div className="flex gap-2 mb-6 p-1 bg-white/[0.04] rounded-xl w-fit">
               <button
-                onClick={handlePlayAll}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
+                onClick={() => {
+                  setViewMode("all");
+                  setSelectedPlaylist(null);
+                }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "all" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"
+                  }`}
               >
-                <Play size={16} className="fill-current" />
-                Play All
+                All Songs
               </button>
               <button
-                onClick={handleShuffleAll}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
+                onClick={() => {
+                  setViewMode("playlists");
+                  setSelectedPlaylist(null);
+                }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "playlists" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"
+                  }`}
               >
-                <Shuffle size={14} />
-                Shuffle
+                Playlists
               </button>
             </div>
-            <div className="space-y-1">
-              {songs.map((s, i) => {
-                const isActive = currentSong?.id === s.id;
-                return (
-                  <div
-                    key={s.id}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, i)}
-                    onDragOver={(e) => onDragOver(e, i)}
-                    onDragEnd={onDragEnd}
-                    onClick={() => {
-                      handlePlay(s, songs);
-                      setNpOpen(true);
-                    }}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all cursor-pointer active:scale-[0.98] ${isDragging === i ? "opacity-30 bg-white/[0.08]" : ""
-                      } ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+
+            {viewMode === "all" ? (
+              <>
+                <div className="flex gap-3 mb-6">
+                  <button
+                    onClick={handlePlayAll}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
                   >
-                    <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <GripVertical size={16} className="text-white/20" />
-                    </div>
-                    <div className="relative flex-shrink-0">
-                      <img
-                        src={songImg(s)}
-                        onError={onImgErr}
-                        className="w-12 h-12 rounded-xl object-cover"
-                        alt=""
-                      />
-                      {isActive && isPlaying && (
-                        <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
-                          <div className="flex items-end gap-[2px] h-3">
-                            {[0.2, 0.4, 0.3, 0.5].map((d, idx) => (
-                              <motion.div
-                                key={idx}
-                                animate={{ height: [4, 12, 4] }}
-                                transition={{
-                                  duration: 0.6,
-                                  delay: d,
-                                  repeat: Infinity,
-                                }}
-                                className="w-1 bg-sp-green rounded-full"
-                              />
-                            ))}
+                    <Play size={16} className="fill-current" />
+                    <span className="hidden sm:inline">Play All</span>
+                    <span className="sm:hidden">Play</span>
+                  </button>
+                  <button
+                    onClick={handleShuffleAll}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
+                  >
+                    <Shuffle size={14} />
+                    Shuffle
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {songs.map((s, i) => {
+                    const isActive = currentSong?.id === s.id;
+                    return (
+                      <div
+                        key={s.id}
+                        draggable
+                        onDragStart={(e) => onDragStart(e, i)}
+                        onDragOver={(e) => onDragOver(e, i)}
+                        onDragEnd={onDragEnd}
+                        onClick={() => {
+                          handlePlay(s, songs);
+                          setNpOpen(true);
+                        }}
+                        className={`flex items-center gap-3 p-2.5 rounded-xl group transition-all cursor-pointer active:scale-[0.98] ${isDragging === i ? "opacity-30 bg-white/[0.08]" : ""
+                          } ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+                      >
+                        <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <GripVertical size={16} className="text-white/20" />
+                        </div>
+                        <div className="relative flex-shrink-0">
+                          <img
+                            src={songImg(s)}
+                            onError={onImgErr}
+                            className="w-12 h-12 rounded-xl object-cover"
+                            alt=""
+                          />
+                          {isActive && isPlaying && (
+                            <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
+                              <div className="flex items-end gap-[2px] h-3">
+                                {[0.2, 0.4, 0.3, 0.5].map((d, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    animate={{ height: [4, 12, 4] }}
+                                    transition={{
+                                      duration: 0.6,
+                                      delay: d,
+                                      repeat: Infinity,
+                                    }}
+                                    className="w-1 bg-sp-green rounded-full"
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 ml-1">
+                          <p
+                            className={`text-[13px] font-semibold truncate ${isActive ? "text-sp-green" : "text-white"}`}
+                          >
+                            {s.name}
+                          </p>
+                          <p className="text-[11px] text-white/35 truncate">
+                            {s.artist}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+                          {fmt(s.duration)}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(s.id, s.name);
+                          }}
+                          className="p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : selectedPlaylist ? (
+              <div className="animate-fadeIn">
+                <div className="flex items-center gap-3 mb-6">
+                  <button
+                    onClick={() => setSelectedPlaylist(null)}
+                    className="p-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-white/70 transition-colors"
+                  >
+                    <ChevronDown size={20} className="rotate-90" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-xl font-black text-white truncate">{selectedPlaylist}</h2>
+                    <p className="text-xs text-white/30">
+                      {songs.filter((s) => (s.playlistName || "Other") === selectedPlaylist).length} songs
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mb-6">
+                  <button
+                    onClick={() => {
+                      const plSongs = songs.filter((s) => (s.playlistName || "Other") === selectedPlaylist);
+                      setQueue(plSongs);
+                      playIndex(plSongs, 0);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-sp-green text-black font-bold active:scale-95 transition-transform"
+                  >
+                    <Play size={18} className="fill-black" />
+                    <span className="hidden sm:inline">Play All</span>
+                    <span className="sm:hidden">Play</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const plSongs = [...songs.filter((s) => (s.playlistName || "Other") === selectedPlaylist)].sort(() => Math.random() - 0.5);
+                      setQueue(plSongs);
+                      playIndex(plSongs, 0);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/[0.05] text-white font-bold border border-white/10 active:scale-95 transition-transform"
+                  >
+                    <Shuffle size={18} />
+                    Shuffle
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  {songs
+                    .filter((s) => (s.playlistName || "Other") === selectedPlaylist)
+                    .map((s, i) => {
+                      const isActive = currentSong?.id === s.id;
+                      const plSongs = songs.filter((sk) => (sk.playlistName || "Other") === selectedPlaylist);
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            setQueue(plSongs);
+                            playIndex(plSongs, i);
+                          }}
+                          className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer active:scale-[0.98] ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
+                            }`}
+                        >
+                          <img src={songImg(s)} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                          <div className="min-w-0 flex-1 ml-1">
+                            <p className={`text-[13px] font-semibold truncate ${isActive ? "text-sp-green" : "text-white"}`}>
+                              {s.name}
+                            </p>
+                            <p className="text-[11px] text-white/35 truncate">{s.artist}</p>
+                          </div>
+                          <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">{fmt(s.duration)}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from(new Set(songs.map((s) => s.playlistName || "Other")))
+                  .sort()
+                  .map((playlistName) => {
+                    const playlistSongs = songs.filter(
+                      (s) => (s.playlistName || "Other") === playlistName,
+                    );
+                    const cover = songImgLg(playlistSongs[0]);
+                    return (
+                      <div
+                        key={playlistName}
+                        onClick={() => setSelectedPlaylist(playlistName)}
+                        className="group bg-white/[0.03] hover:bg-white/[0.06] p-4 rounded-2xl transition-all cursor-pointer border border-white/[0.02] hover:border-white/[0.08]"
+                      >
+                        <div className="aspect-square rounded-xl overflow-hidden mb-3 shadow-lg relative">
+                          <img
+                            src={cover}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            alt=""
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <div className="w-12 h-12 rounded-full bg-sp-green flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
+                              <Play size={20} className="text-black fill-black ml-1" />
+                            </div>
                           </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 ml-1">
-                      <p
-                        className={`text-[13px] font-semibold truncate ${isActive ? "text-sp-green" : "text-white"}`}
-                      >
-                        {s.name}
-                      </p>
-                      <p className="text-[11px] text-white/35 truncate">
-                        {s.artist}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
-                      {fmt(s.duration)}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemove(s.id, s.name);
-                      }}
-                      className="p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                        <h3 className="text-[14px] font-bold text-white truncate mb-0.5">
+                          {playlistName}
+                        </h3>
+                        <p className="text-[11px] text-white/40">
+                          {playlistSongs.length} songs
+                        </p>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -724,8 +864,8 @@ export default function OfflinePage() {
             <button
               onClick={() => setShowQueue((q) => !q)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-all border ${showQueue
-                  ? "text-sp-green bg-sp-green/10 border-sp-green/20"
-                  : "text-white/40 hover:text-white hover:bg-white/[0.08] border-transparent"
+                ? "text-sp-green bg-sp-green/10 border-sp-green/20"
+                : "text-white/40 hover:text-white hover:bg-white/[0.08] border-transparent"
                 }`}
             >
               <ListMusic size={17} />

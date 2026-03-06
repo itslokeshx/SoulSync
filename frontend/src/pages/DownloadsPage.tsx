@@ -62,7 +62,7 @@ function loadOrder(): string[] {
 function saveOrder(ids: string[]) {
   try {
     localStorage.setItem(PLAYLIST_ORDER_KEY, JSON.stringify(ids));
-  } catch {}
+  } catch { }
 }
 
 export default function DownloadsPage() {
@@ -76,6 +76,8 @@ export default function DownloadsPage() {
   const [reorderMode, setReorderMode] = useState(false);
   const dragIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"all" | "playlists">("all");
+  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
 
   // ── File import ──
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -375,33 +377,60 @@ export default function DownloadsPage() {
 
       {/* Playlist Controls */}
       {songs.length > 0 && (
-        <div className="flex items-center gap-2.5 mb-5">
-          <button
-            onClick={handlePlayAll}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
-          >
-            <Play size={16} className="fill-current" />
-            Play All
-          </button>
-          <button
-            onClick={handleShuffleAll}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
-          >
-            <Shuffle size={14} />
-            Shuffle
-          </button>
-          <div className="flex-1" />
-          <button
-            onClick={() => setReorderMode(!reorderMode)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${
-              reorderMode
+        <div className="flex flex-wrap items-center gap-2.5 mb-5">
+          <div className="flex gap-2.5">
+            <button
+              onClick={handlePlayAll}
+              className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
+            >
+              <Play size={16} className="fill-current" />
+              <span className="hidden sm:inline">Play All</span>
+              <span className="sm:hidden">Play</span>
+            </button>
+            <button
+              onClick={handleShuffleAll}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
+            >
+              <Shuffle size={14} />
+              <span className="hidden sm:inline">Shuffle</span>
+            </button>
+          </div>
+
+          <div className="flex-1 min-w-[10px] hidden sm:block" />
+
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 p-1 bg-white/[0.04] rounded-xl">
+              <button
+                onClick={() => {
+                  setViewMode("all");
+                  setSelectedPlaylist(null);
+                }}
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${viewMode === "all" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("playlists");
+                  setSelectedPlaylist(null);
+                }}
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${viewMode === "playlists" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
+              >
+                Playlists
+              </button>
+            </div>
+            <button
+              onClick={() => setReorderMode(!reorderMode)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] sm:text-[12px] font-semibold transition-all ${reorderMode
                 ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
                 : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
-            }`}
-          >
-            <ListMusic size={13} />
-            {reorderMode ? "Done" : "Reorder"}
-          </button>
+                }`}
+            >
+              <ListMusic size={13} />
+              <span className="hidden xs:inline">{reorderMode ? "Done" : "Reorder"}</span>
+              <span className="xs:hidden">{reorderMode ? "Done" : ""}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -428,13 +457,12 @@ export default function DownloadsPage() {
               return (
                 <div
                   key={`dl-${dl.id}`}
-                  className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${
-                    isDone
-                      ? "bg-sp-green/[0.06]"
-                      : isError
-                        ? "bg-red-500/[0.06]"
-                        : "bg-white/[0.03]"
-                  }`}
+                  className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${isDone
+                    ? "bg-sp-green/[0.06]"
+                    : isError
+                      ? "bg-red-500/[0.06]"
+                      : "bg-white/[0.03]"
+                    }`}
                 >
                   <div className="relative flex-shrink-0 w-10 h-10">
                     {dl.albumArt ? (
@@ -530,7 +558,7 @@ export default function DownloadsPage() {
             Supports MP3, AAC, WAV, OGG, FLAC & more
           </p>
         </div>
-      ) : (
+      ) : viewMode === "all" ? (
         <div
           ref={listRef}
           className="space-y-0.5"
@@ -553,9 +581,8 @@ export default function DownloadsPage() {
                 onTouchStart={
                   reorderMode ? (e) => handleTouchStart(i, e) : undefined
                 }
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-                  isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
-                } ${isDragOver ? "border-t-2 border-sp-green" : ""} ${reorderMode ? "cursor-grab active:cursor-grabbing" : ""}`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isCurrent ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
+                  } ${isDragOver ? "border-t-2 border-sp-green" : ""} ${reorderMode ? "cursor-grab active:cursor-grabbing" : ""}`}
               >
                 {reorderMode ? (
                   <div className="w-5 flex items-center justify-center text-white/25 touch-none">
@@ -619,6 +646,78 @@ export default function DownloadsPage() {
               </div>
             );
           })}
+        </div>
+      ) : selectedPlaylist ? (
+        <div className="animate-fadeIn">
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => setSelectedPlaylist(null)}
+              className="p-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-white/70 transition-colors"
+            >
+              <Shuffle size={16} className="rotate-180" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-bold text-white truncate">{selectedPlaylist}</h2>
+              <p className="text-xs text-white/30">
+                {songs.filter((s) => (s.playlistName || "Other") === selectedPlaylist).length} songs
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            {songs
+              .filter((s) => (s.playlistName || "Other") === selectedPlaylist)
+              .map((s) => {
+                const isActive = currentSong?.id === s.id;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => handlePlay(s)}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
+                      }`}
+                  >
+                    <img src={bestImg(s.image, "50x50") || s.albumArt || FALLBACK_IMG} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                    <div className="min-w-0 flex-1 ml-1">
+                      <p className={`text-[13px] font-medium truncate ${isActive ? "text-sp-green" : "text-white"}`}>
+                        {s.name}
+                      </p>
+                      <p className="text-[11px] text-white/35 truncate">{s.artist}</p>
+                    </div>
+                    <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">{fmt(s.duration)}</span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 animate-fadeIn">
+          {Array.from(new Set(songs.map((s) => s.playlistName || "Other")))
+            .sort()
+            .map((playlistName) => {
+              const playlistSongs = songs.filter(
+                (s) => (s.playlistName || "Other") === playlistName,
+              );
+              return (
+                <div
+                  key={playlistName}
+                  onClick={() => setSelectedPlaylist(playlistName)}
+                  className="group bg-white/[0.03] hover:bg-white/[0.06] p-4 rounded-2xl transition-all cursor-pointer border border-white/[0.02] hover:border-white/[0.08]"
+                >
+                  <div className="aspect-square rounded-xl overflow-hidden mb-3 shadow-lg relative bg-white/[0.02] flex items-center justify-center">
+                    {playlistSongs[0]?.image?.length || playlistSongs[0]?.albumArt ? (
+                      <img
+                        src={bestImg(playlistSongs[0].image, "250x250") || playlistSongs[0].albumArt}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        alt=""
+                      />
+                    ) : (
+                      <Music2 size={32} className="text-white/10" />
+                    )}
+                  </div>
+                  <h3 className="text-[14px] font-bold text-white truncate">{playlistName}</h3>
+                  <p className="text-[11px] text-white/40">{playlistSongs.length} songs</p>
+                </div>
+              );
+            })}
         </div>
       )}
 

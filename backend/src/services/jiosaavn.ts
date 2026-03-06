@@ -154,7 +154,7 @@ export async function executeSearch(intent: ParsedIntent): Promise<SearchResult>
       // 1. All song variations (from intent parser)
       Promise.allSettled(
         queries.map(({ query, weight }) =>
-          searchSongs(query, 30).then(songs => ({ songs, weight, query }))
+          searchSongs(query, 50).then(songs => ({ songs, weight, query }))
         )
       ),
       // 2. Direct album search
@@ -285,6 +285,24 @@ export async function getArtistDetails(id: string): Promise<any> {
 }
 
 export async function getArtistSongs(id: string, page = 1): Promise<any[]> {
+  // If page 1, fetch 5 pages in parallel to provide 50 songs (Premium Discovery)
+  if (page === 1) {
+    const pages = [1, 2, 3, 4, 5];
+    const results = await Promise.allSettled(
+      pages.map(p => fetchSafe(`${JIOSAAVN_BASE}/artists/${id}/songs?page=${p}`))
+    );
+
+    const allSongs: any[] = [];
+    for (const res of results) {
+      if (res.status === 'fulfilled' && res.value) {
+        const data = res.value as any;
+        const songs = data?.data?.songs || data?.songs || [];
+        allSongs.push(...songs);
+      }
+    }
+    return allSongs;
+  }
+
   const data = await fetchSafe(`${JIOSAAVN_BASE}/artists/${id}/songs?page=${page}`) as any
   return data?.data?.songs || data?.songs || []
 }

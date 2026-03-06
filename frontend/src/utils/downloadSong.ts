@@ -1,7 +1,7 @@
 import { Song } from "../types/song";
 import { getBestAudioUrl } from "./getBestAudioUrl";
 import { getArtists } from "./queryParser";
-import { saveOfflineSong } from "./offlineDB";
+import { isOfflineSaved, saveOfflineSong } from "./offlineDB";
 import { bestImg } from "../lib/helpers";
 import { useDownloadStore } from "../store/downloadStore";
 import { useOfflineStore } from "../store/offlineStore";
@@ -13,7 +13,17 @@ import toast from "react-hot-toast";
 export async function downloadSong(
   song: Song,
   saveOffline = true,
+  playlistName?: string,
 ): Promise<void> {
+  // Check if already in library
+  if (saveOffline) {
+    const saved = await isOfflineSaved(song.id);
+    if (saved) {
+      toast.success(`${song.name || "Song"} already downloaded!`, { icon: "✅" });
+      return;
+    }
+  }
+
   const url = getBestAudioUrl(song.downloadUrl || song.download_url);
   if (!url) {
     toast.error("Download URL not available");
@@ -105,6 +115,7 @@ export async function downloadSong(
               url: i.url || i.link || "",
             })),
             savedAt: Date.now(),
+            playlistName,
           },
           blob,
         );
@@ -159,4 +170,37 @@ export async function downloadSong(
       useDownloadStore.getState().removeDownload(song.id);
     }, 4000);
   }
+}
+
+/**
+ * Download an entire playlist with limited concurrency (3 songs at a time)
+ */
+export async function downloadPlaylist(
+  songs: Song[],
+  playlistName: string,
+): Promise<void> {
+  if (!songs.length) return;
+
+  toast(`Starting download of ${songs.length} songs...`, { icon: "📥" });
+
+  const concurrency = 3;
+  const queue = [...songs];
+  const active: Promise<void>[] = [];
+
+  const runNext = async (): Promise<void> => {
+    if (queue.length === 0) return;
+    const song = queue.shift()!;
+    await downloadSong(song, true, playlistName).catch(() => { });
+    await runNext();
+  };
+
+  for (let i = 0; i < Math.min(concurrency, songs.length); i++) {
+    active.push(runNext());
+  }
+
+  await Promise.all(active);
+  toast.success(`Completed downloading ${playlistName}`, {
+    icon: "✅",
+    duration: 4000,
+  });
 }

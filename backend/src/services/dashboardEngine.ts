@@ -529,7 +529,7 @@ export async function buildDashboard(
     for (const section of sections) {
       if (section.type === "mood_grid") continue;
       section.songs = section.songs.filter((song: any) => {
-        const id = song.id || song.songId;
+        const id = (song.id || song.songId || "").toString().toLowerCase();
         if (!id || guestSeen.has(id)) return false;
         guestSeen.add(id);
         return true;
@@ -638,7 +638,7 @@ export async function buildDashboard(
   for (const section of sections) {
     if (section.type === "mood_grid") continue; // mood_grid has no songs
     section.songs = section.songs.filter((song: any) => {
-      const id = song.id || song.songId;
+      const id = (song.id || song.songId || "").toString().toLowerCase();
       if (!id || seenSongIds.has(id)) return false;
       seenSongIds.add(id);
       return true;

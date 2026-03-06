@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react";
+import { Skeleton } from "../components/ui/Skeleton";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
 import { useUIStore } from "../store/uiStore";
@@ -34,7 +35,7 @@ export default function LibraryPage() {
     api
       .getPlaylists()
       .then(setPlaylists)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -162,13 +163,24 @@ export default function LibraryPage() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-16 rounded-2xl bg-white/[0.03] animate-pulse"
-            />
-          ))}
+        <div className="space-y-4 animate-fadeIn">
+          {/* Quick Access Skeletons */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+          </div>
+          {/* Playlist Skeletons */}
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <Skeleton className="w-12 h-12 rounded-xl flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4 rounded-md" />
+                  <Skeleton className="h-3 w-1/4 rounded-md opacity-50" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : playlists.length === 0 ? (
         <div className="text-center py-16">

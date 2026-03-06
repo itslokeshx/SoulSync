@@ -10,6 +10,7 @@ import {
   Music2,
   Loader2,
   GripVertical,
+  ListMusic,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import * as api from "../api/backend";
@@ -20,6 +21,8 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { onImgErr, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
+import { downloadPlaylist } from "../utils/downloadSong";
+import { Download } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function PlaylistPage() {
@@ -270,93 +273,110 @@ export default function PlaylistPage() {
       </div>
 
       {/* Actions */}
-      <div className="px-6 py-5 flex items-center gap-4">
+      <div className="px-6 py-5 flex flex-wrap items-center gap-3 sm:gap-4">
         <GreenButton
           onClick={() =>
             playableSongs.length && playSong(playableSongs[0], playableSongs)
           }
+          className="flex-shrink-0"
         >
-          <Play size={16} className="fill-black" /> Play All
+          <Play size={16} className="fill-black" />
+          <span className="hidden sm:inline ml-2">Play All</span>
+          <span className="sm:hidden ml-2">Play</span>
         </GreenButton>
-        <button
-          onClick={handleShuffle}
-          disabled={savingOrder}
-          className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all disabled:opacity-50"
-        >
-          {savingOrder ? <Loader2 size={15} className="animate-spin" /> : <Shuffle size={15} />}
-        </button>
-        <button
-          onClick={() => setEditing(true)}
-          className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all"
-        >
-          <Pencil size={15} />
-        </button>
-        <button
-          onClick={handleDelete}
-          className="w-10 h-10 rounded-full border border-red-500/20 flex items-center justify-center text-red-400/60 hover:text-red-400 hover:border-red-400/40 transition-all ml-auto"
-        >
-          <Trash2 size={15} />
-        </button>
+        <div className="flex gap-3 sm:gap-4 flex-1">
+          <button
+            onClick={handleShuffle}
+            disabled={savingOrder}
+            title="Shuffle Playlist Order"
+            className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all disabled:opacity-50"
+          >
+            {savingOrder ? <Loader2 size={15} className="animate-spin" /> : <Shuffle size={15} />}
+          </button>
+          <button
+            onClick={() => downloadPlaylist(playableSongs, playlist.name || "Playlist")}
+            title="Download Entire Playlist"
+            className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all"
+          >
+            <Download size={15} />
+          </button>
+          <button
+            onClick={() => setEditing(true)}
+            title="Edit Playlist"
+            className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all"
+          >
+            <Pencil size={15} />
+          </button>
+          <button
+            onClick={handleDelete}
+            title="Delete Playlist"
+            className="w-10 h-10 rounded-full border border-red-500/20 flex items-center justify-center text-red-400/60 hover:text-red-400 hover:border-red-400/40 transition-all ml-auto"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       </div>
 
       {/* Songs */}
       <div className="px-6">
-        {localSongs.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-5">
-              <Music2 size={28} className="text-sp-muted" />
+        {
+          localSongs.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-5">
+                <Music2 size={28} className="text-sp-muted" />
+              </div>
+              <p className="text-white font-semibold">No songs yet</p>
+              <p className="text-white/30 text-sm mt-1">
+                Search for songs to add to this playlist
+              </p>
             </div>
-            <p className="text-white font-semibold">No songs yet</p>
-            <p className="text-white/30 text-sm mt-1">
-              Search for songs to add to this playlist
-            </p>
-          </div>
-        ) : (
-          <Reorder.Group
-            axis="y"
-            values={localSongs}
-            onReorder={setLocalSongs}
-            className="space-y-0.5 pb-10"
-          >
-            {localSongs.map((s, i) => {
-              const mapped = mapSong(s);
-              if (!s.songId) return null;
-              return (
-                <Reorder.Item
-                  key={s.songId}
-                  value={s}
-                  onDragEnd={() => handleSaveOrder(localSongs)}
-                  className="flex items-center group relative bg-transparent"
-                >
-                  <div className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/0 group-hover:text-white/20 hover:!text-white/60 transition-colors">
-                    <GripVertical size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <SongRow
-                      song={mapped}
-                      index={i}
-                      isCurrent={currentSong?.id === s.songId}
-                      isPlaying={isPlaying}
-                      onPlay={() => playSong(mapped, playableSongs)}
-                      liked={!!likedSongs?.[s.songId]}
-                      onLike={handleLike}
-                    />
-                  </div>
-                  <button
-                    onClick={() =>
-                      handleRemoveSong(s.songId, s.title || s.songId)
-                    }
-                    title="Remove from playlist"
-                    className="ml-1 p-2 rounded-full text-white/0 group-hover:text-red-400/70 hover:!text-red-400 hover:bg-red-400/10 transition-all duration-200 flex-shrink-0"
+          ) : (
+            <Reorder.Group
+              axis="y"
+              values={localSongs}
+              onReorder={setLocalSongs}
+              className="space-y-0.5 pb-10"
+            >
+              {localSongs.map((s, i) => {
+                const mapped = mapSong(s);
+                if (!s.songId) return null;
+                return (
+                  <Reorder.Item
+                    key={s.songId}
+                    value={s}
+                    onDragEnd={() => handleSaveOrder(localSongs)}
+                    className="flex items-center group relative bg-transparent"
                   >
-                    <Trash2 size={14} />
-                  </button>
-                </Reorder.Item>
-              );
-            })}
-          </Reorder.Group>
-        )}
-      </div>
+                    <div className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/0 group-hover:text-white/20 hover:!text-white/60 transition-colors">
+                      <GripVertical size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <SongRow
+                        song={mapped}
+                        index={i}
+                        isCurrent={currentSong?.id === s.songId}
+                        isPlaying={isPlaying}
+                        onPlay={() => playSong(mapped, playableSongs)}
+                        liked={!!likedSongs?.[s.songId]}
+                        onLike={handleLike}
+                      />
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleRemoveSong(s.songId, s.title || s.songId)
+                      }
+                      title="Remove from playlist"
+                      className="ml-1 p-2 rounded-full text-white/0 group-hover:text-red-400/70 hover:!text-red-400 hover:bg-red-400/10 transition-all duration-200 flex-shrink-0"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </Reorder.Item>
+                );
+              })}
+            </Reorder.Group>
+          )
+        }
+      </div >
 
       <ConfirmModal
         open={confirmOpen}
@@ -365,6 +385,6 @@ export default function PlaylistPage() {
         onConfirm={confirmAction}
         onCancel={() => setConfirmOpen(false)}
       />
-    </div>
+    </div >
   );
 }

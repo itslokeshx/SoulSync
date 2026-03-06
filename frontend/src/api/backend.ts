@@ -208,6 +208,10 @@ export async function getLikedSongs(): Promise<unknown[]> {
   return data.likedSongs || [];
 }
 
+export async function shuffleLikedSongs(): Promise<void> {
+  await api.post("/api/user/liked/shuffle");
+}
+
 export async function getUserStats(): Promise<UserStats> {
   const { data } = await api.get("/api/user/stats");
   return data;

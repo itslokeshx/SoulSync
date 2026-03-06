@@ -16,11 +16,11 @@ interface DashboardSection {
   title: string;
   subtitle?: string;
   type:
-    | "quick_grid"
-    | "horizontal"
-    | "artist_spotlight"
-    | "mood_grid"
-    | "continue";
+  | "quick_grid"
+  | "horizontal"
+  | "artist_spotlight"
+  | "mood_grid"
+  | "continue";
   songs: any[];
   meta?: Record<string, any>;
 }
@@ -76,7 +76,7 @@ export const HomePage = () => {
           return;
         }
       }
-    } catch {}
+    } catch { }
 
     try {
       const data: any = user ? await getDashboard() : await getGuestDashboard();
@@ -91,7 +91,7 @@ export const HomePage = () => {
           setDashboard(guestData);
           setError(false);
           return;
-        } catch {}
+        } catch { }
       }
       setError(true);
     } finally {
@@ -262,6 +262,11 @@ export const HomePage = () => {
 
       {/* Dashboard sections from API */}
       {dashboard?.sections?.map((section) => {
+        // Filter out songs that are already in recentlyPlayed
+        const filteredSongs = section.songs.filter(s =>
+          !recentlyPlayed.some(rp => rp.id === s.id || rp.id === s.songId)
+        );
+
         // ── Mood Grid ──
         if (section.type === "mood_grid" && section.meta?.moods) {
           return (
@@ -301,13 +306,13 @@ export const HomePage = () => {
                 <p className="text-white/30 text-xs mb-4">{section.subtitle}</p>
               )}
               <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-3 -mx-1 px-1">
-                {section.songs.map((s) => (
+                {filteredSongs.map((s) => (
                   <SongCard
                     key={s.id}
                     song={s}
                     isCurrent={currentSong?.id === s.id}
                     isPlaying={isPlaying}
-                    onPlay={() => onPlay(s, section.songs)}
+                    onPlay={() => onPlay(s, filteredSongs)}
                   />
                 ))}
               </div>
@@ -338,13 +343,13 @@ export const HomePage = () => {
                 </div>
               </div>
               <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-3 -mx-1 px-1">
-                {section.songs.map((s) => (
+                {filteredSongs.map((s) => (
                   <SongCard
                     key={s.id}
                     song={s}
                     isCurrent={currentSong?.id === s.id}
                     isPlaying={isPlaying}
-                    onPlay={() => onPlay(s, section.songs)}
+                    onPlay={() => onPlay(s, filteredSongs)}
                   />
                 ))}
               </div>
@@ -358,12 +363,12 @@ export const HomePage = () => {
             <div key={section.id} className="mb-10">
               <HSection
                 title={section.title}
-                songs={section.songs}
+                songs={filteredSongs}
                 loading={false}
                 currentSong={currentSong}
                 isPlaying={isPlaying}
                 onPlay={(song: any, queue: any[]) =>
-                  onPlay(song, queue.length ? queue : section.songs)
+                  onPlay(song, queue.length ? queue : filteredSongs)
                 }
                 onAlbumClick={(al: any) => navigate(`/album/${al.id}`)}
               />

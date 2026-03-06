@@ -46,7 +46,7 @@ router.patch(
       }
 
       // Clear cached dashboard so it rebuilds with new language prefs
-      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+      await redisDel(`dashboard:${req.userId}`).catch(() => { });
 
       res.json({ user });
     } catch (err) {
@@ -147,21 +147,36 @@ router.post(
   },
 );
 
-// DELETE /api/user/liked/:songId — Unlike
-router.delete(
-  "/liked/:songId",
+// POST /api/user/liked/shuffle — Persistent shuffle of liked songs
+router.post(
+  "/liked/shuffle",
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      await User.findByIdAndUpdate(req.userId, {
-        $pull: { likedSongs: { songId: req.params.songId } },
-      });
-      res.json({ success: true });
+      const user = await User.findById(req.userId);
+      if (!user || !user.likedSongs.length) {
+        res.json({ success: true, likedCount: 0 });
+        return;
+      }
+
+      // Fisher-Yates shuffle
+      const songs = [...user.likedSongs];
+      for (let i = songs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [songs[i], songs[j]] = [songs[j], songs[i]];
+      }
+
+      user.likedSongs = songs;
+      await user.save();
+
+      res.json({ success: true, likedCount: user.likedSongs.length });
     } catch (err) {
-      console.error("[User] Unlike error:", err);
-      res.status(500).json({ error: "Failed to unlike song" });
+      console.error("[User] Shuffle error:", err);
+      res.status(500).json({ error: "Failed to shuffle liked songs" });
     }
   },
 );
+
+// DELETE /api/user/liked/:songId — Unlike
 
 // GET /api/user/liked — All liked songs
 router.get("/liked", async (req: AuthRequest, res: Response): Promise<void> => {
