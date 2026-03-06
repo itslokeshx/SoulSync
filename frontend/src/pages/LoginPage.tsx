@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -177,7 +177,10 @@ export default function LoginPage() {
     loginAfterRegister,
   } = useAuth();
   const navigate = useNavigate();
-  const [authState, setAuthState] = useState<AuthState>("welcome");
+  const [searchParams] = useSearchParams();
+  const [authState, setAuthState] = useState<AuthState>(
+    searchParams.get("mode") === "register" ? "register" : "welcome",
+  );
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [loginId, setLoginId] = useState("");

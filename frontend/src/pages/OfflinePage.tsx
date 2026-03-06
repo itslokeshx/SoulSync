@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { motion } from "framer-motion";
 import {
   WifiOff,
   Play,
@@ -560,15 +561,25 @@ export default function OfflinePage() {
               })}
             </div>
             <div className="mt-10 text-center py-6 border-t border-white/[0.04]">
-              <p className="text-white/20 text-[12px] mb-3">
+              <p className="text-white/20 text-[12px] mb-4">
                 Sign in when online to access millions of songs
               </p>
-              <button
-                onClick={() => (window.location.href = "/login")}
-                className="px-5 py-2 rounded-full bg-sp-green text-black text-[12px] font-bold hover:brightness-110 active:scale-95 transition-all"
-              >
-                Sign In
-              </button>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => (window.location.href = "/login")}
+                  className="px-5 py-2 rounded-full bg-sp-green text-black text-[12px] font-bold hover:brightness-110 active:scale-95 transition-all"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() =>
+                    (window.location.href = "/login?mode=register")
+                  }
+                  className="px-5 py-2 rounded-full border border-white/10 text-white text-[12px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
+                >
+                  Sign Up
+                </button>
+              </div>
             </div>
           </>
         ) : (
@@ -587,6 +598,13 @@ export default function OfflinePage() {
               >
                 <FolderOpen size={16} />
                 Import from device
+              </button>
+              <button
+                onClick={() => (window.location.href = "/login?mode=register")}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
+              >
+                <LogIn size={16} />
+                Create Account
               </button>
               <button
                 onClick={() => (window.location.href = "/login")}
