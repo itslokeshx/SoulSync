@@ -12,7 +12,7 @@
 
 [![Open Web App](https://img.shields.io/badge/🌐%20Open%20Web%20App-soul--sync--beta.vercel.app-1DB954?style=for-the-badge)](https://soul-sync-beta.vercel.app/)
 &nbsp;&nbsp;
-[![Download APK](https://img.shields.io/badge/📱%20Download%20APK-Android%205.4%20MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
+[![Download APK](https://img.shields.io/badge/📱%20Download%20APK-Android%205.2%20MB-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
 
 <sub>Android 7.0+ required &nbsp;·&nbsp; No Play Store needed &nbsp;·&nbsp; <a href="https://github.com/itslokeshx/SoulSync/releases">All Releases</a></sub>
 
@@ -1136,10 +1136,10 @@ Open source under the **[MIT License](LICENSE)**.
 
 SoulSync uses the following unofficial APIs for its core functionality:
 
-| API | Repository | Implementation |
-| --- | --- | --- |
-| **JioSaavn API** | [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Custom backend proxy with intent parsing |
-| **Groq AI** | [Groq SDK](https://github.com/groq/groq-typescript) | LLaMA 3.3 70B for smart playlist generation |
+| API              | Repository                                                            | Implementation                              |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| **JioSaavn API** | [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Custom backend proxy with intent parsing    |
+| **Groq AI**      | [Groq SDK](https://github.com/groq/groq-typescript)                   | LLaMA 3.3 70B for smart playlist generation |
 
 <br/>
 
