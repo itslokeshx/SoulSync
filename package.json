@@ -9,5 +9,8 @@
     "build:backend": "npm --prefix backend run build",
     "install:all": "npm --prefix frontend install && npm --prefix backend install",
     "typecheck": "npm --prefix frontend run typecheck && npm --prefix backend run typecheck"
+  },
+  "dependencies": {
+    "use-debounce": "^10.1.0"
   }
 }

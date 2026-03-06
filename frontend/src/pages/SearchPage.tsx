@@ -79,40 +79,56 @@ function SongRow({ song, onPlay }: { song: any; onPlay: (s: any) => void }) {
 }
 
 function TopResultCard({
-  song,
+  item,
   onPlay,
 }: {
-  song: any;
+  item: any;
   onPlay: (s: any) => void;
 }) {
-  const img = bestImg(song.image) || FALLBACK_IMG;
-  const artist = getArtists(song);
+  const navigate = useNavigate();
+  const isArtist = item.type === "artist" || item.description === "Artist";
+  const isAlbum = item.type === "album" || item.description?.toLowerCase().includes("album");
+
+  const img = bestImg(item.image) || FALLBACK_IMG;
+  const name = item.name || item.title || "Unknown";
+  const subtitle = isArtist ? "Artist" : isAlbum ? "Album • " + (item.description || "") : getArtists(item);
+
+  const handleClick = () => {
+    if (isArtist) navigate(`/artist/${item.id}`);
+    else if (isAlbum) navigate(`/album/${item.id}`);
+    else onPlay(item);
+  };
+
   return (
     <button
-      onClick={() => onPlay(song)}
-      className="w-full flex flex-col items-start p-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.08] hover:border-sp-green/30 active:scale-[0.97] transition-all group cursor-pointer"
+      onClick={handleClick}
+      className="w-full h-full flex flex-col items-start p-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.08] hover:border-sp-green/30 active:scale-[0.97] transition-all group cursor-pointer"
     >
       <div className="relative mb-3">
         <img
           src={img}
-          alt={song.name}
-          className="w-20 h-20 rounded-xl object-cover"
+          alt={name}
+          className={`w-20 h-20 object-cover ${isArtist ? "rounded-full" : "rounded-xl"}`}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
           }}
         />
         <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-          <div className="w-0 h-0 border-t-[5px] border-b-[5px] border-l-[8px] border-transparent border-l-black ml-0.5" />
+          {isArtist || isAlbum ? (
+            <ArrowUpRight size={14} className="text-black" />
+          ) : (
+            <div className="w-0 h-0 border-t-[5px] border-b-[5px] border-l-[8px] border-transparent border-l-black ml-0.5" />
+          )}
         </div>
       </div>
       <p className="text-white text-[14px] font-bold truncate w-full text-left">
-        {song.name}
+        {name}
       </p>
       <p className="text-white/40 text-[11px] truncate w-full text-left mt-0.5">
-        {artist}
+        {subtitle}
       </p>
       <span className="mt-2 px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[10px] font-bold uppercase tracking-wide">
-        Top Result
+        Top Results
       </span>
     </button>
   );
@@ -120,11 +136,7 @@ function TopResultCard({
 
 function ArtistChip({ artist }: { artist: any }) {
   const navigate = useNavigate();
-  const img =
-    artist.image?.[2]?.link ||
-    artist.image?.[1]?.link ||
-    artist.image?.[0]?.link ||
-    FALLBACK_IMG;
+  const img = bestImg(artist.image) || FALLBACK_IMG;
   return (
     <button
       onClick={() => artist.id && navigate(`/artist/${artist.id}`)}
@@ -152,7 +164,7 @@ function ArtistChip({ artist }: { artist: any }) {
 
 function AlbumCard({ album }: { album: any }) {
   const navigate = useNavigate();
-  const img = album.image?.[2]?.link || album.image?.[1]?.link || FALLBACK_IMG;
+  const img = bestImg(album.image) || FALLBACK_IMG;
   return (
     <button
       onClick={() => album.id && navigate(`/album/${album.id}`)}
@@ -303,8 +315,6 @@ export function SearchPage() {
                 size={16}
                 className="text-sp-green flex-shrink-0 animate-spin"
               />
-            ) : isStale ? (
-              <span className="w-1.5 h-1.5 rounded-full bg-sp-green/60 animate-pulse flex-shrink-0" />
             ) : (
               <Search size={16} className="text-white/35 flex-shrink-0" />
             )}
@@ -463,10 +473,10 @@ export function SearchPage() {
               </span>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-stretch">
               {result.topResult && (
                 <div className="w-44 flex-shrink-0">
-                  <TopResultCard song={result.topResult} onPlay={handlePlay} />
+                  <TopResultCard item={result.topResult} onPlay={handlePlay} />
                 </div>
               )}
               <div className="flex-1 min-w-0 space-y-0.5">
@@ -515,13 +525,13 @@ export function SearchPage() {
               </div>
             )}
 
-            {result.relatedSearches?.length > 0 && (
+            {(result.relatedSearches?.length ?? 0) > 0 && (
               <div>
                 <h3 className="text-white/40 text-[11px] font-bold uppercase tracking-[0.15em] mb-2">
                   Related
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {result.relatedSearches.map((s) => (
+                  {result.relatedSearches?.map((s) => (
                     <button
                       key={s}
                       onClick={() => handleChipClick(s)}
