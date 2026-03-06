@@ -42,7 +42,7 @@ export async function saveNativeToken(token: string): Promise<void> {
   try {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.set({ key: "auth_token", value: token });
-  } catch {}
+  } catch { }
 }
 
 /** Clear stored native token */
@@ -52,7 +52,7 @@ export async function clearNativeToken(): Promise<void> {
   try {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.remove({ key: "auth_token" });
-  } catch {}
+  } catch { }
 }
 
 // Attach Bearer token for native requests
@@ -175,7 +175,7 @@ export async function logHistory(entry: {
   source?: string;
   language?: string;
 }): Promise<void> {
-  await api.post("/api/user/history", entry).catch(() => {});
+  await api.post("/api/user/history", entry).catch(() => { });
 }
 
 export async function getHistory(
@@ -269,6 +269,14 @@ export async function removeSongFromPlaylist(
   const { data } = await api.delete(
     `/api/playlists/${playlistId}/songs/${songId}`,
   );
+  return data.playlist;
+}
+
+export async function reorderPlaylist(
+  id: string,
+  songIds: string[],
+): Promise<Playlist> {
+  const { data } = await api.patch(`/api/playlists/${id}/reorder`, { songIds });
   return data.playlist;
 }
 

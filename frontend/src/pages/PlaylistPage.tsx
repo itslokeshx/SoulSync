@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, Reorder } from "framer-motion";
 import {
   Play,
   Shuffle,
@@ -9,10 +9,11 @@ import {
   Pencil,
   Music2,
   Loader2,
+  GripVertical,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import * as api from "../api/backend";
-import { Playlist } from "../types/playlist";
+import { Playlist, PlaylistSong } from "../types/playlist";
 import { SongRow } from "../components/cards/SongRow";
 import { GreenButton } from "../components/ui/GreenButton";
 import { Skeleton } from "../components/ui/Skeleton";
@@ -27,6 +28,8 @@ export default function PlaylistPage() {
   const { playSong, currentSong, isPlaying, likedSongs, handleLike } = useApp();
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [localSongs, setLocalSongs] = useState<PlaylistSong[]>([]);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -36,7 +39,7 @@ export default function PlaylistPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => { });
 
   useEffect(() => {
     if (!id) return;
@@ -45,12 +48,19 @@ export default function PlaylistPage() {
       .getPlaylist(id)
       .then((pl) => {
         setPlaylist(pl);
+        setLocalSongs(pl.songs || []);
         setEditName(pl.name);
         setEditDesc(pl.description);
       })
       .catch(() => toast.error("Playlist not found"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (playlist?.songs) {
+      setLocalSongs(playlist.songs);
+    }
+  }, [playlist?.songs]);
 
   const handleSave = async () => {
     if (!id || !editName.trim()) return;
@@ -65,6 +75,30 @@ export default function PlaylistPage() {
     } catch {
       toast.error("Failed to update");
     }
+  };
+
+  const handleSaveOrder = async (newOrder: PlaylistSong[]) => {
+    if (!id || !playlist) return;
+    setSavingOrder(true);
+    try {
+      const updated = await api.reorderPlaylist(
+        id,
+        newOrder.map((s) => s.songId),
+      );
+      setPlaylist(updated);
+    } catch {
+      toast.error("Failed to save order");
+      setLocalSongs(playlist.songs || []);
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const handleShuffle = async () => {
+    if (!id || !playlist || localSongs.length === 0) return;
+    const shuffled = [...localSongs].sort(() => Math.random() - 0.5);
+    setLocalSongs(shuffled);
+    await handleSaveOrder(shuffled);
   };
 
   const handleDelete = useCallback(() => {
@@ -136,7 +170,7 @@ export default function PlaylistPage() {
   const totalDur = songs.reduce((a, s) => a + (s.duration || 0), 0);
 
   // Map playlist songs → player-compatible format with download URLs
-  const mapSong = (s: (typeof songs)[number]) =>
+  const mapSong = (s: PlaylistSong) =>
     ({
       id: s.songId,
       name: s.title,
@@ -153,7 +187,7 @@ export default function PlaylistPage() {
       })),
     }) as any;
 
-  const playableSongs = songs.filter((s) => s.songId).map(mapSong);
+  const playableSongs = localSongs.filter((s) => s.songId).map(mapSong);
 
   return (
     <div className="animate-fadeIn -mt-6 -mx-6">
@@ -244,8 +278,12 @@ export default function PlaylistPage() {
         >
           <Play size={16} className="fill-black" /> Play All
         </GreenButton>
-        <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all">
-          <Shuffle size={15} />
+        <button
+          onClick={handleShuffle}
+          disabled={savingOrder}
+          className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all disabled:opacity-50"
+        >
+          {savingOrder ? <Loader2 size={15} className="animate-spin" /> : <Shuffle size={15} />}
         </button>
         <button
           onClick={() => setEditing(true)}
@@ -263,7 +301,7 @@ export default function PlaylistPage() {
 
       {/* Songs */}
       <div className="px-6">
-        {songs.length === 0 ? (
+        {localSongs.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-5">
               <Music2 size={28} className="text-sp-muted" />
@@ -274,12 +312,25 @@ export default function PlaylistPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-0.5 pb-10">
-            {songs.map((s, i) => {
+          <Reorder.Group
+            axis="y"
+            values={localSongs}
+            onReorder={setLocalSongs}
+            className="space-y-0.5 pb-10"
+          >
+            {localSongs.map((s, i) => {
               const mapped = mapSong(s);
               if (!s.songId) return null;
               return (
-                <div key={s.songId || i} className="flex items-center group">
+                <Reorder.Item
+                  key={s.songId}
+                  value={s}
+                  onDragEnd={() => handleSaveOrder(localSongs)}
+                  className="flex items-center group relative bg-transparent"
+                >
+                  <div className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/0 group-hover:text-white/20 hover:!text-white/60 transition-colors">
+                    <GripVertical size={16} />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <SongRow
                       song={mapped}
@@ -300,10 +351,10 @@ export default function PlaylistPage() {
                   >
                     <Trash2 size={14} />
                   </button>
-                </div>
+                </Reorder.Item>
               );
             })}
-          </div>
+          </Reorder.Group>
         )}
       </div>
 
