@@ -264,11 +264,16 @@ router.get(
 );
 
 // GET /api/search/stream — SSE streaming search
-// Strategy: fire 1 primary query first. If results are strong (score ≥ 60,
-// count ≥ 5), send `complete` immediately — total time ≈ 1 throttled req + HTTP.
-// Otherwise fire 1 more expanded query then complete. Albums/artists are sent
-// only if client is still connected after songs are done.
-// Cache hits are returned as a single `complete` event instantly (< 5 ms).
+//
+// Speed architecture:
+//   t=0 ms   SSE opens.
+//             ① songs query  → USER queue (900 ms gap, nothing else uses it)
+//             ② album query  → BG  queue  (1200 ms gap, separate lane)
+//             Both fire in true parallel.
+//   t~900ms  Song results arrive → score → send `partial` event immediately.
+//            User sees songs under 1 second for cold queries.
+//   t~1200ms Album results arrive → send `complete` with songs + albums.
+//   Cache hit → single `complete` event in < 5 ms.
 router.get(
   "/stream",
   rateLimiter(30, 60000),
@@ -298,7 +303,7 @@ router.get(
 
     markUserQueryStart();
     try {
-      // ── Cache hit → instant complete ─────────────────────────────────
+      // ── Cache hit → instant complete ──────────────────────────────────
       const ck = normalizeSearchKey(q);
       const cached = await redisGet(`smart:${ck}:p1:l20`);
       if (cached && active) {
@@ -334,7 +339,7 @@ router.get(
           .sort((a, b) => b.relevanceScore - a.relevanceScore)
           .filter((s) => s.relevanceScore >= 5);
 
-      const buildComplete = (albums: any[], artists: any[]) => {
+      const buildComplete = (albums: any[]) => {
         const scored = computeScored();
         const topResult =
           scored.length > 0 && scored[0].relevanceScore > 70 ? scored[0] : null;
@@ -360,7 +365,7 @@ router.get(
           topResult,
           songs: scored.slice(0, 20),
           albums,
-          artists,
+          artists: [],
           parsedIntent: {
             intent: parsed.intent,
             artist: parsed.entities.artist,
@@ -373,7 +378,9 @@ router.get(
         };
       };
 
-      // ── Phase 1: fire primary query only (1 throttled req ≈ 1.2 s) ───
+      // ── Fire songs (user queue) + albums (bg queue) simultaneously ────
+      // They run on independent throttle lanes so neither waits for the other.
+      const albumsP = searchAlbumsDirect(q, 5).catch((): any[] => []);
       const primary = await searchSongsDirect(parsed.expandedQueries[0], 20);
       if (!active) {
         res.end();
@@ -381,56 +388,37 @@ router.get(
       }
       addSongs(primary.results);
 
-      const afterPrimary = computeScored();
-      const strongEnough =
-        afterPrimary.length >= 5 && afterPrimary[0]?.relevanceScore >= 60;
-
-      if (!strongEnough && parsed.expandedQueries.length > 1) {
-        // ── Phase 2: 1 more expanded query to improve weak results ──────
+      // If completely empty, try one more query (rare edge case, accepts extra latency)
+      if (computeScored().length === 0 && parsed.expandedQueries.length > 1) {
         const extra = await searchSongsDirect(parsed.expandedQueries[1], 15);
         if (active) addSongs(extra.results);
       }
 
-      if (!active) {
-        res.end();
-        return;
-      }
-
-      // ── Partial event: send scored songs immediately so UI updates fast ──
-      // Albums/artists haven't loaded yet but songs are ready now.
-      const scoredForPartial = computeScored();
-      if (scoredForPartial.length > 0) {
+      // ── Partial: songs visible NOW (under 1 second for most queries) ──
+      const scoredPartial = computeScored();
+      if (scoredPartial.length > 0 && active) {
         sendEvent("partial", {
           query: q,
-          total: scoredForPartial.length,
-          songs: scoredForPartial.slice(0, 20),
-          hasMore: scoredForPartial.length > 20,
+          total: scoredPartial.length,
+          songs: scoredPartial.slice(0, 20),
+          hasMore: scoredPartial.length > 20,
         });
       }
 
-      // ── Albums + artists: fire both, race against a hard 2.5 s cap ────
-      // This way songs are visible immediately and albums/artists arrive
-      // shortly after (or are empty if throttle queue is backed up).
-      let albums: any[] = [];
-      let artists: any[] = [];
-      if (active) {
-        const albumsP = searchAlbumsDirect(q, 5).catch((): any[] => []);
-        const artistsP = searchArtistsDirect(q, 5).catch((): any[] => []);
-        const cap = new Promise<[any[], any[]]>((r) =>
-          setTimeout(() => r([[], []]), 2500),
-        );
-        [albums, artists] = await Promise.race([
-          Promise.all([albumsP, artistsP]),
-          cap,
-        ]);
+      if (!active) {
+        res.end();
+        return;
       }
+
+      // ── Albums were already in flight — should be done or nearly done ─
+      const albums = (await albumsP) as any[];
 
       if (!active) {
         res.end();
         return;
       }
 
-      const completeData = buildComplete(albums, artists);
+      const completeData = buildComplete(albums);
       redisSet(`smart:${ck}:p1:l20`, JSON.stringify(completeData), 1800).catch(
         () => {},
       );

@@ -298,8 +298,8 @@ export function useSearch() {
       return;
     }
 
-    // New query → debounce 150 ms to let the user finish typing
-    debounceTimer.current = setTimeout(() => doSearch(query, 1, false), 150);
+    // New query → debounce 80 ms to let the user finish typing
+    debounceTimer.current = setTimeout(() => doSearch(query, 1, false), 80);
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };

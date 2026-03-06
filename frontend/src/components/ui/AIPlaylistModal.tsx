@@ -378,29 +378,90 @@ export function AIPlaylistModal() {
                     </div>
                   )}
 
-                  {/* Target count slider */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-white/40 text-[12px]">
+                  {/* Target count — custom slider */}
+                  <div
+                    className="rounded-2xl p-4 space-y-3"
+                    style={{
+                      background: "rgba(29,185,84,0.06)",
+                      border: "1px solid rgba(29,185,84,0.18)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/55 text-[12px] font-medium">
                         Songs to generate
                       </span>
-                      <span className="text-sp-green font-bold text-[13px]">
-                        {targetCount}
-                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-sp-green font-black text-[26px] tabular-nums leading-none">
+                          {targetCount}
+                        </span>
+                        <span className="text-white/30 text-[11px]">songs</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min={5}
-                      max={100}
-                      step={5}
-                      value={targetCount}
-                      onChange={(e) => setTargetCount(Number(e.target.value))}
-                      className="w-full accent-sp-green cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-white/20">
-                      <span>5</span>
-                      <span>50</span>
-                      <span>100</span>
+
+                    {/* Custom slider track */}
+                    <div className="relative h-6 flex items-center select-none">
+                      {/* Track bg */}
+                      <div
+                        className="absolute w-full h-[5px] rounded-full"
+                        style={{ background: "rgba(255,255,255,0.1)" }}
+                      />
+                      {/* Filled portion */}
+                      <div
+                        className="absolute h-[5px] rounded-full pointer-events-none"
+                        style={{
+                          width: `${((targetCount - 5) / 95) * 100}%`,
+                          background:
+                            "linear-gradient(to right,#1db954,#1ed760)",
+                        }}
+                      />
+                      {/* Thumb */}
+                      <div
+                        className="absolute w-[18px] h-[18px] rounded-full pointer-events-none"
+                        style={{
+                          left: `calc(${((targetCount - 5) / 95) * 100}% - 9px)`,
+                          background: "white",
+                          border: "2.5px solid #1db954",
+                          boxShadow:
+                            "0 0 0 3px rgba(29,185,84,0.25), 0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      />
+                      {/* Invisible native input on top */}
+                      <input
+                        type="range"
+                        min={5}
+                        max={100}
+                        step={5}
+                        value={targetCount}
+                        onChange={(e) => setTargetCount(Number(e.target.value))}
+                        className="absolute w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Quick-pick preset chips */}
+                    <div className="flex gap-1.5 flex-wrap pt-0.5">
+                      {[10, 20, 30, 50, 75, 100].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setTargetCount(n)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                          style={{
+                            background:
+                              targetCount === n
+                                ? "#1db954"
+                                : "rgba(255,255,255,0.05)",
+                            color:
+                              targetCount === n
+                                ? "#000"
+                                : "rgba(255,255,255,0.4)",
+                            border:
+                              targetCount === n
+                                ? "1px solid transparent"
+                                : "1px solid rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          {n}
+                        </button>
+                      ))}
                     </div>
                   </div>
 

@@ -1,5 +1,24 @@
-import { searchSongs, searchSongsDirect, JioSaavnSong } from "./jiosaavn.js";
+import { searchSongs, JioSaavnSong } from "./jiosaavn.js";
 import { redisGet, redisSet } from "./redis.js";
+
+// ── L1 in-memory cache (process-level, survives Redis blips) ────────────────
+// Checked before Redis to skip even the ~5 ms Redis round-trip.
+const L1_TTL_MS = 45_000; // 45 s
+const L1_MAX = 120;
+const l1Cache = new Map<string, { result: any; ts: number }>();
+function l1Get(key: string) {
+  const entry = l1Cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > L1_TTL_MS) {
+    l1Cache.delete(key);
+    return null;
+  }
+  return entry.result;
+}
+function l1Set(key: string, result: any) {
+  if (l1Cache.size >= L1_MAX) l1Cache.delete(l1Cache.keys().next().value!);
+  l1Cache.set(key, { result, ts: Date.now() });
+}
 
 // ─── ARTIST DICTIONARY (500+ entries) ────────────────────────────────────────
 const ARTIST_DICT: Record<string, string> = {
@@ -864,10 +883,15 @@ export async function enhancedSearch(
 }> {
   // Cache check — word-sorted key so "sad hindi" and "hindi sad" share one entry
   const ck = `search:v3:${normalizeSearchKey(query)}:${type}`;
+  // L1 first (process memory, 0 ms), then Redis (~5 ms)
+  const l1 = l1Get(ck);
+  if (l1) return l1;
   const cached = await redisGet(ck);
   if (cached) {
     try {
-      return JSON.parse(cached);
+      const parsed = JSON.parse(cached);
+      l1Set(ck, parsed);
+      return parsed;
     } catch {
       /* ignore */
     }
@@ -876,10 +900,12 @@ export async function enhancedSearch(
   const parsed = parseQuery(query);
   let allResults: JioSaavnSong[] = [];
 
-  // ── Step 1: Fire primary queries in TRUE parallel (bypass throttle queue) ──
+  // ── Step 1: Fire primary queries via the BG queue (warmup path) ──
+  // Uses searchSongs (bg queue) so warmup never competes with live user
+  // searches that run on the dedicated user queue via searchSongsDirect.
   const primaryQueries = parsed.expandedQueries.slice(0, 3);
   const primaryPromises = primaryQueries.map((q) =>
-    searchSongsDirect(q, Math.min(limit, 20)),
+    searchSongs(q, Math.min(limit, 20)),
   );
   const settled = await Promise.allSettled(primaryPromises);
 
@@ -908,7 +934,7 @@ export async function enhancedSearch(
   ) {
     const moreQueries = parsed.expandedQueries.slice(3, 6);
     const moreSettled = await Promise.allSettled(
-      moreQueries.map((q) => searchSongsDirect(q, 10)),
+      moreQueries.map((q) => searchSongs(q, 10)),
     );
     for (const res of moreSettled) {
       if (res.status === "fulfilled") {
@@ -938,7 +964,8 @@ export async function enhancedSearch(
     displayContext: parsed.displayContext,
   };
 
-  // Cache 1 hour
+  // Cache 1 hour in Redis, 45 s in L1
+  l1Set(ck, result);
   await redisSet(ck, JSON.stringify(result), 3600);
   return result;
 }
