@@ -413,7 +413,7 @@ export default function OfflinePage() {
 
   return (
     <div
-      className="min-h-screen bg-sp-black flex flex-col"
+      className="h-screen bg-sp-black flex flex-col overflow-hidden"
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
       <input
@@ -456,7 +456,7 @@ export default function OfflinePage() {
 
       {/* Content */}
       <div
-        className="flex-1 px-4 sm:px-6 py-6 max-w-3xl mx-auto w-full overflow-y-auto"
+        className="flex-1 px-4 sm:px-6 py-6 max-w-3xl mx-auto w-full overflow-y-auto hide-scrollbar"
         style={{ paddingBottom: currentSong ? "140px" : "24px" }}
       >
         {loading ? (
@@ -573,27 +573,6 @@ export default function OfflinePage() {
                 );
               })}
             </div>
-            <div className="mt-10 text-center py-6 border-t border-white/[0.04]">
-              <p className="text-white/20 text-[12px] mb-4">
-                Sign in when online to access millions of songs
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <button
-                  onClick={() => (window.location.href = "/login")}
-                  className="px-5 py-2 rounded-full bg-sp-green text-black text-[12px] font-bold hover:brightness-110 active:scale-95 transition-all"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() =>
-                    (window.location.href = "/login?mode=register")
-                  }
-                  className="px-5 py-2 rounded-full border border-white/10 text-white text-[12px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
-                >
-                  Sign Up
-                </button>
-              </div>
-            </div>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -613,18 +592,11 @@ export default function OfflinePage() {
                 Import from device
               </button>
               <button
-                onClick={() => (window.location.href = "/login?mode=register")}
-                className="flex items-center gap-2 px-6 py-3 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
-              >
-                <LogIn size={16} />
-                Create Account
-              </button>
-              <button
                 onClick={() => (window.location.href = "/login")}
                 className="flex items-center gap-2 px-6 py-3 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
               >
                 <LogIn size={16} />
-                Sign in to download
+                Sign in
               </button>
             </div>
           </div>
@@ -877,7 +849,7 @@ export default function OfflinePage() {
               </>
             ) : (
               /* ── Up Next Queue ── */
-              <div className="flex-1 overflow-y-auto px-5 pb-4 thin-scrollbar">
+              <div className="flex-1 overflow-y-auto px-5 pb-4 hide-scrollbar">
                 {/* Now Playing highlighted row */}
                 <p className="text-[10px] font-bold text-sp-green uppercase tracking-[0.15em] mb-2 mt-1">
                   Now Playing
