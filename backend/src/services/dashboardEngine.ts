@@ -10,11 +10,11 @@ export interface DashboardSection {
   title: string;
   subtitle?: string;
   type:
-    | "quick_grid"
-    | "horizontal"
-    | "artist_spotlight"
-    | "mood_grid"
-    | "continue";
+  | "quick_grid"
+  | "horizontal"
+  | "artist_spotlight"
+  | "mood_grid"
+  | "continue";
   songs: JioSaavnSong[];
   meta?: Record<string, any>;
 }
@@ -263,9 +263,9 @@ async function buildArtistSpotlight(
   const chosen = pool[Math.floor(Math.random() * pool.length)];
 
   const result = await searchSongs(`${chosen.name} hits`, 15);
-  if (result.results.length === 0) return null;
+  if (result.length === 0) return null;
 
-  const filtered = filterByLanguage(result.results, profile.topLanguages);
+  const filtered = filterByLanguage(result, profile.topLanguages);
 
   return {
     id: `artist_spotlight_${chosen.name.replace(/\s+/g, "_").toLowerCase()}`,
@@ -321,9 +321,9 @@ async function buildLanguageSection(
   const langQueries = queries[language] || [`best ${language} songs`];
   const q = langQueries[Math.floor(Math.random() * langQueries.length)];
   const result = await searchSongs(q, 20);
-  if (result.results.length === 0) return null;
+  if (result.length === 0) return null;
 
-  const filtered = filterByLanguage(result.results, [language]);
+  const filtered = filterByLanguage(result, [language]);
   if (filtered.length === 0) return null;
 
   const displayLang = language.charAt(0).toUpperCase() + language.slice(1);
@@ -343,9 +343,9 @@ async function buildTimeMoodSection(
   const q = buildTimeMoodQuery(timeMood, languages);
 
   const result = await searchSongs(q, 18);
-  if (result.results.length === 0) return null;
+  if (result.length === 0) return null;
 
-  const filtered = filterByLanguage(result.results, languages);
+  const filtered = filterByLanguage(result, languages);
 
   const titles: Record<string, string> = {
     morning: "Morning Picks",
@@ -376,9 +376,9 @@ async function buildBecauseYouListened(
   const artist = profile.topArtists[idx];
 
   const result = await searchSongs(`${artist.name} best songs`, 15);
-  if (result.results.length === 0) return null;
+  if (result.length === 0) return null;
 
-  const filtered = filterByLanguage(result.results, profile.topLanguages);
+  const filtered = filterByLanguage(result, profile.topLanguages);
 
   return {
     id: `because_${artist.name.replace(/\s+/g, "_").toLowerCase()}`,
@@ -410,9 +410,9 @@ async function buildTrending(
     trendingQueries[lang] || `trending ${lang} hits 2026`,
     20,
   );
-  if (result.results.length === 0) return null;
+  if (result.length === 0) return null;
 
-  const filtered = filterByLanguage(result.results, languages);
+  const filtered = filterByLanguage(result, languages);
 
   return {
     id: "trending",
@@ -445,9 +445,9 @@ async function buildNewReleases(
     `new ${lang} songs ${new Date().getFullYear()}`,
     18,
   );
-  if (result.results.length === 0) return null;
+  if (result.length === 0) return null;
 
-  const filtered = filterByLanguage(result.results, languages);
+  const filtered = filterByLanguage(result, languages);
 
   return {
     id: "new_releases",
@@ -485,20 +485,14 @@ export async function buildDashboard(
   if (isGuest) {
     const defaultLangs = ["tamil", "english", "telugu"];
     const [fallback1, fallback2, fallback3, timeSec] = await Promise.all([
-      searchSongs("best tamil songs", 15).catch(() => ({
-        results: [] as JioSaavnSong[],
-      })),
-      searchSongs("best telugu songs", 15).catch(() => ({
-        results: [] as JioSaavnSong[],
-      })),
-      searchSongs("best english songs 2026", 15).catch(() => ({
-        results: [] as JioSaavnSong[],
-      })),
+      searchSongs("best tamil songs", 15).catch(() => []),
+      searchSongs("best telugu songs", 15).catch(() => []),
+      searchSongs("best english songs 2026", 15).catch(() => []),
       buildTimeMoodSection(timeMood, defaultLangs).catch(() => null),
     ]);
     if (timeSec) sections.push(timeSec);
-    if (fallback1.results.length > 0) {
-      const filtered = filterByLanguage(fallback1.results, ["tamil"]);
+    if (fallback1.length > 0) {
+      const filtered = filterByLanguage(fallback1, ["tamil"]);
       sections.push({
         id: "popular_tamil",
         title: "Popular in Tamil",
@@ -507,8 +501,8 @@ export async function buildDashboard(
         songs: filtered.slice(0, 12),
       });
     }
-    if (fallback2.results.length > 0) {
-      const filtered = filterByLanguage(fallback2.results, ["telugu"]);
+    if (fallback2.length > 0) {
+      const filtered = filterByLanguage(fallback2, ["telugu"]);
       sections.push({
         id: "popular_telugu",
         title: "Popular in Telugu",
@@ -517,8 +511,8 @@ export async function buildDashboard(
         songs: filtered.slice(0, 12),
       });
     }
-    if (fallback3.results.length > 0) {
-      const filtered = filterByLanguage(fallback3.results, ["english"]);
+    if (fallback3.length > 0) {
+      const filtered = filterByLanguage(fallback3, ["english"]);
       sections.push({
         id: "popular_english",
         title: "Popular in English",
@@ -617,17 +611,15 @@ export async function buildDashboard(
 
     const fallbackResults = await Promise.all(
       fallbackLangs.map((lang) =>
-        searchSongs(`best ${lang} songs`, 15).catch(() => ({
-          results: [] as JioSaavnSong[],
-        })),
+        searchSongs(`best ${lang} songs`, 15).catch(() => []),
       ),
     );
 
     for (let i = 0; i < fallbackLangs.length; i++) {
       const lang = fallbackLangs[i];
       const res = fallbackResults[i];
-      if (res.results.length > 0) {
-        const filtered = filterByLanguage(res.results, [lang]);
+      if (res.length > 0) {
+        const filtered = filterByLanguage(res, [lang]);
         const displayLang = lang.charAt(0).toUpperCase() + lang.slice(1);
         sections.push({
           id: `popular_${lang}`,

@@ -41,6 +41,11 @@ export interface JioSaavnSong {
   url: string;
   hasLyrics: boolean;
   label: string;
+  artist_map?: {
+    primary_artists: { id: string; name: string; url: string; image: any[] }[];
+    featured_artists: any[];
+    artists: any[];
+  };
 }
 
 // Priority flag: used primarily by searchEnhancer to yield warmup paths
@@ -257,8 +262,7 @@ function scoreResult(song: any, intent: ParsedIntent): number {
 // ════════════════════════════════════════════════════════════════
 
 export async function searchSongsDirect(q: string, limit = 20) {
-  const songs = await searchSongs(q, limit)
-  return { results: songs }
+  return await searchSongs(q, limit);
 }
 
 export async function searchAlbumsDirect(q: string, limit = 5) {

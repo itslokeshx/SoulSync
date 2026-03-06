@@ -701,9 +701,9 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
 
   // Collect all artist names
   const primaryArtists =
-    song.artists?.primary?.map((a) => a.name.toLowerCase()) || [];
+    song.artists?.primary?.map((a: any) => a.name.toLowerCase()) || [];
   const mapArtists =
-    song.artist_map?.primary_artists?.map((a) => a.name.toLowerCase()) || [];
+    song.artist_map?.primary_artists?.map((a: any) => a.name.toLowerCase()) || [];
   const allArtists = [...new Set([...primaryArtists, ...mapArtists])];
   const allArtistStr = allArtists.join(" ");
 
@@ -911,7 +911,7 @@ export async function enhancedSearch(
 
   for (const res of settled) {
     if (res.status === "fulfilled") {
-      allResults.push(...res.value.results);
+      allResults.push(...(res.value as any));
     }
   }
 
@@ -938,7 +938,7 @@ export async function enhancedSearch(
     );
     for (const res of moreSettled) {
       if (res.status === "fulfilled") {
-        for (const s of res.value.results) {
+        for (const s of (res.value as any)) {
           if (!seen.has(s.id)) {
             seen.add(s.id);
             deduped.push(s);

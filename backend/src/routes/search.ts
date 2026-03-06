@@ -69,8 +69,7 @@ router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
       return;
     }
 
-    const searchRes = await searchSongsDirect(q, 8);
-    const results = searchRes.results || [];
+    const results = await searchSongsDirect(q, 8);
     const suggestions = Array.from(new Set(results.flatMap((s: any) => [s.name, s.primaryArtists || s.artist]))).slice(0, 10);
     res.json({ suggestions });
   } catch (err) {
