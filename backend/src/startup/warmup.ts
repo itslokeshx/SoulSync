@@ -9,7 +9,11 @@
  * on the JioSaavn API (uses the throttled queue via enhancedSearch).
  */
 
-import { enhancedSearch } from "../services/searchEnhancer.js";
+import {
+  enhancedSearch,
+  normalizeSearchKey,
+} from "../services/searchEnhancer.js";
+import { redisGet } from "../services/redis.js";
 
 const POPULAR_QUERIES = [
   // Top Bollywood artists
@@ -40,7 +44,9 @@ const POPULAR_QUERIES = [
   "devotional songs",
 ];
 
-const WARMUP_GAP_MS = 2000; // 2 s between queries — stays within throttle budget
+// 5 s between items: each enhancedSearch fires ~3 throttled queries (3.3 s)
+// plus 1.7 s buffer so user queries can slip through the throttle queue.
+const WARMUP_GAP_MS = 5000;
 
 async function delay(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -51,10 +57,20 @@ export async function warmupSearchCache() {
     `[Warmup] Pre-warming search cache with ${POPULAR_QUERIES.length} popular queries…`,
   );
   let cached = 0;
+  let skipped = 0;
   let failed = 0;
 
   for (const q of POPULAR_QUERIES) {
     try {
+      // Skip if already in Redis (avoids redundant JioSaavn calls on restart)
+      const ck = `search:v3:${normalizeSearchKey(q)}:all`;
+      const existing = await redisGet(ck);
+      if (existing) {
+        skipped++;
+        console.log(`[Warmup] ↩ ${q} (already cached)`);
+        continue;
+      }
+
       await enhancedSearch(q, "all", 20);
       cached++;
       console.log(`[Warmup] ✓ ${q}`);
@@ -66,6 +82,6 @@ export async function warmupSearchCache() {
   }
 
   console.log(
-    `[Warmup] Done — ${cached} cached, ${failed} failed (${POPULAR_QUERIES.length} total)`,
+    `[Warmup] Done — ${cached} fetched, ${skipped} skipped (cached), ${failed} failed`,
   );
 }

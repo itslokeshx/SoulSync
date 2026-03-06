@@ -53,27 +53,6 @@ async function throttledGet(url: string, opts: Record<string, any> = {}) {
   return result;
 }
 
-// ── Direct (non-throttled) GET for parallel search ops ─────────────────
-// Bypasses the global serial queue. Uses a 3 s timeout with one 429 retry.
-// Safe for search calls because: (a) each user fires at most a few at once,
-// (b) Redis caches results so repeat queries never hit JioSaavn.
-async function directGet(url: string, opts: Record<string, any> = {}) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await axios.get(url, { timeout: 3000, ...opts });
-      return res;
-    } catch (err: any) {
-      if (err?.response?.status === 429 && attempt === 0) {
-        console.warn("[JioSaavn] 429 on directGet — retrying in 800 ms");
-        await new Promise((r) => setTimeout(r, 800));
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("[JioSaavn] directGet: max retries exceeded");
-}
-
 export interface JioSaavnSong {
   id: string;
   name: string;
@@ -126,14 +105,14 @@ export async function searchSongs(
   }
 }
 
-/** Parallel-safe search — bypasses global throttle queue. Use for user-facing search. */
+/** Alias of searchSongs — kept for API compatibility. Routes through the throttle queue. */
 export async function searchSongsDirect(
   query: string,
   limit = 20,
   page = 1,
 ): Promise<{ results: JioSaavnSong[]; total: number }> {
   try {
-    const { data } = await directGet(`${JIOSAAVN_API}/search/songs`, {
+    const { data } = await throttledGet(`${JIOSAAVN_API}/search/songs`, {
       params: { q: query, n: limit, page },
     });
     return {
@@ -160,13 +139,13 @@ export async function searchAlbums(
   }
 }
 
-/** Parallel-safe album search — bypasses global throttle queue. */
+/** Alias of searchAlbums — kept for API compatibility. Routes through the throttle queue. */
 export async function searchAlbumsDirect(
   query: string,
   limit = 10,
 ): Promise<unknown[]> {
   try {
-    const { data } = await directGet(`${JIOSAAVN_API}/search/albums`, {
+    const { data } = await throttledGet(`${JIOSAAVN_API}/search/albums`, {
       params: { q: query, n: limit },
     });
     return data?.data?.results || [];
@@ -189,13 +168,13 @@ export async function searchArtists(
   }
 }
 
-/** Parallel-safe artist search — bypasses global throttle queue. */
+/** Alias of searchArtists — kept for API compatibility. Routes through the throttle queue. */
 export async function searchArtistsDirect(
   query: string,
   limit = 10,
 ): Promise<unknown[]> {
   try {
-    const { data } = await directGet(`${JIOSAAVN_API}/search/artists`, {
+    const { data } = await throttledGet(`${JIOSAAVN_API}/search/artists`, {
       params: { q: query, n: limit },
     });
     return data?.data?.results || [];
