@@ -195,13 +195,13 @@ export const NowPlayingView = ({
   useEffect(() => {
     if (!currentSong?.id) return;
     setSuggestions([]);
-    fetch(`${API}/song/recommend?id=${currentSong.id}&n=3`)
+    fetch(`${API}/songs/${currentSong.id}/suggestions?limit=3`)
       .then((r) => r.json())
       .then((d) => {
         const songs = Array.isArray(d?.data) ? d.data.slice(0, 3) : [];
         setSuggestions(songs);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [currentSong?.id]);
 
   if (!currentSong) return null;
@@ -582,13 +582,12 @@ export const NowPlayingView = ({
                         onDragOver={(e) => handleDragOver(e, i)}
                         onDrop={(e) => handleDrop(e, i)}
                         onDragEnd={handleDragEnd}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${
-                          isDragging
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${isDragging
                             ? "opacity-30 scale-95"
                             : isOver
                               ? "bg-sp-green/10 border border-sp-green/20"
                               : "hover:bg-white/[0.04] border border-transparent"
-                        }`}
+                          }`}
                       >
                         {/* Drag handle */}
                         <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">

@@ -17,7 +17,7 @@ import {
   markUserQueryEnd,
   JioSaavnSong,
 } from "../services/jiosaavn.js";
-import { rateLimiter } from "../middleware/rateLimiter.js";
+
 import { redisGet, redisSet } from "../services/redis.js";
 
 const router = Router();
@@ -25,12 +25,11 @@ const router = Router();
 // GET /api/search — Smart enhanced search
 router.get(
   "/",
-  rateLimiter(40, 60000),
   async (req: any, res: Response): Promise<void> => {
     try {
       const q = req.query.q as string;
       const type = (req.query.type as string) || "all";
-      const limit = Math.min(parseInt(req.query.limit as string) || 25, 50);
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
       if (!q || q.trim().length === 0) {
         res.status(400).json({ error: "Query required" });
@@ -79,7 +78,6 @@ router.get(
 // GET /api/search/suggestions — Live autocomplete
 router.get(
   "/suggestions",
-  rateLimiter(60, 60000),
   async (req: any, res: Response): Promise<void> => {
     try {
       const q = req.query.q as string;
@@ -94,7 +92,7 @@ router.get(
         try {
           res.json(JSON.parse(cached));
           return;
-        } catch {}
+        } catch { }
       }
 
       const data = await getSuggestions(q);
@@ -130,11 +128,10 @@ router.get("/top", async (_req: any, res: Response): Promise<void> => {
 // GET /api/search/smart — Overlay search with full context + pagination
 router.get(
   "/smart",
-  rateLimiter(60, 60000),
   async (req: any, res: Response): Promise<void> => {
     const q = req.query.q as string;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
     if (!q || q.trim().length < 2) {
       res.status(400).json({ error: "Query must be at least 2 characters" });
@@ -149,7 +146,7 @@ router.get(
         try {
           res.json(JSON.parse(cached));
           return;
-        } catch {}
+        } catch { }
       }
 
       const [searchResult, albums, artists] = await Promise.all([
@@ -216,7 +213,6 @@ router.get(
 // GET /api/search/related — Related songs for queue auto-fill
 router.get(
   "/related",
-  rateLimiter(30, 60000),
   async (req: any, res: Response): Promise<void> => {
     try {
       const {
@@ -237,7 +233,7 @@ router.get(
         try {
           res.json(JSON.parse(cached));
           return;
-        } catch {}
+        } catch { }
       }
 
       // 5-layer strategy: recommendations + related artist tracks
@@ -276,7 +272,6 @@ router.get(
 //   Cache hit → single `complete` event in < 5 ms.
 router.get(
   "/stream",
-  rateLimiter(30, 60000),
   async (req: any, res: Response): Promise<void> => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -359,11 +354,11 @@ router.get(
         return {
           query: q,
           page: 1,
-          limit: 20,
-          hasMore: scored.length > 20,
+          limit: 50,
+          hasMore: scored.length > 50,
           total: scored.length,
           topResult,
-          songs: scored.slice(0, 20),
+          songs: scored.slice(0, 50),
           albums,
           artists: [],
           parsedIntent: {
@@ -380,8 +375,8 @@ router.get(
 
       // ── Fire songs (user queue) + albums (bg queue) simultaneously ────
       // They run on independent throttle lanes so neither waits for the other.
-      const albumsP = searchAlbumsDirect(q, 5).catch((): any[] => []);
-      const primary = await searchSongsDirect(parsed.expandedQueries[0], 20);
+      const albumsP = searchAlbumsDirect(q, 15).catch((): any[] => []);
+      const primary = await searchSongsDirect(parsed.expandedQueries[0], 40);
       if (!active) {
         res.end();
         return;
@@ -400,8 +395,8 @@ router.get(
         sendEvent("partial", {
           query: q,
           total: scoredPartial.length,
-          songs: scoredPartial.slice(0, 20),
-          hasMore: scoredPartial.length > 20,
+          songs: scoredPartial.slice(0, 50),
+          hasMore: scoredPartial.length > 50,
         });
       }
 
@@ -419,8 +414,8 @@ router.get(
       }
 
       const completeData = buildComplete(albums);
-      redisSet(`smart:${ck}:p1:l20`, JSON.stringify(completeData), 1800).catch(
-        () => {},
+      redisSet(`smart:${ck}:p1:l50`, JSON.stringify(completeData), 1800).catch(
+        () => { },
       );
       sendEvent("complete", completeData);
       res.end();

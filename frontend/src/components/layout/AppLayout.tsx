@@ -191,7 +191,7 @@ export function AppLayout() {
             qiRef.current = idx;
           }
 
-          audio.play().catch(() => {});
+          audio.play().catch(() => { });
           return;
         }
 
@@ -200,7 +200,7 @@ export function AppLayout() {
             toast.error("Cannot play: missing song ID.");
             return;
           }
-          const res = await fetch(`${API}/song?id=${song.id}`);
+          const res = await fetch(`${API}/songs?ids=${song.id}`);
           const data = await res.json();
           target =
             data?.data?.songs?.[0] || data?.data?.[0] || data?.data || song;
@@ -229,7 +229,7 @@ export function AppLayout() {
         setIsPlaying(true);
         setCurrentTime(0);
         addRecent(target);
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
 
         // Log to backend for profile stats
         api.logHistory({
@@ -251,7 +251,7 @@ export function AppLayout() {
         }
 
         if (newQueue.length <= 1) {
-          fetch(`${API}/song/recommend?id=${target.id}&n=10`)
+          fetch(`${API}/songs/${target.id}/suggestions?limit=10`)
             .then((r) => r.json())
             .then((d) => {
               const suggs = Array.isArray(d?.data) ? d.data : [];
@@ -260,7 +260,7 @@ export function AppLayout() {
                   prev.length <= 1 ? [target, ...suggs] : [...prev, ...suggs],
                 );
             })
-            .catch(() => {});
+            .catch(() => { });
         }
       } catch (err: any) {
         if (err.name !== "AbortError") {
@@ -318,7 +318,7 @@ export function AppLayout() {
         shf = sfRef.current;
       if (rep === "one") {
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
         return;
       }
       if (!q.length) return;
@@ -333,7 +333,7 @@ export function AppLayout() {
           } else {
             const cur = csRef.current;
             if (cur) {
-              fetch(`${API}/song/recommend?id=${cur.id}&n=10`)
+              fetch(`${API}/songs/${cur.id}/suggestions?limit=10`)
                 .then((r) => r.json())
                 .then((d) => {
                   const suggs = Array.isArray(d?.data) ? d.data : [];
@@ -348,7 +348,7 @@ export function AppLayout() {
                     });
                   }
                 })
-                .catch(() => {});
+                .catch(() => { });
             }
             return;
           }
@@ -385,7 +385,7 @@ export function AppLayout() {
           setIsPlaying(true);
           duoRef.current.syncPlay(audio.currentTime, currentSong?.id);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [isPlaying, currentSong]);
 
@@ -451,7 +451,7 @@ export function AppLayout() {
       });
       // Sync to cloud
       if (wasLiked) {
-        api.unlikeSong(song.id).catch(() => {});
+        api.unlikeSong(song.id).catch(() => { });
       } else {
         api
           .likeSong({
@@ -461,7 +461,7 @@ export function AppLayout() {
             albumArt: bestImg(song.image) || "",
             duration: Number(song.duration) || 0,
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     },
     [likedSongs, toggleLike],
@@ -727,11 +727,10 @@ export function AppLayout() {
 
           {/* Page content */}
           <main
-            className={`flex-1 ${
-              isSearchPage
+            className={`flex-1 ${isSearchPage
                 ? "overflow-hidden p-0"
                 : "overflow-y-auto px-4 md:px-6 pt-4 pb-32 md:pb-28 bg-black/40"
-            }`}
+              }`}
           >
             <Outlet />
           </main>

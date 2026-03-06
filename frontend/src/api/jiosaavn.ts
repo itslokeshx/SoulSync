@@ -54,10 +54,17 @@ export async function searchArtists(
   return data?.data?.results || [];
 }
 
-export async function getSong(songId: string): Promise<Song | null> {
-  const { data } = await client.get("/song", { params: { id: songId } });
-  return data?.data?.[0] || null;
-}
+export const getSongById = async (id: string): Promise<Song | null> => {
+  try {
+    const res = await axios.get(`${API}/songs`, {
+      params: { ids: id },
+    });
+    return res.data?.data?.[0] || null;
+  } catch (error) {
+    console.error("Error fetching song by ID:", error);
+    return null;
+  }
+};
 
 export async function getAlbum(albumId: string): Promise<Album | null> {
   const { data } = await client.get("/album", { params: { id: albumId } });
@@ -83,10 +90,13 @@ export async function getSuggestions(
   songId: string,
   limit = 10,
 ): Promise<Song[]> {
-  const { data } = await client.get("/song/recommend", {
-    params: { id: songId },
-  });
-  return data?.data || [];
+  const res = await axios.get(
+    `${API}/songs/${songId}/suggestions`,
+    {
+      params: { limit },
+    },
+  );
+  return res.data?.data || [];
 }
 
 export async function getTopSearch(): Promise<unknown[]> {
