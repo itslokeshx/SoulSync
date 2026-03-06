@@ -1,6 +1,7 @@
-import { Heart } from "lucide-react";
+import { Heart, Play, Shuffle } from "lucide-react";
 import { SongRow } from "../components/cards/SongRow";
 import { useApp } from "../context/AppContext";
+import { GreenButton } from "../components/ui/GreenButton";
 
 export const LikedPage = () => {
   const {
@@ -40,6 +41,24 @@ export const LikedPage = () => {
           <p className="text-white/60 text-[13px] mt-2">{songs.length} songs</p>
         </div>
       </div>
+
+      {songs.length > 0 && (
+        <div className="mb-6 flex items-center gap-4">
+          <GreenButton onClick={() => onPlay(songs[0], songs)}>
+            <Play size={16} className="fill-black" /> Play All
+          </GreenButton>
+          <button
+            onClick={() => {
+              const shuffled = [...songs].sort(() => Math.random() - 0.5);
+              onPlay(shuffled[0], shuffled);
+            }}
+            className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all"
+          >
+            <Shuffle size={15} />
+          </button>
+        </div>
+      )}
+
       {songs.length === 0 ? (
         <div className="text-center py-20">
           <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-5">
