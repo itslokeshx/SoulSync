@@ -780,7 +780,7 @@ adb install android/app/build/outputs/apk/release/app-release.apk
 ```env
 VITE_BACKEND_URL=https://your-soulsync-backend.onrender.com
 VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-VITE_JIOSAAVN_API=https://jiosaavn.rajputhemant.dev
+VITE_JIOSAAVN_API=https://saavn.sumit.co/api
 VITE_DUO_BACKEND=https://your-soulsync-backend.onrender.com
 ```
 
@@ -797,6 +797,7 @@ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 
 GROQ_KEY_1=gsk_xxxxx
 GROQ_KEY_2=gsk_xxxxx
+JIOSAAVN_API=https://saavn.sumit.co/api
 
 UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
@@ -1131,7 +1132,14 @@ Open source under the **[MIT License](LICENSE)**.
 
 ---
 
-<div align="center">
+## 📖 API Reference
+
+SoulSync uses the following unofficial APIs for its core functionality:
+
+| API | Repository | Implementation |
+| --- | --- | --- |
+| **JioSaavn API** | [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Custom backend proxy with intent parsing |
+| **Groq AI** | [Groq SDK](https://github.com/groq/groq-typescript) | LLaMA 3.3 70B for smart playlist generation |
 
 <br/>
 
