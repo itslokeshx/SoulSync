@@ -9,6 +9,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Hide scrollbars on all elements */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 html {
   overflow: hidden;
   -webkit-text-size-adjust: 100%;

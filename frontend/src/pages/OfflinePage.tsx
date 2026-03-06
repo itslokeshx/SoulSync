@@ -23,6 +23,12 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
+  updateMediaMetadata,
+  updatePositionState,
+  clearMediaMetadata,
+  registerMediaControls,
+} from "../capacitor/musicControls";
+import {
   getOfflineSongs,
   getOfflineBlob,
   removeOfflineSong,
@@ -186,15 +192,77 @@ export default function OfflinePage() {
     };
   }, [playIndex]);
 
+  const handlePlay = useCallback(
+    async (song: OfflineSong, allSongs: OfflineSong[]) => {
+      const idx = allSongs.findIndex((s) => s.id === song.id);
+      setQueue(allSongs);
+      queueRef.current = allSongs;
+      await playIndex(allSongs, idx >= 0 ? idx : 0);
+    },
+    [playIndex],
+  );
+
+  const handlePlayAll = useCallback(async () => {
+    if (!songs.length) return;
+    setQueue(songs);
+    queueRef.current = songs;
+    await playIndex(songs, 0);
+  }, [songs, playIndex]);
+
+  const handleShuffleAll = useCallback(async () => {
+    if (!songs.length) return;
+    const list = [...songs].sort(() => Math.random() - 0.5);
+    setShuffled(true);
+    shuffledRef.current = true;
+    setQueue(list);
+    queueRef.current = list;
+    await playIndex(list, 0);
+  }, [songs, playIndex]);
+
+  const handlePlayPause = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio.src) return;
+    if (isPlaying) audio.pause();
+    else audio.play().catch(() => {});
+  }, [isPlaying]);
+
+  const handleNext = useCallback(() => {
+    const q = queueRef.current;
+    const idx = queueIndexRef.current;
+    if (!q.length) return;
+    const next = shuffledRef.current
+      ? Math.floor(Math.random() * q.length)
+      : (idx + 1) % q.length;
+    playIndex(q, next);
+  }, [playIndex]);
+
+  const handlePrev = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio.currentTime > 3) {
+      audio.currentTime = 0;
+      return;
+    }
+    const q = queueRef.current;
+    const idx = queueIndexRef.current;
+    playIndex(q, Math.max(0, idx - 1));
+  }, [playIndex]);
+
   // Media Session for notification / lock screen controls
   useEffect(() => {
+    registerMediaControls({
+      onPlay: () => handlePlayPause(),
+      onPause: () => handlePlayPause(),
+      onNext: () => handleNext(),
+      onPrev: () => handlePrev(),
+      onSeek: (time) => {
+        audioRef.current.currentTime = time;
+        setCurrentTime(time);
+      },
+    });
+
     if (!("mediaSession" in navigator)) return;
-    navigator.mediaSession.setActionHandler("play", () => {
-      audioRef.current.play().catch(() => {});
-    });
-    navigator.mediaSession.setActionHandler("pause", () => {
-      audioRef.current.pause();
-    });
+    navigator.mediaSession.setActionHandler("play", () => handlePlayPause());
+    navigator.mediaSession.setActionHandler("pause", () => handlePlayPause());
     navigator.mediaSession.setActionHandler("nexttrack", () => handleNext());
     navigator.mediaSession.setActionHandler("previoustrack", () =>
       handlePrev(),
@@ -207,93 +275,9 @@ export default function OfflinePage() {
         }
       });
     } catch {}
-  }, []);
+  }, [handlePlayPause, handleNext, handlePrev]);
 
   // Update media metadata when song changes
-  useEffect(() => {
-    if (!currentSong || !("mediaSession" in navigator)) return;
-    const artwork: MediaImage[] = [];
-    const img =
-      bestImg(currentSong.image, "150x150") ||
-      (typeof currentSong.albumArt === "string" ? currentSong.albumArt : null);
-    if (img) artwork.push({ src: img, sizes: "150x150", type: "image/jpeg" });
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentSong.name || "Unknown",
-      artist: currentSong.artist || "Unknown",
-      artwork,
-    });
-    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-  }, [currentSong?.id, isPlaying]);
-
-  // Update position state for notification seek bar
-  useEffect(() => {
-    if (
-      !("mediaSession" in navigator) ||
-      !navigator.mediaSession.setPositionState
-    )
-      return;
-    try {
-      if (duration > 0 && isFinite(duration)) {
-        navigator.mediaSession.setPositionState({
-          duration,
-          playbackRate: 1,
-          position: Math.min(currentTime, duration),
-        });
-      }
-    } catch {}
-  }, [currentTime, duration]);
-
-  const handlePlay = async (song: OfflineSong, allSongs: OfflineSong[]) => {
-    const idx = allSongs.findIndex((s) => s.id === song.id);
-    setQueue(allSongs);
-    queueRef.current = allSongs;
-    await playIndex(allSongs, idx >= 0 ? idx : 0);
-  };
-
-  const handlePlayAll = async () => {
-    if (!songs.length) return;
-    setQueue(songs);
-    queueRef.current = songs;
-    await playIndex(songs, 0);
-  };
-
-  const handleShuffleAll = async () => {
-    if (!songs.length) return;
-    const list = [...songs].sort(() => Math.random() - 0.5);
-    setShuffled(true);
-    shuffledRef.current = true;
-    setQueue(list);
-    queueRef.current = list;
-    await playIndex(list, 0);
-  };
-
-  const handlePlayPause = () => {
-    const audio = audioRef.current;
-    if (!audio.src) return;
-    if (isPlaying) audio.pause();
-    else audio.play().catch(() => {});
-  };
-
-  const handleNext = () => {
-    const q = queueRef.current;
-    const idx = queueIndexRef.current;
-    if (!q.length) return;
-    const next = shuffledRef.current
-      ? Math.floor(Math.random() * q.length)
-      : (idx + 1) % q.length;
-    playIndex(q, next);
-  };
-
-  const handlePrev = () => {
-    const audio = audioRef.current;
-    if (audio.currentTime > 3) {
-      audio.currentTime = 0;
-      return;
-    }
-    const q = queueRef.current;
-    const idx = queueIndexRef.current;
-    playIndex(q, Math.max(0, idx - 1));
-  };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value);
