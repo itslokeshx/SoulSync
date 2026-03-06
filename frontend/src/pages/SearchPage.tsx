@@ -119,49 +119,67 @@ function TopResultCard({
 }
 
 function ArtistChip({ artist }: { artist: any }) {
+  const navigate = useNavigate();
   const img =
     artist.image?.[2]?.link ||
     artist.image?.[1]?.link ||
     artist.image?.[0]?.link ||
     FALLBACK_IMG;
   return (
-    <div className="flex flex-col items-center gap-2 w-20 flex-shrink-0">
-      <img
-        src={img}
-        alt={artist.name}
-        className="w-16 h-16 rounded-full object-cover border border-white/10"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-        }}
-      />
-      <p className="text-white/60 text-[11px] text-center font-medium truncate w-full">
+    <button
+      onClick={() => artist.id && navigate(`/artist/${artist.id}`)}
+      className="flex flex-col items-center gap-2 w-20 flex-shrink-0 group cursor-pointer"
+    >
+      <div className="relative">
+        <img
+          src={img}
+          alt={artist.name}
+          className="w-16 h-16 rounded-full object-cover border border-white/10 group-hover:border-sp-green/50 transition-all group-hover:scale-105"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+          }}
+        />
+        <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+          <div className="w-0 h-0 border-t-[5px] border-b-[5px] border-l-[8px] border-transparent border-l-white ml-0.5" />
+        </div>
+      </div>
+      <p className="text-white/60 text-[11px] text-center font-medium truncate w-full group-hover:text-white transition-colors">
         {artist.name}
       </p>
-    </div>
+    </button>
   );
 }
 
 function AlbumCard({ album }: { album: any }) {
+  const navigate = useNavigate();
   const img = album.image?.[2]?.link || album.image?.[1]?.link || FALLBACK_IMG;
   return (
-    <div className="flex flex-col gap-2 w-32 flex-shrink-0">
-      <img
-        src={img}
-        alt={album.name}
-        className="w-32 h-32 rounded-xl object-cover"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-        }}
-      />
+    <button
+      onClick={() => album.id && navigate(`/album/${album.id}`)}
+      className="flex flex-col gap-2 w-32 flex-shrink-0 group cursor-pointer text-left"
+    >
+      <div className="relative">
+        <img
+          src={img}
+          alt={album.name}
+          className="w-32 h-32 rounded-xl object-cover group-hover:opacity-80 transition-opacity"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+          }}
+        />
+        <div className="absolute inset-0 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+          <div className="w-0 h-0 border-t-[6px] border-b-[6px] border-l-[10px] border-transparent border-l-white ml-0.5" />
+        </div>
+      </div>
       <div>
-        <p className="text-white/80 text-[12px] font-medium truncate">
+        <p className="text-white/80 text-[12px] font-medium truncate group-hover:text-white transition-colors">
           {album.name}
         </p>
         <p className="text-white/35 text-[11px] truncate">
           {album.primaryArtists || ""}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
 
