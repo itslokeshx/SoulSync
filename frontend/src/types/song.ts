@@ -7,6 +7,7 @@ export interface SongImage {
 export interface SongDownloadUrl {
   quality: string;
   url?: string;
+  link?: string;
 }
 
 export interface SongArtist {
