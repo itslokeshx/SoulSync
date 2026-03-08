@@ -2,13 +2,14 @@ import { Router, Response } from "express";
 import { nanoid } from "nanoid";
 import { DuoSession } from "../models/DuoSession.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 
 const router = Router();
-router.use(authMiddleware);
 
 // POST /api/session/create
 router.post(
   "/create",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { hostName } = req.body;
@@ -39,7 +40,7 @@ router.post(
 );
 
 // POST /api/session/join
-router.post("/join", async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/join", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
     const { code, guestName } = req.body;
 
@@ -54,7 +55,7 @@ router.post("/join", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    session.guest.userId = req.userId as any;
+    session.guest.userId = (req.userId || `guest_${nanoid(8)}`) as any;
     session.guest.name = guestName || "Guest";
     await session.save();
 
@@ -66,7 +67,7 @@ router.post("/join", async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // GET /api/session/:code
-router.get("/:code", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/:code", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
     const code = req.params.code as string;
     const session = await DuoSession.findOne({

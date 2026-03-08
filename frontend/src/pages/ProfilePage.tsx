@@ -53,7 +53,7 @@ const ALL_MOODS = [
 ];
 
 export default function ProfilePage() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ export default function ProfilePage() {
     api
       .getUserStats()
       .then(setStats)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -89,7 +89,7 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
     } catch {
       toast.error("Logout failed");
     }
@@ -145,6 +145,29 @@ export default function ProfilePage() {
     if (hrs > 0) return `${hrs}h ${mins}m`;
     return `${mins}m`;
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="animate-fadeIn max-w-md mx-auto h-[70vh] flex flex-col items-center justify-center text-center">
+        <div className="w-24 h-24 rounded-full bg-white/[0.04] flex items-center justify-center mb-6 ring-4 ring-sp-green/10">
+          <UserIcon size={40} className="text-white/40" />
+        </div>
+        <h1 className="text-2xl font-black text-white mb-2 tracking-tight">
+          Your Profile awaits
+        </h1>
+        <p className="text-sm text-white/40 mb-8 max-w-xs leading-relaxed">
+          Sign in to view your listening stats, customize your preferences, and sync your data across devices.
+        </p>
+        <button
+          onClick={() => navigate("/login")}
+          className="px-8 py-3.5 rounded-full bg-sp-green text-black font-bold text-[14px] hover:bg-sp-green/90 hover:scale-105 active:scale-95 transition-all w-full max-w-[200px]"
+          style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.2)" }}
+        >
+          Sign In
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fadeIn max-w-2xl mx-auto">
@@ -402,11 +425,10 @@ export default function ProfilePage() {
                       onClick={() =>
                         toggleTag(editLanguages, setEditLanguages, l)
                       }
-                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${
-                        active
-                          ? "bg-sp-green/20 text-sp-green border-sp-green/30"
-                          : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${active
+                        ? "bg-sp-green/20 text-sp-green border-sp-green/30"
+                        : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
+                        }`}
                     >
                       {l}
                     </button>
@@ -442,11 +464,10 @@ export default function ProfilePage() {
                     <button
                       key={m}
                       onClick={() => toggleTag(editMoods, setEditMoods, m)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${
-                        active
-                          ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                          : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${active
+                        ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                        : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
+                        }`}
                     >
                       {m}
                     </button>

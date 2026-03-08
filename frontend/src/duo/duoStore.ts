@@ -12,12 +12,12 @@ interface SessionData {
 const persistSession = (data: SessionData) => {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
-  } catch {}
+  } catch { }
 };
 const clearPersistedSession = () => {
   try {
     sessionStorage.removeItem(SESSION_KEY);
-  } catch {}
+  } catch { }
 };
 export const getPersistedSession = (): SessionData | null => {
   try {
@@ -123,13 +123,10 @@ export const useDuoStore = create<DuoState>((set, get) => ({
       ? room.guest?.name || ""
       : room.host?.name || "";
 
-    // NEVER downgrade partnerConnected from true→false via session-state.
-    // Only duo:partner-disconnected should set it to false.
-    const currentlyConnected = get().partnerConnected;
     set({
       songHistory: room.songHistory || [],
       messages: room.messages || [],
-      partnerConnected: currentlyConnected || partnerFromRoom,
+      partnerConnected: partnerFromRoom,
       partnerName: partnerNameFromRoom || get().partnerName,
     });
   },

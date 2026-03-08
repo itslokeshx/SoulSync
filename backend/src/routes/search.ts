@@ -10,7 +10,8 @@ import {
   getArtistDetails,
   getArtistSongs,
   getAlbumDetails,
-  getAlbumSongs
+  getAlbumSongs,
+  getSongDetails
 } from "../services/jiosaavn.js";
 
 const router = Router();
@@ -78,6 +79,17 @@ router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
 });
 
 // Artist Endpoints (Restored to fix 404s)
+router.get("/song", async (req: any, res: Response) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: "ID required" });
+  try {
+    const song = await getSongDetails(id as string);
+    res.json(song);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch song" });
+  }
+});
+
 router.get("/artist", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });

@@ -1,5 +1,6 @@
+import { useNavigate } from "react-router-dom";
 import { useDuoStore } from "./duoStore";
-import { useAuth } from "../auth/AuthContext";
+import { useAuthGate } from "../hooks/useAuthGate";
 import toast from "react-hot-toast";
 
 const HeadphoneIcon = ({
@@ -35,21 +36,21 @@ interface DuoButtonProps {
 }
 
 export function DuoButton({ variant = "auto" }: DuoButtonProps) {
+  const navigate = useNavigate();
   const { active, partnerConnected, partnerName, setModalOpen, setPanelOpen } =
     useDuoStore();
-  const { isAuthenticated } = useAuth();
+  const { gate } = useAuthGate();
 
   if (active) {
     return (
       <button
-        onClick={() => setPanelOpen(true)}
-        className={`relative flex items-center gap-2 md:gap-3 rounded-xl transition-all duration-500 group overflow-hidden ${
-          variant === "sidebar"
-            ? "w-full px-4 py-3"
-            : variant === "mobile-nav"
-              ? "flex-col gap-0.5 py-2 px-3"
-              : "w-auto px-3 py-2 md:w-full md:px-4 md:py-3"
-        }`}
+        onClick={() => navigate("/soullink")}
+        className={`relative flex items-center gap-2 md:gap-3 rounded-xl transition-all duration-500 group overflow-hidden ${variant === "sidebar"
+          ? "w-full px-4 py-3"
+          : variant === "mobile-nav"
+            ? "flex-col gap-0.5 py-2 px-3"
+            : "w-auto px-3 py-2 md:w-full md:px-4 md:py-3"
+          }`}
         style={{
           background:
             variant === "mobile-nav"
@@ -172,27 +173,24 @@ export function DuoButton({ variant = "auto" }: DuoButtonProps) {
   return (
     <button
       onClick={() => {
-        if (!isAuthenticated) {
-          toast.error("Please log in to use SoulLink");
-          return;
-        }
-        setModalOpen(true);
+        gate(() => {
+          navigate("/soullink");
+        }, "Sign in to experience real-time listening sessions with friends in Duo Mode");
       }}
-      className={`relative flex items-center transition-all duration-300 group overflow-hidden active:scale-[0.97] ${
-        variant === "sidebar"
-          ? "w-full gap-3 px-4 py-3 rounded-xl hover:scale-[1.01]"
-          : variant === "mobile-nav"
-            ? "flex-col gap-0.5 py-2 px-3"
-            : "w-auto gap-2 px-3 py-2 rounded-xl md:w-full md:gap-3 md:px-4 md:py-3 md:hover:scale-[1.01]"
-      }`}
+      className={`relative flex items-center transition-all duration-300 group overflow-hidden active:scale-[0.97] ${variant === "sidebar"
+        ? "w-full gap-3 px-4 py-3 rounded-xl hover:scale-[1.01]"
+        : variant === "mobile-nav"
+          ? "flex-col gap-0.5 py-2 px-3"
+          : "w-auto gap-2 px-3 py-2 rounded-xl md:w-full md:gap-3 md:px-4 md:py-3 md:hover:scale-[1.01]"
+        }`}
       style={
         variant === "mobile-nav"
           ? {}
           : {
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(29,185,84,0.04))",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(29,185,84,0.04))",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }
       }
       title="Listen together with a friend or partner"
     >

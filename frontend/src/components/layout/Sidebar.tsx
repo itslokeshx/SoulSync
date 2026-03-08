@@ -36,9 +36,8 @@ export const Sidebar = () => {
 
   return (
     <aside
-      className={`hidden md:flex md:flex-col fixed left-0 top-0 bottom-[4.75rem] z-30 select-none transition-all duration-300 ${
-        collapsed ? "w-[4.5rem]" : "w-[17rem]"
-      }`}
+      className={`hidden md:flex md:flex-col fixed left-0 top-0 bottom-[4.75rem] z-30 select-none transition-all duration-300 ${collapsed ? "w-[4.5rem]" : "w-[17rem]"
+        }`}
       style={{
         background: "linear-gradient(180deg,#0c0c0c 0%,#060606 100%)",
         borderRight: "1px solid rgba(255,255,255,0.04)",
@@ -46,9 +45,8 @@ export const Sidebar = () => {
     >
       {/* Logo + Collapse toggle */}
       <div
-        className={`flex items-center gap-3 cursor-pointer active:scale-95 transition-transform flex-shrink-0 ${
-          collapsed ? "px-0 pt-4 pb-3 justify-center" : "px-5 pt-4 pb-3"
-        }`}
+        className={`flex items-center gap-3 cursor-pointer active:scale-95 transition-transform flex-shrink-0 ${collapsed ? "px-0 pt-4 pb-3 justify-center" : "px-5 pt-4 pb-3"
+          }`}
         onClick={() => !collapsed && navigate("/")}
       >
         <div
@@ -83,13 +81,11 @@ export const Sidebar = () => {
             key={id}
             onClick={() => navigate(path)}
             title={collapsed ? label : undefined}
-            className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-all duration-300 relative overflow-hidden ${
-              collapsed ? "justify-center px-0 py-2" : "px-3.5 py-2"
-            } ${
-              view === id
+            className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-all duration-300 relative overflow-hidden ${collapsed ? "justify-center px-0 py-2" : "px-3.5 py-2"
+              } ${view === id
                 ? "text-white"
                 : "text-sp-sub hover:text-white hover:bg-white/[0.04]"
-            }`}
+              }`}
           >
             {view === id && (
               <div className="absolute inset-0 bg-gradient-to-r from-sp-green/15 via-sp-green/5 to-transparent rounded-xl" />
@@ -126,9 +122,8 @@ export const Sidebar = () => {
         <button
           onClick={toggleSidebar}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className={`w-full flex items-center gap-3 rounded-xl text-sp-sub hover:text-white hover:bg-white/[0.04] transition-all duration-200 ${
-            collapsed ? "justify-center px-0 py-2.5" : "px-3.5 py-2.5"
-          }`}
+          className={`w-full flex items-center gap-3 rounded-xl text-sp-sub hover:text-white hover:bg-white/[0.04] transition-all duration-200 ${collapsed ? "justify-center px-0 py-2.5" : "px-3.5 py-2.5"
+            }`}
         >
           <PanelLeft
             size={17}

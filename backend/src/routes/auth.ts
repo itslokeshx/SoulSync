@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { User } from "../models/User.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 
 const router = Router();
 
@@ -534,9 +535,13 @@ router.post("/logout", (_req: AuthRequest, res: Response): void => {
 // GET /api/auth/me — Get current user
 router.get(
   "/me",
-  authMiddleware,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
     try {
+      if (!req.userId) {
+        res.json({ user: null });
+        return;
+      }
       const user = await User.findById(req.userId).select("-likedSongs");
       if (!user) {
         res.status(404).json({ error: "User not found" });

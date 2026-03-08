@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../../store/uiStore";
+import { useAuthGate } from "../../hooks/useAuthGate";
 import { useApp } from "../../context/AppContext";
 import { bestImg, getArtists, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
@@ -39,6 +40,7 @@ const MOOD_CHIPS = [
 export function AIPlaylistModal() {
   const { aiPlaylistOpen, closeAIPlaylist } = useUIStore();
   const { playSong } = useApp();
+  const { gate } = useAuthGate();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<"mood" | "songs">("mood");
@@ -92,9 +94,9 @@ export function AIPlaylistModal() {
     const songs =
       mode === "songs"
         ? songList
-            .split("\n")
-            .map((s) => s.trim())
-            .filter(Boolean)
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean)
         : undefined;
 
     try {
@@ -190,37 +192,40 @@ export function AIPlaylistModal() {
 
   const handleSave = async () => {
     if (!playlistName.trim() || selected.size === 0) return;
-    setSaving(true);
-    try {
-      // Map JioSaavn objects → PlaylistSong schema { songId, title, artist, albumArt, duration, downloadUrl }
-      const songs = allSongs
-        .filter((s: any) => s?.id && selected.has(s.id))
-        .map((s: any) => ({
-          songId: s.id,
-          title: s.name || s.title || "",
-          artist: getArtists(s),
-          albumArt: bestImg(s.image) || "",
-          duration: s.duration || 0,
-          downloadUrl: (s.download_url || s.downloadUrl || []).map(
-            (u: any) => ({
-              quality: u.quality || "",
-              url: u.link || u.url || "",
-            }),
-          ),
-        }));
-      const playlist = await api.createPlaylist({
-        name: playlistName,
-        isAIGenerated: true,
-        songs,
-      });
-      toast.success(`✨ "${playlist.name}" saved!`);
-      closeAIPlaylist();
-      navigate(`/playlist/${playlist._id}`);
-    } catch {
-      toast.error("Failed to save playlist");
-    } finally {
-      setSaving(false);
-    }
+
+    gate(async () => {
+      setSaving(true);
+      try {
+        // Map JioSaavn objects → PlaylistSong schema { songId, title, artist, albumArt, duration, downloadUrl }
+        const songs = allSongs
+          .filter((s: any) => s?.id && selected.has(s.id))
+          .map((s: any) => ({
+            songId: s.id,
+            title: s.name || s.title || "",
+            artist: getArtists(s),
+            albumArt: bestImg(s.image) || "",
+            duration: s.duration || 0,
+            downloadUrl: (s.download_url || s.downloadUrl || []).map(
+              (u: any) => ({
+                quality: u.quality || "",
+                url: u.link || u.url || "",
+              }),
+            ),
+          }));
+        const playlist = await api.createPlaylist({
+          name: playlistName,
+          isAIGenerated: true,
+          songs,
+        });
+        toast.success(`✨ "${playlist.name}" saved!`);
+        closeAIPlaylist();
+        navigate(`/playlist/${playlist._id}`);
+      } catch {
+        toast.error("Failed to save playlist");
+      } finally {
+        setSaving(false);
+      }
+    }, "Sign in to save this AI Mix to your library");
   };
 
   return (
@@ -290,11 +295,10 @@ export function AIPlaylistModal() {
                       <button
                         key={m}
                         onClick={() => setMode(m)}
-                        className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${
-                          mode === m
-                            ? "bg-white text-black shadow-lg"
-                            : "text-white/40 hover:text-white"
-                        }`}
+                        className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${mode === m
+                          ? "bg-white text-black shadow-lg"
+                          : "text-white/40 hover:text-white"
+                          }`}
                       >
                         {m === "mood" ? "✨ By Mood" : "🎵 From Song Names"}
                       </button>
@@ -317,8 +321,8 @@ export function AIPlaylistModal() {
                           (e.target.style.borderColor = "rgba(29,185,84,0.4)")
                         }
                         onBlur={(e) =>
-                          (e.target.style.borderColor =
-                            "rgba(255,255,255,0.07)")
+                        (e.target.style.borderColor =
+                          "rgba(255,255,255,0.07)")
                         }
                       />
                       <div className="flex flex-wrap gap-2">
@@ -371,8 +375,8 @@ export function AIPlaylistModal() {
                           (e.target.style.borderColor = "rgba(29,185,84,0.4)")
                         }
                         onBlur={(e) =>
-                          (e.target.style.borderColor =
-                            "rgba(255,255,255,0.07)")
+                        (e.target.style.borderColor =
+                          "rgba(255,255,255,0.07)")
                         }
                       />
                     </div>
@@ -635,18 +639,16 @@ export function AIPlaylistModal() {
                         <div
                           key={song.id}
                           onClick={() => toggleSong(song.id)}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
-                            isSel
-                              ? "bg-white/[0.05]"
-                              : "opacity-35 hover:opacity-60"
-                          }`}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${isSel
+                            ? "bg-white/[0.05]"
+                            : "opacity-35 hover:opacity-60"
+                            }`}
                         >
                           <div
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                              isSel
-                                ? "bg-sp-green border-sp-green"
-                                : "border-white/20"
-                            }`}
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSel
+                              ? "bg-sp-green border-sp-green"
+                              : "border-white/20"
+                              }`}
                           >
                             {isSel && (
                               <Check

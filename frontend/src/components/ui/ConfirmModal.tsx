@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 
 interface ConfirmModalProps {
@@ -22,7 +23,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
-  return (
+  const modalContent = (
     <AnimatePresence>
       {open && (
         <motion.div
@@ -30,7 +31,7 @@ export function ConfirmModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
           onClick={onCancel}
         >
           {/* Backdrop */}
@@ -48,9 +49,8 @@ export function ConfirmModal({
           >
             <div className="flex items-start gap-4">
               <div
-                className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-                  danger ? "bg-red-500/10" : "bg-sp-green/10"
-                }`}
+                className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${danger ? "bg-red-500/10" : "bg-sp-green/10"
+                  }`}
               >
                 <AlertTriangle
                   size={18}
@@ -76,11 +76,10 @@ export function ConfirmModal({
               </button>
               <button
                 onClick={onConfirm}
-                className={`px-5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 ${
-                  danger
+                className={`px-5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 ${danger
                     ? "bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20"
                     : "bg-sp-green/15 text-sp-green hover:bg-sp-green/25 border border-sp-green/20"
-                }`}
+                  }`}
               >
                 {confirmLabel}
               </button>
@@ -90,4 +89,6 @@ export function ConfirmModal({
       )}
     </AnimatePresence>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }

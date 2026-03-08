@@ -13,6 +13,7 @@ import {
   ListMusic,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { useAuth } from "../auth/AuthContext";
 import * as api from "../api/backend";
 import { Playlist, PlaylistSong } from "../types/playlist";
 import { SongRow } from "../components/cards/SongRow";
@@ -22,13 +23,20 @@ import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { onImgErr, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { downloadPlaylist } from "../utils/downloadSong";
-import { Download } from "lucide-react";
+import { sharePlaylist } from "../utils/share";
+import { Download, Share2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import { useUIStore } from "../store/uiStore";
 
 export default function PlaylistPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ slug?: string; id?: string }>();
+  // If the route matched /playlist/:id, then params.id has the ID.
+  // If the route matched /playlist/:slug/:id, then params.id has the ID and params.slug has the slug.
+  const id = params.id || params.slug; // Fallback just in case routing mixup
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { playSong, currentSong, isPlaying, likedSongs, handleLike } = useApp();
+  const { openAuthGate } = useUIStore();
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [localSongs, setLocalSongs] = useState<PlaylistSong[]>([]);
@@ -37,6 +45,7 @@ export default function PlaylistPage() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
 
   // Confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -144,6 +153,31 @@ export default function PlaylistPage() {
     [id],
   );
 
+  const handleImport = async () => {
+    if (!playlist) return;
+    if (!user) {
+      openAuthGate("Sign in to save this playlist to your library");
+      return;
+    }
+
+    try {
+      setIsImporting(true);
+      const newPlaylist = await api.createPlaylist({
+        name: playlist.name,
+        description: playlist.description,
+        isPublic: false,
+        songs: playlist.songs || [],
+      });
+      toast.success("Added to your library!");
+      navigate(`/playlist/${newPlaylist._id}`);
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error("Failed to import playlist");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="animate-fadeIn space-y-4">
@@ -173,6 +207,7 @@ export default function PlaylistPage() {
   const songs = playlist.songs || [];
   const coverImg = playlist.coverImage || FALLBACK_IMG;
   const totalDur = songs.reduce((a, s) => a + (s.duration || 0), 0);
+  const isOwner = user?._id === playlist.userId;
 
   // Map playlist songs → player-compatible format with download URLs
   const mapSong = (s: PlaylistSong) =>
@@ -286,6 +321,19 @@ export default function PlaylistPage() {
           <span className="hidden sm:inline ml-2">Play All</span>
           <span className="sm:hidden ml-2">Play</span>
         </GreenButton>
+
+        {!isOwner && (
+          <button
+            onClick={handleImport}
+            disabled={isImporting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white text-[13px] font-bold transition-all disabled:opacity-50"
+          >
+            {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            <span className="hidden sm:inline">Add to Library</span>
+            <span className="sm:hidden">Add</span>
+          </button>
+        )}
+
         <div className="flex gap-3 sm:gap-4 flex-1 items-center">
           <button
             onClick={handleShuffle}
@@ -303,31 +351,43 @@ export default function PlaylistPage() {
             <Download size={15} />
           </button>
           <button
-            onClick={() => setEditing(true)}
-            title="Edit Playlist"
+            onClick={() => sharePlaylist(playlist)}
+            title="Share Playlist"
             className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all"
           >
-            <Pencil size={15} />
+            <Share2 size={15} />
           </button>
 
-          <button
-            onClick={() => setReorderMode(!reorderMode)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${reorderMode
-              ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
-              : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
-              }`}
-          >
-            <ListMusic size={14} />
-            {reorderMode ? "Done" : "Reorder"}
-          </button>
+          {isOwner && (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                title="Edit Playlist"
+                className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all"
+              >
+                <Pencil size={15} />
+              </button>
 
-          <button
-            onClick={handleDelete}
-            title="Delete Playlist"
-            className="w-10 h-10 rounded-full border border-red-500/20 flex items-center justify-center text-red-400/60 hover:text-red-400 hover:border-red-400/40 transition-all ml-auto"
-          >
-            <Trash2 size={15} />
-          </button>
+              <button
+                onClick={() => setReorderMode(!reorderMode)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-semibold transition-all ${reorderMode
+                  ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
+                  : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
+                  }`}
+              >
+                <ListMusic size={14} />
+                {reorderMode ? "Done" : "Reorder"}
+              </button>
+
+              <button
+                onClick={handleDelete}
+                title="Delete Playlist"
+                className="w-10 h-10 rounded-full border border-red-500/20 flex items-center justify-center text-red-400/60 hover:text-red-400 hover:border-red-400/40 transition-all ml-auto"
+              >
+                <Trash2 size={15} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -369,6 +429,7 @@ export default function PlaylistPage() {
                     handleRemoveSong={handleRemoveSong}
                     handleSaveOrder={() => handleSaveOrder(localSongs)}
                     reorderMode={reorderMode}
+                    isOwner={isOwner}
                   />
                 );
               })}
@@ -401,6 +462,7 @@ interface PlaylistSongItemProps {
   handleRemoveSong: (id: string, name: string) => void;
   handleSaveOrder: () => void;
   reorderMode: boolean;
+  isOwner: boolean;
 }
 
 function PlaylistSongItem({
@@ -416,6 +478,7 @@ function PlaylistSongItem({
   handleRemoveSong,
   handleSaveOrder,
   reorderMode,
+  isOwner,
 }: PlaylistSongItemProps) {
   const controls = useDragControls();
 
@@ -446,7 +509,7 @@ function PlaylistSongItem({
           onLike={handleLike}
         />
       </div>
-      {!reorderMode && (
+      {isOwner && !reorderMode && (
         <button
           onClick={() => handleRemoveSong(s.songId, s.title || s.songId)}
           title="Remove from playlist"

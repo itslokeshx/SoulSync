@@ -1,4 +1,4 @@
-export { HomePage } from "./HomePage";
+export { default as HomePage } from "./HomePage";
 export { ArtistPage } from "./ArtistPage";
 export { AlbumPage } from "./AlbumPage";
 export { LikedPage } from "./LikedPage";

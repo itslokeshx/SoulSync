@@ -24,6 +24,7 @@ interface PlayerActions {
   cycleRepeat: () => void;
   setDuration: (d: number) => void;
   setCurrentTime: (t: number) => void;
+  setIsPlaying: (v: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState & PlayerActions>(
@@ -57,5 +58,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
       })),
     setDuration: (d) => set({ duration: d }),
     setCurrentTime: (t) => set({ currentTime: t }),
+    setIsPlaying: (v) => set({ isPlaying: v }),
   }),
 );

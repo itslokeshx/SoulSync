@@ -63,6 +63,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Intercept responses to silently handle expected 401s for guest users
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Specifically silence 401s from /api/auth/me and /api/playlists which are expected for guests
+    if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      if (url.includes("/api/auth/me") || url.includes("/api/playlists")) {
+        // Return a mocked successful-looking rejection to prevent console.error spam from Unhandled Rejections
+        return Promise.reject({ ...error, isExpectedAuthError: true });
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Wake up backend on first load (Render free tier sleeps after 15 min)
 let _wakeUpDone = false;
 async function ensureBackendAwake() {
@@ -223,8 +239,13 @@ export async function getUserStats(): Promise<UserStats> {
 
 // ── Playlists ───────────────────────────────────────────────────────────────
 export async function getPlaylists(): Promise<Playlist[]> {
-  const { data } = await api.get("/api/playlists");
-  return data.playlists || [];
+  try {
+    const { data } = await api.get("/api/playlists");
+    return data.playlists || [];
+  } catch (err: any) {
+    if (err.isExpectedAuthError || err.response?.status === 401) return [];
+    throw err;
+  }
 }
 
 export async function getPlaylist(id: string): Promise<Playlist> {
@@ -324,12 +345,12 @@ export async function getRelatedSongs(
 }
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
-export async function getDashboard(): Promise<unknown> {
+export async function getDashboard(): Promise<any> {
   const { data } = await api.get("/api/dashboard");
   return data;
 }
 
-export async function getGuestDashboard(): Promise<unknown> {
+export async function getGuestDashboard(): Promise<any> {
   const { data } = await api.get("/api/dashboard/guest");
   return data;
 }
@@ -361,5 +382,36 @@ export async function joinSession(
 
 export async function getSession(code: string): Promise<unknown> {
   const { data } = await api.get(`/api/session/${code}`);
+  return data;
+}
+
+// ── Import ──────────────────────────────────────────────────────────────────
+export async function importPlaylist(
+  input: string,
+): Promise<{
+  name: string;
+  image: string | null;
+  songNames: string[];
+  count: number;
+  detectedPlatform: string;
+  success: boolean;
+}> {
+  const { data } = await api.post("/api/import", { input });
+  return data;
+}
+
+export async function buildPlaylistFromImport(
+  songNames: string[],
+  playlistName?: string,
+): Promise<any> {
+  const { data } = await api.post("/api/ai/build-playlist", {
+    songs: songNames.join("\n"),
+    targetCount: songNames.length,
+  });
+  return data;
+}
+
+export async function getSongDetails(id: string): Promise<any> {
+  const { data } = await api.get("/api/search/song", { params: { id } });
   return data;
 }

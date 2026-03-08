@@ -11,13 +11,14 @@ export interface OfflineSongMeta {
   filePath: string; // native URI or blob URL
   downloadedAt: number;
   fileSize: number;
+  playlistName?: string;
   /** Full song object so we can build a queue for playback */
   songData?: any;
 }
 
 interface OfflineState {
   isOfflineMode: boolean;
-  downloadedSongs: OfflineSongMeta[];
+  downloads: OfflineSongMeta[];
   lastSyncedAt: number | null;
 }
 
@@ -25,7 +26,9 @@ interface OfflineActions {
   enterOfflineMode: () => void;
   exitOfflineMode: () => void;
   addDownloadedSong: (song: OfflineSongMeta) => void;
-  removeDownloadedSong: (songId: string) => void;
+  deleteDownload: (songId: string) => void;
+  updateDownloadsOrder: (downloads: OfflineSongMeta[]) => void;
+  clearAllDownloads: () => void;
   getDownloadedSong: (songId: string) => OfflineSongMeta | undefined;
   isDownloaded: (songId: string) => boolean;
   setLastSynced: () => void;
@@ -57,7 +60,7 @@ export const useOfflineStore = create<OfflineState & OfflineActions>()(
   persist(
     (set, get) => ({
       isOfflineMode: false,
-      downloadedSongs: [],
+      downloads: [],
       lastSyncedAt: null,
 
       enterOfflineMode: () => set({ isOfflineMode: true }),
@@ -65,22 +68,26 @@ export const useOfflineStore = create<OfflineState & OfflineActions>()(
 
       addDownloadedSong: (song) =>
         set((s) => ({
-          downloadedSongs: [
-            ...s.downloadedSongs.filter((d) => d.songId !== song.songId),
+          downloads: [
+            ...s.downloads.filter((d) => d.songId !== song.songId),
             song,
           ],
         })),
 
-      removeDownloadedSong: (songId) =>
+      deleteDownload: (songId) =>
         set((s) => ({
-          downloadedSongs: s.downloadedSongs.filter((d) => d.songId !== songId),
+          downloads: s.downloads.filter((d) => d.songId !== songId),
         })),
 
+      updateDownloadsOrder: (downloads) => set({ downloads }),
+
+      clearAllDownloads: () => set({ downloads: [] }),
+
       getDownloadedSong: (songId) =>
-        get().downloadedSongs.find((d) => d.songId === songId),
+        get().downloads.find((d) => d.songId === songId),
 
       isDownloaded: (songId) =>
-        get().downloadedSongs.some((d) => d.songId === songId),
+        get().downloads.some((d) => d.songId === songId),
 
       setLastSynced: () => set({ lastSyncedAt: Date.now() }),
     }),

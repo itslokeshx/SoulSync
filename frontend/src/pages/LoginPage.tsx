@@ -79,11 +79,10 @@ function AuthInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
-          className={`w-full h-12 px-4 rounded-xl bg-white/[0.06] border text-white text-[14px] placeholder-white/20 outline-none focus:border-sp-green/50 focus:bg-white/[0.08] transition-all ${
-            error
-              ? "border-red-500/60 bg-red-500/5"
-              : "border-white/[0.08] hover:border-white/[0.12]"
-          } ${suffix ? "pr-11" : ""}`}
+          className={`w-full h-12 px-4 rounded-xl bg-white/[0.06] border text-white text-[14px] placeholder-white/20 outline-none focus:border-sp-green/50 focus:bg-white/[0.08] transition-all ${error
+            ? "border-red-500/60 bg-red-500/5"
+            : "border-white/[0.08] hover:border-white/[0.12]"
+            } ${suffix ? "pr-11" : ""}`}
         />
         {suffix && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -178,6 +177,7 @@ export default function LoginPage() {
   } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo") || "/";
   const [authState, setAuthState] = useState<AuthState>(
     searchParams.get("mode") === "register" ? "register" : "welcome",
   );
@@ -202,8 +202,8 @@ export default function LoginPage() {
   const [resendCountdown, setResendCountdown] = useState(0);
 
   useEffect(() => {
-    if (isAuthenticated) navigate("/", { replace: true });
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) navigate(returnTo, { replace: true });
+  }, [isAuthenticated, navigate, returnTo]);
 
   useEffect(() => {
     if (resendCountdown <= 0) return;
@@ -215,7 +215,7 @@ export default function LoginPage() {
     setGoogleLoading(true);
     try {
       const { isNewUser } = await login(cred);
-      navigate(isNewUser ? "/onboarding" : "/", { replace: true });
+      navigate(isNewUser ? "/onboarding" : returnTo, { replace: true });
     } catch {
       toast.error("Google sign-in failed. Please try again.");
     } finally {
@@ -248,7 +248,7 @@ export default function LoginPage() {
     setLoginError("");
     try {
       const { isNewUser } = await loginWithCredentials(loginId.trim(), loginPw);
-      navigate(isNewUser ? "/onboarding" : "/", { replace: true });
+      navigate(isNewUser ? "/onboarding" : returnTo, { replace: true });
     } catch (err: any) {
       setLoginError(err?.response?.data?.error || "Invalid credentials");
     } finally {
@@ -624,15 +624,7 @@ export default function LoginPage() {
                     Create account
                   </button>
                 </p>
-                {isNative() && (
-                  <button
-                    onClick={() => navigate("/offline", { replace: true })}
-                    className="flex items-center justify-center gap-2 text-white/30 text-[13px] hover:text-white/50 transition-colors pt-1"
-                  >
-                    <Download size={13} className="text-amber-400" />
-                    Continue offline
-                  </button>
-                )}
+
               </motion.div>
             )}
 

@@ -120,23 +120,32 @@ export async function downloadSong(
           blob,
         );
 
+        let finalFilePath = "";
+
         // On native, also write to device filesystem for lock-screen / background playback
         if (isNative()) {
-          const nativePath = await saveAudioToDevice(song.id, blob, filename);
-          // Save metadata to offlineStore for native offline mode
-          useOfflineStore.getState().addDownloadedSong({
-            songId: song.id,
-            title,
-            artist,
-            albumArt: bestImg(song.image) || "",
-            duration: Number(song.duration) || 0,
-            filePath: nativePath,
-            downloadedAt: Date.now(),
-            fileSize: blob.size,
-          });
+          finalFilePath = await saveAudioToDevice(song.id, blob, filename);
         }
-      } catch {
-        /* IndexedDB / native save failed, still download file */
+
+        // Save metadata to offlineStore for UI rendering (Native + Web)
+        useOfflineStore.getState().addDownloadedSong({
+          songId: song.id,
+          title,
+          artist,
+          albumArt: bestImg(song.image) || "",
+          duration: Number(song.duration) || 0,
+          filePath: finalFilePath,
+          downloadedAt: Date.now(),
+          fileSize: blob.size,
+          playlistName: playlistName,
+          songData: {
+            ...song,
+            downloadUrl: [{ quality: "320kbps", url: finalFilePath }]
+          }
+        });
+
+      } catch (err) {
+        console.error("Save to offlineDB failed:", err);
       }
     }
 

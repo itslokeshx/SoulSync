@@ -4,11 +4,11 @@ import { searchSongs } from "../services/jiosaavn.js";
 import { parseQuery } from "../services/searchEnhancer.js";
 import { redisGet, redisSet } from "../services/redis.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { rateLimiter } from "../middleware/rateLimiter.js";
 import crypto from "crypto";
 
 const router = Router();
-router.use(authMiddleware);
 
 const CHUNK_SIZE = 20;
 const MAX_GROQ_CONCURRENT = 3;
@@ -73,33 +73,66 @@ async function withConcurrency<T>(
 async function searchOneSong(
   original: string,
   searchQuery: string,
+  artistHint?: string | null,
 ): Promise<MatchedSong> {
   try {
-    const songs = await searchSongs(searchQuery, 5);
+    const songs = await searchSongs(searchQuery, 10);
     if (songs.length === 0)
       return { original, song: null, confidence: "none", score: 0 };
 
-    const queryWords = original
+    const cleanOrig = original
       .toLowerCase()
+      .replace(/\(.*?\)/g, "")
+      .replace(/\[.*?\]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .trim();
+
+    const queryWords = cleanOrig
       .split(/\s+/)
-      .filter((w) => w.length > 2);
-    const topSong = songs[0];
-    const songNameLower = (topSong.name || "").toLowerCase();
-    const artistLower = (
-      topSong.artists?.primary?.[0]?.name || ""
-    ).toLowerCase();
-    const combined = songNameLower + " " + artistLower;
+      .filter((w) => w.length > 1);
 
-    const matchCount = queryWords.filter((w) => combined.includes(w)).length;
-    const score =
-      queryWords.length > 0 ? (matchCount / queryWords.length) * 100 : 50;
+    let bestSong = songs[0];
+    let bestScore = -1;
 
-    if (score > 65)
-      return { original, song: topSong, confidence: "high", score };
-    if (score > 30)
-      return { original, song: topSong, confidence: "partial", score };
-    // Still include with low confidence — better than nothing
-    return { original, song: topSong, confidence: "partial", score: 25 };
+    for (const song of songs) {
+      const songNameLower = (song.name || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
+      const artists = (song.artists?.primary || []).map((a: any) =>
+        a.name.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim()
+      );
+      if (song.subtitle) {
+        artists.push(song.subtitle.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim());
+      }
+
+      const combined = songNameLower + " " + artists.join(" ");
+      let matchCount = queryWords.filter((w) => combined.includes(w)).length;
+      let score = queryWords.length > 0 ? (matchCount / queryWords.length) * 100 : 50;
+
+      // Exact title match bonus
+      if (songNameLower === cleanOrig || cleanOrig.includes(songNameLower)) {
+        score += 30;
+      }
+
+      // Hint bonus
+      if (artistHint) {
+        const hintLower = artistHint.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
+        if (artists.some((a: string) => a.includes(hintLower) || hintLower.includes(a))) {
+          score += 40;
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestSong = song;
+      }
+    }
+
+    if (bestScore >= 80)
+      return { original, song: bestSong, confidence: "high", score: bestScore };
+    if (bestScore >= 40)
+      return { original, song: bestSong, confidence: "partial", score: bestScore };
+
+    // Low score implies incorrect song
+    return { original, song: null, confidence: "none", score: bestScore };
   } catch {
     return { original, song: null, confidence: "none", score: 0 };
   }
@@ -132,7 +165,8 @@ async function processChunkWithGroq(songList: string[]): Promise<AIQuery[]> {
 router.post(
   "/build-playlist",
   rateLimiter(15, 60000),
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
     const isSSE =
       (req.headers.accept || "").includes("text/event-stream") ||
       req.body.stream === true;
@@ -365,7 +399,7 @@ router.post(
       // ── Parallel search with progress ──
       const searchTasks = allQueries.map(
         (q, i) => () =>
-          searchOneSong(q.original, q.searchQuery || q.original).then(
+          searchOneSong(q.original, q.searchQuery || q.original, q.artistHint).then(
             (result) => {
               const pct = 35 + Math.round(((i + 1) / allQueries.length) * 55);
               emit("song", {

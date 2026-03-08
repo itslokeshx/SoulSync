@@ -46,6 +46,7 @@ interface UseDuoOpts {
     type?: "info" | "success" | "error",
     ms?: number,
   ) => void;
+  isRemoteActionRef: React.MutableRefObject<boolean>;
 }
 
 export function useDuo({
@@ -56,6 +57,7 @@ export function useDuo({
   setIsPlaying,
   setCurrentTime,
   addToast,
+  isRemoteActionRef,
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasConnectedOnceRef = useRef(false);
@@ -100,9 +102,9 @@ export function useDuo({
                 queue: q?.length ? q : [cs],
                 queueIndex: q?.length
                   ? Math.max(
-                      q.findIndex((s: any) => s.id === cs.id),
-                      0,
-                    )
+                    q.findIndex((s: any) => s.id === cs.id),
+                    0,
+                  )
                   : 0,
               });
             }
@@ -294,6 +296,7 @@ export function useDuo({
     playSongRef,
     setIsPlaying,
     setCurrentTime,
+    isRemoteActionRef,
   });
   useEffect(() => {
     callbackRefs.current = {
@@ -304,6 +307,7 @@ export function useDuo({
       playSongRef,
       setIsPlaying,
       setCurrentTime,
+      isRemoteActionRef,
     };
   });
 
@@ -380,9 +384,9 @@ export function useDuo({
                   queue: q?.length ? q : [cs],
                   queueIndex: q?.length
                     ? Math.max(
-                        q.findIndex((s: any) => s.id === cs.id),
-                        0,
-                      )
+                      q.findIndex((s: any) => s.id === cs.id),
+                      0,
+                    )
                     : 0,
                 });
                 const audio = callbackRefs.current.audioRef.current;
@@ -430,9 +434,9 @@ export function useDuo({
                   queue: q?.length ? q : [cs],
                   queueIndex: q?.length
                     ? Math.max(
-                        q.findIndex((s: any) => s.id === cs.id),
-                        0,
-                      )
+                      q.findIndex((s: any) => s.id === cs.id),
+                      0,
+                    )
                     : 0,
                 });
                 const audio = callbackRefs.current.audioRef.current;
@@ -484,6 +488,7 @@ export function useDuo({
           }
 
           if (room?.currentSong) {
+            callbackRefs.current.isRemoteActionRef.current = true;
             callbackRefs.current.playSongRef.current?.(
               room.currentSong,
               [room.currentSong],
@@ -500,10 +505,11 @@ export function useDuo({
             const ct = data?.currentTime;
             if (ct != null && Math.abs(audio.currentTime - ct) > 2)
               audio.currentTime = ct;
+            callbackRefs.current.isRemoteActionRef.current = true;
             audio
               .play()
               .then(() => callbackRefs.current.setIsPlaying(true))
-              .catch(() => {});
+              .catch(() => { });
           }
           break;
         }
@@ -511,6 +517,7 @@ export function useDuo({
           const audio = callbackRefs.current.audioRef.current;
           if (audio) {
             const ct = data?.currentTime;
+            callbackRefs.current.isRemoteActionRef.current = true;
             audio.pause();
             if (ct != null) {
               audio.currentTime = ct;
@@ -530,6 +537,7 @@ export function useDuo({
         }
         case "duo:receive-song-change": {
           if (data?.song) {
+            callbackRefs.current.isRemoteActionRef.current = true;
             callbackRefs.current.playSongRef.current?.(
               data.song,
               data.queue || [data.song],

@@ -14,6 +14,7 @@ import userRoutes from "./routes/user.js";
 import aiRoutes from "./routes/ai.js";
 import sessionRoutes from "./routes/session.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import importRoutes from "./routes/import.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 
 
@@ -84,6 +85,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/session", sessionRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/import", importRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {

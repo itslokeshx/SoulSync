@@ -7,7 +7,6 @@ export interface SongImage {
 export interface SongDownloadUrl {
   quality: string;
   url?: string;
-  link?: string;
 }
 
 export interface SongArtist {
@@ -49,6 +48,7 @@ export interface Song {
   relevanceScore?: number;
   matchReason?: string;
   isTopResult?: boolean;
+  _isOffline?: boolean;
 }
 
 export interface Album {

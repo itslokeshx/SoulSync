@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { useNetwork } from "../providers/NetworkProvider";
 
 interface Props {
   children: React.ReactNode;
@@ -8,6 +9,7 @@ interface Props {
 
 export function ProtectedRoute({ children }: Props) {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { isOnline } = useNetwork();
   const location = useLocation();
 
   if (isLoading) {
@@ -21,8 +23,8 @@ export function ProtectedRoute({ children }: Props) {
     );
   }
 
-  // Not logged in → go to login
-  if (!isAuthenticated) {
+  // Not logged in → go to login (unless offline)
+  if (!isAuthenticated && isOnline) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

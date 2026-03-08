@@ -10,6 +10,7 @@ import { initCapacitor } from "./capacitor";
 import { isNative } from "./utils/platform";
 import { saveNativeToken } from "./api/backend";
 import { Capacitor } from "@capacitor/core";
+import { NetworkProvider } from "./providers/NetworkProvider";
 
 // @ts-ignore
 if (import.meta.env.VITE_PREVIEW_OFFLINE === "true") {
@@ -61,25 +62,27 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-          <Toaster
-            position="bottom-center"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: "#282828",
-                color: "#fff",
-                fontSize: "13px",
-                borderRadius: "12px",
-                border: "1px solid rgba(255,255,255,0.06)",
-              },
-              success: {
-                iconTheme: { primary: "#1db954", secondary: "#000" },
-              },
-            }}
-          />
-        </AuthProvider>
+        <NetworkProvider>
+          <AuthProvider>
+            <App />
+            <Toaster
+              position="bottom-center"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: "#282828",
+                  color: "#fff",
+                  fontSize: "13px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                },
+                success: {
+                  iconTheme: { primary: "#1db954", secondary: "#000" },
+                },
+              }}
+            />
+          </AuthProvider>
+        </NetworkProvider>
       </QueryClientProvider>
     </BrowserRouter>
   </React.StrictMode>,

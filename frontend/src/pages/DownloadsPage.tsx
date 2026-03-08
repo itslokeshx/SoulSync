@@ -1,688 +1,568 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, Reorder, useDragControls } from "framer-motion";
-import { SongRow } from "../components/cards/SongRow";
+import { useState, useMemo, useRef } from 'react'
+import { motion, useMotionValue, useTransform, Reorder, useDragControls } from 'framer-motion'
 import {
-  Download,
-  Trash2,
-  Play,
-  Pause,
-  HardDrive,
-  Music2,
-  Loader2,
-  CheckCircle2,
-  FolderOpen,
-  FileAudio,
-  ArrowDownToLine,
-  Check,
-  X,
-  Shuffle,
-  GripVertical,
-  ListMusic,
-} from "lucide-react";
-import { useApp } from "../context/AppContext";
-import {
-  getOfflineSongs,
-  getOfflineBlob,
-  removeOfflineSong,
-  getOfflineStorageSize,
-  saveOfflineSong,
-  OfflineSong,
-} from "../utils/offlineDB";
-import { useDownloadStore } from "../store/downloadStore";
-import { bestImg, onImgErr, fmt } from "../lib/helpers";
-import { FALLBACK_IMG } from "../lib/constants";
-import toast from "react-hot-toast";
+  Search, Shuffle, Play, Trash2, MoreHorizontal,
+  Music, Download, ArrowDownAZ, Clock, User, HardDrive, ListMusic, GripVertical, Upload
+} from 'lucide-react'
+import { useOfflineStore, OfflineSongMeta } from '../store/offlineStore'
+import { useApp } from '../context/AppContext'
+import { useNetwork } from '../providers/NetworkProvider'
+import { useUIStore } from '../store/uiStore'
+import { FALLBACK_IMG } from '../lib/constants'
+import { useDownloadStore } from '../store/downloadStore'
 
-/* Read duration of an audio file via a temporary <audio> element */
-function getAudioDuration(file: File): Promise<number> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const audio = new Audio(url);
-    audio.addEventListener("loadedmetadata", () => {
-      const d = isFinite(audio.duration) ? audio.duration : 0;
-      URL.revokeObjectURL(url);
-      resolve(d);
-    });
-    audio.addEventListener("error", () => {
-      URL.revokeObjectURL(url);
-      resolve(0);
-    });
-  });
-}
-
-const PLAYLIST_ORDER_KEY = "downloads_playlist_order";
-
-function loadOrder(): string[] {
-  try {
-    const raw = localStorage.getItem(PLAYLIST_ORDER_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveOrder(ids: string[]) {
-  try {
-    localStorage.setItem(PLAYLIST_ORDER_KEY, JSON.stringify(ids));
-  } catch { }
-}
+type FilterKey = 'playlists' | 'songs'
 
 export default function DownloadsPage() {
-  const { playSong, currentSong, isPlaying } = useApp();
-  const [songs, setSongs] = useState<OfflineSong[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [storageSize, setStorageSize] = useState("0 KB");
-  const blobUrlsRef = useRef<Map<string, string>>(new Map());
-  const activeDownloads = useDownloadStore((s) => s.active);
-  const prevDoneRef = useRef(new Set<string>());
-  const [reorderMode, setReorderMode] = useState(false);
-  const [viewMode, setViewMode] = useState<"all" | "playlists">("all");
-  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
+  const { isOnline } = useNetwork()
+  const { downloads, deleteDownload, clearAllDownloads, updateDownloadsOrder } = useOfflineStore()
+  const { active: activeDownloads } = useDownloadStore()
+  const { playSong, currentSong, isPlaying } = useApp()
+  const { showContextMenu } = useUIStore()
+  const [filter, setFilter] = useState<FilterKey>('songs')
+  const [search, setSearch] = useState('')
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [reorderMode, setReorderMode] = useState(false)
 
-  // ── File import ──
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const applySavedOrder = useCallback((raw: OfflineSong[]): OfflineSong[] => {
-    const order = loadOrder();
-    if (!order.length) return raw;
-    const map = new Map(raw.map((s) => [s.id, s]));
-    const ordered: OfflineSong[] = [];
-    for (const id of order) {
-      const s = map.get(id);
-      if (s) {
-        ordered.push(s);
-        map.delete(id);
+  // Force clear search if reorder mode
+  if (reorderMode && search !== '') {
+    setSearch('')
+  }
+
+  const sorted = useMemo(() => {
+    let list = [...downloads]
+    if (search) {
+      const q = search.toLowerCase()
+      list = list.filter(d =>
+        d.title.toLowerCase().includes(q) ||
+        d.artist.toLowerCase().includes(q)
+      )
+    }
+    // Default to most recent
+    return list.sort((a, b) => b.downloadedAt - a.downloadedAt)
+  }, [downloads, search])
+
+  const totalSize = useMemo(() => {
+    const bytes = downloads.reduce((sum, d) => sum + (d.fileSize || 0), 0)
+    if (!bytes) return '0 MB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }, [downloads])
+
+  const formatSize = (bytes: number) => {
+    if (!bytes) return ''
+    const mb = bytes / (1024 * 1024)
+    if (mb >= 1) return mb.toFixed(1) + ' MB'
+    return (bytes / 1024).toFixed(0) + ' KB'
+  }
+
+  const makeSongs = (list: any[]) =>
+    list.map(d => ({ ...d.songData, _isOffline: true, downloadUrl: d.filePath }))
+
+  const shuffleAndPlay = () => {
+    if (!sorted.length) return
+    const shuffled = [...sorted].sort(() => Math.random() - 0.5)
+    const songs = makeSongs(shuffled)
+    playSong(songs[0], songs)
+  }
+
+  const playAll = () => {
+    if (!sorted.length) return
+    const songs = makeSongs(sorted)
+    playSong(songs[0], songs)
+  }
+
+  const playOfflineSong = (dl: any) => {
+    const songs = makeSongs(sorted)
+    const target = { ...dl.songData, _isOffline: true, downloadUrl: dl.filePath }
+    playSong(target, songs)
+  }
+
+  const handleMenu = (e: React.MouseEvent, dl: any) => {
+    e.stopPropagation()
+    // Build a song-like object so ContextMenu can work with it
+    const song = dl.songData || { id: dl.songId, name: dl.title, image: dl.albumArt }
+    showContextMenu(e.clientX, e.clientY, song)
+  }
+
+  const handleImportLocal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      // Basic generic name extraction
+      const fullName = file.name.replace(/\.[^/.]+$/, "") // Remove ext
+      let title = fullName
+      let artist = "Unknown Artist"
+      if (fullName.includes("-")) {
+        const parts = fullName.split("-").map(p => p.trim())
+        artist = parts[0]
+        title = parts.slice(1).join(" - ")
       }
-    }
-    // Append any new songs not in saved order
-    map.forEach((s) => ordered.push(s));
-    return ordered;
-  }, []);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [s, size] = await Promise.all([
-        getOfflineSongs(),
-        getOfflineStorageSize(),
-      ]);
-      const sorted = s.sort(
-        (a: OfflineSong, b: OfflineSong) => b.savedAt - a.savedAt,
-      );
-      setSongs(applySavedOrder(sorted));
-      setStorageSize(size);
-    } catch {
-      setSongs([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [applySavedOrder]);
+      const songId = `local_${Date.now()}_${i}`
+      const url = URL.createObjectURL(file)
 
-  useEffect(() => {
-    refresh();
-    return () => {
-      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      blobUrlsRef.current.clear();
-    };
-  }, [refresh]);
-
-  // Auto-refresh when download completes
-  useEffect(() => {
-    const doneIds = new Set(
-      activeDownloads.filter((d) => d.status === "done").map((d) => d.id),
-    );
-    for (const id of doneIds) {
-      if (!prevDoneRef.current.has(id)) {
-        refresh();
-        break;
+      const meta: OfflineSongMeta = {
+        songId,
+        title,
+        artist,
+        albumArt: FALLBACK_IMG,
+        duration: 0,
+        filePath: url,
+        downloadedAt: Date.now(),
+        fileSize: file.size,
+        songData: {
+          id: songId,
+          name: title,
+          targetCount: 1,
+          isAIGenerated: false,
+          primaryArtists: artist,
+          image: [{ quality: "500x500", url: FALLBACK_IMG }],
+          downloadUrl: [{ quality: "320kbps", url }]
+        }
       }
+      useOfflineStore.getState().addDownloadedSong(meta)
     }
-    prevDoneRef.current = doneIds;
-  }, [activeDownloads, refresh]);
 
-  const handleReorder = (newOrder: OfflineSong[]) => {
-    setSongs(newOrder);
-    saveOrder(newOrder.map(s => s.id));
-  };
+    // reset input
+    if (fileRef.current) fileRef.current.value = ''
+  }
 
-  // ── Play helpers ──
-  const buildSongObj = async (song: OfflineSong) => {
-    const blob = await getOfflineBlob(song.id);
-    if (!blob) {
-      toast.error("Audio file not found locally");
-      return null;
-    }
-    const oldUrl = blobUrlsRef.current.get(song.id);
-    if (oldUrl) URL.revokeObjectURL(oldUrl);
-    const blobUrl = URL.createObjectURL(blob);
-    blobUrlsRef.current.set(song.id, blobUrl);
-    return {
-      id: song.id,
-      name: song.name,
-      image: song.image?.length
-        ? song.image
-        : [{ quality: "500x500", url: "" }],
-      duration: song.duration,
-      primaryArtists: song.artist,
-      downloadUrl: [{ quality: "320kbps", url: blobUrl }],
-      _isOffline: true,
-    } as any;
-  };
 
-  const handlePlay = async (song: OfflineSong) => {
-    const obj = await buildSongObj(song);
-    if (!obj) return;
-    // Build full queue from current song list so next/prev works
-    const queueObjs = songs.map((s) => ({
-      id: s.id,
-      name: s.name,
-      image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
-      duration: s.duration,
-      primaryArtists: s.artist,
-      downloadUrl:
-        s.id === song.id
-          ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }]
-          : s.downloadUrl,
-      _isOffline: true,
-    })) as any[];
-    const idx = queueObjs.findIndex((s) => s.id === song.id);
-    if (idx >= 0) queueObjs[idx] = obj;
-    playSong(obj, queueObjs);
-  };
 
-  const handlePlayAll = async () => {
-    if (!songs.length) return;
-    const first = await buildSongObj(songs[0]);
-    if (!first) return;
-    // For the queue, only load the first song's blob; others will load on demand
-    const queueObjs = songs.map((s) => ({
-      id: s.id,
-      name: s.name,
-      image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
-      duration: s.duration,
-      primaryArtists: s.artist,
-      downloadUrl:
-        s.id === songs[0].id
-          ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }]
-          : s.downloadUrl,
-      _isOffline: true,
-    })) as any[];
-    // Replace the first entry with the one that has the blob URL
-    queueObjs[0] = first;
-    playSong(first, queueObjs);
-  };
+  const { sortedPlaylists, standalone } = useMemo(() => {
+    const pMap = new Map<string, typeof sorted>();
+    const std: typeof sorted = [];
 
-  const handleShuffleAll = async () => {
-    if (!songs.length) return;
-    const shuffled = [...songs].sort(() => Math.random() - 0.5);
-    const first = await buildSongObj(shuffled[0]);
-    if (!first) return;
-    const queueObjs = shuffled.map((s) => ({
-      id: s.id,
-      name: s.name,
-      image: s.image?.length ? s.image : [{ quality: "500x500", url: "" }],
-      duration: s.duration,
-      primaryArtists: s.artist,
-      downloadUrl:
-        s.id === shuffled[0].id
-          ? [{ quality: "320kbps", url: blobUrlsRef.current.get(s.id)! }]
-          : s.downloadUrl,
-      _isOffline: true,
-    })) as any[];
-    queueObjs[0] = first;
-    playSong(first, queueObjs);
-  };
-
-  const handleRemove = async (id: string, name: string) => {
-    const existing = blobUrlsRef.current.get(id);
-    if (existing) {
-      URL.revokeObjectURL(existing);
-      blobUrlsRef.current.delete(id);
-    }
-    await removeOfflineSong(id);
-    // Remove from saved order
-    const order = loadOrder().filter((oid) => oid !== id);
-    saveOrder(order);
-    toast.success(`Removed "${name}"`);
-    refresh();
-  };
-
-  const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setImporting(true);
-    let imported = 0;
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("audio/")) {
-        toast.error(`"${file.name}" is not an audio file`);
-        continue;
+    sorted.forEach(dl => {
+      // Local imports or singles without a playlistName go to standalone
+      if (!dl.playlistName || dl.songId?.startsWith('local_')) {
+        std.push(dl);
+      } else {
+        const list = pMap.get(dl.playlistName) || [];
+        list.push(dl);
+        pMap.set(dl.playlistName, list);
       }
-      try {
-        const duration = await getAudioDuration(file);
-        const id = `local_${file.name.replace(/[^a-zA-Z0-9]/g, "_")}_${file.size}`;
-        const displayName = file.name.replace(/\.[^.]+$/, "");
-        const offlineSong: OfflineSong = {
-          id,
-          name: displayName,
-          artist: "Local File",
-          albumArt: "",
-          duration: Math.round(duration),
-          downloadUrl: [],
-          image: [],
-          savedAt: Date.now(),
-        };
-        await saveOfflineSong(offlineSong, file);
-        imported++;
-      } catch {
-        toast.error(`Failed to import "${file.name}"`);
-      }
-    }
-    if (imported > 0) {
-      toast.success(
-        `Imported ${imported} song${imported > 1 ? "s" : ""} from device`,
-      );
-      refresh();
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setImporting(false);
-  };
+    });
+
+    const pArray = Array.from(pMap.entries()).map(([name, songs]) => ({
+      name,
+      songs,
+      albumArt: songs[0]?.albumArt || FALLBACK_IMG
+    }));
+
+    return { sortedPlaylists: pArray, standalone: std };
+  }, [sorted]);
 
   return (
-    <div className="animate-fadeIn">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        multiple
-        className="hidden"
-        onChange={handleImportFiles}
-      />
+    <div className="pb-32 overflow-x-hidden">
 
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center">
-            <Download size={18} className="text-white/60" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              Downloads
-            </h1>
-            <p className="text-xs text-white/30 mt-0.5">
-              {songs.length} songs · {storageSize} used
-            </p>
-          </div>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.10] text-white/70 hover:text-white text-sm font-medium transition-all disabled:opacity-50"
-          >
-            {importing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <FolderOpen size={16} />
-            )}
-            <span className="hidden sm:inline">
-              {importing ? "Importing…" : "Import"}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Playlist Controls */}
-      {songs.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2.5 mb-5">
-          <div className="flex gap-2.5">
-            <button
-              onClick={handlePlayAll}
-              className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full bg-sp-green text-black text-[13px] font-bold hover:brightness-110 active:scale-95 transition-all"
-            >
-              <Play size={16} className="fill-current" />
-              <span className="hidden sm:inline">Play All</span>
-              <span className="sm:hidden">Play</span>
-            </button>
-            <button
-              onClick={handleShuffleAll}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-full border border-white/10 text-white text-[13px] font-semibold hover:bg-white/[0.06] active:scale-95 transition-all"
-            >
-              <Shuffle size={14} />
-              <span className="hidden sm:inline">Shuffle</span>
-            </button>
-          </div>
-
-          <div className="flex-1 min-w-[10px] hidden sm:block" />
-
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 p-1 bg-white/[0.04] rounded-xl">
-              <button
-                onClick={() => {
-                  setViewMode("all");
-                  setSelectedPlaylist(null);
-                }}
-                className={`px-3 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${viewMode === "all" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("playlists");
-                  setSelectedPlaylist(null);
-                }}
-                className={`px-3 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${viewMode === "playlists" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
-              >
-                Playlists
-              </button>
+      {/* ─── HEADER ─── */}
+      <div className="px-5 pt-5 pb-3">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sp-green/80 to-sp-green flex items-center justify-center shadow-lg shadow-sp-green/20">
+              <Download size={18} className="text-black" />
             </div>
-            <button
-              onClick={() => setReorderMode(!reorderMode)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] sm:text-[12px] font-semibold transition-all ${reorderMode
-                ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
-                : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
-                }`}
-            >
-              <ListMusic size={13} />
-              <span className="hidden xs:inline">{reorderMode ? "Done" : "Reorder"}</span>
-              <span className="xs:hidden">{reorderMode ? "Done" : ""}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Active Downloads */}
-      {activeDownloads.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <ArrowDownToLine size={14} className="text-sp-green" />
-            <span className="text-sm font-semibold text-white/60">
-              Downloading (
-              {
-                activeDownloads.filter(
-                  (d) => d.status === "downloading" || d.status === "saving",
-                ).length
-              }
-              )
-            </span>
-          </div>
-          <div className="space-y-1">
-            {activeDownloads.map((dl) => {
-              const isDone = dl.status === "done";
-              const isError = dl.status === "error";
-              const isSaving = dl.status === "saving";
-              return (
-                <div
-                  key={`dl-${dl.id}`}
-                  className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${isDone
-                    ? "bg-sp-green/[0.06]"
-                    : isError
-                      ? "bg-red-500/[0.06]"
-                      : "bg-white/[0.03]"
-                    }`}
-                >
-                  <div className="relative flex-shrink-0 w-10 h-10">
-                    {dl.albumArt ? (
-                      <img
-                        src={dl.albumArt}
-                        onError={onImgErr}
-                        className="w-10 h-10 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center">
-                        <Music2 size={16} className="text-white/30" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-black/40">
-                      {isDone ? (
-                        <Check size={16} className="text-sp-green" />
-                      ) : isError ? (
-                        <X size={16} className="text-red-400" />
-                      ) : (
-                        <ArrowDownToLine
-                          size={14}
-                          className="text-white animate-bounce"
-                        />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-[13px] font-medium text-white truncate">
-                        {dl.name}
-                      </p>
-                      <span
-                        className={`text-[11px] font-semibold tabular-nums flex-shrink-0 ${isDone ? "text-sp-green" : isError ? "text-red-400" : "text-white/50"}`}
-                      >
-                        {isDone
-                          ? "Saved"
-                          : isError
-                            ? "Failed"
-                            : isSaving
-                              ? "Saving…"
-                              : `${dl.progress}%`}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-white/30 truncate mb-1.5">
-                      {dl.artist}
-                    </p>
-                    <div className="h-1 w-full rounded-full bg-white/[0.06] overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ease-out ${isDone ? "bg-sp-green" : isError ? "bg-red-400" : "bg-sp-green shadow-[0_0_8px_rgba(29,185,84,0.4)]"}`}
-                        style={{ width: `${isDone ? 100 : dl.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Song List */}
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 size={24} className="text-white/30 animate-spin" />
-        </div>
-      ) : songs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-60 gap-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-            <HardDrive size={28} className="text-white/20" />
-          </div>
-          <div>
-            <p className="text-white font-semibold text-lg">
-              Your Music Library
-            </p>
-            <p className="text-white/40 text-sm mt-1 max-w-xs">
-              Download songs for offline play, or import audio files directly
-              from your device
-            </p>
-          </div>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sp-green hover:bg-sp-green/90 text-black text-sm font-semibold transition-all disabled:opacity-50"
-          >
-            {importing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <FileAudio size={16} />
-            )}
-            {importing ? "Importing…" : "Import from device"}
-          </button>
-          <p className="text-white/20 text-[11px] mt-1">
-            Supports MP3, AAC, WAV, OGG, FLAC & more
-          </p>
-        </div>
-      ) : viewMode === "all" ? (
-        <Reorder.Group
-          axis="y"
-          values={songs}
-          onReorder={handleReorder}
-          className="space-y-1 pb-20"
-        >
-          {songs.map((s, i) => (
-            <DownloadSongItem
-              key={s.id}
-              s={s}
-              i={i}
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              onPlay={() => handlePlay(s)}
-              onRemove={handleRemove}
-              reorderMode={reorderMode}
-            />
-          ))}
-        </Reorder.Group>
-      ) : selectedPlaylist ? (
-        <div className="animate-fadeIn">
-          <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={() => setSelectedPlaylist(null)}
-              className="p-2 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-white/70 transition-colors"
-            >
-              <Shuffle size={16} className="rotate-180" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-bold text-white truncate">{selectedPlaylist}</h2>
-              <p className="text-xs text-white/30">
-                {songs.filter((s) => (s.playlistName || "Other") === selectedPlaylist).length} songs
+            <div>
+              <h1 className="text-2xl font-bold text-white">Downloads</h1>
+              <p className="text-white/40 text-[12px] font-medium">
+                {downloads.length} songs · {totalSize}
               </p>
             </div>
           </div>
-          <div className="space-y-1">
-            {songs
-              .filter((s) => (s.playlistName || "Other") === selectedPlaylist)
-              .map((s) => {
-                const isActive = currentSong?.id === s.id;
-                return (
-                  <div
-                    key={s.id}
-                    onClick={() => handlePlay(s)}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isActive ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"
-                      }`}
-                  >
-                    <img src={bestImg(s.image, "50x50") || s.albumArt || FALLBACK_IMG} className="w-10 h-10 rounded-lg object-cover" alt="" />
-                    <div className="min-w-0 flex-1 ml-1">
-                      <p className={`text-[13px] font-medium truncate ${isActive ? "text-sp-green" : "text-white"}`}>
-                        {s.name}
-                      </p>
-                      <p className="text-[11px] text-white/35 truncate">{s.artist}</p>
-                    </div>
-                    <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">{fmt(s.duration)}</span>
-                  </div>
-                );
-              })}
-          </div>
+          {!isOnline && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+              <span className="text-yellow-400 text-[10px] font-bold uppercase tracking-wider">Offline</span>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 animate-fadeIn">
-          {Array.from(new Set(songs.map((s) => s.playlistName || "Other")))
-            .sort()
-            .map((playlistName) => {
-              const playlistSongs = songs.filter(
-                (s) => (s.playlistName || "Other") === playlistName,
-              );
-              return (
-                <div
-                  key={playlistName}
-                  onClick={() => setSelectedPlaylist(playlistName)}
-                  className="group bg-white/[0.03] hover:bg-white/[0.06] p-4 rounded-2xl transition-all cursor-pointer border border-white/[0.02] hover:border-white/[0.08]"
-                >
-                  <div className="aspect-square rounded-xl overflow-hidden mb-3 shadow-lg relative bg-white/[0.02] flex items-center justify-center">
-                    {playlistSongs[0]?.image?.length || playlistSongs[0]?.albumArt ? (
-                      <img
-                        src={bestImg(playlistSongs[0].image, "250x250") || playlistSongs[0].albumArt}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        alt=""
-                      />
-                    ) : (
-                      <Music2 size={32} className="text-white/10" />
-                    )}
-                  </div>
-                  <h3 className="text-[14px] font-bold text-white truncate">{playlistName}</h3>
-                  <p className="text-[11px] text-white/40">{playlistSongs.length} songs</p>
-                </div>
-              );
-            })}
+      </div>
+
+      {/* ─── ACTION BUTTONS ─── */}
+      <input
+        type="file"
+        multiple
+        accept="audio/*"
+        ref={fileRef}
+        className="hidden"
+        onChange={handleImportLocal}
+      />
+
+      {downloads.length > 0 && (
+        <div className="flex items-center gap-4 px-5 mb-4">
+          <button onClick={shuffleAndPlay}
+            className="w-12 h-12 rounded-full bg-white/[0.07] flex items-center justify-center hover:bg-white/[0.12] active:scale-90 transition-all">
+            <Shuffle size={20} className="text-white" />
+          </button>
+
+          <button onClick={playAll}
+            className="w-14 h-14 rounded-full bg-sp-green flex items-center justify-center shadow-lg shadow-sp-green/30 hover:scale-105 active:scale-95 transition-all">
+            <Play size={24} className="fill-black text-black ml-0.5" />
+          </button>
+
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="hidden sm:flex items-center gap-2 px-4 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-[13px] font-bold text-white transition-all ml-1"
+          >
+            <Upload size={16} />
+            Import Local
+          </button>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => setReorderMode(!reorderMode)}
+            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-[13px] font-semibold transition-all ${reorderMode
+              ? "bg-sp-green/20 text-sp-green border border-sp-green/30"
+              : "border border-white/10 text-white/50 hover:bg-white/[0.06]"
+              }`}
+          >
+            <ListMusic size={15} />
+            {reorderMode ? "Done" : "Reorder"}
+          </button>
+
+          <button onClick={() => setShowClearConfirm(true)}
+            className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-red-500/20 active:scale-90 transition-all group">
+            <Trash2 size={16} className="text-white/40 group-hover:text-red-400" />
+          </button>
         </div>
       )}
 
-      {/* Footer stats */}
-      {songs.length > 0 && (
-        <div className="mt-6 flex items-center justify-center gap-2 text-white/15 text-[11px]">
-          <HardDrive size={11} />
-          <span>
-            {songs.length} songs · {storageSize}
-          </span>
+      {/* ─── CLEAR ALL CONFIRM ─── */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowClearConfirm(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-[#1a1a1a] border border-white/[0.08] rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-bold text-lg mb-2">Clear all downloads?</h3>
+            <p className="text-white/40 text-sm mb-6">This will remove {downloads.length} downloaded songs. This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowClearConfirm(false)}
+                className="flex-1 py-2.5 rounded-full bg-white/[0.07] text-white font-bold text-sm">
+                Cancel
+              </button>
+              <button onClick={() => { clearAllDownloads(); setShowClearConfirm(false) }}
+                className="flex-1 py-2.5 rounded-full bg-red-500 text-white font-bold text-sm active:scale-95 transition-transform">
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── SEARCH ─── */}
+      {!reorderMode && (
+        <div className="px-5 mb-4">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Find in downloads"
+              className="w-full bg-white/[0.07] rounded-md py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.12] transition-colors"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── FILTER TABS ─── */}
+      {!reorderMode && (
+        <div className="px-5 mb-4 flex gap-2">
+          {(['songs', 'playlists'] as FilterKey[]).map((key) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`px-5 py-2 rounded-full text-[13px] font-bold capitalize transition-all ${filter === key
+                ? 'bg-sp-green text-black shadow-md shadow-sp-green/20'
+                : 'bg-white/[0.04] text-white/60 hover:bg-white/[0.08] border border-white/[0.05]'
+                }`}
+            >
+              {key}
+            </button>
+          ))}
+        </div>
+      )}
+
+
+
+      {/* ─── ACTIVE DOWNLOADS ─── */}
+      {activeDownloads.length > 0 && !reorderMode && (
+        <div className="px-5 mb-6 space-y-2.5">
+          <h3 className="text-[12px] font-bold text-white/40 uppercase tracking-wider mb-3">
+            Downloading ({activeDownloads.length})
+          </h3>
+          {activeDownloads.map((dl) => (
+            <div key={dl.id} className="relative bg-white/[0.04] rounded-xl p-2.5 flex items-center gap-3 overflow-hidden border border-white/[0.02]">
+              <div
+                className="absolute bottom-0 left-0 h-[3px] bg-sp-green/80"
+                style={{ width: `${dl.progress}%`, transition: 'width 0.3s ease-out' }}
+              />
+              <img src={dl.albumArt || FALLBACK_IMG} className="w-11 h-11 rounded-md object-cover flex-shrink-0" alt="" />
+              <div className="flex-1 min-w-0 pr-2">
+                <p className="text-[14px] font-semibold text-white truncate leading-tight mb-0.5">{dl.name}</p>
+                <p className="text-[12px] font-medium text-white/40 truncate">{dl.artist}</p>
+              </div>
+              <div className="text-[11px] font-bold text-sp-green bg-sp-green/10 px-2 py-1 rounded-full tabular-nums">
+                {dl.progress}%
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─── SONG LIST ─── */}
+      {sorted.length > 0 ? (
+        <div className="px-2">
+          {reorderMode ? (
+            <Reorder.Group
+              as="div"
+              axis="y"
+              values={sorted}
+              onReorder={updateDownloadsOrder}
+              className="px-2"
+            >
+              {sorted.map((dl) => (
+                <DownloadReorderItem
+                  key={dl.songId}
+                  dl={dl}
+                  onDelete={() => deleteDownload(dl.songId)}
+                />
+              ))}
+            </Reorder.Group>
+          ) : (
+            <div className="space-y-4">
+              {/* Playlists View */}
+              {filter === 'playlists' && (
+                <div className="px-1 space-y-2">
+                  <h3 className="text-[12px] font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-2">
+                    {sortedPlaylists.length > 0 ? "Downloaded Playlists" : "Playlists"}
+                  </h3>
+                  {sortedPlaylists.map(playlist => (
+                    <div
+                      key={playlist.name}
+                      onClick={() => {
+                        const songs = makeSongs(playlist.songs);
+                        playSong(songs[0], songs);
+                      }}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] active:bg-white/[0.08] cursor-pointer transition-colors border border-white/[0.02]"
+                    >
+                      <div className="w-14 h-14 rounded-md bg-white/[0.06] overflow-hidden flex-shrink-0 shadow-md">
+                        <img src={playlist.albumArt} className="w-full h-full object-cover" alt="" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG }} />
+                      </div>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-[15px] font-bold text-white truncate leading-tight mb-1">{playlist.name}</p>
+                        <p className="text-[12px] font-medium text-white/50">{playlist.songs.length} tracks</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sp-green/10 text-sp-green absolute right-6 shadow-xl opacity-0 hover:scale-105 transition-all group-hover:opacity-100 hidden md:flex">
+                        <Play size={20} className="fill-current ml-1" />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Standalone songs grouped as "Other Songs" playlist */}
+                  {standalone.length > 0 && (
+                    <div
+                      onClick={() => {
+                        const songs = makeSongs(standalone);
+                        playSong(songs[0], songs);
+                      }}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] active:bg-white/[0.08] cursor-pointer transition-colors border border-white/[0.02]"
+                    >
+                      <div className="w-14 h-14 rounded-md bg-white/[0.06] overflow-hidden flex-shrink-0 shadow-md flex items-center justify-center">
+                        <Music size={24} className="text-white/40" />
+                      </div>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-[15px] font-bold text-white truncate leading-tight mb-1">Other Songs</p>
+                        <p className="text-[12px] font-medium text-white/50">{standalone.length} tracks</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-sp-green/10 text-sp-green absolute right-6 shadow-xl opacity-0 hover:scale-105 transition-all group-hover:opacity-100 hidden md:flex">
+                        <Play size={20} className="fill-current ml-1" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Songs View */}
+              {filter === 'songs' && (
+                <div className="space-y-0.5">
+                  <h3 className="text-[12px] font-bold text-white/40 uppercase tracking-wider mb-2 mt-4 px-3">
+                    All Songs
+                  </h3>
+                  {sorted.map((dl, i) => (
+                    <SwipeRow
+                      key={dl.songId}
+                      dl={dl}
+                      isLocal={dl.songId?.startsWith('local_')}
+                      index={i}
+                      isCurrent={currentSong?.id === dl.songId || currentSong?.id === dl.songData?.id}
+                      isPlaying={isPlaying}
+                      formatSize={formatSize}
+                      onPlay={() => playOfflineSong(dl)}
+                      onDelete={() => deleteDownload(dl.songId)}
+                      onMenu={(e: React.MouseEvent) => handleMenu(e, dl)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="py-24 flex flex-col items-center text-center px-10">
+          <div className="w-20 h-20 rounded-full bg-white/[0.04] flex items-center justify-center mb-6">
+            <Music size={32} className="text-white/10" />
+          </div>
+          <h2 className="text-white font-bold mb-2">
+            {search ? 'No results' : 'No downloads yet'}
+          </h2>
+          <p className="text-white/30 text-sm leading-relaxed max-w-xs mb-6">
+            {search
+              ? `No songs match "${search}"`
+              : 'Songs you download will appear here for offline listening.'
+            }
+          </p>
+
+          {!search && (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-sm font-bold text-white transition-all"
+            >
+              <Upload size={18} />
+              Import Local Audio
+            </button>
+          )}
         </div>
       )}
     </div>
-  );
+  )
 }
 
-interface DownloadSongItemProps {
-  s: OfflineSong;
-  i: number;
-  currentSong: any;
-  isPlaying: boolean;
-  onPlay: () => void;
-  onRemove: (id: string, name: string) => void;
-  reorderMode: boolean;
+/* ═══════════════════════════════════════════════════════
+ *  SwipeRow — Swipeable song row with delete reveal
+ * ═══════════════════════════════════════════════════════ */
+function SwipeRow({ dl, isLocal, isCurrent, isPlaying, formatSize, onPlay, onDelete, onMenu }: {
+  dl: any; isLocal: boolean; index: number; isCurrent: boolean; isPlaying: boolean
+  formatSize: (b: number) => string; onPlay: () => void; onDelete: () => void
+  onMenu: (e: React.MouseEvent) => void
+}) {
+  const x = useMotionValue(0)
+  const deleteOpacity = useTransform(x, [-80, -20], [1, 0])
+  const bgOpacity = useTransform(x, [-10, 0], [1, 0])
+  const rowX = useTransform(x, v => Math.min(0, v))
+
+  return (
+    <div className="relative overflow-hidden rounded-lg mx-1 mb-[2px]">
+      {/* Delete bg */}
+      <motion.div
+        style={{ opacity: bgOpacity }}
+        className="absolute right-0 top-0 bottom-0 w-20 bg-red-500 flex items-center justify-center rounded-r-lg"
+      >
+        <motion.div style={{ opacity: deleteOpacity }}>
+          <Trash2 className="w-5 h-5 text-white" />
+        </motion.div>
+      </motion.div>
+
+      <motion.div
+        style={{ x: rowX }}
+        drag="x"
+        dragConstraints={{ left: -80, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={(_, info) => { if (info.offset.x < -60) onDelete() }}
+        className={`relative flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors rounded-lg ${isCurrent ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05] active:bg-white/[0.08]'
+          }`}
+        onClick={onPlay}
+      >
+        {/* Album art */}
+        <div className="w-11 h-11 rounded-md bg-white/[0.06] overflow-hidden flex-shrink-0 shadow-md">
+          <img src={dl.albumArt || FALLBACK_IMG} className="w-full h-full object-cover" alt="" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG }} />
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className={`text-[14px] font-semibold truncate ${isCurrent ? 'text-sp-green' : 'text-white'}`}>
+            {dl.title}
+          </p>
+          <p className="text-white/40 text-[12px] truncate">{dl.artist}</p>
+        </div>
+
+        {/* Now playing bars */}
+        {isCurrent && isPlaying && (
+          <div className="flex items-end gap-[2px] h-3 mr-1 flex-shrink-0">
+            {[1, 2, 3].map(j => (
+              <div key={j} className="w-[3px] bg-sp-green rounded-full animate-music-bar"
+                style={{ animationDelay: `${j * 0.15}s` }} />
+            ))}
+          </div>
+        )}
+
+        {/* Size + 3-dot or Trash */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-white/20 text-[11px] font-medium tabular-nums">
+            {formatSize(dl.fileSize)}
+          </span>
+          {isLocal ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-500/10 transition-colors group"
+            >
+              <Trash2 size={16} className="text-white/40 group-hover:text-red-400" />
+            </button>
+          ) : (
+            <button
+              onClick={onMenu}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/[0.1] transition-colors"
+            >
+              <MoreHorizontal size={16} className="text-white/40" />
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  )
 }
 
-function DownloadSongItem({
-  s,
-  i,
-  currentSong,
-  isPlaying,
-  onPlay,
-  onRemove,
-  reorderMode,
-}: DownloadSongItemProps) {
+function DownloadReorderItem({ dl, onDelete }: { dl: any; onDelete: () => void }) {
   const controls = useDragControls();
-
-  // Map OfflineSong to the format expected by SongRow
-  const mapped = {
-    id: s.id,
-    name: s.name,
-    primaryArtists: s.artist,
-    image: s.image || (s.albumArt ? [{ quality: "500x500", url: s.albumArt }] : []),
-    duration: s.duration,
-    _isOffline: true,
-  };
 
   return (
     <Reorder.Item
-      value={s}
+      value={dl}
       dragListener={false}
       dragControls={controls}
-      className="flex items-center group relative bg-transparent"
+      className="relative flex items-center gap-3 px-2 py-2 mb-1 bg-white/[0.03] rounded-xl border border-white/[0.04]"
     >
-      {reorderMode && (
-        <div
-          onPointerDown={(e) => controls.start(e)}
-          className="w-8 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/20 hover:text-white/60 transition-colors"
-        >
-          <GripVertical size={16} />
-        </div>
-      )}
-      <div className="flex-1 min-w-0 ml-1">
-        <SongRow
-          song={mapped}
-          index={i}
-          isCurrent={currentSong?.id === s.id}
-          isPlaying={isPlaying}
-          onPlay={onPlay}
-        />
+      <div
+        className="p-3 cursor-grab active:cursor-grabbing text-white/30 hover:text-white/60 touch-none flex-shrink-0"
+        onPointerDown={(e) => controls.start(e)}
+      >
+        <GripVertical size={20} />
       </div>
-      {!reorderMode && (
-        <button
-          onClick={() => onRemove(s.id, s.name)}
-          className="ml-1 p-2 rounded-full text-white/0 group-hover:text-red-400/70 hover:!text-red-400 hover:bg-red-400/10 transition-all duration-200 flex-shrink-0"
-        >
-          <Trash2 size={14} />
-        </button>
-      )}
+
+      <div className="w-12 h-12 rounded-lg bg-white/[0.06] overflow-hidden flex-shrink-0">
+        <img src={dl.albumArt} className="w-full h-full object-cover" alt="" />
+      </div>
+
+      <div className="flex-1 min-w-0 pr-2">
+        <p className="text-[14px] font-bold text-white truncate leading-tight mb-0.5">
+          {dl.title}
+        </p>
+        <p className="text-[13px] font-medium text-white/50 truncate">
+          {dl.artist}
+        </p>
+      </div>
+
+      <button
+        onClick={onDelete}
+        title="Delete Download"
+        className="p-3 mr-1 rounded-full text-red-500/50 hover:text-red-400 hover:bg-red-400/10 transition-all flex-shrink-0"
+      >
+        <Trash2 size={18} />
+      </button>
     </Reorder.Item>
   );
 }

@@ -4,6 +4,9 @@ const config: Config = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',
+      },
       colors: {
         "sp-black": "#000000",
         "sp-dark": "#060606",
@@ -21,12 +24,19 @@ const config: Config = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      transitionTimingFunction: {
+        'ease-spring': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      },
       keyframes: {
         eq1: { "0%,100%": { height: "4px" }, "50%": { height: "18px" } },
         eq2: { "0%,100%": { height: "14px" }, "50%": { height: "4px" } },
         eq3: { "0%,100%": { height: "8px" }, "50%": { height: "22px" } },
         eq4: { "0%,100%": { height: "12px" }, "50%": { height: "6px" } },
         eq5: { "0%,100%": { height: "6px" }, "50%": { height: "16px" } },
+        musicBar: {
+          '0%, 100%': { height: '4px' },
+          '50%': { height: '14px' },
+        },
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
@@ -79,6 +89,7 @@ const config: Config = {
         eq3: "eq3 0.75s ease-in-out infinite 0.3s",
         eq4: "eq4 0.75s ease-in-out infinite 0.1s",
         eq5: "eq5 0.75s ease-in-out infinite 0.25s",
+        'music-bar': 'musicBar 0.8s ease-in-out infinite',
         shimmer: "shimmer 1.6s linear infinite",
         fadeIn: "fadeIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards",
         fadeUp: "fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards",
@@ -90,6 +101,7 @@ const config: Config = {
         vinylSpin: "vinylSpin 3s linear infinite",
         slideUp: "slideUp 0.35s cubic-bezier(0.16,1,0.3,1) forwards",
         breathe: "breathe 4s ease-in-out infinite",
+        'bounce-slow': 'bounce 3s infinite',
       },
     },
   },

@@ -2,13 +2,13 @@ import { Router, Response } from "express";
 import { User } from "../models/User.js";
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { redisDel } from "../services/redis.js";
 
 const router = Router();
-router.use(authMiddleware);
 
 // GET /api/user/me — Current user profile
-router.get("/me", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/me", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = await User.findById(req.userId);
     if (!user) {
@@ -25,6 +25,7 @@ router.get("/me", async (req: AuthRequest, res: Response): Promise<void> => {
 // PATCH /api/user/preferences — Update preferences + mark onboarding complete
 router.patch(
   "/preferences",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { name, languages, eras, moods } = req.body;
@@ -59,8 +60,14 @@ router.patch(
 // POST /api/user/history — Log a play event
 router.post(
   "/history",
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
     try {
+      if (!req.userId) {
+        res.json({ success: true, guest: true });
+        return;
+      }
+
       const { songId, title, artist, albumArt, duration, source, language } =
         req.body;
 
@@ -93,8 +100,13 @@ router.post(
 // GET /api/user/history — Paginated history
 router.get(
   "/history",
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
     try {
+      if (!req.userId) {
+        res.json({ history: [], total: 0, page: 1, limit: 20 });
+        return;
+      }
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
       const page = parseInt(req.query.page as string) || 1;
       const skip = (page - 1) * limit;
@@ -119,6 +131,7 @@ router.get(
 // POST /api/user/liked — Like a song
 router.post(
   "/liked",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { song } = req.body;
@@ -150,6 +163,7 @@ router.post(
 // POST /api/user/liked/shuffle — Persistent shuffle of liked songs
 router.post(
   "/liked/shuffle",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const user = await User.findById(req.userId);
@@ -179,6 +193,7 @@ router.post(
 // PATCH /api/user/liked/reorder — Reorder liked songs manually
 router.patch(
   "/liked/reorder",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { songIds } = req.body;
@@ -219,8 +234,12 @@ router.patch(
 // DELETE /api/user/liked/:songId — Unlike
 
 // GET /api/user/liked — All liked songs
-router.get("/liked", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/liked", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
+    if (!req.userId) {
+      res.json({ likedSongs: [] });
+      return;
+    }
     const user = await User.findById(req.userId).select("likedSongs");
     res.json({ likedSongs: user?.likedSongs || [] });
   } catch (err) {
@@ -230,8 +249,18 @@ router.get("/liked", async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // GET /api/user/stats — Aggregated listening stats
-router.get("/stats", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/stats", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
+    if (!req.userId) {
+      res.json({
+        totalSongsPlayed: 0,
+        totalListeningTime: 0,
+        likedSongsCount: 0,
+        topArtists: [],
+        languageBreakdown: [],
+      });
+      return;
+    }
     const user = await User.findById(req.userId).select(
       "totalListeningTime likedSongs",
     );

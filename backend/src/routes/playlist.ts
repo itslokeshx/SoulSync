@@ -1,15 +1,17 @@
 import { Router, Response } from "express";
 import { Playlist } from "../models/Playlist.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 
 const router = Router();
 
-// All playlist routes require auth
-router.use(authMiddleware);
-
 // GET /api/playlists — All user playlists (without songs for speed)
-router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
+    if (!req.userId) {
+      res.json({ playlists: [] });
+      return;
+    }
     const playlists = await Playlist.find({ userId: req.userId })
       .select("-songs")
       .sort({ updatedAt: -1 });
@@ -21,7 +23,7 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // POST /api/playlists — Create
-router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { name, description, isPublic, isAIGenerated, songs, tags } =
       req.body;
@@ -49,7 +51,7 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // GET /api/playlists/:id — Single playlist with all songs
-router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/:id", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
     const playlist = await Playlist.findById(req.params.id);
     if (!playlist) {
@@ -57,12 +59,8 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    // Check access
-    if (!playlist.isPublic && playlist.userId.toString() !== req.userId) {
-      res.status(403).json({ error: "Access denied" });
-      return;
-    }
-
+    // Allow anyone with the exact ID to view the playlist (Unlisted behavior)
+    // We only restrict editing/deleting to the owner in the other endpoints.
     res.json({ playlist });
   } catch (err) {
     console.error("[Playlist] Get error:", err);
@@ -71,7 +69,7 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 });
 
 // PATCH /api/playlists/:id — Update name/desc/public
-router.patch("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch("/:id", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const playlist = await Playlist.findOne({
       _id: req.params.id,
@@ -98,6 +96,7 @@ router.patch("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 // DELETE /api/playlists/:id
 router.delete(
   "/:id",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const result = await Playlist.deleteOne({
@@ -119,6 +118,7 @@ router.delete(
 // POST /api/playlists/:id/songs — Add song
 router.post(
   "/:id/songs",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const playlist = await Playlist.findOne({
@@ -156,6 +156,7 @@ router.post(
 // DELETE /api/playlists/:id/songs/:songId — Remove song
 router.delete(
   "/:id/songs/:songId",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const playlist = await Playlist.findOne({
@@ -182,6 +183,7 @@ router.delete(
 // PATCH /api/playlists/:id/reorder — Reorder songs
 router.patch(
   "/:id/reorder",
+  authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const playlist = await Playlist.findOne({

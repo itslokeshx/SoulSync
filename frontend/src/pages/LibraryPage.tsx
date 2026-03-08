@@ -9,9 +9,11 @@ import {
   Library,
   ChevronRight,
   Loader2,
+  Download,
 } from "lucide-react";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useAuth } from "../auth/AuthContext";
+import { useAuthGate } from "../hooks/useAuthGate";
 import { useApp } from "../context/AppContext";
 import { useUIStore } from "../store/uiStore";
 import * as api from "../api/backend";
@@ -23,6 +25,7 @@ import toast from "react-hot-toast";
 export default function LibraryPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { gate } = useAuthGate();
   const { likedSongs } = useApp();
   const { openAIPlaylist } = useUIStore();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -70,12 +73,21 @@ export default function LibraryPage() {
             {user?.name}'s collection
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white text-sm font-semibold transition-all duration-300 border border-white/[0.06] hover:border-white/[0.1]"
-        >
-          <Plus size={16} /> New Playlist
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/import')}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-sp-green/10 to-blue-500/10 hover:from-sp-green/20 hover:to-blue-500/20 text-white text-sm font-bold transition-all duration-300 border border-white/10 hover:border-sp-green/30 shadow-lg shadow-sp-green/5 group"
+          >
+            <Sparkles size={16} className="text-sp-green group-hover:animate-pulse" />
+            <span>Import from Spotify / YT</span>
+          </button>
+          <button
+            onClick={() => gate(() => setShowCreate(true), "Sign in to create your own playlists")}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white text-sm font-semibold transition-all duration-300 border border-white/[0.06] hover:border-white/[0.1]"
+          >
+            <Plus size={16} /> New Playlist
+          </button>
+        </div>
       </div>
 
       {/* Create playlist inline */}
@@ -192,7 +204,7 @@ export default function LibraryPage() {
             Create your first playlist to get started
           </p>
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => gate(() => setShowCreate(true), "Sign in to create your own playlists")}
             className="mt-5 px-6 py-2.5 rounded-full bg-sp-green text-black text-sm font-bold hover:bg-sp-green/90 transition-all"
           >
             Create Playlist

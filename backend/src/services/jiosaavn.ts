@@ -125,8 +125,8 @@ async function fetchWithRetry(url: string, attempts = 3, timeout = REQUEST_TIMEO
 const fetchSafe = (url: string) => fetchWithRetry(url, 2)
 
 // ── Search Functions ───────────────────────────────────────────
-export async function searchSongs(query: string, limit = 50): Promise<any[]> {
-  const data = await fetchSafe(`${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(query)}&limit=${limit}&page=1`) as any
+export async function searchSongs(query: string, limit = 50, page = 1): Promise<any[]> {
+  const data = await fetchSafe(`${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(query)}&limit=${limit}&page=${page}`) as any
   const results = data?.data?.results || data?.results || [];
   return results.map((song: any) => ({
     ...song,
@@ -313,6 +313,11 @@ export async function getTopSearches(): Promise<any[]> {
 export async function getArtistDetails(id: string): Promise<any> {
   const data = await fetchSafe(`${JIOSAAVN_BASE}/artists?id=${id}`) as any
   return data?.data || null
+}
+
+export async function getSongDetails(id: string): Promise<any> {
+  const data = await fetchSafe(`${JIOSAAVN_BASE}/songs/${id}`) as any
+  return data?.data || data || null
 }
 
 export async function getArtistSongs(id: string, page = 1): Promise<any[]> {

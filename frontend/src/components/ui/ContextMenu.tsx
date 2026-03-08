@@ -13,17 +13,21 @@ import {
   ChevronRight,
   Loader2,
   Check,
+  Share2,
 } from "lucide-react";
 import { useUIStore } from "../../store/uiStore";
 import { useApp } from "../../context/AppContext";
 import { getArtists } from "../../lib/helpers";
 import { downloadSong } from "../../utils/downloadSong";
+import { shareSong } from "../../utils/share";
+import { useAuthGate } from "../../hooks/useAuthGate";
 import * as api from "../../api/backend";
 import toast from "react-hot-toast";
 
 export function ContextMenu() {
   const { contextMenu, hideContextMenu } = useUIStore();
   const { playSong, handleLike, likedSongs, addToQueue, playNext } = useApp();
+  const { gate } = useAuthGate();
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -139,37 +143,45 @@ export function ContextMenu() {
     {
       icon: FolderPlus,
       label: "Add to Playlist",
-      action: handleAddToPlaylist,
+      action: () => gate(handleAddToPlaylist, "Sign in to add this song to a playlist"),
       submenu: true,
+    },
+    {
+      icon: Share2,
+      label: "Share",
+      action: () => {
+        shareSong(song);
+        hideContextMenu();
+      },
     },
     { divider: true },
     ...(song.artists?.primary?.[0]?.id ||
-    song.artist_map?.primary_artists?.[0]?.id
+      song.artist_map?.primary_artists?.[0]?.id
       ? [
-          {
-            icon: User,
-            label: "View Artist",
-            action: () => {
-              const artistId =
-                song.artists?.primary?.[0]?.id ||
-                song.artist_map?.primary_artists?.[0]?.id;
-              if (artistId) navigate(`/artist/${artistId}`);
-              hideContextMenu();
-            },
+        {
+          icon: User,
+          label: "View Artist",
+          action: () => {
+            const artistId =
+              song.artists?.primary?.[0]?.id ||
+              song.artist_map?.primary_artists?.[0]?.id;
+            if (artistId) navigate(`/artist/${artistId}`);
+            hideContextMenu();
           },
-        ]
+        },
+      ]
       : []),
     ...(song.album?.id
       ? [
-          {
-            icon: Disc3,
-            label: "View Album",
-            action: () => {
-              navigate(`/album/${song.album.id}`);
-              hideContextMenu();
-            },
+        {
+          icon: Disc3,
+          label: "View Album",
+          action: () => {
+            navigate(`/album/${song.album.id}`);
+            hideContextMenu();
           },
-        ]
+        },
+      ]
       : []),
   ];
 
