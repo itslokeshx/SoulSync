@@ -282,6 +282,27 @@ const ACTOR_DICT: Record<string, string[]> = {
   mammootty: ["Mammootty"],
 };
 
+// ── Project Code Dictionary ──
+const PROJECT_DICT: Record<string, { movie?: string, actor?: string, isRecent?: boolean }> = {
+  "aa23": { movie: "pushpa 2", actor: "allu arjun", isRecent: true },
+  "pushpa 2": { movie: "pushpa 2", actor: "allu arjun", isRecent: true },
+  "t69": { actor: "vijay", isRecent: true },
+  "thalapathy 69": { actor: "vijay", isRecent: true },
+  "t68": { movie: "goat", actor: "vijay", isRecent: true },
+  "thalapathy 68": { movie: "goat", actor: "vijay", isRecent: true },
+  "ssmb29": { actor: "mahesh babu", isRecent: true },
+  "rc16": { actor: "ram charan", isRecent: true },
+  "game changer": { movie: "game changer", actor: "ram charan", isRecent: true },
+  "ntr31": { actor: "jr ntr", isRecent: true },
+  "devara": { movie: "devara", actor: "jr ntr", isRecent: true },
+  "toxic": { movie: "toxic", actor: "yash", isRecent: true },
+  "kanguva": { movie: "kanguva", actor: "suriya", isRecent: true },
+  "vidaamuyarchi": { movie: "vidaamuyarchi", actor: "ajith", isRecent: true },
+  "good bad ugly": { movie: "good bad ugly", actor: "ajith", isRecent: true },
+  "kalki": { movie: "kalki 2898 ad", actor: "prabhas", isRecent: true },
+  "kalki 2898 ad": { movie: "kalki 2898 ad", actor: "prabhas", isRecent: true },
+};
+
 // ── Mood tokens ──
 const MOOD_MAP: Record<string, string> = {
   sad: "sad",
@@ -472,7 +493,22 @@ export function parseQuery(raw: string): ParsedQuery {
   let actorExpansion: string[] = [];
   const expandedQueries: string[] = [originalQuery];
 
-  // ── 0. Recency Detection ──
+  // ── 0. Project Code Interception ──
+  // If the query contains a known project code like "aa23" or "thalapathy 69",
+  // forcibly inject the properties so the rest of the parsing engine generates beautiful specific expansions.
+  for (const [code, props] of Object.entries(PROJECT_DICT)) {
+    if (lower.includes(code)) {
+      if (props.movie) movie = props.movie;
+      if (props.actor) {
+        actor = props.actor;
+        actorExpansion = ACTOR_DICT[props.actor] || [];
+      }
+      if (props.isRecent) isRecent = true;
+      break; // Stop after first match to prevent conflicting overwrites
+    }
+  }
+
+  // ── 0.5. Recency Detection ──
   if (words.some((w) => ["recent", "new", "latest", "trending", "fresh"].includes(w))) {
     isRecent = true;
   }
@@ -677,9 +713,15 @@ export function parseQuery(raw: string): ParsedQuery {
       if (actor) {
         const timeQ = isRecent ? ` ${new Date().getFullYear()}` : "";
         expandedQueries.push(`${actor} hits${timeQ}`, `${actor} movie songs${timeQ}`, `${actor} trending${timeQ}`);
+
+        if (movie) {
+          expandedQueries.push(`${movie} ${actor}`, `${movie} songs`);
+        }
+
         // Add searches combining the actor name with their frequent artists
         actorExpansion.forEach(a => {
           expandedQueries.push(`${a} ${actor}${timeQ}`);
+          if (movie) expandedQueries.push(`${a} ${movie}`);
         });
       }
       break;
@@ -1031,7 +1073,8 @@ export async function enhancedSearch(
 }> {
   // Cache check — word-sorted key so "sad hindi" and "hindi sad" share one entry
   const ck = `search:v3:${normalizeSearchKey(query)}:${type}`;
-  // L1 first (process memory, 0 ms), then Redis (~5 ms)
+  // DEVELOPMENT BYPASS: Force cache skip to test NLP logic
+  /*
   const l1 = l1Get(ck);
   if (l1) return l1;
   const cached = await redisGet(ck);
@@ -1041,12 +1084,14 @@ export async function enhancedSearch(
       l1Set(ck, parsed);
       return parsed;
     } catch {
-      /* ignore */
     }
   }
+  */
 
   const parsed = parseQuery(query);
   let allResults: JioSaavnSong[] = [];
+
+  console.log(`[Search NLP Trace] Query: "${query}" -> Intent: ${parsed.intent}`, parsed.expandedQueries);
 
   // ── Step 1: Fire primary queries via the BG queue (warmup path) ──
   // Uses searchSongs (bg queue) so warmup never competes with live user

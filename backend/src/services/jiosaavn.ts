@@ -60,6 +60,20 @@ export function hasActiveUserQueries() {
   return activeUserQueries > 0;
 }
 
+// ── HTML Entity Decoder ────────────────────────────────────────
+export function decodeHtmlEntities(text: string): string {
+  if (!text) return "";
+  const entities: Record<string, string> = {
+    "&quot;": '"',
+    "&amp;": "&",
+    "&#039;": "'",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&nbsp;": " ",
+  };
+  return text.replace(/&quot;|&amp;|&#039;|&lt;|&gt;|&nbsp;/g, (match) => entities[match] || match);
+}
+
 // ── Shared fetcher with Retry (Handles 429, 500) ──────────────────
 async function fetchWithRetry(url: string, attempts = 3, timeout = REQUEST_TIMEOUT): Promise<any> {
   const isUserQuery = hasActiveUserQueries()
@@ -113,17 +127,30 @@ const fetchSafe = (url: string) => fetchWithRetry(url, 2)
 // ── Search Functions ───────────────────────────────────────────
 export async function searchSongs(query: string, limit = 50): Promise<any[]> {
   const data = await fetchSafe(`${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(query)}&limit=${limit}&page=1`) as any
-  return data?.data?.results || data?.results || []
+  const results = data?.data?.results || data?.results || [];
+  return results.map((song: any) => ({
+    ...song,
+    name: decodeHtmlEntities(song.name || song.title),
+    album: typeof song.album === 'object' ? { ...song.album, name: decodeHtmlEntities(song.album?.name) } : song.album
+  }));
 }
 
 export async function searchAlbums(query: string, limit = 15): Promise<any[]> {
   const data = await fetchSafe(`${JIOSAAVN_BASE}/search/albums?query=${encodeURIComponent(query)}&limit=${limit}`) as any
-  return data?.data?.results || data?.results || []
+  const results = data?.data?.results || data?.results || [];
+  return results.map((album: any) => ({
+    ...album,
+    name: decodeHtmlEntities(album.name || album.title)
+  }));
 }
 
 export async function searchArtists(query: string, limit = 10): Promise<any[]> {
   const data = await fetchSafe(`${JIOSAAVN_BASE}/search/artists?query=${encodeURIComponent(query)}&limit=${limit}`) as any
-  return data?.data?.results || data?.results || []
+  const results = data?.data?.results || data?.results || [];
+  return results.map((artist: any) => ({
+    ...artist,
+    name: decodeHtmlEntities(artist.name || artist.title)
+  }));
 }
 
 // ── Entity Details ─────────────────────────────────────────────
@@ -164,10 +191,14 @@ export async function executeSearch(intent: ParsedIntent): Promise<SearchResult>
     ])
 
     const officialData = officialAll.status === 'fulfilled' ? officialAll.value?.data : null
+
+    // Decode HTML entities for official mixed results
     const officialTop = officialData?.topQuery?.results?.[0] || null
-    const officialSongs = officialData?.songs?.results || []
-    const officialAlbums = officialData?.albums?.results || []
-    const officialArtists = officialData?.artists?.results || []
+    if (officialTop && officialTop.name) officialTop.name = decodeHtmlEntities(officialTop.name);
+
+    const officialSongs = (officialData?.songs?.results || []).map((s: any) => ({ ...s, name: decodeHtmlEntities(s.name) }));
+    const officialAlbums = (officialData?.albums?.results || []).map((a: any) => ({ ...a, name: decodeHtmlEntities(a.name) }));
+    const officialArtists = (officialData?.artists?.results || []).map((a: any) => ({ ...a, name: decodeHtmlEntities(a.name) }));
 
     // ── Process Songs from parallel expansions ───────────────────
     const allSongs: any[] = [...officialSongs]
