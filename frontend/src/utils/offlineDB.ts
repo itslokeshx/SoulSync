@@ -31,6 +31,7 @@ export interface OfflineSong {
   savedAt: number;
   playlistName?: string;
   order?: number;
+  fileSize?: number;
 }
 
 export async function updateOfflineSongOrder(songIds: string[]): Promise<void> {

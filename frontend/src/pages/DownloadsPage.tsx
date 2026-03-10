@@ -10,18 +10,18 @@ import { useNetwork } from '../providers/NetworkProvider'
 import { useUIStore } from '../store/uiStore'
 import { FALLBACK_IMG } from '../lib/constants'
 import { useDownloadStore } from '../store/downloadStore'
+import { saveOfflineSong, removeOfflineSong } from '../utils/offlineDB'
 
 type FilterKey = 'playlists' | 'songs'
 
 export default function DownloadsPage() {
   const { isOnline } = useNetwork()
-  const { downloads, deleteDownload, clearAllDownloads, updateDownloadsOrder } = useOfflineStore()
+  const { downloads, deleteDownload, updateDownloadsOrder } = useOfflineStore()
   const { active: activeDownloads } = useDownloadStore()
   const { playSong, currentSong, isPlaying } = useApp()
   const { showContextMenu } = useUIStore()
   const [filter, setFilter] = useState<FilterKey>('songs')
   const [search, setSearch] = useState('')
-  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [reorderMode, setReorderMode] = useState(false)
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -86,6 +86,15 @@ export default function DownloadsPage() {
     showContextMenu(e.clientX, e.clientY, song)
   }
 
+  const handleDelete = async (songId: string) => {
+    try {
+      await removeOfflineSong(songId)
+    } catch (err) {
+      console.warn('Failed to prune blob from IDB:', err)
+    }
+    deleteDownload(songId)
+  }
+
   const handleImportLocal = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -103,7 +112,18 @@ export default function DownloadsPage() {
       }
 
       const songId = `local_${Date.now()}_${i}`
-      const url = URL.createObjectURL(file)
+
+      // Save the raw file permanently into IndexedDB first
+      await saveOfflineSong({
+        id: songId,
+        name: title,
+        artist: artist,
+        albumArt: FALLBACK_IMG,
+        duration: 0,
+        downloadUrl: [],
+        image: [],
+        savedAt: Date.now()
+      }, file).catch(console.error)
 
       const meta: OfflineSongMeta = {
         songId,
@@ -111,7 +131,7 @@ export default function DownloadsPage() {
         artist,
         albumArt: FALLBACK_IMG,
         duration: 0,
-        filePath: url,
+        filePath: '', // Resolves dynamically inside PlayerProvider via active getOfflineBlob
         downloadedAt: Date.now(),
         fileSize: file.size,
         songData: {
@@ -121,7 +141,7 @@ export default function DownloadsPage() {
           isAIGenerated: false,
           primaryArtists: artist,
           image: [{ quality: "500x500", url: FALLBACK_IMG }],
-          downloadUrl: [{ quality: "320kbps", url }]
+          downloadUrl: [] // Omit temporary URL since PlayerProvider loads from IDB
         }
       }
       useOfflineStore.getState().addDownloadedSong(meta)
@@ -226,33 +246,11 @@ export default function DownloadsPage() {
             {reorderMode ? "Done" : "Reorder"}
           </button>
 
-          <button onClick={() => setShowClearConfirm(true)}
-            className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-red-500/20 active:scale-90 transition-all group">
-            <Trash2 size={16} className="text-white/40 group-hover:text-red-400" />
-          </button>
+
         </div>
       )}
 
-      {/* ─── CLEAR ALL CONFIRM ─── */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowClearConfirm(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative bg-[#1a1a1a] border border-white/[0.08] rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="text-white font-bold text-lg mb-2">Clear all downloads?</h3>
-            <p className="text-white/40 text-sm mb-6">This will remove {downloads.length} downloaded songs. This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowClearConfirm(false)}
-                className="flex-1 py-2.5 rounded-full bg-white/[0.07] text-white font-bold text-sm">
-                Cancel
-              </button>
-              <button onClick={() => { clearAllDownloads(); setShowClearConfirm(false) }}
-                className="flex-1 py-2.5 rounded-full bg-red-500 text-white font-bold text-sm active:scale-95 transition-transform">
-                Clear All
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* ─── SEARCH ─── */}
       {!reorderMode && (
@@ -329,7 +327,7 @@ export default function DownloadsPage() {
                 <DownloadReorderItem
                   key={dl.songId}
                   dl={dl}
-                  onDelete={() => deleteDownload(dl.songId)}
+                  onDelete={() => handleDelete(dl.songId)}
                 />
               ))}
             </Reorder.Group>
@@ -403,7 +401,7 @@ export default function DownloadsPage() {
                       isPlaying={isPlaying}
                       formatSize={formatSize}
                       onPlay={() => playOfflineSong(dl)}
-                      onDelete={() => deleteDownload(dl.songId)}
+                      onDelete={() => handleDelete(dl.songId)}
                       onMenu={(e: React.MouseEvent) => handleMenu(e, dl)}
                     />
                   ))}
@@ -505,21 +503,19 @@ function SwipeRow({ dl, isLocal, isCurrent, isPlaying, formatSize, onPlay, onDel
           <span className="text-white/20 text-[11px] font-medium tabular-nums">
             {formatSize(dl.fileSize)}
           </span>
-          {isLocal ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-500/10 transition-colors group"
-            >
-              <Trash2 size={16} className="text-white/40 group-hover:text-red-400" />
-            </button>
-          ) : (
-            <button
-              onClick={onMenu}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/[0.1] transition-colors"
-            >
-              <MoreHorizontal size={16} className="text-white/40" />
-            </button>
-          )}
+          {/* Always show delete and menu buttons */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-500/10 transition-colors group"
+          >
+            <Trash2 size={16} className="text-white/40 group-hover:text-red-400" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMenu(e); }}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/[0.1] transition-colors"
+          >
+            <MoreHorizontal size={16} className="text-white/40" />
+          </button>
         </div>
       </motion.div>
     </div>

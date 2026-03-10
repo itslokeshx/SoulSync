@@ -27,22 +27,25 @@ export default function App() {
     if (!isNative()) {
       getOfflineSongs().then((songs) => {
         const store = useOfflineStore.getState();
-        const localImports = store.downloads.filter((d) =>
-          d.songId.startsWith("local_"),
-        );
-        const hydrated = songs.map((s) => ({
-          songId: s.id,
-          title: s.name,
-          artist: s.artist,
-          albumArt: s.albumArt,
-          duration: s.duration,
-          filePath: "",
-          downloadedAt: s.savedAt,
-          fileSize: 0,
-          playlistName: s.playlistName,
-          songData: s,
-        }));
-        store.updateDownloadsOrder([...hydrated, ...localImports]);
+
+        // Merge state: Keep existing Zustand data if it exists (for fileSize, etc)
+        const hydrated = songs.map((s) => {
+          const existing = store.downloads.find(d => d.songId === s.id);
+          return {
+            songId: s.id,
+            title: s.name,
+            artist: s.artist,
+            albumArt: s.albumArt,
+            duration: s.duration,
+            filePath: existing?.filePath || "",
+            downloadedAt: s.savedAt,
+            fileSize: existing?.fileSize || s.fileSize || 0,
+            playlistName: s.playlistName,
+            songData: existing?.songData || s,
+          };
+        });
+
+        store.updateDownloadsOrder(hydrated);
       });
     }
   }, []);

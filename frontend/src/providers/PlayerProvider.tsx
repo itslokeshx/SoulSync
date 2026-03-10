@@ -115,13 +115,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const resolveAndHandle = async () => {
             let targetSrc = "";
             if (currentSong._isOffline || currentSong.id?.startsWith('local_')) {
-                const dlUrl = currentSong.downloadUrl?.[0]?.url || "";
-                if (dlUrl.startsWith('blob:') || dlUrl.startsWith('ms-appdata:') || dlUrl.startsWith('file:')) {
-                    targetSrc = dlUrl;
+                // For downloaded/local songs, try to load the blobl from IndexedDB first
+                const blob = await getOfflineBlob(currentSong.id);
+                if (blob) {
+                    targetSrc = URL.createObjectURL(blob);
                 } else {
-                    const blob = await getOfflineBlob(currentSong.id);
-                    if (blob) targetSrc = URL.createObjectURL(blob);
-                    else if (dlUrl) targetSrc = dlUrl;
+                    // Fallback to the known URL if fetching the blob failed
+                    targetSrc = currentSong.downloadUrl?.[0]?.url || "";
                 }
             } else {
                 // Use getBestAudioUrl to pick the highest quality and decode HTML entities
@@ -162,6 +162,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // Only update src if it's actually different (avoid unnecessary reloads)
             if (audioRef.current!.src !== targetSrc) {
+                // IMPORTANT: Must set crossOrigin BEFORE setting src, otherwise the browser will abort playback.
+                if (targetSrc.startsWith('blob:') || targetSrc.startsWith('file:') || targetSrc.startsWith('ms-appdata:')) {
+                    audioRef.current!.removeAttribute("crossOrigin");
+                } else {
+                    audioRef.current!.crossOrigin = "anonymous";
+                }
                 audioRef.current!.src = targetSrc;
             }
 
