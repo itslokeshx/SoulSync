@@ -141,7 +141,7 @@ const fetchSafe = (url: string) => fetchWithRetry(url, 2);
 
 // ── Direct jiosaavn.com fetcher (needs Referer header) ─────────────────
 const JIOSAAVN_DIRECT = "https://www.jiosaavn.com/api.php";
-async function fetchDirect(url: string, timeout = 5000): Promise<any> {
+async function fetchDirect(url: string, timeout = 8000): Promise<any> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
   try {
@@ -152,10 +152,14 @@ async function fetchDirect(url: string, timeout = 5000): Promise<any> {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Referer: "https://www.jiosaavn.com/",
         Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en-IN,en;q=0.9,hi;q=0.8",
       },
     });
     clearTimeout(t);
     if (!res.ok) return null;
+    // Cloudflare sometimes returns 200 HTML challenge — detect it
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("json") && !ct.includes("text/plain")) return null;
     return await res.json();
   } catch {
     clearTimeout(t);
@@ -187,7 +191,16 @@ export async function searchSongsHybrid(
   )) as any;
 
   const rawResults: any[] = data?.results || [];
-  if (rawResults.length === 0) return [];
+
+  // Direct jiosaavn.com blocked on this server (geo-restriction / Cloudflare).
+  // Fall back to wrapper search — the ranker + KNOWN_SONGS will still boost
+  // the correct song (e.g. Ed Sheeran for "shape of you").
+  if (rawResults.length === 0) {
+    const wData = (await fetchSafe(
+      `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}`,
+    )) as any;
+    return wData?.data?.results || wData?.results || [];
+  }
 
   // Step 2: enrich with stream URLs from wrapper (parallel ID lookups)
   const enriched = await Promise.allSettled(

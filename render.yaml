@@ -8,6 +8,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: JIOSAAVN_API
+        value: https://saavn.sumit.co/api
+      - key: BACKEND_URL
+        value: https://soulsync-backend-a5fs.onrender.com
       - key: RENDER_EXTERNAL_URL
         fromService:
           type: web

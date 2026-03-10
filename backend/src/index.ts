@@ -17,7 +17,6 @@ import dashboardRoutes from "./routes/dashboard.js";
 import importRoutes from "./routes/import.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 
-
 // Logger
 export const logger = winston.createLogger({
   level: "info",
@@ -94,12 +93,14 @@ app.get("/health", (_req, res) => {
 
 // ── Keep-alive self-ping to prevent Render free-tier sleep ───────────────
 function startKeepAlive() {
-  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
-  if (!RENDER_URL) {
+  const raw = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
+  if (!raw) {
     logger.info("[KeepAlive] No RENDER_EXTERNAL_URL set — skipping self-ping");
     return;
   }
-  const url = `${RENDER_URL.replace(/\/+$/, "")}/health`;
+  // render.yaml property:host gives bare hostname without scheme — add it
+  const base = raw.startsWith("http") ? raw : `https://${raw}`;
+  const url = `${base.replace(/\/+$/, "")}/health`;
   const INTERVAL = 13 * 60 * 1000; // every 13 minutes (Render sleeps after 15)
 
   setInterval(async () => {
@@ -130,8 +131,6 @@ async function start() {
 
     // Start keep-alive after server boots
     startKeepAlive();
-
-
   });
 }
 
