@@ -77,11 +77,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const isPlayingRef = useRef(isPlaying);
     useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
-    const addToast = (msg: string, type: string = 'info') => {
+    const addToast = useCallback((msg: string, type: string = 'info') => {
         if (type === 'success') toast.success(msg);
         else if (type === 'error') toast.error(msg);
         else toast(msg);
-    };
+    }, []);
 
     const duo = useDuo({
         playSongRef,
@@ -187,25 +187,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // ── Consolidated SoulLink Sync ────────────────────────────────────
     // Prevents infinite loops by checking isRemoteActionRef.
 
-    // 1. Sync Play/Pause state
-    useEffect(() => {
-        const isDuoActive = useDuoStore.getState().active;
-        if (!isDuoActive || isFirstPlayRef.current) return;
-
-        if (isRemoteActionRef.current) {
-            // Signal received from partner, do not echo back.
-            // We set it to false here since this is the primary effect that consumes it.
-            isRemoteActionRef.current = false;
-            return;
-        }
-
-        // Local change happened, broadcast to partner
-        if (isPlaying) {
-            duo.syncPlay(audioRef.current?.currentTime || 0, currentSong?.id || "");
-        } else {
-            duo.syncPause(audioRef.current?.currentTime || 0);
-        }
-    }, [isPlaying, currentSong?.id, duo]);
+    // 1. DEDUPLICATED: Sync Play/Pause state is now handled natively via the <audio> element's onPlay/onPause events (bottom of file)
+    // to avoid React state race conditions.
 
     // 2. Sync Song/Queue changes
     useEffect(() => {
@@ -297,7 +280,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const audio = audioRef.current;
         if (!audio) return;
         // Only update state if the pause was intentional (not buffering/seeking)
-        if (!audio.seeking && !audio.ended && audio.readyState >= 2) {
+        if (!audio.seeking && !audio.ended) {
             setIsPlaying(false);
         }
     };
@@ -332,12 +315,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             {children}
             <audio
                 ref={audioRef}
-                crossOrigin="anonymous"
                 onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
                 onEnded={handleEnded}
-                onPause={handlePause}
-                onPlay={handlePlay}
+                onLoadedMetadata={handleLoadedMetadata}
+                onPlay={(e) => {
+                    handlePlay();
+                    const isDuoActive = useDuoStore.getState().active;
+                    if (isDuoActive) {
+                        if (isRemoteActionRef.current) {
+                            isRemoteActionRef.current = false; // Consume the remote action
+                        } else {
+                            duo.syncPlay(e.currentTarget.currentTime, currentSong?.id || "");
+                        }
+                    }
+                }}
+                onPause={(e) => {
+                    handlePause();
+                    const isDuoActive = useDuoStore.getState().active;
+                    if (isDuoActive) {
+                        if (isRemoteActionRef.current) {
+                            isRemoteActionRef.current = false; // Consume the remote action
+                        } else {
+                            duo.syncPause(e.currentTarget.currentTime);
+                        }
+                    }
+                }}
+                className="hidden"
+                crossOrigin="anonymous"
+                preload="auto"
                 onError={handleError}
             />
         </PlayerContext.Provider>

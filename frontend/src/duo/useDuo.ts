@@ -510,14 +510,11 @@ export function useDuo({
             if (ct != null && Math.abs(audio.currentTime - ct) > 2)
               audio.currentTime = ct;
 
-            // Only play if currently paused to avoid re-triggering state
-            if (!callbackRefs.current.isPlayingRef?.current) {
-              callbackRefs.current.isRemoteActionRef.current = true;
-              audio
-                .play()
-                .then(() => callbackRefs.current.setIsPlaying(true))
-                .catch(() => { });
-            }
+            callbackRefs.current.isRemoteActionRef.current = true;
+            audio
+              .play()
+              .then(() => callbackRefs.current.setIsPlaying(true))
+              .catch(() => { });
           }
           break;
         }
@@ -530,12 +527,9 @@ export function useDuo({
               callbackRefs.current.setCurrentTime(ct);
             }
 
-            // Only pause if currently playing
-            if (callbackRefs.current.isPlayingRef?.current) {
-              callbackRefs.current.isRemoteActionRef.current = true;
-              audio.pause();
-              callbackRefs.current.setIsPlaying(false);
-            }
+            callbackRefs.current.isRemoteActionRef.current = true;
+            audio.pause();
+            callbackRefs.current.setIsPlaying(false);
           }
           break;
         }
