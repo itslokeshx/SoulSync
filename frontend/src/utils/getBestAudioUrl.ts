@@ -1,18 +1,32 @@
 import { SongDownloadUrl } from "../types/song";
 
+/**
+ * Decodes HTML entities in JioSaavn CDN URLs.
+ * The API returns &amp; instead of & which causes silent audio failures.
+ */
+function decodeUrl(url: string): string {
+  return url.replace(/&amp;/g, "&").replace(/&amp;/g, "&").trim();
+}
+
 export function getBestAudioUrl(urls?: SongDownloadUrl[]): string | null {
   if (!urls || !Array.isArray(urls) || urls.length === 0) return null;
 
+  // Try quality labels first (highest to lowest)
   const qualities = ["320kbps", "160kbps", "96kbps", "48kbps", "12kbps"];
 
   for (const q of qualities) {
     const found = urls.find((u) => u.quality === q);
     const url = found?.url || found?.link;
-    if (url) return url;
+    if (url && url !== "null" && url !== "") return decodeUrl(url);
   }
 
-  const last = urls[urls.length - 1];
-  return last?.url || last?.link || null;
+  // Fallback: try from highest index (JioSaavn puts highest quality last)
+  for (let i = urls.length - 1; i >= 0; i--) {
+    const url = urls[i]?.url || urls[i]?.link;
+    if (url && url !== "null" && url !== "") return decodeUrl(url);
+  }
+
+  return null;
 }
 
 export function getBestImageUrl(

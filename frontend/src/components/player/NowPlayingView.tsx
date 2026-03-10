@@ -108,6 +108,32 @@ export const NowPlayingView = ({
   const [showVol, setShowVol] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
 
+  // ── Swipe down to minimize ───────────────────────────────────
+  const [dragOffset, setDragOffset] = useState(0);
+  const touchStartY = useRef(0);
+  const isDragging = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    isDragging.current = true;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0) {
+      setDragOffset(delta);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false;
+    if (dragOffset > 120) {
+      onClose();
+    }
+    setDragOffset(0);
+  }, [dragOffset, onClose]);
+
   const isDownloaded = useOfflineStore((s) => s.isDownloaded);
   const isDownloading = useDownloadStore((s) => s.isDownloading);
   const dlProgress = useDownloadStore(
@@ -208,17 +234,28 @@ export const NowPlayingView = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col"
+      className="fixed inset-0 z-50 flex flex-col touch-pan-x"
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         background:
           "radial-gradient(circle at 20% 30%, #1e1e20, transparent 60%),\n           radial-gradient(circle at 80% 70%, #101012, transparent 80%),\n           linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
+        transform: `translateY(${dragOffset}px)`,
+        transition: isDragging.current ? "none" : "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+        opacity: 1 - Math.min(dragOffset / 500, 0.4),
       }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* ...no ambient orbs, pure dark gradient... */}
 
-      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 lg:px-12 pt-3 sm:pt-4 pb-1 sm:pb-2 relative z-10 flex-shrink-0">
+      {/* Drag indicator pill */}
+      <div className="flex justify-center pt-2 pb-0 flex-shrink-0">
+        <div className="w-10 h-1 bg-white/20 rounded-full" />
+      </div>
+
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 lg:px-12 pt-1 sm:pt-2 pb-1 sm:pb-2 relative z-10 flex-shrink-0">
         <button
           onClick={onClose}
           className="text-white/70 hover:text-white transition-all p-2.5 rounded-xl hover:bg-white/10 active:scale-95"

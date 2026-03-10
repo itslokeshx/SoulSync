@@ -145,24 +145,24 @@ export default function ImportPage() {
         <div className="pb-32 overflow-x-hidden min-h-screen">
 
             {/* ─── HEADER ─── */}
-            <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+            <div className="flex items-center gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4">
                 <button onClick={() => navigate(-1)}
-                    className="w-10 h-10 rounded-full bg-white/[0.07] flex items-center justify-center hover:bg-white/[0.12] transition-colors">
-                    <ArrowLeft size={18} className="text-white" />
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/[0.07] flex items-center justify-center hover:bg-white/[0.12] transition-colors flex-shrink-0">
+                    <ArrowLeft size={16} className="text-white" />
                 </button>
-                <div>
-                    <h1 className="text-xl font-bold text-white">Import Playlist</h1>
-                    <p className="text-white/30 text-[12px]">From any platform — free, no account needed</p>
+                <div className="min-w-0">
+                    <h1 className="text-lg sm:text-xl font-bold text-white">Import Playlist</h1>
+                    <p className="text-white/30 text-[11px] sm:text-[12px] truncate">From any platform — free, no account needed</p>
                 </div>
             </div>
 
             {/* ─── PLATFORM CHIPS ─── */}
-            <div className="flex gap-2 px-5 mb-6 overflow-x-auto no-scrollbar">
+            <div className="flex gap-2 px-4 sm:px-5 mb-4 sm:mb-6 overflow-x-auto no-scrollbar">
                 {PLATFORMS.map(p => (
                     <button
                         key={p.id}
                         onClick={() => { setSelected(p.id); setInput(''); setError(''); setPreview(null); setMatchResult(null) }}
-                        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 active:scale-95 ${selected === p.id
+                        className={`flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border transition-all duration-200 active:scale-95 ${selected === p.id
                             ? 'border-current shadow-lg'
                             : 'border-transparent bg-white/[0.05] hover:bg-white/[0.08]'
                             }`}
@@ -172,8 +172,8 @@ export default function ImportPage() {
                             color: p.color,
                         } : { color: '#9b9b9b' }}
                     >
-                        {p.icon}
-                        <span className="text-[13px] font-bold whitespace-nowrap">{p.name}</span>
+                        <span className="[&_svg]:w-4 [&_svg]:h-4 sm:[&_svg]:w-5 sm:[&_svg]:h-5">{p.icon}</span>
+                        <span className="text-[12px] sm:text-[13px] font-bold whitespace-nowrap">{p.name}</span>
                     </button>
                 ))}
             </div>
@@ -260,8 +260,8 @@ export default function ImportPage() {
             {/* ─── INPUT AREA ─── */}
             {!preview && !matchResult && (
                 <>
-                    <div className="mx-5 mb-4">
-                        <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl p-4">
+                    <div className="mx-4 sm:mx-5 mb-3 sm:mb-4">
+                        <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl sm:rounded-2xl p-3 sm:p-4">
                             <p className="text-white/30 text-xs mb-3 flex items-center gap-1.5">
                                 <ExternalLink size={12} /> {platform.hint}
                             </p>
@@ -290,9 +290,9 @@ export default function ImportPage() {
                     )}
 
                     {/* Import button */}
-                    <div className="px-5 mb-8">
+                    <div className="px-4 sm:px-5 mb-6 sm:mb-8">
                         <button onClick={handleImport} disabled={!input.trim() || loading}
-                            className="w-full py-4 rounded-full bg-sp-green text-black font-bold text-[14px] flex items-center justify-center gap-2
+                            className="w-full py-3 sm:py-4 rounded-full bg-sp-green text-black font-bold text-[13px] sm:text-[14px] flex items-center justify-center gap-2
                                active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-sp-green/20">
                             {loading ? (
                                 <><Loader2 size={18} className="animate-spin" /> Reading playlist...</>
@@ -303,7 +303,7 @@ export default function ImportPage() {
                     </div>
 
                     {/* How it works */}
-                    <div className="mx-5 bg-white/[0.02] border border-white/[0.04] rounded-2xl p-5">
+                    <div className="mx-4 sm:mx-5 bg-white/[0.02] border border-white/[0.04] rounded-xl sm:rounded-2xl p-4 sm:p-5">
                         <p className="text-white/30 text-[11px] font-bold uppercase tracking-widest mb-4">How it works</p>
                         <div className="space-y-3">
                             {[

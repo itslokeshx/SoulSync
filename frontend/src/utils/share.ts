@@ -1,7 +1,18 @@
 import toast from "react-hot-toast";
 import { getArtists, bestImg } from "../lib/helpers";
+import { isNative } from "./platform";
 
-const BASE_URL = window.location.origin;
+/**
+ * Returns the correct base URL for share links.
+ * On Capacitor APK, window.location.origin resolves to "http://localhost"
+ * which is useless — so we use the env variable instead.
+ */
+function getBaseUrl(): string {
+    if (isNative()) {
+        return import.meta.env.VITE_FRONTEND_URL || 'https://soul-sync-beta.vercel.app';
+    }
+    return window.location.origin;
+}
 
 function slugify(text: string): string {
     return (text || "")
@@ -13,12 +24,12 @@ function slugify(text: string): string {
 
 function generateSongUrl(song: any): string {
     const slug = slugify(song.name);
-    return `${BASE_URL}/song/${slug}/${song.id || song.songId}`;
+    return `${getBaseUrl()}/song/${slug}/${song.id || song.songId}`;
 }
 
 function generatePlaylistUrl(playlist: any): string {
     const slug = slugify(playlist.name);
-    return `${BASE_URL}/playlist/${slug}/${playlist._id || playlist.id}`;
+    return `${getBaseUrl()}/playlist/${slug}/${playlist._id || playlist.id}`;
 }
 
 export async function shareSong(song: any) {

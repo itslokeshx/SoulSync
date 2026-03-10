@@ -232,6 +232,35 @@ router.patch(
 );
 
 // DELETE /api/user/liked/:songId — Unlike
+router.delete(
+  "/liked/:songId",
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = await User.findById(req.userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const before = user.likedSongs.length;
+      user.likedSongs = user.likedSongs.filter(
+        (s) => s.songId !== req.params.songId,
+      );
+
+      if (user.likedSongs.length === before) {
+        res.status(404).json({ error: "Song not found in liked songs" });
+        return;
+      }
+
+      await user.save();
+      res.json({ success: true, likedCount: user.likedSongs.length });
+    } catch (err) {
+      console.error("[User] Unlike error:", err);
+      res.status(500).json({ error: "Failed to unlike song" });
+    }
+  },
+);
 
 // GET /api/user/liked — All liked songs
 router.get("/liked", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {

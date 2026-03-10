@@ -420,7 +420,9 @@ const JUNK_KEYWORDS = [
   "tiktok version",
   "bass boosted",
   "mix",
-  "dj mix"
+  "dj mix",
+  "instrumental version",
+  "lofi version",
 ];
 
 const COVER_KEYWORDS = [
@@ -435,7 +437,13 @@ const COVER_KEYWORDS = [
   "acoustic cover",
   "studio version",
   "vocal cover",
-  "piano cover"
+  "piano cover",
+  "recreation",
+  "unofficial",
+  "fan made",
+  "remake",
+  "reprise (cover)",
+  "piano version",
 ];
 
 // ─── INTENT TYPES ────────────────────────────────────────────────────────────
@@ -999,6 +1007,9 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
     score += 15;
   } else if (playCount > 100_000) {
     score += 5;
+  } else if (playCount > 0 && playCount < 10_000) {
+    score -= 15; // Low plays = likely cover/fake
+    reasons.push("low_plays_penalty");
   }
 
   // ═══ ALBUM NAME HAS QUERY WORDS (original soundtrack) ═══

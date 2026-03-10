@@ -13,6 +13,7 @@ import { AIPlaylistModal } from "../ui/AIPlaylistModal";
 import { AppContext } from "../../context/AppContext";
 import { useAuthGate } from "../../hooks/useAuthGate";
 import { useLikedSongs } from "../../hooks";
+import { usePlayer } from "../../providers/PlayerProvider";
 import { bestImg, extractColor, hashColor, getArtists } from "../../lib/helpers";
 import * as api from "../../api/backend";
 import toast from "react-hot-toast";
@@ -27,6 +28,13 @@ export function AppLayout() {
   const [npOpen, setNpOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [bgColor, setBgColor] = useState("#121212");
+
+  // Close fullscreen player when navigating to a different page
+  useEffect(() => {
+    setNpOpen(false);
+  }, [location.pathname]);
+
+  const { handleSeek } = usePlayer();
 
   const {
     currentSong, isPlaying, volume, isShuffle, repeatMode,
@@ -171,7 +179,7 @@ export function AppLayout() {
           repeat={repeatMode}
           likedSongs={likedSongs}
           onPlayPause={togglePlay}
-          onSeek={seekTo}
+          onSeek={handleSeek}
           onSeekStart={() => { }}
           onSeekEnd={() => { }}
           onVolume={setVolume}
@@ -197,7 +205,7 @@ export function AppLayout() {
             liked={!!likedSongs[currentSong.id]}
             onClose={() => setNpOpen(false)}
             onPlayPause={togglePlay}
-            onSeek={seekTo}
+            onSeek={handleSeek}
             onSeekStart={() => { }}
             onSeekEnd={() => { }}
             onVolume={setVolume}

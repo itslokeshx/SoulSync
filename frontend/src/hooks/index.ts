@@ -61,6 +61,8 @@ export const useLikedSongs = (): [
                 artists: s.artists,
                 primaryArtists: s.artist || s.primaryArtists || "",
                 duration: s.duration || 0,
+                downloadUrl: s.downloadUrl || [],
+                album: s.album || null,
               };
             }
           }

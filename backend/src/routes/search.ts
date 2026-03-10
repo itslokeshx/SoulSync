@@ -90,6 +90,42 @@ router.get("/song", async (req: any, res: Response) => {
   }
 });
 
+// GET /api/search/stream-url — Resolve fresh stream URL for a song ID
+// Used by the frontend when a liked/playlist song has an expired CDN URL
+router.get("/stream-url", async (req: any, res: Response) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: "ID required" });
+  try {
+    const song = await getSongDetails(id as string);
+    if (!song) return res.status(404).json({ error: "Song not found" });
+
+    // Extract all download URLs from the response
+    const songData = Array.isArray(song) ? song[0] : song;
+    const downloadUrl = songData?.downloadUrl || [];
+
+    // Find the best available URL (highest quality)
+    let streamUrl: string | null = null;
+    const qualities = ["320kbps", "160kbps", "96kbps", "48kbps", "12kbps"];
+    for (const q of qualities) {
+      const entry = downloadUrl.find((u: any) => u.quality === q);
+      const url = entry?.url || entry?.link;
+      if (url && url !== "null" && url !== "") {
+        streamUrl = url.replace(/&amp;/g, "&");
+        break;
+      }
+    }
+    // Fallback to last entry
+    if (!streamUrl && downloadUrl.length > 0) {
+      const last = downloadUrl[downloadUrl.length - 1];
+      streamUrl = (last?.url || last?.link || "").replace(/&amp;/g, "&");
+    }
+
+    res.json({ streamUrl, downloadUrl, song: songData });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to resolve stream URL" });
+  }
+});
+
 router.get("/artist", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });

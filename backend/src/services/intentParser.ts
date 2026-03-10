@@ -577,13 +577,33 @@ function buildYearQueries(year?: number, language?: string, timeRef?: string): Q
 }
 
 function buildDirectQueries(rawQuery: string, language?: string): QueryWithWeight[] {
-    return [
+    const queries: QueryWithWeight[] = [
         { query: rawQuery, weight: 1.0, type: 'direct' },
         { query: rawQuery.toLowerCase(), weight: 0.95, type: 'lower' },
-        ...(language ? [{
+    ];
+
+    // For multi-word queries, add phrase-level expansions
+    // This ensures "back to be friends" finds the actual song
+    const words = rawQuery.trim().split(/\s+/);
+    if (words.length >= 3) {
+        queries.push(
+            { query: `${rawQuery} song`, weight: 0.92, type: 'with_song' },
+            { query: `${rawQuery} original`, weight: 0.90, type: 'original' },
+            { query: `${rawQuery} official`, weight: 0.88, type: 'official' },
+        );
+    } else if (words.length === 2) {
+        queries.push(
+            { query: `${rawQuery} song`, weight: 0.90, type: 'with_song' },
+        );
+    }
+
+    if (language) {
+        queries.push({
             query: `${rawQuery} ${language}`,
             weight: 0.85,
             type: 'with_lang'
-        }] : []),
-    ]
+        });
+    }
+
+    return queries;
 }
