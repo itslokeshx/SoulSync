@@ -141,7 +141,7 @@ const fetchSafe = (url: string) => fetchWithRetry(url, 2);
 
 // ── Direct jiosaavn.com fetcher (needs Referer header) ─────────────────
 const JIOSAAVN_DIRECT = "https://www.jiosaavn.com/api.php";
-async function fetchDirect(url: string, timeout = 8000): Promise<any> {
+async function fetchDirect(url: string, timeout = 3000): Promise<any> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
   try {
@@ -186,6 +186,7 @@ async function fetchDirect(url: string, timeout = 8000): Promise<any> {
 export async function searchSongsHybrid(
   query: string,
   limit = 20,
+  knownArtist?: string | null,
 ): Promise<any[]> {
   const q = query.trim();
   if (!q) return [];
@@ -199,13 +200,33 @@ export async function searchSongsHybrid(
   const rawResults: any[] = data?.results || [];
 
   // Direct jiosaavn.com blocked on this server (geo-restriction / Cloudflare).
-  // Fall back to wrapper search — the ranker + KNOWN_SONGS will still boost
-  // the correct song (e.g. Ed Sheeran for "shape of you").
+  // Fall back to wrapper — search enriched query ("shape of you Ed Sheeran") FIRST
+  // so the correct original is always in the pool for the ranker to boost.
   if (rawResults.length === 0) {
-    const wData = (await fetchSafe(
+    const seen = new Set<string>();
+    const combined: any[] = [];
+    const addResults = (songs: any[]) => {
+      for (const s of songs) {
+        const id = String(s.id || s.songId || "");
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          combined.push(s);
+        }
+      }
+    };
+    // Search enriched query first (e.g. "shape of you Ed Sheeran") to include the original
+    if (knownArtist) {
+      const enriched = (await fetchSafe(
+        `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(`${q} ${knownArtist}`)}&limit=30`,
+      )) as any;
+      addResults(enriched?.data?.results || enriched?.results || []);
+    }
+    // Also search plain query for regional / other results
+    const plain = (await fetchSafe(
       `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}`,
     )) as any;
-    return wData?.data?.results || wData?.results || [];
+    addResults(plain?.data?.results || plain?.results || []);
+    return combined;
   }
 
   // Step 2: enrich with stream URLs from wrapper (parallel ID lookups)

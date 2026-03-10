@@ -62,7 +62,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     // artistRes  → wrapper /search/artists (accurate artist IDs for enrichment)
     const [hybridRes, fallbackRes, allRes, artistRes] =
       await Promise.allSettled([
-        searchSongsHybrid(primaryQuery, 50),
+        searchSongsHybrid(primaryQuery, 50, knownArtist),
         Promise.allSettled(
           fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
         ),
