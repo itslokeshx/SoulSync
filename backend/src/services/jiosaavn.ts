@@ -5,6 +5,12 @@
 import { ParsedIntent, QueryWithWeight } from "./intentParser.js";
 
 const JIOSAAVN_BASE = process.env.JIOSAAVN_API || "https://saavn.sumit.co/api";
+// V1 wrapper: older format (primaryArtists string, downloadUrl[].link)
+// Hosted on Vercel — accessible from all servers including Render US.
+// Critically, it has a CORRECT search index: Ed Sheeran / Weeknd / etc.
+// come back as #1 unlike saavn.sumit.co which returns covers.
+const JIOSAAVN_V1 =
+  process.env.JIOSAAVN_API_V1 || "https://jiosaavn-api-privatecvc2.vercel.app";
 const REQUEST_TIMEOUT = 3500; // 3.5 seconds max
 
 export interface SearchResult {
@@ -174,14 +180,18 @@ async function fetchDirect(url: string, timeout = 3000): Promise<any> {
 }
 
 // ───────────────────────────────────────────────────────────────
-// HYBRID SEARCH — the only way to reliably return Ed Sheeran
+// HYBRID SEARCH — three-tier fallback for correct results everywhere
 //
-// Problem: wrapper (saavn.sumit.co/search/songs) doesn't index many
-// major international songs at all (“shape of you” returns zero Ed Sheeran).
+// Problem: saavn.sumit.co (V2 wrapper) has a broken search index for many
+// international songs — covers dominate instead of the original.
 //
 // Solution:
-//   1. Search via direct jiosaavn.com (returns proper popularity ranking)
-//   2. Enrich with stream URLs via wrapper by song ID (parallel)
+//   Tier 1 — direct jiosaavn.com: best ranking, may be geo-blocked on Render US
+//   Tier 2 — jiosaavn-api-privatecvc2.vercel.app (V1): correct results on ALL
+//             servers (Vercel, not blocked). Ed Sheeran / Weeknd / etc. all #1.
+//   Tier 3 — saavn.sumit.co (V2 wrapper): last resort, may return covers
+//
+// Tier 1 and Tier 2 fire in PARALLEL — zero extra latency on Render.
 // ───────────────────────────────────────────────────────────────
 export async function searchSongsHybrid(
   query: string,
@@ -191,61 +201,92 @@ export async function searchSongsHybrid(
   const q = query.trim();
   if (!q) return [];
 
-  // Step 1: search via direct jiosaavn.com — popularity-ranked, includes Ed Sheeran
-  const data = (await fetchDirect(
-    `${JIOSAAVN_DIRECT}?__call=search.getResults&_format=json&_marker=0&ctx=web6dot0` +
-      `&n=${Math.min(limit, 50)}&p=1&q=${encodeURIComponent(q)}`,
-  )) as any;
+  const n = Math.min(limit, 50);
 
-  const rawResults: any[] = data?.results || [];
+  // Fire Tier 1 (direct jiosaavn.com) and Tier 2 (V1 Vercel) in PARALLEL.
+  // On Render: Tier 1 times out (~3s), Tier 2 responds (~0.5s) — no net delay.
+  // Locally: Tier 1 wins quickly with popularity-ranked results.
+  const [directSettled, v1Settled] = await Promise.allSettled([
+    fetchDirect(
+      `${JIOSAAVN_DIRECT}?__call=search.getResults&_format=json&_marker=0&ctx=web6dot0` +
+        `&n=${n}&p=1&q=${encodeURIComponent(q)}`,
+    ),
+    fetchSafe(
+      `${JIOSAAVN_V1}/search/songs?query=${encodeURIComponent(q)}&limit=${n}`,
+    ),
+  ]);
 
-  // Direct jiosaavn.com blocked on this server (geo-restriction / Cloudflare).
-  // Fall back to wrapper — search enriched query ("shape of you Ed Sheeran") FIRST
-  // so the correct original is always in the pool for the ranker to boost.
-  if (rawResults.length === 0) {
-    const seen = new Set<string>();
-    const combined: any[] = [];
-    const addResults = (songs: any[]) => {
-      for (const s of songs) {
-        const id = String(s.id || s.songId || "");
-        if (id && !seen.has(id)) {
-          seen.add(id);
-          combined.push(s);
-        }
+  const rawDirect: any[] =
+    directSettled.status === "fulfilled"
+      ? directSettled.value?.results || []
+      : [];
+  const rawV1: any[] =
+    v1Settled.status === "fulfilled"
+      ? v1Settled.value?.data?.results || v1Settled.value?.results || []
+      : [];
+
+  // ── TIER 1: direct jiosaavn.com returned results ────────────────────
+  if (rawDirect.length > 0) {
+    // Merge V1 results in for extra coverage (dedup by ID)
+    const seen = new Set<string>(rawDirect.map((s: any) => String(s.id || "")));
+    const combined = [...rawDirect];
+    for (const s of rawV1) {
+      const id = String(s.id || "");
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        combined.push(s);
       }
-    };
-    // Search enriched query first (e.g. "shape of you Ed Sheeran") to include the original
-    if (knownArtist) {
-      const enriched = (await fetchSafe(
-        `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(`${q} ${knownArtist}`)}&limit=30`,
-      )) as any;
-      addResults(enriched?.data?.results || enriched?.results || []);
     }
-    // Also search plain query for regional / other results
-    const plain = (await fetchSafe(
-      `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(q)}&limit=${Math.min(limit, 50)}`,
-    )) as any;
-    addResults(plain?.data?.results || plain?.results || []);
-    return combined;
+    // Enrich with stream URLs from V2 wrapper (direct results lack downloadUrl).
+    // V1-sourced songs already carry downloadUrl[].link — skip them.
+    const enriched = await Promise.allSettled(
+      combined.slice(0, limit).map(async (song: any) => {
+        if ((song.downloadUrl as any[])?.length > 0) return song;
+        const id = String(song.id || "").trim();
+        if (!id) return song;
+        const wData = (await fetchSafe(`${JIOSAAVN_BASE}/songs/${id}`)) as any;
+        const wSong = wData?.data?.[0];
+        if (wSong?.downloadUrl?.length > 0)
+          return { ...song, downloadUrl: wSong.downloadUrl };
+        return song;
+      }),
+    );
+    return enriched
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => (r as PromiseFulfilledResult<any>).value);
   }
 
-  // Step 2: enrich with stream URLs from wrapper (parallel ID lookups)
-  const enriched = await Promise.allSettled(
-    rawResults.slice(0, limit).map(async (song: any) => {
-      const id = String(song.id || "").trim();
-      if (!id) return song;
-      const wData = (await fetchSafe(`${JIOSAAVN_BASE}/songs/${id}`)) as any;
-      const wSong = wData?.data?.[0];
-      if (wSong?.downloadUrl?.length > 0) {
-        return { ...song, downloadUrl: wSong.downloadUrl };
-      }
-      return song;
-    }),
-  );
+  // ── TIER 2: V1 Vercel wrapper (production / Render) ─────────────────
+  // V1 results include downloadUrl[].link — normalizeSongToCanonical handles it.
+  if (rawV1.length > 0) {
+    return rawV1.slice(0, limit);
+  }
 
-  return enriched
-    .filter((r) => r.status === "fulfilled")
-    .map((r) => (r as PromiseFulfilledResult<any>).value);
+  // ── TIER 3: both blocked — V2 wrapper last resort ────────────────────
+  const seen = new Set<string>();
+  const combined: any[] = [];
+  const addResults = (songs: any[]) => {
+    for (const s of songs) {
+      const id = String(s.id || s.songId || "");
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        combined.push(s);
+      }
+    }
+  };
+  if (knownArtist) {
+    const enrichedWrapper = (await fetchSafe(
+      `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(`${q} ${knownArtist}`)}&limit=30`,
+    )) as any;
+    addResults(
+      enrichedWrapper?.data?.results || enrichedWrapper?.results || [],
+    );
+  }
+  const plain = (await fetchSafe(
+    `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(q)}&limit=${n}`,
+  )) as any;
+  addResults(plain?.data?.results || plain?.results || []);
+  return combined;
 }
 
 // Wrapper-based search (used by dashboardEngine, searchEnhancer, ai route, etc.)
