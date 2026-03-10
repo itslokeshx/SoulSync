@@ -87,11 +87,16 @@ function TopResultCard({
 }) {
   const navigate = useNavigate();
   const isArtist = item.type === "artist" || item.description === "Artist";
-  const isAlbum = item.type === "album" || item.description?.toLowerCase().includes("album");
+  const isAlbum =
+    item.type === "album" || item.description?.toLowerCase().includes("album");
 
   const img = bestImg(item.image) || FALLBACK_IMG;
   const name = item.name || item.title || "Unknown";
-  const subtitle = isArtist ? "Artist" : isAlbum ? "Album • " + (item.description || "") : getArtists(item);
+  const subtitle = isArtist
+    ? "Artist"
+    : isAlbum
+      ? "Album • " + (item.description || "")
+      : getArtists(item);
 
   const handleClick = () => {
     if (isArtist) navigate(`/artist/${item.id}`);
@@ -219,8 +224,7 @@ export function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { query, setQuery, state, result, loadingMore, loadMore } =
-    useSearch();
+  const { query, setQuery, state, result, loadingMore, loadMore } = useSearch();
 
   // Init from URL and focus
   useEffect(() => {
@@ -496,7 +500,7 @@ export function SearchPage() {
                   <Disc3 size={12} /> Albums
                 </h3>
                 <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
-                  {result.albums.slice(0, 8).map((a: any) => (
+                  {result.albums.slice(0, 10).map((a: any) => (
                     <AlbumCard key={a.id || a.name} album={a} />
                   ))}
                 </div>
@@ -507,6 +511,9 @@ export function SearchPage() {
               <div>
                 <h3 className="text-white/40 text-[11px] font-bold uppercase tracking-[0.15em] mb-2 flex items-center gap-2">
                   <Music size={12} /> Songs
+                  <span className="ml-auto text-white/20 font-normal normal-case tracking-normal">
+                    {result.songs.length}
+                  </span>
                 </h3>
                 <div className="space-y-0.5">
                   {result.songs.slice(result.topResult ? 4 : 6).map((song) => (

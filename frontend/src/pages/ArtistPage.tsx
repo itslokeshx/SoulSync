@@ -68,9 +68,9 @@ export const ArtistPage = () => {
   const followers =
     artist.follower_count || artist.followerCount
       ? parseInt(
-        artist.follower_count || artist.followerCount,
-        10,
-      ).toLocaleString()
+          artist.follower_count || artist.followerCount,
+          10,
+        ).toLocaleString()
       : null;
 
   return (
@@ -126,7 +126,7 @@ export const ArtistPage = () => {
       <div className="px-6">
         <h2 className="text-lg font-bold text-white mb-3">Popular</h2>
         <div className="space-y-1">
-          {songs.slice(0, 50).map((s, i) => (
+          {songs.slice(0, 60).map((s, i) => (
             <SongRow
               key={s.id}
               song={s}

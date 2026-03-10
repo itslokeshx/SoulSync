@@ -650,7 +650,9 @@ export async function searchAll(query: string): Promise<{
             ? a.image
             : "/placeholder.png",
         year: String(a.year || ""),
-        artist: a.artist || a.artists?.primary?.[0]?.name || "",
+        // SearchPage AlbumCard reads .primaryArtists; /search endpoint has 'artist' (string)
+        primaryArtists:
+          a.primaryArtists || a.artist || a.artists?.primary?.[0]?.name || "",
         url: a.url || "",
       }))
       .filter((a: any) => a.id),
@@ -658,12 +660,34 @@ export async function searchAll(query: string): Promise<{
 }
 
 // ─── Convenience wrappers (cleaner API for search route) ─────────
-export async function fetchArtistSongs(id: string, page = 0): Promise<Song[]> {
-  const data = (await fetchSafe(
-    `${JIOSAAVN_BASE}/artists/${id}/songs?page=${page}&sortBy=popularity&sortOrder=desc`,
-  )) as any;
-  const raws = data?.data?.songs || data?.songs || data?.data || [];
-  return normalizeSongsToCanonical(Array.isArray(raws) ? raws : []);
+export async function fetchArtistSongs(
+  id: string,
+  page = 0,
+  pages = 1,
+): Promise<Song[]> {
+  const pageNums = Array.from({ length: pages }, (_, i) => page + i);
+  const results = await Promise.allSettled(
+    pageNums.map(
+      (p) =>
+        fetchSafe(
+          `${JIOSAAVN_BASE}/artists/${id}/songs?page=${p}&sortBy=popularity&sortOrder=desc`,
+        ) as Promise<any>,
+    ),
+  );
+  const raws: any[] = [];
+  const seen = new Set<string>();
+  for (const r of results) {
+    if (r.status !== "fulfilled") continue;
+    const songs = r.value?.data?.songs || r.value?.songs || r.value?.data || [];
+    for (const s of Array.isArray(songs) ? songs : []) {
+      const sid = String(s.id || s.songId || "");
+      if (sid && !seen.has(sid)) {
+        seen.add(sid);
+        raws.push(s);
+      }
+    }
+  }
+  return normalizeSongsToCanonical(raws);
 }
 
 export async function fetchAlbumSongs(id: string): Promise<Song[]> {

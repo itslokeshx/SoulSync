@@ -32,7 +32,7 @@ const router = Router();
 router.get("/", async (req: any, res: Response): Promise<void> => {
   const q = String(req.query.q || "").trim();
   const lang = String(req.query.lang || "").toLowerCase();
-  const limit = Math.min(Number(req.query.limit || 50), 50);
+  const limit = Math.min(Number(req.query.limit || 60), 60);
 
   if (!q) {
     res.json({ songs: [], artists: [], albums: [], query: "" });
@@ -42,48 +42,107 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
   const cacheKey = `search:v8:${q.toLowerCase()}:${lang}`;
   try {
     const hit = await redisGet(cacheKey);
-    if (hit) { res.json(JSON.parse(hit)); return; }
-  } catch { /* miss */ }
+    if (hit) {
+      res.json(JSON.parse(hit));
+      return;
+    }
+  } catch {
+    /* miss */
+  }
 
   const { queries, knownArtist } = buildSearchQueries(q);
   const [primaryQuery, ...fallbackQueries] = queries;
 
   markUserQueryStart();
   try {
-    const [hybridRes, fallbackRes, allRes] = await Promise.allSettled([
-      searchSongsHybrid(primaryQuery, 20),
-      Promise.allSettled(fallbackQueries.slice(0, 3).map(fq => searchSongs(fq, 20))),
-      searchAll(q),
-    ]);
+    // Phase 1: all in parallel ─────────────────────────────────────
+    // hybridRes  → direct jiosaavn.com (popularity-ranked, Ed Sheeran, Ranjini etc.)
+    // fallbackRes→ wrapper /search/songs (covers, regional)
+    // allRes     → wrapper /search (artists + albums + top query songs)
+    // artistRes  → wrapper /search/artists (accurate artist IDs for enrichment)
+    const [hybridRes, fallbackRes, allRes, artistRes] =
+      await Promise.allSettled([
+        searchSongsHybrid(primaryQuery, 50),
+        Promise.allSettled(
+          fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
+        ),
+        searchAll(q),
+        searchArtists(q, 5),
+      ]);
 
     const rawSongs: any[] = [];
     const seenIds = new Set<string>();
     const addSongs = (songs: any[]) => {
       for (const s of songs) {
         const id = String(s.id || s.songId || "").trim();
-        if (id && !seenIds.has(id)) { seenIds.add(id); rawSongs.push(s); }
+        if (id && !seenIds.has(id)) {
+          seenIds.add(id);
+          rawSongs.push(s);
+        }
       }
     };
 
     if (hybridRes.status === "fulfilled") addSongs(hybridRes.value);
     if (fallbackRes.status === "fulfilled") {
-      for (const r of fallbackRes.value) { if (r.status === "fulfilled") addSongs(r.value); }
+      for (const r of fallbackRes.value) {
+        if (r.status === "fulfilled") addSongs(r.value);
+      }
     }
     if (allRes.status === "fulfilled") addSongs(allRes.value.songs);
 
-    const artists = allRes.status === "fulfilled"
-      ? allRes.value.artists : await searchArtists(q, 5).catch(() => []);
-    const albums = allRes.status === "fulfilled"
-      ? allRes.value.albums : await searchAlbums(q, 5).catch(() => []);
+    // Merge artists from /search + /search/artists, dedup by ID
+    const artistMap = new Map<string, any>();
+    const allResArtists =
+      allRes.status === "fulfilled" ? allRes.value.artists : [];
+    const directArtists: any[] =
+      artistRes.status === "fulfilled" ? artistRes.value : [];
+    for (const a of [...allResArtists, ...directArtists]) {
+      const id = String(a.id || "");
+      if (id && !artistMap.has(id)) artistMap.set(id, a);
+    }
+    const artists = Array.from(artistMap.values()).slice(0, 8);
+
+    // Phase 2: Artist song enrichment ────────────────────────────
+    // For queries that look like artist searches ("ranjini songs", "arijit singh hits",
+    // "ed sheeran", short names etc.) fetch the artist's popularity-sorted songs
+    // and add them to the pool so the user sees real songs, not just artist chips.
+    const wordCount = q.trim().split(/\s+/).length;
+    const hasArtistTrigger =
+      /songs?|hits?|latest|recent|best|top|tracks?|music/i.test(q);
+    const isArtistQuery = wordCount <= 3 || hasArtistTrigger;
+
+    if (artists.length > 0 && isArtistQuery) {
+      const topArtists = artists.slice(0, 2);
+      const artistSongsRes = await Promise.allSettled(
+        topArtists.map((a) => fetchArtistSongs(String(a.id || ""), 0)),
+      );
+      for (const r of artistSongsRes) {
+        if (r.status === "fulfilled") addSongs(r.value);
+      }
+    }
+
+    const albums =
+      allRes.status === "fulfilled"
+        ? allRes.value.albums
+        : await searchAlbums(q, 5).catch(() => []);
 
     const normalized = normalizeSongsToCanonical(rawSongs);
     const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
-    const ranked = rankSongs(deduped as RankedSong[], q, lang || undefined, knownArtist ?? undefined) as Song[];
+    const ranked = rankSongs(
+      deduped as RankedSong[],
+      q,
+      lang || undefined,
+      knownArtist ?? undefined,
+    ) as Song[];
     const songs = ranked.slice(0, limit);
 
     const result = {
-      query: q, songs, artists, albums,
-      topResult: songs[0] ?? null, total: songs.length,
+      query: q,
+      songs,
+      artists,
+      albums,
+      topResult: songs[0] ?? null,
+      total: songs.length,
       parsedIntent: { displayContext: `Results for "${q}"` },
       relatedSearches: [],
     };
@@ -97,15 +156,22 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
 router.get("/smart", async (req: any, res: Response): Promise<void> => {
   const { q } = req.query as { q: string };
-  if (!q || q.trim().length < 1) { res.status(400).json({ error: "Query required" }); return; }
+  if (!q || q.trim().length < 1) {
+    res.status(400).json({ error: "Query required" });
+    return;
+  }
   try {
     markUserQueryStart();
     const result = await enhancedSearch(q, "all", 50);
     res.json(result);
   } catch (err) {
     console.error("Search error:", err);
-    res.status(500).json({ error: "Search failed", songs: [], albums: [], artists: [] });
-  } finally { markUserQueryEnd(); }
+    res
+      .status(500)
+      .json({ error: "Search failed", songs: [], albums: [], artists: [] });
+  } finally {
+    markUserQueryEnd();
+  }
 });
 
 router.get("/related", async (req: any, res: Response): Promise<void> => {
@@ -113,13 +179,18 @@ router.get("/related", async (req: any, res: Response): Promise<void> => {
     markUserQueryStart();
     const songId = req.query.songId as string;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    if (!songId) { res.status(400).json({ error: "Song ID required" }); return; }
+    if (!songId) {
+      res.status(400).json({ error: "Song ID required" });
+      return;
+    }
     const suggestions = await getSuggestions(songId, limit);
     res.json({ songId, limit, total: suggestions.length, songs: suggestions });
   } catch (err) {
     console.error("[Search] Related songs error:", err);
     res.status(500).json({ error: "Failed to fetch related songs" });
-  } finally { markUserQueryEnd(); }
+  } finally {
+    markUserQueryEnd();
+  }
 });
 
 router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
@@ -133,10 +204,12 @@ router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
     const results = await searchSongs(q.trim(), 8);
     const normalized = normalizeSongsToCanonical(results);
     const suggestions = Array.from(
-      new Set(normalized.flatMap(s => [s.name, s.primaryArtists]))
+      new Set(normalized.flatMap((s) => [s.name, s.primaryArtists])),
     ).slice(0, 10);
     res.json({ suggestions });
-  } catch { res.status(500).json({ error: "Failed to get suggestions" }); }
+  } catch {
+    res.status(500).json({ error: "Failed to get suggestions" });
+  }
 });
 
 router.get("/stream-url", async (req: any, res: Response) => {
@@ -145,28 +218,44 @@ router.get("/stream-url", async (req: any, res: Response) => {
   try {
     const song = await fetchSongById(id as string);
     if (!song) return res.status(404).json({ error: "Song not found" });
-    res.json({ streamUrl: song.streamUrl, downloadUrl: song.downloadUrl, song });
-  } catch { res.status(500).json({ error: "Failed to resolve stream URL" }); }
+    res.json({
+      streamUrl: song.streamUrl,
+      downloadUrl: song.downloadUrl,
+      song,
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to resolve stream URL" });
+  }
 });
 
 router.get("/song", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
-  try { res.json(await fetchSongById(id as string)); }
-  catch { res.status(500).json({ error: "Failed to fetch song" }); }
+  try {
+    res.json(await fetchSongById(id as string));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch song" });
+  }
 });
 
 // Param-style artist routes (must come BEFORE query-param routes to avoid :id matching "songs")
 router.get("/artist/songs", async (req: any, res: Response) => {
   const { id, page } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
-  try { res.json(await fetchArtistSongs(id as string, parseInt(page as string) || 0)); }
-  catch { res.status(500).json({ error: "Failed to fetch artist songs" }); }
+  try {
+    const startPage = parseInt(page as string) || 0;
+    // Fetch 6 pages in parallel → ~60 songs (10 per page from wrapper API)
+    res.json(await fetchArtistSongs(id as string, startPage, 6));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch artist songs" });
+  }
 });
 
 router.get("/artist/:id", async (req: any, res: Response) => {
   try {
-    const songs = await fetchArtistSongs(req.params.id, Number(req.query.page ?? 0));
+    const startPage = Number(req.query.page ?? 0);
+    // Fetch 6 pages in parallel → ~60 songs
+    const songs = await fetchArtistSongs(req.params.id, startPage, 6);
     res.json({ songs, artistId: req.params.id });
   } catch (err: any) {
     console.error("[Search] artist songs error:", err.message);
@@ -177,16 +266,22 @@ router.get("/artist/:id", async (req: any, res: Response) => {
 router.get("/artist", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
-  try { res.json(await getArtistDetails(id as string)); }
-  catch { res.status(500).json({ error: "Failed to fetch artist" }); }
+  try {
+    res.json(await getArtistDetails(id as string));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch artist" });
+  }
 });
 
 // Album routes
 router.get("/album/songs", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
-  try { res.json(await fetchAlbumSongs(id as string)); }
-  catch { res.status(500).json({ error: "Failed to fetch album songs" }); }
+  try {
+    res.json(await fetchAlbumSongs(id as string));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch album songs" });
+  }
 });
 
 router.get("/album/:id", async (req: any, res: Response) => {
@@ -202,8 +297,11 @@ router.get("/album/:id", async (req: any, res: Response) => {
 router.get("/album", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
-  try { res.json(await getAlbumDetails(id as string)); }
-  catch { res.status(500).json({ error: "Failed to fetch album" }); }
+  try {
+    res.json(await getAlbumDetails(id as string));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch album" });
+  }
 });
 
 export default router;
