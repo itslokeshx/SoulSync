@@ -79,10 +79,11 @@ function AuthInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
-          className={`w-full h-12 px-4 rounded-xl bg-white/[0.06] border text-white text-[14px] placeholder-white/20 outline-none focus:border-sp-green/50 focus:bg-white/[0.08] transition-all ${error
-            ? "border-red-500/60 bg-red-500/5"
-            : "border-white/[0.08] hover:border-white/[0.12]"
-            } ${suffix ? "pr-11" : ""}`}
+          className={`w-full h-12 px-4 rounded-xl bg-white/[0.06] border text-white text-[14px] placeholder-white/20 outline-none focus:border-sp-green/50 focus:bg-white/[0.08] transition-all ${
+            error
+              ? "border-red-500/60 bg-red-500/5"
+              : "border-white/[0.08] hover:border-white/[0.12]"
+          } ${suffix ? "pr-11" : ""}`}
         />
         {suffix && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -226,9 +227,10 @@ export default function LoginPage() {
   const handleNativeGoogle = async () => {
     setGoogleLoading(true);
     try {
-      const backendUrl =
+      const backendUrl = (
         import.meta.env.VITE_BACKEND_URL ||
-        "https://soulsync-backend-a5fs.onrender.com";
+        "https://soulsync-backend-a5fs.onrender.com"
+      ).replace(/\/$/, "");
       const { Browser } = await import("@capacitor/browser");
       await Browser.open({
         url: `${backendUrl}/api/auth/google/native`,
@@ -624,7 +626,6 @@ export default function LoginPage() {
                     Create account
                   </button>
                 </p>
-
               </motion.div>
             )}
 

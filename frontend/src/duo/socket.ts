@@ -1,10 +1,11 @@
 import { io, Socket } from "socket.io-client";
 import { getNativeToken } from "../api/backend";
 
-const BACKEND_URL =
+const BACKEND_URL = (
   import.meta.env.VITE_DUO_BACKEND ||
   import.meta.env.VITE_BACKEND_URL ||
-  "http://localhost:4000";
+  "http://localhost:4000"
+).replace(/\/$/, "");
 
 let socket: Socket | null = null;
 

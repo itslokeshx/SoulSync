@@ -10,10 +10,11 @@ import { useDuoStore, getPersistedSession } from "./duoStore";
 import { getNativeToken } from "../api/backend";
 import { isNative } from "../utils/platform";
 
-const BACKEND_URL =
+const BACKEND_URL = (
   import.meta.env.VITE_DUO_BACKEND ||
   import.meta.env.VITE_BACKEND_URL ||
-  "http://localhost:4000";
+  "http://localhost:4000"
+).replace(/\/$/, "");
 
 /** Fetch helper that includes auth for both web (cookies) and native (Bearer token) */
 function duoFetch(path: string, body: Record<string, unknown>) {
@@ -104,9 +105,9 @@ export function useDuo({
                 queue: q?.length ? q : [cs],
                 queueIndex: q?.length
                   ? Math.max(
-                    q.findIndex((s: any) => s.id === cs.id),
-                    0,
-                  )
+                      q.findIndex((s: any) => s.id === cs.id),
+                      0,
+                    )
                   : 0,
               });
             }
@@ -388,9 +389,9 @@ export function useDuo({
                   queue: q?.length ? q : [cs],
                   queueIndex: q?.length
                     ? Math.max(
-                      q.findIndex((s: any) => s.id === cs.id),
-                      0,
-                    )
+                        q.findIndex((s: any) => s.id === cs.id),
+                        0,
+                      )
                     : 0,
                 });
                 const audio = callbackRefs.current.audioRef.current;
@@ -438,9 +439,9 @@ export function useDuo({
                   queue: q?.length ? q : [cs],
                   queueIndex: q?.length
                     ? Math.max(
-                      q.findIndex((s: any) => s.id === cs.id),
-                      0,
-                    )
+                        q.findIndex((s: any) => s.id === cs.id),
+                        0,
+                      )
                     : 0,
                 });
                 const audio = callbackRefs.current.audioRef.current;
@@ -514,7 +515,7 @@ export function useDuo({
             audio
               .play()
               .then(() => callbackRefs.current.setIsPlaying(true))
-              .catch(() => { });
+              .catch(() => {});
           }
           break;
         }
@@ -543,15 +544,22 @@ export function useDuo({
         }
         case "duo:receive-song-change": {
           if (data?.song) {
-            const currentSongId = callbackRefs.current.currentSongRef?.current?.id;
+            const currentSongId =
+              callbackRefs.current.currentSongRef?.current?.id;
             // DEDUPLICATION: Do absolutely nothing if the song is already identical.
             // This is the primary fix for the endless SoulLink loop.
             if (currentSongId === data.song.id) {
-              console.log("[Duo] Skipping receive-song-change (already playing matching song):", data.song.id);
+              console.log(
+                "[Duo] Skipping receive-song-change (already playing matching song):",
+                data.song.id,
+              );
               break;
             }
 
-            console.log("[Duo] Changing local song via partner sync:", data.song.name);
+            console.log(
+              "[Duo] Changing local song via partner sync:",
+              data.song.name,
+            );
             callbackRefs.current.isRemoteActionRef.current = true;
             callbackRefs.current.playSongRef.current?.(
               data.song,
@@ -611,14 +619,26 @@ export function useDuo({
     return unsub;
   }, []);
 
-  return useMemo(() => ({
-    createSession,
-    joinSession,
-    syncPlay,
-    syncPause,
-    syncSeek,
-    syncSongChange,
-    sendMessage,
-    endSession,
-  }), [createSession, joinSession, syncPlay, syncPause, syncSeek, syncSongChange, sendMessage, endSession]);
+  return useMemo(
+    () => ({
+      createSession,
+      joinSession,
+      syncPlay,
+      syncPause,
+      syncSeek,
+      syncSongChange,
+      sendMessage,
+      endSession,
+    }),
+    [
+      createSession,
+      joinSession,
+      syncPlay,
+      syncPause,
+      syncSeek,
+      syncSongChange,
+      sendMessage,
+      endSession,
+    ],
+  );
 }

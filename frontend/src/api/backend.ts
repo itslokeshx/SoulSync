@@ -4,9 +4,11 @@ import { User, UserStats } from "../types/user";
 import { isNative } from "../utils/platform";
 
 const api = axios.create({
-  baseURL:
+  baseURL: (
     import.meta.env.VITE_BACKEND_URL ||
-    "https://soulsync-backend-a5fs.onrender.com",
+    "https://soulsync-backend-a5fs.onrender.com"
+  ).replace(/\/$/, ""),
+
   withCredentials: true,
   timeout: 30000,
 });
@@ -42,7 +44,7 @@ export async function saveNativeToken(token: string): Promise<void> {
   try {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.set({ key: "auth_token", value: token });
-  } catch { }
+  } catch {}
 }
 
 /** Clear stored native token */
@@ -52,7 +54,7 @@ export async function clearNativeToken(): Promise<void> {
   try {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.remove({ key: "auth_token" });
-  } catch { }
+  } catch {}
 }
 
 // Attach Bearer token for native requests
@@ -76,7 +78,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // Wake up backend on first load (Render free tier sleeps after 15 min)
@@ -191,7 +193,7 @@ export async function logHistory(entry: {
   source?: string;
   language?: string;
 }): Promise<void> {
-  await api.post("/api/user/history", entry).catch(() => { });
+  await api.post("/api/user/history", entry).catch(() => {});
 }
 
 export async function getHistory(
@@ -386,9 +388,7 @@ export async function getSession(code: string): Promise<unknown> {
 }
 
 // ── Import ──────────────────────────────────────────────────────────────────
-export async function importPlaylist(
-  input: string,
-): Promise<{
+export async function importPlaylist(input: string): Promise<{
   name: string;
   image: string | null;
   songNames: string[];

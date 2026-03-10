@@ -18,9 +18,10 @@ import { FALLBACK_IMG } from "../../lib/constants";
 import * as api from "../../api/backend";
 import toast from "react-hot-toast";
 
-const BACKEND_URL =
+const BACKEND_URL = (
   import.meta.env.VITE_BACKEND_URL ||
-  "https://soulsync-backend-a5fs.onrender.com";
+  "https://soulsync-backend-a5fs.onrender.com"
+).replace(/\/$/, "");
 const MAX_SONGS_INPUT = 100;
 const MAX_CHARS = 10000;
 
@@ -94,9 +95,9 @@ export function AIPlaylistModal() {
     const songs =
       mode === "songs"
         ? songList
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean)
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
         : undefined;
 
     try {
@@ -295,10 +296,11 @@ export function AIPlaylistModal() {
                       <button
                         key={m}
                         onClick={() => setMode(m)}
-                        className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${mode === m
-                          ? "bg-white text-black shadow-lg"
-                          : "text-white/40 hover:text-white"
-                          }`}
+                        className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200 ${
+                          mode === m
+                            ? "bg-white text-black shadow-lg"
+                            : "text-white/40 hover:text-white"
+                        }`}
                       >
                         {m === "mood" ? "✨ By Mood" : "🎵 From Song Names"}
                       </button>
@@ -321,8 +323,8 @@ export function AIPlaylistModal() {
                           (e.target.style.borderColor = "rgba(29,185,84,0.4)")
                         }
                         onBlur={(e) =>
-                        (e.target.style.borderColor =
-                          "rgba(255,255,255,0.07)")
+                          (e.target.style.borderColor =
+                            "rgba(255,255,255,0.07)")
                         }
                       />
                       <div className="flex flex-wrap gap-2">
@@ -375,8 +377,8 @@ export function AIPlaylistModal() {
                           (e.target.style.borderColor = "rgba(29,185,84,0.4)")
                         }
                         onBlur={(e) =>
-                        (e.target.style.borderColor =
-                          "rgba(255,255,255,0.07)")
+                          (e.target.style.borderColor =
+                            "rgba(255,255,255,0.07)")
                         }
                       />
                     </div>
@@ -639,16 +641,18 @@ export function AIPlaylistModal() {
                         <div
                           key={song.id}
                           onClick={() => toggleSong(song.id)}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${isSel
-                            ? "bg-white/[0.05]"
-                            : "opacity-35 hover:opacity-60"
-                            }`}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
+                            isSel
+                              ? "bg-white/[0.05]"
+                              : "opacity-35 hover:opacity-60"
+                          }`}
                         >
                           <div
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSel
-                              ? "bg-sp-green border-sp-green"
-                              : "border-white/20"
-                              }`}
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                              isSel
+                                ? "bg-sp-green border-sp-green"
+                                : "border-white/20"
+                            }`}
                           >
                             {isSel && (
                               <Check
