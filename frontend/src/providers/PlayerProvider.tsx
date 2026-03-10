@@ -56,14 +56,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const { next, prev, queue } = useQueueStore();
 
-    // ── Seek handler: updates BOTH audio element AND state ──────────────
-    const handleSeek = useCallback((time: number) => {
-        if (audioRef.current) {
-            audioRef.current.currentTime = time;
-        }
-        seekTo(time);
-    }, [seekTo]);
-
     // ── Refs & Synchronization Flags ──────────────────────────────────
     const isFirstPlayRef = useRef(true);
     const isRemoteActionRef = useRef(false);
@@ -98,6 +90,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addToast,
         isRemoteActionRef,
     });
+
+    // ── Seek handler: updates BOTH audio element AND state ──────────────
+    const handleSeek = useCallback((time: number) => {
+        if (audioRef.current) {
+            audioRef.current.currentTime = time;
+        }
+        seekTo(time);
+        duo.syncSeek(time);
+    }, [seekTo, duo]);
 
     // ── consolidated Audio & Source Control ─────────────────────────
     // Fixes the "image only changed" race condition by ensuring play() 
@@ -181,6 +182,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // ── Consolidated SoulLink Sync ────────────────────────────────────
     // Prevents infinite loops by checking isRemoteActionRef.
+
+    // 1. Sync Play/Pause state
     useEffect(() => {
         const isDuoActive = useDuoStore.getState().active;
         if (!isDuoActive || isFirstPlayRef.current) return;
@@ -198,14 +201,25 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } else {
             duo.syncPause(audioRef.current?.currentTime || 0);
         }
+    }, [isPlaying, currentSong?.id, duo]);
 
-        // Always sync song/queue on any relevant change if active
+    // 2. Sync Song/Queue changes
+    useEffect(() => {
+        const isDuoActive = useDuoStore.getState().active;
+        if (!isDuoActive || isFirstPlayRef.current) return;
+
+        // Note: isRemoteActionRef is primarily consumed by the play/pause effect
+        // If a song change came from remote, we still want to avoid echoing it back.
+        // But since the play/pause effect resets it, we use a separate flag or just 
+        // rely on the backend ignoring duplicate song sets. For safety, we only sync 
+        // if we actually have a valid song.
+
         if (currentSong) {
             const q = queue.length ? queue : [currentSong];
             const idx = Math.max(q.findIndex(s => s.id === currentSong.id), 0);
             duo.syncSongChange(currentSong, q, idx);
         }
-    }, [isPlaying, currentSong?.id, duo]);
+    }, [currentSong?.id, queue, duo]);
 
     // ── Volume & Media Controls ──────────────────────────────────────
     useEffect(() => {

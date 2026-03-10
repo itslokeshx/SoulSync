@@ -10,6 +10,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useUIStore } from "../store/uiStore";
 import { getDashboard, getGuestDashboard } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
+import { normalizeSong, normalizeSongs } from "../utils/normalizeSong";
 
 interface DashboardSection {
   id: string;

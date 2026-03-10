@@ -1,5 +1,5 @@
 /* @refresh reset */
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import {
   disconnectSocket,
   getSocket,
@@ -596,7 +596,7 @@ export function useDuo({
     return unsub;
   }, []);
 
-  return {
+  return useMemo(() => ({
     createSession,
     joinSession,
     syncPlay,
@@ -605,5 +605,5 @@ export function useDuo({
     syncSongChange,
     sendMessage,
     endSession,
-  };
+  }), [createSession, joinSession, syncPlay, syncPause, syncSeek, syncSongChange, sendMessage, endSession]);
 }
