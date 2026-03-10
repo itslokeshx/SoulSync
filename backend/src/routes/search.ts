@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import { parseIntent } from "../services/intentParser.js";
+import { enhancedSearch } from "../services/searchEnhancer.js";
 import {
   executeSearch,
   getSuggestions,
@@ -27,8 +28,8 @@ router.get("/smart", async (req: any, res: Response): Promise<void> => {
 
   try {
     markUserQueryStart();
-    const intent = parseIntent(q);
-    const result = await executeSearch(intent);
+    // Use the superior enhancedSearch from searchEnhancer.ts
+    const result = await enhancedSearch(q, "all", 50);
     res.json(result);
   } catch (err) {
     console.error("Search error:", err);

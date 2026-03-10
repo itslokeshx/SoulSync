@@ -1,4 +1,4 @@
-import { searchSongs, JioSaavnSong } from "./jiosaavn.js";
+import { searchSongs, searchAlbums, searchArtists, JioSaavnSong } from "./jiosaavn.js";
 import { redisGet, redisSet } from "./redis.js";
 
 // ── L1 in-memory cache (process-level, survives Redis blips) ────────────────
@@ -445,6 +445,32 @@ const COVER_KEYWORDS = [
   "reprise (cover)",
   "piano version",
 ];
+const OFFICIAL_LABELS = [
+  "warner", "universal", "sony", "atlantic", "columbia", "republic", "interscope", "rca", "epic",
+  "capitol", "emi", "bmg", "t-series", "zee music", "yash raj", "saregama", "tips", "eros", "venus",
+  "asylum", "big machine", "harvest", "island", "polydor", "virgin", "arista", "bad boy", "def jam",
+  "geffen", "motown", "pavement", "rhino", "syco", "v2", "wind-up"
+];
+const BLACKLISTED_LABELS = [
+  "magic records", "soave records", "vibe network", "vibes network", "luxebeats", "17diamonds",
+  "cover kingdom", "acoustic hits", "tribute kingdom", "fanmade", "fan-made", "unofficial",
+  "karaoke hits", "piano dreams", "relaxing covers"
+];
+
+const WORLD_CLASS_HITS: Record<string, string> = {
+  "shape of you": "Ed Sheeran",
+  "despacito": "Luis Fonsi",
+  "stay": "Justin Bieber",
+  "blinding lights": "The Weeknd",
+  "perfect": "Ed Sheeran",
+  "believer": "Imagine Dragons",
+  "lovely": "Billie Eilish",
+  "faded": "Alan Walker",
+  "let me love you": "Justin Bieber",
+  "closer": "The Chainsmokers",
+};
+
+
 
 // ─── INTENT TYPES ────────────────────────────────────────────────────────────
 export type IntentType =
@@ -526,7 +552,8 @@ export function parseQuery(raw: string): ParsedQuery {
     (a, b) => b.length - a.length,
   );
   for (const key of sortedArtistKeys) {
-    if (lower.includes(key) && !artist) {
+    const pattern = new RegExp(`\\b${key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, "i");
+    if (pattern.test(lower) && !artist) {
       artist = ARTIST_DICT[key];
       artistConfidence = key.split(" ").length > 1 ? 0.95 : 0.8;
       break;
@@ -536,7 +563,8 @@ export function parseQuery(raw: string): ParsedQuery {
   // ── 1.5. Actor detection ──
   const sortedActorKeys = Object.keys(ACTOR_DICT).sort((a, b) => b.length - a.length);
   for (const key of sortedActorKeys) {
-    if (lower.includes(key) && !actor && !artist) {
+    const pattern = new RegExp(`\\b${key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, "i");
+    if (pattern.test(lower) && !actor && !artist) {
       actor = key;
       actorExpansion = ACTOR_DICT[key];
       break;
@@ -851,12 +879,27 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
   const queryLower = parsed.normalizedQuery;
   const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 1);
 
-  // Collect all artist names
-  const primaryArtists =
-    song.artists?.primary?.map((a: any) => a.name.toLowerCase()) || [];
-  const mapArtists =
-    song.artist_map?.primary_artists?.map((a: any) => a.name.toLowerCase()) || [];
-  const allArtists = [...new Set([...primaryArtists, ...mapArtists])];
+  // Collect all artist names (Robust extraction from multiple possible API formats)
+  const getArtistsFromField = (field: any): string[] => {
+    if (!field) return [];
+    if (typeof field === "string") return field.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (Array.isArray(field)) {
+      return field.map(a => (typeof a === "string" ? a : a.name || "").toLowerCase()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const primaryArtists = [
+    ...getArtistsFromField(song.artists?.primary),
+    ...getArtistsFromField((song as any).primaryArtists)
+  ];
+  const featuredArtists = [
+    ...getArtistsFromField(song.artists?.featured),
+    ...getArtistsFromField((song as any).featuredArtists)
+  ];
+  const mapArtists = getArtistsFromField(song.artist_map?.primary_artists);
+
+  const allArtists = [...new Set([...primaryArtists, ...featuredArtists, ...mapArtists])];
   const allArtistStr = allArtists.join(" ");
 
   // ═══ TITLE MATCHING ═══
@@ -1012,6 +1055,34 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
     reasons.push("low_plays_penalty");
   }
 
+  // ═══ WORLD CLASS HIT VALIDATION ═══
+  const worldHitEntry = Object.entries(WORLD_CLASS_HITS).find(([h]) => titleLower.includes(h));
+  if (worldHitEntry) {
+    const hitTitle = worldHitEntry[0];
+    const hitArtist = worldHitEntry[1].toLowerCase();
+
+    // Duration check (if it's a snippet < 2min, it's garbage for a full hit)
+    if (song.duration && song.duration < 120) {
+      score -= 200;
+      reasons.push("hit_snippet_penalty");
+    }
+
+    // Artist check for world-class hits
+    if (!allArtists.some(a => a.includes(hitArtist) || hitArtist.includes(a))) {
+      // If none of the artists match the world-class artist, it's a cover
+      score -= 150;
+      reasons.push("world_hit_artist_mismatch_penalty");
+    } else {
+      score += 100;
+      reasons.push("world_hit_official_artist_boost");
+    }
+
+    if (playCount < 1_000_000) {
+      score -= 150;
+      reasons.push("world_hit_low_plays_penalty");
+    }
+  }
+
   // ═══ ALBUM NAME HAS QUERY WORDS (original soundtrack) ═══
   if (
     albumLower &&
@@ -1021,28 +1092,67 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
     reasons.push("album_word");
   }
 
+  // ═══ LABEL MATCHING (POWERFUL) ═══
+  const labelLower = (song.label || "").toLowerCase();
+
+  if (BLACKLISTED_LABELS.some(l => labelLower.includes(l))) {
+    score -= 250;
+    reasons.push("blacklisted_label_penalty");
+  } else if (OFFICIAL_LABELS.some(l => labelLower.includes(l))) {
+    score += 80;
+    reasons.push("official_label_boost");
+  }
+
+  if (labelLower.includes("original") && !labelLower.includes("cover")) {
+    score += 40;
+    reasons.push("label_original_boost");
+  }
+  if (COVER_KEYWORDS.some(kw => labelLower.includes(kw))) {
+    score -= 150;
+    reasons.push("label_cover_penalty");
+  }
+
+  // ═══ YEAR VALIDATION (ELIMINATE FAKES) ═══
+  if (song.year) {
+    const songYear = parseInt(song.year, 10);
+    const curYear = new Date().getFullYear();
+    if (songYear > curYear) {
+      score -= 200; // Future years are fakes/gaming
+      reasons.push("future_year_penalty");
+    }
+  }
+
   // ═══ PENALIZE COVERS & JUNK (AGRESSIVE) ═══
   const isExplicitFormat = parsed.entities.format !== null;
   const isExplicitCover = parsed.normalizedQuery.includes("cover") || parsed.normalizedQuery.includes("unplugged") || parsed.normalizedQuery.includes("karaoke");
 
-  // Only penalize if they didn't explicitly ask for a special format/cover
-  if (!isExplicitCover && !isExplicitFormat) {
-    const hasCoverKeyword = COVER_KEYWORDS.some((kw) => titleLower.includes(kw) || albumLower.includes(kw) || allArtistStr.includes(kw));
-    const hasJunkKeyword = JUNK_KEYWORDS.some((kw) => titleLower.includes(kw) || albumLower.includes(kw) || allArtistStr.includes(kw));
-    // Also explicitly penalize artist names that look like generic cover makers
-    const hasGenericArtist = allArtists.some(a => a.includes("karaoke") || a.includes("tribute") || a.includes("cover"));
+  const hasCoverKeyword = COVER_KEYWORDS.some((kw) => titleLower.includes(kw) || albumLower.includes(kw) || allArtistStr.includes(kw) || labelLower.includes(kw));
+  const hasJunkKeyword = JUNK_KEYWORDS.some((kw) => titleLower.includes(kw) || albumLower.includes(kw) || allArtistStr.includes(kw) || labelLower.includes(kw));
+  // Also explicitly penalize artist names that look like generic cover makers
+  const hasGenericArtist = allArtists.some(a =>
+    a.includes("karaoke") || a.includes("tribute") || a.includes("cover") ||
+    a.includes("recreation") || a.includes("originally performed") ||
+    a.includes("version") || a.includes("workout") || a.includes("music therapy") ||
+    a.includes("relaxing") || a.includes("instrumental") || a.includes("lullaby") ||
+    a.includes("fitness") || a.includes("remix") || a.includes("mashup")
+  );
 
-    if (hasCoverKeyword || hasGenericArtist) {
-      score -= 150;
-      reasons.push("aggressive_cover_penalty");
-    } else if (hasJunkKeyword) {
-      score -= 100;
-      reasons.push("junk_version_penalty");
-    } else if (titleLower === queryLower) {
-      // If it's an exact title match AND it survived the junk filter, give it a massive clean boost
-      score += 40;
-      reasons.push("original_clean_title_boost");
-    }
+  if (hasCoverKeyword || hasGenericArtist || titleLower.includes("originally performed by") || titleLower.includes("originally performed by")) {
+    score -= 500; // Nuclear penalty
+    reasons.push("aggressive_cover_penalty");
+  } else if (hasJunkKeyword) {
+    score -= 150;
+    reasons.push("junk_version_penalty");
+  } else if (titleLower === queryLower) {
+    // If it's an exact title match AND it survived the junk filter, give it a massive clean boost
+    score += 60;
+    reasons.push("original_clean_title_boost");
+  }
+
+  // ═══ EXACT TITLE + OFFICIAL LABEL COMBO ═══
+  if (titleLower === queryLower && OFFICIAL_LABELS.some(l => labelLower.includes(l))) {
+    score += 80;
+    reasons.push("official_match_combo");
   }
 
   return {
@@ -1079,13 +1189,14 @@ export async function enhancedSearch(
   parsedIntent: ParsedQuery;
   topResult: ScoredSong | null;
   songs: ScoredSong[];
+  albums: any[];
+  artists: any[];
   total: number;
   displayContext: string;
 }> {
   // Cache check — word-sorted key so "sad hindi" and "hindi sad" share one entry
-  const ck = `search:v3:${normalizeSearchKey(query)}:${type}`;
-  // DEVELOPMENT BYPASS: Force cache skip to test NLP logic
-  /*
+  const ck = `search:v10:${normalizeSearchKey(query)}:${type}`;
+
   const l1 = l1Get(ck);
   if (l1) return l1;
   const cached = await redisGet(ck);
@@ -1097,27 +1208,56 @@ export async function enhancedSearch(
     } catch {
     }
   }
-  */
 
   const parsed = parseQuery(query);
   let allResults: JioSaavnSong[] = [];
+  let albums: any[] = [];
+  let artists: any[] = [];
 
   console.log(`[Search NLP Trace] Query: "${query}" -> Intent: ${parsed.intent}`, parsed.expandedQueries);
 
-  // ── Step 1: Fire primary queries via the BG queue (warmup path) ──
+  // ── Step 1: Fire primary queries + Albums + Artists + GLOBAL in parallel ──
   // Uses searchSongs (bg queue) so warmup never competes with live user
-  // searches that run on the dedicated user queue via searchSongsDirect.
-  const primaryQueries = parsed.expandedQueries.slice(0, 3);
-  const primaryPromises = primaryQueries.map((q) =>
-    searchSongs(q, Math.min(limit, 30)), // Bumped internal limit to 30 per query for massive pool
-  );
-  const settled = await Promise.allSettled(primaryPromises);
+  let primaryQueries = [...parsed.expandedQueries.slice(0, 3)];
 
-  for (const res of settled) {
-    if (res.status === "fulfilled") {
-      allResults.push(...(res.value as any));
+  // Inject hit artist if missing
+  for (const [hit, art] of Object.entries(WORLD_CLASS_HITS)) {
+    if (query.toLowerCase().includes(hit) && !parsed.entities.artist) {
+      primaryQueries.push(`${hit} ${art}`);
+      break;
     }
   }
+
+  const [songSettled, albumSettled, artistSettled, globalSettled] = await Promise.allSettled([
+    Promise.allSettled(primaryQueries.map((q) => searchSongs(q, Math.min(limit, 30)))),
+    searchAlbums(query, 12),
+    searchArtists(query, 10),
+    fetch(process.env.VITE_JIOSAAVN_API + `/search?query=${encodeURIComponent(query)}`).then(r => r.json())
+  ]);
+
+  // Process songs
+  if (songSettled.status === "fulfilled") {
+    for (const res of songSettled.value) {
+      if (res.status === "fulfilled") {
+        allResults.push(...(res.value as any));
+      }
+    }
+  }
+
+  // Process global top result (crucial for English hits)
+  if (globalSettled.status === "fulfilled") {
+    const resValue = globalSettled.value as any;
+    if (resValue?.data) {
+      const data = resValue.data;
+      const topSongs = data?.songs?.results || [];
+      const topQuery = data?.topQuery?.results || [];
+      allResults.push(...topSongs, ...topQuery.filter((r: any) => r.type === 'song'));
+    }
+  }
+
+  // Process albums & artists
+  if (albumSettled.status === "fulfilled") albums = albumSettled.value || [];
+  if (artistSettled.status === "fulfilled") artists = artistSettled.value || [];
 
   // ── Step 2: Score and check if top result is strong ──
   const seen = new Set<string>();
@@ -1138,7 +1278,7 @@ export async function enhancedSearch(
   ) {
     const moreQueries = parsed.expandedQueries.slice(3, 6);
     const moreSettled = await Promise.allSettled(
-      moreQueries.map((q) => searchSongs(q, 10)),
+      moreQueries.map((q) => searchSongs(q, 15)),
     );
     for (const res of moreSettled) {
       if (res.status === "fulfilled") {
@@ -1154,16 +1294,20 @@ export async function enhancedSearch(
     scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
   }
 
-  // ── Step 4: Filter out junk (score < 10) and limit ──
+  // ── Step 4: Filter out junk (score < 5) and limit ──
   const filtered = scored.filter((s) => s.relevanceScore >= 5).slice(0, limit);
-  const topResult =
-    filtered.length > 0 && filtered[0].relevanceScore > 70 ? filtered[0] : null;
+
+  // Intelligence: If we have a very strong song match (>110), it's the top result.
+  // Otherwise, if we have a perfect artist/album match in the query, they could be top.
+  let topResult = filtered.length > 0 && filtered[0].relevanceScore > 80 ? filtered[0] : null;
 
   const result = {
     query,
     parsedIntent: parsed,
     topResult,
     songs: filtered,
+    albums,
+    artists,
     total: filtered.length,
     displayContext: parsed.displayContext,
   };
