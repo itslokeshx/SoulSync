@@ -12,6 +12,7 @@ import {
   fetchArtistSongs,
   fetchAlbumSongs,
   fetchSongById,
+  fetchSongsByIds,
   getSuggestions,
   getTopSearches,
   getArtistDetails,
@@ -24,6 +25,7 @@ import {
   rankSongs,
   dedupSongs,
   buildSearchQueries,
+  getKnownSongIds,
   type RankedSong,
 } from "../services/searchRanker.js";
 
@@ -55,6 +57,14 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
   markUserQueryStart();
   try {
+    // Phase 0: Inject pinned songs for known queries ───────────────
+    // These are real JioSaavn IDs that wrapper search never surfaces
+    // (e.g. Ed Sheeran's "Shape of You" is buried by covers).
+    // Fetched directly by ID — always in the pool before ranking.
+    const pinnedIds = getKnownSongIds(q);
+    const pinnedSongs = pinnedIds.length
+      ? await fetchSongsByIds(pinnedIds)
+      : [];
     // Phase 1: all in parallel ─────────────────────────────────────
     // hybridRes  → direct jiosaavn.com (popularity-ranked, Ed Sheeran, Ranjini etc.)
     // fallbackRes→ wrapper /search/songs (covers, regional)
@@ -81,6 +91,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
         }
       }
     };
+
+    // Always add pinned songs first so they're guaranteed in the pool
+    addSongs(pinnedSongs);
 
     if (hybridRes.status === "fulfilled") addSongs(hybridRes.value);
     if (fallbackRes.status === "fulfilled") {

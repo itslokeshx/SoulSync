@@ -503,6 +503,20 @@ export function getKnownArtist(query: string): string | null {
 }
 
 // ════════════════════════════════════════════════════════════════
+// KNOWN SONG IDs — real JioSaavn IDs for songs the wrapper search
+// never returns (e.g. Ed Sheeran originals buried by covers).
+// Fetched directly by ID on every matching search, bypassing search index.
+// To add more: search on local dev, copy the id from direct jiosaavn.com results.
+// ════════════════════════════════════════════════════════════════
+export const KNOWN_SONG_IDS: Record<string, string[]> = {
+  "shape of you": ["icJam_5l", "wwSCc15h"],
+};
+
+export function getKnownSongIds(query: string): string[] {
+  return KNOWN_SONG_IDS[query.trim().toLowerCase()] ?? [];
+}
+
+// ════════════════════════════════════════════════════════════════
 // MULTI-QUERY BUILDER
 // We fetch from multiple JioSaavn query strings and merge results.
 // More raw material → better recall → better ranking output.

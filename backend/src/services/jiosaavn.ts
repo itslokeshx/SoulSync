@@ -637,6 +637,24 @@ export function normalizeSongsToCanonical(raws: any[]): Song[] {
     .filter((s): s is Song => s !== null && s.id !== "");
 }
 
+// ─── Fetch multiple songs by ID in parallel (wrapper) ─────────────
+// Used to inject pinned songs (e.g. Ed Sheeran for "shape of you")
+// that the wrapper search index never returns.
+export async function fetchSongsByIds(ids: string[]): Promise<Song[]> {
+  if (!ids.length) return [];
+  const results = await Promise.allSettled(
+    ids.map((id) => fetchSafe(`${JIOSAAVN_BASE}/songs/${id}`) as Promise<any>),
+  );
+  const songs: Song[] = [];
+  for (const r of results) {
+    if (r.status !== "fulfilled" || !r.value) continue;
+    const raw = Array.isArray(r.value.data) ? r.value.data[0] : r.value.data;
+    const s = normalizeSongToCanonical(raw);
+    if (s) songs.push(s);
+  }
+  return songs;
+}
+
 // ─── SEARCH ALL — songs + artists + albums in one call ────────────
 export async function searchAll(query: string): Promise<{
   songs: Song[];
