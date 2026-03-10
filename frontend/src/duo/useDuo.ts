@@ -47,6 +47,7 @@ interface UseDuoOpts {
     ms?: number,
   ) => void;
   isRemoteActionRef: React.MutableRefObject<boolean>;
+  isPlayingRef: React.MutableRefObject<boolean>;
 }
 
 export function useDuo({
@@ -58,6 +59,7 @@ export function useDuo({
   setCurrentTime,
   addToast,
   isRemoteActionRef,
+  isPlayingRef,
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasConnectedOnceRef = useRef(false);
@@ -297,6 +299,7 @@ export function useDuo({
     setIsPlaying,
     setCurrentTime,
     isRemoteActionRef,
+    isPlayingRef,
   });
   useEffect(() => {
     callbackRefs.current = {
@@ -308,6 +311,7 @@ export function useDuo({
       setIsPlaying,
       setCurrentTime,
       isRemoteActionRef,
+      isPlayingRef,
     };
   });
 
@@ -505,11 +509,15 @@ export function useDuo({
             const ct = data?.currentTime;
             if (ct != null && Math.abs(audio.currentTime - ct) > 2)
               audio.currentTime = ct;
-            callbackRefs.current.isRemoteActionRef.current = true;
-            audio
-              .play()
-              .then(() => callbackRefs.current.setIsPlaying(true))
-              .catch(() => { });
+
+            // Only play if currently paused to avoid re-triggering state
+            if (!callbackRefs.current.isPlayingRef?.current) {
+              callbackRefs.current.isRemoteActionRef.current = true;
+              audio
+                .play()
+                .then(() => callbackRefs.current.setIsPlaying(true))
+                .catch(() => { });
+            }
           }
           break;
         }
@@ -517,13 +525,17 @@ export function useDuo({
           const audio = callbackRefs.current.audioRef.current;
           if (audio) {
             const ct = data?.currentTime;
-            callbackRefs.current.isRemoteActionRef.current = true;
-            audio.pause();
             if (ct != null) {
               audio.currentTime = ct;
               callbackRefs.current.setCurrentTime(ct);
             }
-            callbackRefs.current.setIsPlaying(false);
+
+            // Only pause if currently playing
+            if (callbackRefs.current.isPlayingRef?.current) {
+              callbackRefs.current.isRemoteActionRef.current = true;
+              audio.pause();
+              callbackRefs.current.setIsPlaying(false);
+            }
           }
           break;
         }
@@ -537,6 +549,15 @@ export function useDuo({
         }
         case "duo:receive-song-change": {
           if (data?.song) {
+            const currentSongId = callbackRefs.current.currentSongRef?.current?.id;
+            // DEDUPLICATION: Do absolutely nothing if the song is already identical.
+            // This is the primary fix for the endless SoulLink loop.
+            if (currentSongId === data.song.id) {
+              console.log("[Duo] Skipping receive-song-change (already playing matching song):", data.song.id);
+              break;
+            }
+
+            console.log("[Duo] Changing local song via partner sync:", data.song.name);
             callbackRefs.current.isRemoteActionRef.current = true;
             callbackRefs.current.playSongRef.current?.(
               data.song,

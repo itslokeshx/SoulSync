@@ -74,6 +74,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const queueRef = useRef(queue);
     useEffect(() => { queueRef.current = queue; }, [queue]);
 
+    const isPlayingRef = useRef(isPlaying);
+    useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
     const addToast = (msg: string, type: string = 'info') => {
         if (type === 'success') toast.success(msg);
         else if (type === 'error') toast.error(msg);
@@ -89,6 +92,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCurrentTime,
         addToast,
         isRemoteActionRef,
+        isPlayingRef,
     });
 
     // ── Seek handler: updates BOTH audio element AND state ──────────────

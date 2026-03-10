@@ -96,8 +96,8 @@ export default function SoulLinkPage() {
     // ── Active session view ──
     if (active && roomCode) {
         return (
-            <div className="min-h-screen bg-gradient-mesh mesh-animate p-3 sm:p-4 md:p-8 flex items-start sm:items-center justify-center pt-16 sm:pt-4 overflow-y-auto">
-                <div className="absolute top-4 left-4 sm:top-8 sm:left-8 z-20">
+            <div className="min-h-[100dvh] bg-gradient-mesh mesh-animate p-3 sm:p-4 md:p-8 flex items-center justify-center pt-12 sm:pt-4 overflow-y-auto">
+                <div className="absolute top-3 left-3 sm:top-8 sm:left-8 z-20">
                     <button onClick={() => navigate('/')} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full glass flex items-center justify-center hover:scale-110 active:scale-90 transition-all">
                         <ArrowLeft size={18} className="text-white" />
                     </button>
@@ -109,13 +109,13 @@ export default function SoulLinkPage() {
                     <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full pointer-events-none" />
 
                     <div className="relative z-10">
-                        <div className="relative w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-8">
+                        <div className="relative w-16 h-16 sm:w-28 sm:h-28 mx-auto mb-3 sm:mb-6">
                             <PulseRing />
                             <div className="w-full h-full rounded-full bg-white/[0.03] border border-white/[0.1] flex items-center justify-center relative z-10 shadow-2xl">
                                 {partnerConnected ? (
-                                    <Headphones size={32} className="text-sp-green sm:w-12 sm:h-12" />
+                                    <Headphones size={28} className="text-sp-green sm:w-10 sm:h-10" />
                                 ) : (
-                                    <Radio size={32} className="text-sp-green animate-pulse sm:w-12 sm:h-12" />
+                                    <Radio size={28} className="text-sp-green animate-pulse sm:w-10 sm:h-10" />
                                 )}
                             </div>
                         </div>
@@ -133,17 +133,17 @@ export default function SoulLinkPage() {
                                 : "Share your unique room code. Once they join, your music worlds will merge."}
                         </p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-10 text-left">
-                            <div className="glass p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
-                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1.5 sm:mb-2">Room Code</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-5 sm:mb-8 text-left">
+                            <div className="glass p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl">
+                                <p className="text-[9px] sm:text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1 sm:mb-2">Room Code</p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">{roomCode}</span>
-                                    <button onClick={copyCode} className="p-2 rounded-xl hover:bg-white/10 text-white/60 transition-all">
+                                    <span className="text-lg sm:text-2xl font-black text-white font-mono tracking-wider">{roomCode}</span>
+                                    <button onClick={copyCode} className="p-1.5 sm:p-2 rounded-xl hover:bg-white/10 text-white/60 transition-all">
                                         {copied ? <Check size={16} className="text-sp-green" /> : <Copy size={16} />}
                                     </button>
                                 </div>
                             </div>
-                            <div className="glass p-6 rounded-3xl flex items-center justify-between">
+                            <div className="glass p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl flex items-center justify-between">
                                 <div>
                                     <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1">Status</p>
                                     <p className={`text-sm font-bold ${partnerConnected ? 'text-sp-green' : 'text-amber-400'}`}>
@@ -156,16 +156,16 @@ export default function SoulLinkPage() {
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                             <button
                                 onClick={() => navigate('/')}
-                                className="flex-1 py-3.5 sm:py-5 rounded-full bg-sp-green text-black font-black text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-sp-green/20"
+                                className="flex-1 py-3 sm:py-4 rounded-full bg-sp-green text-black font-black text-xs sm:text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-sp-green/20"
                             >
                                 Start Listening
                             </button>
                             <button
                                 onClick={duo.endSession}
-                                className="flex-1 py-5 rounded-full glass text-white font-bold text-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
+                                className="flex-1 py-3 sm:py-4 rounded-full glass text-white font-bold text-xs sm:text-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
                             >
                                 End Session
                             </button>
@@ -178,22 +178,22 @@ export default function SoulLinkPage() {
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="mt-12 pt-12 border-t border-white/[0.05] overflow-hidden"
+                                    className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/[0.05] overflow-hidden flex flex-col"
                                 >
-                                    <div className="flex items-center gap-2 mb-6 ml-2">
+                                    <div className="flex items-center gap-2 mb-4 sm:mb-6 ml-2">
                                         <Send size={14} className="text-white/30" />
-                                        <h3 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Synchronized Chat</h3>
+                                        <h3 className="text-[9px] sm:text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Synchronized Chat</h3>
                                     </div>
 
-                                    <div className="h-48 sm:h-64 overflow-y-auto pr-2 mb-4 sm:mb-6 thin-scrollbar space-y-3 sm:space-y-4 text-left">
+                                    <div className="max-h-[30vh] sm:h-64 overflow-y-auto pr-2 mb-3 sm:mb-4 thin-scrollbar space-y-2 sm:space-y-4 text-left">
                                         {messages.length === 0 && (
-                                            <div className="h-full flex flex-col items-center justify-center opacity-20 italic text-sm text-white">
+                                            <div className="h-20 sm:h-full flex flex-col items-center justify-center opacity-20 italic text-xs sm:text-sm text-white">
                                                 No messages yet. Send a whisper.
                                             </div>
                                         )}
                                         {messages.map((m, i) => (
                                             <div key={i} className={`flex flex-col ${m.from === role ? 'items-end' : 'items-start'}`}>
-                                                <div className={`px-4 py-2.5 rounded-2xl text-sm max-w-[80%] ${m.from === role
+                                                <div className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm max-w-[85%] sm:max-w-[80%] ${m.from === role
                                                     ? 'bg-sp-green text-black font-bold shadow-lg shadow-sp-green/10'
                                                     : 'bg-white/[0.05] text-white border border-white/[0.05]'
                                                     }`}>
@@ -240,7 +240,7 @@ export default function SoulLinkPage() {
 
     // ── Creation/Join Flow ──
     return (
-        <div className="min-h-screen bg-gradient-mesh mesh-animate p-3 sm:p-4 md:p-8 flex items-start sm:items-center justify-center pt-16 sm:pt-4 overflow-y-auto">
+        <div className="min-h-[100dvh] bg-gradient-mesh mesh-animate p-3 sm:p-4 md:p-8 flex items-center justify-center pt-10 sm:pt-4 overflow-y-auto w-full">
             {/* Decorative floating elements */}
             <motion.div
                 animate={{ y: [0, -20, 0], opacity: [0.1, 0.2, 0.1] }}
@@ -260,18 +260,18 @@ export default function SoulLinkPage() {
             </div>
 
             <div className="max-w-xl w-full">
-                <div className="text-center mb-8 sm:mb-12">
+                <div className="text-center mb-6 sm:mb-10">
                     <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center mx-auto mb-3 sm:mb-5 shadow-2xl shadow-sp-green/30"
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-sp-green to-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-2xl shadow-sp-green/30"
                     >
-                        <Zap size={24} className="text-black fill-black" />
+                        <Zap size={20} className="text-black fill-black sm:w-6 sm:h-6" />
                     </motion.div>
                     <motion.h1
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-2 sm:mb-3 tracking-tight"
+                        className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-1 sm:mb-2 tracking-tight"
                     >
                         Soul<span className="text-sp-green">Link</span>
                     </motion.h1>
