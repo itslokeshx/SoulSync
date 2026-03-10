@@ -23,11 +23,9 @@ export const useToasts = () => {
   return { toasts, add, dismiss };
 };
 
-export const useLikedSongs = (): [
-  Record<string, any>,
-  (song: any) => void,
-  (all: any[]) => void,
-] => {
+export const useLikedSongs = (
+  isAuthenticated = false,
+): [Record<string, any>, (song: any) => void, (all: any[]) => void] => {
   const [liked, setLiked] = useState<Record<string, any>>(() => {
     try {
       return JSON.parse(localStorage.getItem("ss_liked") || "{}");
@@ -36,8 +34,9 @@ export const useLikedSongs = (): [
     }
   });
 
-  // Sync from cloud on mount — merge cloud likes into local state
+  // Sync from cloud once auth is confirmed (avoids race with loadNativeToken)
   useEffect(() => {
+    if (!isAuthenticated) return; // wait until token is ready
     let cancelled = false;
     api
       .getLikedSongs()
@@ -70,11 +69,11 @@ export const useLikedSongs = (): [
           return merged;
         });
       })
-      .catch(() => { }); // silently fail if not logged in
+      .catch(() => {}); // silently fail if not logged in
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAuthenticated]); // refetch when user logs in
 
   const toggle = useCallback((song: any) => {
     setLiked((prev) => {

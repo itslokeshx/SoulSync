@@ -66,9 +66,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <AuthProvider>
             <App />
             <Toaster
-              position="bottom-center"
+              position="top-center"
               toastOptions={{
-                duration: 3000,
+                duration: 1500,
                 style: {
                   background: "#282828",
                   color: "#fff",
