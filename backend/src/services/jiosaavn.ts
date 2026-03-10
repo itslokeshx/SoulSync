@@ -157,10 +157,16 @@ async function fetchDirect(url: string, timeout = 8000): Promise<any> {
     });
     clearTimeout(t);
     if (!res.ok) return null;
-    // Cloudflare sometimes returns 200 HTML challenge — detect it
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("json") && !ct.includes("text/plain")) return null;
-    return await res.json();
+    // Cloudflare challenge pages return very large HTML — detect by size
+    // jiosaavn.com returns text/html even for valid JSON responses, so we
+    // can't rely on content-type; instead try parsing and catch failures.
+    const text = await res.text();
+    if (text.length < 20) return null; // empty / too short
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null; // was an HTML challenge page, not JSON
+    }
   } catch {
     clearTimeout(t);
     return null;
