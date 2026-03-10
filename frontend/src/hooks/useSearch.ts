@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useDebounce } from "use-debounce";
 
-const API =
-  import.meta.env.VITE_BACKEND_URL ||
-  "http://localhost:4000";
+const API = (
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:4000"
+).replace(/\/$/, "");
 
 export interface SmartSearchResult {
   songs: any[];
@@ -50,17 +50,20 @@ export function useSearch() {
     abortRef.current = new AbortController();
 
     try {
-      const { data } = await axios.get<SmartSearchResult>(`${API}/api/search/smart`, {
+      const { data } = await axios.get<SmartSearchResult>(`${API}/api/search`, {
         params: { q: term },
         signal: abortRef.current.signal,
-        withCredentials: true
+        withCredentials: true,
       });
 
       setResult(data);
-      const hasResults = data.songs.length > 0 || data.albums.length > 0 || data.artists.length > 0;
+      const hasResults =
+        data.songs.length > 0 ||
+        data.albums.length > 0 ||
+        data.artists.length > 0;
       setState(hasResults ? "results" : "no-results");
     } catch (err: any) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+      if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;
       console.error("Search error:", err);
       setState("error");
     }
