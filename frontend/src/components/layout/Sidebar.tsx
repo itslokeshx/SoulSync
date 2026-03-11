@@ -7,9 +7,11 @@ import {
   User,
   Download,
   PanelLeft,
+  Smartphone,
 } from "lucide-react";
 import { useUIStore } from "../../store/uiStore";
 import { useDownloadStore } from "../../store/downloadStore";
+import { isNative } from "../../utils/platform";
 import { DuoButton } from "../../duo";
 import { SearchTrigger } from "../ui/SearchTrigger";
 
@@ -114,10 +116,41 @@ export const Sidebar = () => {
         ))}
       </nav>
 
-      {/* Duo + Collapse — always visible at bottom */}
+      {/* Duo + Download APK + Collapse — always visible at bottom */}
       <div
         className={`flex-shrink-0 pb-2 pt-2 border-t border-white/[0.04] ${collapsed ? "px-1.5" : "px-3"}`}
       >
+        {/* Download APK — web only */}
+        {!isNative() && (
+          <a
+            href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            title={collapsed ? "Get Android App" : undefined}
+            className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-all duration-300 mb-1 group ${
+              collapsed
+                ? "justify-center px-0 py-2 hover:bg-sp-green/10"
+                : "px-3.5 py-2.5 hover:bg-sp-green/10 border border-transparent hover:border-sp-green/15"
+            }`}
+          >
+            <Smartphone
+              size={17}
+              className="text-sp-green flex-shrink-0 group-hover:scale-110 transition-transform duration-200"
+            />
+            {!collapsed && (
+              <>
+                <div className="flex-1 text-left">
+                  <span className="block text-white/50 group-hover:text-white transition-colors">
+                    Download APK
+                  </span>
+                  <span className="block text-[9px] text-white/25 font-normal">
+                    Better experience
+                  </span>
+                </div>
+              </>
+            )}
+          </a>
+        )}
         <DuoButton variant={collapsed ? "mobile-nav" : "sidebar"} />
         <button
           onClick={toggleSidebar}

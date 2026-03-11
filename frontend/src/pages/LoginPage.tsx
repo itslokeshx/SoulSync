@@ -16,6 +16,7 @@ import {
   Check,
   X,
   Loader2,
+  Smartphone,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { isNative } from "../utils/platform";
@@ -449,6 +450,61 @@ export default function LoginPage() {
               ))}
             </div>
           </motion.div>
+
+          {/* ── Desktop: Download APK Card ── */}
+          {!isNative() && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.45 }}
+              className="mt-10"
+            >
+              <a
+                href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block relative overflow-hidden rounded-2xl p-[1px]"
+              >
+                {/* Animated gradient border */}
+                <div
+                  className="absolute inset-0 rounded-2xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(29,185,84,0.4), rgba(16,185,129,0.1), rgba(29,185,84,0.2), rgba(52,211,153,0.3))",
+                    backgroundSize: "300% 300%",
+                    animation: "gradientShift 6s ease infinite",
+                  }}
+                />
+                <div className="relative rounded-2xl bg-[#0a0a0a]/90 backdrop-blur-xl px-5 py-4 flex items-center gap-4">
+                  {/* Icon */}
+                  <div
+                    className="w-12 h-12 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 group-hover:border-sp-green/30 transition-all duration-300"
+                    style={{ boxShadow: "0 0 20px rgba(29,185,84,0.1)" }}
+                  >
+                    <Smartphone size={22} className="text-sp-green" />
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14px] font-bold text-white">
+                        Download APK
+                      </p>
+                      <span className="px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[9px] font-bold uppercase tracking-wider border border-sp-green/20">
+                        APK
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/30 mt-0.5">
+                      For a better experience · Free from GitHub
+                    </p>
+                  </div>
+                  {/* Arrow / Download icon */}
+                  <div className="w-9 h-9 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(29,185,84,0.4)] transition-all duration-300">
+                    <Download size={16} className="text-black" strokeWidth={2.5} />
+                  </div>
+                </div>
+              </a>
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -582,6 +638,34 @@ export default function LoginPage() {
               </div>
             ))}
           </motion.div>
+
+          {/* ── Mobile: Download APK CTA ── */}
+          {!isNative() && (
+            <motion.a
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative z-10 mt-5 flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-sp-green/20 hover:bg-white/[0.05] transition-all duration-300 group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 transition-all">
+                <Smartphone size={16} className="text-sp-green" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-bold text-white">
+                  Download APK
+                </p>
+                <p className="text-[9px] text-white/25 mt-0.5">
+                  For a better experience
+                </p>
+              </div>
+              <div className="w-7 h-7 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_16px_rgba(29,185,84,0.35)] transition-all duration-300">
+                <Download size={12} className="text-black" strokeWidth={2.5} />
+              </div>
+            </motion.a>
+          )}
         </div>
         <div className="hidden lg:block absolute left-0 top-[15%] bottom-[15%] w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent" />
 

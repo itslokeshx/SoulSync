@@ -12,11 +12,14 @@ import {
   Pencil,
   Check,
   X,
+  Smartphone,
+  Download,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import * as api from "../api/backend";
 import { UserStats } from "../types/user";
 import { onImgErr } from "../lib/helpers";
+import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 
 const ALL_LANGUAGES = [
@@ -165,6 +168,38 @@ export default function ProfilePage() {
         >
           Sign In
         </button>
+
+        {/* Download APK — web only, even before sign in */}
+        {!isNative() && (
+          <a
+            href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group mt-8 w-full max-w-xs block relative overflow-hidden rounded-2xl p-[1px]"
+          >
+            <div
+              className="absolute inset-0 rounded-2xl opacity-40 group-hover:opacity-80 transition-opacity duration-500"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(29,185,84,0.5), rgba(16,185,129,0.1), rgba(29,185,84,0.3), rgba(52,211,153,0.4))",
+                backgroundSize: "300% 300%",
+                animation: "gradientShift 6s ease infinite",
+              }}
+            />
+            <div className="relative rounded-2xl bg-[#0a0a0a]/90 backdrop-blur-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 transition-all">
+                <Smartphone size={18} className="text-sp-green" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[13px] font-bold text-white">Download APK</p>
+                <p className="text-[10px] text-white/30">For a better experience</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_16px_rgba(29,185,84,0.4)] transition-all duration-300">
+                <Download size={14} className="text-black" strokeWidth={2.5} />
+              </div>
+            </div>
+          </a>
+        )}
       </div>
     );
   }
@@ -493,6 +528,51 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Download APK — web only */}
+      {!isNative() && (
+        <a
+          href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group block relative overflow-hidden rounded-2xl p-[1px] mb-4"
+        >
+          {/* Animated gradient border */}
+          <div
+            className="absolute inset-0 rounded-2xl opacity-40 group-hover:opacity-80 transition-opacity duration-500"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(29,185,84,0.5), rgba(16,185,129,0.1), rgba(29,185,84,0.3), rgba(52,211,153,0.4))",
+              backgroundSize: "300% 300%",
+              animation: "gradientShift 6s ease infinite",
+            }}
+          />
+          <div className="relative rounded-2xl bg-[#0a0a0a]/90 backdrop-blur-xl px-5 py-4 flex items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 group-hover:border-sp-green/30 transition-all duration-300"
+              style={{ boxShadow: "0 0 20px rgba(29,185,84,0.1)" }}
+            >
+              <Smartphone size={22} className="text-sp-green" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[14px] font-bold text-white">
+                  Download APK
+                </p>
+                <span className="px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[9px] font-bold uppercase tracking-wider border border-sp-green/20">
+                  APK
+                </span>
+              </div>
+              <p className="text-[11px] text-white/30 mt-0.5">
+                For a better experience · Free from GitHub
+              </p>
+            </div>
+            <div className="w-9 h-9 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(29,185,84,0.4)] transition-all duration-300">
+              <Download size={16} className="text-black" strokeWidth={2.5} />
+            </div>
+          </div>
+        </a>
+      )}
 
       {/* Logout */}
       <button
