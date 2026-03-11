@@ -192,6 +192,8 @@ async function fetchDirect(url: string, timeout = 3000): Promise<any> {
 //   Tier 3 — saavn.sumit.co (V2 wrapper): last resort, may return covers
 //
 // Tier 1 and Tier 2 fire in PARALLEL — zero extra latency on Render.
+// NO per-song enrichment fetches — direct songs use more_info.encrypted_media_url,
+// V1 songs already carry downloadUrl[].link. Both handled by normalizeSongToCanonical.
 // ───────────────────────────────────────────────────────────────
 export async function searchSongsHybrid(
   query: string,
@@ -237,23 +239,11 @@ export async function searchSongsHybrid(
         combined.push(s);
       }
     }
-    // Enrich with stream URLs from V2 wrapper (direct results lack downloadUrl).
-    // V1-sourced songs already carry downloadUrl[].link — skip them.
-    const enriched = await Promise.allSettled(
-      combined.slice(0, limit).map(async (song: any) => {
-        if ((song.downloadUrl as any[])?.length > 0) return song;
-        const id = String(song.id || "").trim();
-        if (!id) return song;
-        const wData = (await fetchSafe(`${JIOSAAVN_BASE}/songs/${id}`)) as any;
-        const wSong = wData?.data?.[0];
-        if (wSong?.downloadUrl?.length > 0)
-          return { ...song, downloadUrl: wSong.downloadUrl };
-        return song;
-      }),
-    );
-    return enriched
-      .filter((r) => r.status === "fulfilled")
-      .map((r) => (r as PromiseFulfilledResult<any>).value);
+    // ✅ FIX: Return directly — no per-song enrichment fetches needed.
+    // Direct jiosaavn.com songs carry more_info.encrypted_media_url for stream URLs.
+    // V1 songs carry downloadUrl[].link.
+    // normalizeSongToCanonical handles both fields correctly.
+    return combined.slice(0, limit);
   }
 
   // ── TIER 2: V1 Vercel wrapper (production / Render) ─────────────────
@@ -592,8 +582,14 @@ export function normalizeSongToCanonical(raw: any): Song | null {
       .join(", ");
   }
 
-  // ── Stream URL: prefer .url (wrapper), fallback .link (direct) ─
+  // ── Stream URL ────────────────────────────────────────────────
+  // Priority order:
+  //   1. raw.streamUrl (already normalized upstream)
+  //   2. downloadUrl[].url or .link (V1/V2 wrapper shape)
+  //   3. more_info.encrypted_media_url (direct jiosaavn.com shape) ← NEW
+  //   4. more_info.media_url fallback                              ← NEW
   let streamUrl: string | null = raw.streamUrl || null;
+
   if (!streamUrl && Array.isArray(raw.downloadUrl)) {
     const ORDER = ["320kbps", "160kbps", "96kbps", "48kbps", "12kbps"];
     for (const q of ORDER) {
@@ -614,6 +610,15 @@ export function normalizeSongToCanonical(raw: any): Song | null {
         }
       }
     }
+  }
+
+  // ✅ FIX: Direct jiosaavn.com songs carry stream URL in more_info
+  // This fires when Tier 1 wins and no enrichment loop ran
+  if (!streamUrl && raw.more_info?.encrypted_media_url) {
+    streamUrl = decodeHtmlEntities(raw.more_info.encrypted_media_url);
+  }
+  if (!streamUrl && raw.more_info?.media_url) {
+    streamUrl = decodeHtmlEntities(raw.more_info.media_url);
   }
 
   // ── Image: highest quality available ─────────────────────────
