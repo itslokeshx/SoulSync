@@ -64,8 +64,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const { next, prev, queue } = useQueueStore();
 
   // ── Refs & Synchronization Flags ──────────────────────────────────
-  const isFirstPlayRef = useRef(true);
   const isRemoteActionRef = useRef(false);
+  // Tracks src transitions — browser fires spurious 'pause' events when src changes.
+  // We must ignore those to avoid consuming isRemoteActionRef and falsely setting isPlaying=false.
+  const srcJustChangedRef = useRef(false);
+  // Safety timer: clear srcJustChangedRef after a timeout so pause isn't blocked forever
+  const srcChangedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Separate flag for remote song changes so the song-sync effect doesn't echo them back.
+  const isRemoteSongChangeRef = useRef(false);
 
   // Stable actions for useDuo to call
   const playSongRef = useRef<
@@ -108,7 +114,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     addToast,
     isRemoteActionRef,
     isPlayingRef,
+    isRemoteSongChangeRef,
   });
+
+  // ── Flag: has the very first audio source been loaded yet? ────────
+  // This prevents syncing the initial empty/null state to partner.
+  const hasEverLoadedRef = useRef(false);
 
   // ── Log play history + bust dashboard cache on every new song ────────
   const loggedSongRef = useRef<string | null>(null);
@@ -217,6 +228,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Only update src if it's actually different (avoid unnecessary reloads)
       if (audioRef.current!.src !== targetSrc) {
+        // Mark that we're swapping src — the browser will fire a spurious
+        // 'pause' event that must NOT update isPlaying or consume isRemoteActionRef.
+        srcJustChangedRef.current = true;
+        // Safety net: clear the flag after 3s in case loadedmetadata never fires
+        if (srcChangedTimerRef.current)
+          clearTimeout(srcChangedTimerRef.current);
+        srcChangedTimerRef.current = setTimeout(() => {
+          srcJustChangedRef.current = false;
+          srcChangedTimerRef.current = null;
+        }, 3000);
+
         // IMPORTANT: Must set crossOrigin BEFORE setting src, otherwise the browser will abort playback.
         if (
           targetSrc.startsWith("blob:") ||
@@ -228,6 +250,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           audioRef.current!.crossOrigin = "anonymous";
         }
         audioRef.current!.src = targetSrc;
+      } else {
+        // Src didn't change — any pause() below is intentional, not spurious.
+        // Clear the flag so onPause can properly sync the pause event.
+        srcJustChangedRef.current = false;
+        if (srcChangedTimerRef.current) {
+          clearTimeout(srcChangedTimerRef.current);
+          srcChangedTimerRef.current = null;
+        }
       }
 
       // Check fresh store state to avoid closure staleness on rapid clicks
@@ -242,7 +272,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         audioRef.current!.pause();
       }
 
-      isFirstPlayRef.current = false;
+      hasEverLoadedRef.current = true;
     };
 
     resolveAndHandle();
@@ -258,16 +288,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // 1. DEDUPLICATED: Sync Play/Pause state is now handled natively via the <audio> element's onPlay/onPause events (bottom of file)
   // to avoid React state race conditions.
 
-  // 2. Sync Song/Queue changes
+  // 2. Sync Song/Queue changes — only for locally-initiated changes
   useEffect(() => {
     const isDuoActive = useDuoStore.getState().active;
-    if (!isDuoActive || isFirstPlayRef.current) return;
+    if (!isDuoActive) return;
 
-    // Note: isRemoteActionRef is primarily consumed by the play/pause effect
-    // If a song change came from remote, we still want to avoid echoing it back.
-    // But since the play/pause effect resets it, we use a separate flag or just
-    // rely on the backend ignoring duplicate song sets. For safety, we only sync
-    // if we actually have a valid song.
+    // If this song change was triggered by the partner (remote), skip the echo.
+    if (isRemoteSongChangeRef.current) {
+      isRemoteSongChangeRef.current = false;
+      return;
+    }
 
     if (currentSong) {
       const q = queue.length ? queue : [currentSong];
@@ -327,6 +357,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handleLoadedMetadata = () => {
+    // New src is now loaded — any future pause events are real user actions.
+    srcJustChangedRef.current = false;
+    if (srcChangedTimerRef.current) {
+      clearTimeout(srcChangedTimerRef.current);
+      srcChangedTimerRef.current = null;
+    }
     if (audioRef.current) {
       const dur = audioRef.current.duration;
       if (dur && isFinite(dur)) setDuration(dur);
@@ -350,6 +386,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handlePause = () => {
     const audio = audioRef.current;
     if (!audio) return;
+    // Skip entirely during src transitions — browser fires a spurious pause
+    // when the src attribute changes. Processing it would falsely set isPlaying=false
+    // and consume the isRemoteActionRef meant for the real play event.
+    if (srcJustChangedRef.current) return;
     // Only update state if the pause was intentional (not buffering/seeking)
     if (!audio.seeking && !audio.ended) {
       setIsPlaying(false);
@@ -403,6 +443,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }}
         onPause={(e) => {
+          // Skip spurious pause events fired by the browser during src changes
+          if (srcJustChangedRef.current) return;
           handlePause();
           const isDuoActive = useDuoStore.getState().active;
           if (isDuoActive) {

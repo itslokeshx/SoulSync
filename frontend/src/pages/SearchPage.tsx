@@ -15,17 +15,15 @@ import {
   Trash2,
   Play,
   SearchX,
-  Film,
-  Music2,
-  Leaf,
-  CloudRain,
   Zap,
   Moon,
   Activity,
   Heart,
-  Globe,
-  Star,
-  Sun,
+  CloudRain,
+  Flame,
+  Coffee,
+  Radio,
+  Headphones,
 } from "lucide-react";
 import {
   useSearch,
@@ -38,103 +36,77 @@ import { bestImg, getArtists, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
 
-// ─── Browse categories for idle state ───────────────────────────────────────
+// ─── Browse categories — universal moods & vibes ────────────────────────────
 const BROWSE_CATEGORIES = [
   {
     label: "Trending",
     icon: TrendingUp,
     iconColor: "text-orange-400",
-    bar: "bg-orange-400",
     bg: "bg-orange-400/[0.07]",
-    query: "trending songs 2024",
-  },
-  {
-    label: "Bollywood",
-    icon: Film,
-    iconColor: "text-pink-400",
-    bar: "bg-pink-400",
-    bg: "bg-pink-400/[0.07]",
-    query: "bollywood hits",
-  },
-  {
-    label: "Punjabi",
-    icon: Music2,
-    iconColor: "text-yellow-400",
-    bar: "bg-yellow-400",
-    bg: "bg-yellow-400/[0.07]",
-    query: "punjabi songs",
-  },
-  {
-    label: "Tamil",
-    icon: Leaf,
-    iconColor: "text-emerald-400",
-    bar: "bg-emerald-400",
-    bg: "bg-emerald-400/[0.07]",
-    query: "tamil hits",
-  },
-  {
-    label: "Sad Hits",
-    icon: CloudRain,
-    iconColor: "text-indigo-400",
-    bar: "bg-indigo-400",
-    bg: "bg-indigo-400/[0.07]",
-    query: "sad songs",
+    query: "trending songs 2026",
   },
   {
     label: "Party",
     icon: Zap,
     iconColor: "text-violet-400",
-    bar: "bg-violet-400",
     bg: "bg-violet-400/[0.07]",
-    query: "party songs",
+    query: "party songs 2026",
   },
   {
     label: "Chill",
     icon: Moon,
     iconColor: "text-cyan-400",
-    bar: "bg-cyan-400",
     bg: "bg-cyan-400/[0.07]",
     query: "chill lofi songs",
   },
   {
-    label: "Workout",
-    icon: Activity,
-    iconColor: "text-red-400",
-    bar: "bg-red-400",
-    bg: "bg-red-400/[0.07]",
-    query: "gym workout songs",
+    label: "Sad",
+    icon: CloudRain,
+    iconColor: "text-indigo-400",
+    bg: "bg-indigo-400/[0.07]",
+    query: "sad songs",
   },
   {
     label: "Romantic",
     icon: Heart,
     iconColor: "text-rose-400",
-    bar: "bg-rose-400",
     bg: "bg-rose-400/[0.07]",
     query: "romantic songs",
   },
   {
-    label: "International",
-    icon: Globe,
-    iconColor: "text-blue-400",
-    bar: "bg-blue-400",
-    bg: "bg-blue-400/[0.07]",
-    query: "english hits 2024",
+    label: "Workout",
+    icon: Activity,
+    iconColor: "text-red-400",
+    bg: "bg-red-400/[0.07]",
+    query: "gym workout songs",
   },
   {
-    label: "Telugu",
-    icon: Star,
+    label: "New Releases",
+    icon: Flame,
     iconColor: "text-amber-400",
-    bar: "bg-amber-400",
     bg: "bg-amber-400/[0.07]",
-    query: "telugu songs",
+    query: "new songs 2026",
   },
   {
-    label: "Devotional",
-    icon: Sun,
-    iconColor: "text-orange-300",
-    bar: "bg-orange-300",
-    bg: "bg-orange-300/[0.07]",
-    query: "devotional songs",
+    label: "Focus",
+    icon: Coffee,
+    iconColor: "text-emerald-400",
+    bg: "bg-emerald-400/[0.07]",
+    query: "focus study music",
+  },
+  {
+    label: "Podcasts",
+    icon: Radio,
+    iconColor: "text-blue-400",
+    bg: "bg-blue-400/[0.07]",
+    query: "popular podcasts",
+  },
+  {
+    label: "Acoustic",
+    icon: Headphones,
+    iconColor: "text-teal-400",
+    bg: "bg-teal-400/[0.07]",
+    query: "acoustic covers",
   },
 ];
 
@@ -616,12 +588,12 @@ export function SearchPage() {
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    "Arijit Singh",
-                    "Anirudh Ravichander",
-                    "Diljit Dosanjh",
-                    "Taylor Swift",
-                    "Trending 2024",
+                    "Top hits 2026",
+                    "Chill vibes",
+                    "Workout beats",
+                    "New releases",
                     "Sad songs",
+                    "Party mix",
                   ].map((t) => (
                     <button
                       key={t}
@@ -635,29 +607,25 @@ export function SearchPage() {
               </div>
             )}
 
-            {/* Browse grid */}
+            {/* Browse */}
             <div>
               <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                <Sparkles size={11} /> Browse All
+                <Sparkles size={11} /> Browse
               </h3>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {BROWSE_CATEGORIES.map((cat) => {
                   const Icon = cat.icon;
                   return (
                     <button
                       key={cat.label}
                       onClick={() => handleChipClick(cat.query)}
-                      className={`relative flex items-center gap-2.5 h-[46px] rounded-xl px-3 ${cat.bg} border border-white/[0.05] hover:border-white/[0.11] hover:brightness-110 active:scale-[0.97] transition-all overflow-hidden group text-left`}
+                      className={`flex items-center gap-2.5 h-[48px] rounded-xl px-3.5 ${cat.bg} border border-white/[0.05] hover:border-white/[0.12] active:scale-[0.97] transition-all group text-left`}
                     >
-                      {/* Left accent bar */}
-                      <div
-                        className={`absolute left-0 top-0 bottom-0 w-[3px] ${cat.bar} rounded-l-xl opacity-70 group-hover:opacity-100 transition-opacity`}
-                      />
                       <Icon
-                        size={14}
-                        className={`flex-shrink-0 ${cat.iconColor} opacity-70 group-hover:opacity-100 transition-opacity`}
+                        size={16}
+                        className={`flex-shrink-0 ${cat.iconColor} opacity-80 group-hover:opacity-100 transition-opacity`}
                       />
-                      <span className="text-[12px] font-semibold text-white/75 group-hover:text-white transition-colors truncate">
+                      <span className="text-[13px] font-semibold text-white/70 group-hover:text-white transition-colors truncate">
                         {cat.label}
                       </span>
                     </button>
@@ -839,14 +807,14 @@ export function SearchPage() {
               No results for "{query}"
             </p>
             <p className="text-white/30 text-sm mt-2 mb-7 max-w-xs mx-auto leading-relaxed">
-              Try different keywords, check spelling, or search in English/Hindi
+              Try different keywords or check the spelling
             </p>
             <div className="flex flex-wrap justify-center gap-2 max-w-sm mx-auto">
               {[
-                "Trending songs",
-                "New Bollywood",
+                "Trending 2026",
+                "New releases",
                 "Party hits",
-                "Sad songs",
+                "Chill vibes",
               ].map((s) => (
                 <button
                   key={s}

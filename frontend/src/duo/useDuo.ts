@@ -1,5 +1,6 @@
 /* @refresh reset */
 import { useEffect, useRef, useCallback, useMemo } from "react";
+import type { Socket } from "socket.io-client";
 import {
   disconnectSocket,
   getSocket,
@@ -49,6 +50,7 @@ interface UseDuoOpts {
   ) => void;
   isRemoteActionRef: React.MutableRefObject<boolean>;
   isPlayingRef: React.MutableRefObject<boolean>;
+  isRemoteSongChangeRef: React.MutableRefObject<boolean>;
 }
 
 export function useDuo({
@@ -61,6 +63,7 @@ export function useDuo({
   addToast,
   isRemoteActionRef,
   isPlayingRef,
+  isRemoteSongChangeRef,
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasConnectedOnceRef = useRef(false);
@@ -212,37 +215,65 @@ export function useDuo({
   );
 
   // ═══ SYNC CONTROLS ════════════════════════════════════════════════
-  // IMPORTANT: Always check sock.connected before emitting sync events.
-  // Socket.IO flushes its sendBuffer BEFORE firing the "connect" event,
-  // which means events emitted while disconnected arrive at the server
-  // before "duo:join" — the server drops them because the user isn't in
-  // a room yet. Checking .connected prevents this pre-join buffering
-  // and ensures the first play/pause is properly synced.
-  const syncPlay = useCallback((currentTime: number, songId: string) => {
-    const sock = getSocket();
-    if (!store.getState().active || !sock.connected) return;
-    sock.emit("duo:sync-play", { currentTime, songId });
-  }, []);
+  // When the socket is connected, emit immediately. When it's still
+  // connecting (right after room creation), queue the event and flush
+  // it once the connection is established. This prevents events from
+  // being silently dropped during the async connection window.
+  const emitWhenReady = useCallback(
+    (event: string, data: Record<string, any>) => {
+      if (!store.getState().active) return;
+      const sock = getSocket();
+      if (sock.connected) {
+        sock.emit(event, data);
+      } else {
+        // Socket is connecting — wait for it, then emit after a brief
+        // delay to ensure duo:join has been processed by the server first.
+        waitForConnection()
+          .then((s) => {
+            return new Promise<Socket>((resolve) =>
+              setTimeout(() => resolve(s), 300),
+            );
+          })
+          .then((s) => {
+            // Re-check session is still active (user may have ended it)
+            if (store.getState().active) {
+              s.emit(event, data);
+            }
+          })
+          .catch(() => {
+            console.warn(`[Duo] Failed to emit ${event} — socket not ready`);
+          });
+      }
+    },
+    [],
+  );
 
-  const syncPause = useCallback((currentTime: number) => {
-    const sock = getSocket();
-    if (!store.getState().active || !sock.connected) return;
-    sock.emit("duo:sync-pause", { currentTime });
-  }, []);
+  const syncPlay = useCallback(
+    (currentTime: number, songId: string) => {
+      emitWhenReady("duo:sync-play", { currentTime, songId });
+    },
+    [emitWhenReady],
+  );
 
-  const syncSeek = useCallback((currentTime: number) => {
-    const sock = getSocket();
-    if (!store.getState().active || !sock.connected) return;
-    sock.emit("duo:sync-seek", { currentTime });
-  }, []);
+  const syncPause = useCallback(
+    (currentTime: number) => {
+      emitWhenReady("duo:sync-pause", { currentTime });
+    },
+    [emitWhenReady],
+  );
+
+  const syncSeek = useCallback(
+    (currentTime: number) => {
+      emitWhenReady("duo:sync-seek", { currentTime });
+    },
+    [emitWhenReady],
+  );
 
   const syncSongChange = useCallback(
     (song: any, queue: any[], queueIndex: number) => {
-      const sock = getSocket();
-      if (!store.getState().active || !sock.connected) return;
-      sock.emit("duo:sync-song-change", { song, queue, queueIndex });
+      emitWhenReady("duo:sync-song-change", { song, queue, queueIndex });
     },
-    [],
+    [emitWhenReady],
   );
 
   // ═══ MESSAGES ═════════════════════════════════════════════════════
@@ -311,6 +342,7 @@ export function useDuo({
     setCurrentTime,
     isRemoteActionRef,
     isPlayingRef,
+    isRemoteSongChangeRef,
   });
   useEffect(() => {
     callbackRefs.current = {
@@ -323,6 +355,7 @@ export function useDuo({
       setCurrentTime,
       isRemoteActionRef,
       isPlayingRef,
+      isRemoteSongChangeRef,
     };
   });
 
@@ -504,6 +537,7 @@ export function useDuo({
 
           if (room?.currentSong) {
             callbackRefs.current.isRemoteActionRef.current = true;
+            callbackRefs.current.isRemoteSongChangeRef.current = true;
             callbackRefs.current.playSongRef.current?.(
               room.currentSong,
               [room.currentSong],
@@ -571,6 +605,7 @@ export function useDuo({
               data.song.name,
             );
             callbackRefs.current.isRemoteActionRef.current = true;
+            callbackRefs.current.isRemoteSongChangeRef.current = true;
             callbackRefs.current.playSongRef.current?.(
               data.song,
               data.queue || [data.song],
