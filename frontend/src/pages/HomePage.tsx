@@ -393,10 +393,9 @@ export const HomePage = () => {
   useEffect(() => {
     if (fetched.current) return;
     fetched.current = true;
-    // Bust on every mount so in-app navigation gives fresh data from the backend
-    try {
-      sessionStorage.removeItem(cacheKey);
-    } catch {}
+    // Use the cached response when fresh (PlayerProvider busts the cache on every
+    // new song play, visibilitychange busts it on tab-focus — no need to bust on
+    // every mount, which would cause 429s if the user navigates rapidly).
     fetchDashboard();
   }, [fetchDashboard, cacheKey]);
 
