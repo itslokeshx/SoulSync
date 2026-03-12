@@ -385,12 +385,10 @@ router.post(
       const gclientId = (process.env.GOOGLE_CLIENT_ID ?? "").trim();
       if (!gclientId) {
         console.error("[Auth] GOOGLE_CLIENT_ID is not set in environment");
-        res
-          .status(500)
-          .json({
-            error: "Google auth not configured on server",
-            code: "SERVER_CONFIG_ERROR",
-          });
+        res.status(500).json({
+          error: "Google auth not configured on server",
+          code: "SERVER_CONFIG_ERROR",
+        });
         return;
       }
       const verifyClient = new OAuth2Client(gclientId);
@@ -433,7 +431,6 @@ router.post(
             $set: { googleId, photoURL: picture, name: name || "User" },
             $setOnInsert: {
               email: email?.toLowerCase(),
-              name: name || "User",
               authProvider: "both",
               onboardingComplete: false,
               preferences: { languages: [], eras: [], moods: [] },
@@ -467,25 +464,21 @@ router.post(
         errMsg.includes("Invalid token") ||
         errMsg.includes("invalid")
       ) {
-        res
-          .status(401)
-          .json({
-            error: "Invalid Google credentials",
-            code: "INVALID_TOKEN",
-            detail: errMsg,
-          });
+        res.status(401).json({
+          error: "Invalid Google credentials",
+          code: "INVALID_TOKEN",
+          detail: errMsg,
+        });
       } else if (
         errMsg.includes("ENOTFOUND") ||
         errMsg.includes("ECONNREFUSED") ||
         errMsg.includes("fetch")
       ) {
         // Can't reach Google cert endpoint — transient network issue
-        res
-          .status(503)
-          .json({
-            error: "Google auth temporarily unavailable — try again",
-            code: "NETWORK_ERROR",
-          });
+        res.status(503).json({
+          error: "Google auth temporarily unavailable — try again",
+          code: "NETWORK_ERROR",
+        });
       } else {
         res.status(401).json({
           error: "Authentication failed — please try again",
