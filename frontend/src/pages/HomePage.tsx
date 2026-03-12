@@ -426,6 +426,19 @@ export const HomePage = () => {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [cacheKey, fetchDashboard]);
 
+  // Re-fetch when the device comes back online after being offline
+  useEffect(() => {
+    const onOnline = () => {
+      try {
+        sessionStorage.removeItem(cacheKey);
+      } catch {}
+      fetched.current = false;
+      fetchDashboard();
+    };
+    window.addEventListener("soulsync:online", onOnline);
+    return () => window.removeEventListener("soulsync:online", onOnline);
+  }, [cacheKey, fetchDashboard]);
+
   const firstName = user?.name?.split(" ")[0] || "there";
 
   // ── Client-side greeting + subtitle (server runs in UTC, so we override with local time)

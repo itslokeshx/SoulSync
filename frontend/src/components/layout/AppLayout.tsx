@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Search, Music2, ChevronLeft } from "lucide-react";
+import { Search, Music2, ChevronLeft, WifiOff, Download } from "lucide-react";
+import { useNetwork } from "../../providers/NetworkProvider";
 import { usePlayerStore } from "../../store/playerStore";
 import { useQueueStore } from "../../store/queueStore";
 import { useUIStore } from "../../store/uiStore";
@@ -28,7 +29,10 @@ export function AppLayout() {
   const location = useLocation();
   const { gate, isAuthenticated } = useAuthGate();
 
+  const { isOnline } = useNetwork();
   const isSearchPage = location.pathname === "/search";
+  const isDownloadsPage = location.pathname === "/downloads";
+  const showOfflineOverlay = !isOnline && !isDownloadsPage;
   const [liveQuery, setLiveQuery] = useState("");
   const [npOpen, setNpOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
@@ -146,7 +150,7 @@ export function AppLayout() {
         <Sidebar />
 
         <div
-          className={`flex-1 transition-all duration-300 flex flex-col overflow-hidden 
+          className={`flex-1 transition-all duration-300 flex flex-col overflow-hidden relative
           ${sidebarCollapsed ? "md:ml-[4.5rem]" : "md:ml-[17rem]"} 
           ${queueOpen ? "md:mr-80" : ""}`}
         >
@@ -209,6 +213,47 @@ export function AppLayout() {
           >
             <Outlet />
           </main>
+
+          {/* ── Offline Overlay — covers content, NOT PlayerBar/MobileNav ── */}
+          <div
+            className={`absolute inset-0 z-30 bg-sp-black/95 backdrop-blur-xl flex flex-col items-center justify-center gap-5 px-6 transition-all duration-500 ${
+              showOfflineOverlay
+                ? "opacity-100 pointer-events-auto"
+                : "opacity-0 pointer-events-none"
+            }`}
+          >
+            {/* Pulse ring */}
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full bg-white/5 animate-ping"
+                style={{ animationDuration: "3s" }}
+              />
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
+                <WifiOff className="w-8 h-8 sm:w-10 sm:h-10 text-white/30" />
+              </div>
+            </div>
+
+            <div className="text-center">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">
+                You're Offline
+              </h2>
+              <p className="text-xs sm:text-sm text-white/40 mt-2 max-w-xs mx-auto leading-relaxed">
+                No worries — your downloaded songs are still available
+              </p>
+            </div>
+
+            <button
+              onClick={() => navigate("/downloads")}
+              className="flex items-center gap-2.5 px-6 py-3 rounded-full bg-sp-green text-black font-bold text-sm hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-sp-green/20"
+            >
+              <Download size={18} strokeWidth={2.5} />
+              Go to Downloads
+            </button>
+
+            <p className="text-[10px] text-white/20 mt-2">
+              Player controls still work below ↓
+            </p>
+          </div>
         </div>
 
         {/* Overlays & Player */}
