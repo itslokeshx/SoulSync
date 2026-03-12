@@ -250,7 +250,7 @@ export function useSearch() {
 
     try {
       const { data } = await axios.get<SmartSearchResult>(`${API}/api/search`, {
-        params: { q: term, limit: 60 },
+        params: { q: term, limit: 50 },
         signal: abortRef.current.signal,
         withCredentials: true,
       });

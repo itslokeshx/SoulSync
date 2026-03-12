@@ -34,7 +34,7 @@ const router = Router();
 router.get("/", async (req: any, res: Response): Promise<void> => {
   const q = String(req.query.q || "").trim();
   const lang = String(req.query.lang || "").toLowerCase();
-  const limit = Math.min(Number(req.query.limit || 60), 60);
+  const limit = Math.min(Number(req.query.limit || 60), 100);
 
   if (!q) {
     res.json({ songs: [], artists: [], albums: [], query: "" });
@@ -45,7 +45,13 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
   try {
     const hit = await redisGet(cacheKey);
     if (hit) {
-      res.json(JSON.parse(hit));
+      const cached = JSON.parse(hit);
+      // Re-apply limit so a low-limit prefetch never poisons a high-limit request
+      if (Array.isArray(cached.songs) && cached.songs.length > limit) {
+        cached.songs = cached.songs.slice(0, limit);
+        cached.total = cached.songs.length;
+      }
+      res.json(cached);
       return;
     }
   } catch {
@@ -147,17 +153,19 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       lang || undefined,
       knownArtist ?? undefined,
     ) as Song[];
-    const songs = ranked.slice(0, limit);
+    // Cache the full ranked pool (up to 100) so any future request can get its own limit
+    const allSongs = ranked.slice(0, 100);
+    const songs = allSongs.slice(0, limit);
 
     const relatedSearches = generateRelatedSearches(q, artists, songs);
 
     const result = {
       query: q,
-      songs,
+      songs: allSongs, // cache full pool
       artists,
       albums,
-      topResult: songs[0] ?? null,
-      total: songs.length,
+      topResult: allSongs[0] ?? null,
+      total: allSongs.length,
       parsedIntent: { displayContext: `Results for "${q}"` },
       relatedSearches,
     };
@@ -165,7 +173,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     // Smart TTL: short queries cached longer (popular), long tail shorter
     const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
     await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
-    res.json(result);
+    res.json({ ...result, songs, total: songs.length });
   } finally {
     markUserQueryEnd();
   }

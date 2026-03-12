@@ -539,7 +539,6 @@ const PHONETIC_CORRECTIONS: Record<string, string> = {
   "atif aslam": "atif aslam",
   "atif islam": "atif aslam",
   "shreya ghoshal": "shreya ghoshal",
-  "shreya ghoshal": "shreya ghoshal",
   shreyaghoshal: "shreya ghoshal",
   "kumar shanu": "kumar sanu",
   "diljit dosanjh": "diljit dosanjh",

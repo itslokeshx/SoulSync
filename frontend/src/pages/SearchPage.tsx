@@ -511,7 +511,7 @@ export function SearchPage() {
     const API = (
       import.meta.env.VITE_BACKEND_URL || "http://localhost:4000"
     ).replace(/\/$/, "");
-    fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=20`, {
+    fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=60`, {
       credentials: "include",
     }).catch(() => {});
   }, []);
