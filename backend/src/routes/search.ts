@@ -149,6 +149,8 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     ) as Song[];
     const songs = ranked.slice(0, limit);
 
+    const relatedSearches = generateRelatedSearches(q, artists, songs);
+
     const result = {
       query: q,
       songs,
@@ -157,10 +159,13 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       topResult: songs[0] ?? null,
       total: songs.length,
       parsedIntent: { displayContext: `Results for "${q}"` },
-      relatedSearches: [],
+      relatedSearches,
     };
 
-    await redisSet(cacheKey, JSON.stringify(result), 600).catch(() => {});
+    // Smart TTL: short queries cached longer (popular), long tail shorter
+    const wordCount = q.trim().split(/\s+/).length;
+    const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
+    await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
     res.json(result);
   } finally {
     markUserQueryEnd();
@@ -206,20 +211,112 @@ router.get("/related", async (req: any, res: Response): Promise<void> => {
   }
 });
 
+// ── generateRelatedSearches ─────────────────────────────────────────────────
+function generateRelatedSearches(
+  q: string,
+  artists: any[],
+  songs: any[],
+): string[] {
+  const related: string[] = [];
+  const base = q.trim().toLowerCase();
+
+  // Artist-based: "<artist> best songs", "<artist> latest"
+  const topArtist =
+    artists[0]?.name || songs[0]?.primaryArtists?.split(", ")[0];
+  if (topArtist) {
+    related.push(`${topArtist} best songs`);
+    related.push(`${topArtist} latest songs`);
+  }
+
+  // Mood/genre augmentations
+  if (!/sad|party|chill|romantic|happy/i.test(base)) {
+    related.push(`${base} sad songs`);
+    related.push(`${base} party songs`);
+  }
+  if (!/hindi|english|punjabi|tamil/i.test(base)) {
+    related.push(`${base} hindi`);
+  }
+
+  // De-dup and remove the original query
+  return Array.from(new Set(related))
+    .filter((r) => r.toLowerCase() !== base)
+    .slice(0, 6);
+}
+
 router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
   try {
-    const q = req.query.q as string;
-    if (!q || q.trim().length < 2) {
+    const q = ((req.query.q as string) || "").trim();
+    if (!q || q.length < 2) {
       const top = await getTopSearches();
-      res.json({ suggestions: top.map((t: any) => t.title || t.name) });
+      res.json({
+        suggestions: top
+          .slice(0, 8)
+          .map((t: any) => ({
+            type: "query",
+            text: t.title || t.name || t,
+            query: t.title || t.name || t,
+          })),
+      });
       return;
     }
-    const results = await searchSongs(q.trim(), 8);
-    const normalized = normalizeSongsToCanonical(results);
-    const suggestions = Array.from(
-      new Set(normalized.flatMap((s) => [s.name, s.primaryArtists])),
-    ).slice(0, 10);
-    res.json({ suggestions });
+
+    const cacheKey = `suggest:v2:${q.toLowerCase()}`;
+    try {
+      const hit = await redisGet(cacheKey);
+      if (hit) {
+        res.json(JSON.parse(hit));
+        return;
+      }
+    } catch {
+      /* miss */
+    }
+
+    // Parallel: songs + artists for rich suggestions
+    const [songsRes, artistsRes] = await Promise.allSettled([
+      searchSongs(q, 5),
+      searchArtists(q, 3),
+    ]);
+
+    const suggestions: any[] = [];
+
+    // Artist entries first (highest intent match)
+    if (artistsRes.status === "fulfilled") {
+      for (const a of (artistsRes.value as any[]).slice(0, 3)) {
+        suggestions.push({
+          type: "artist",
+          text: a.name || a.title || "",
+          subtext: "Artist",
+          id: a.id || "",
+          image: Array.isArray(a.image)
+            ? a.image.find((i: any) => i.quality === "500x500")?.url ||
+              a.image[0]?.url
+            : a.image || "",
+          query: a.name || a.title || "",
+        });
+      }
+    }
+
+    // Song entries
+    if (songsRes.status === "fulfilled") {
+      const normalized = normalizeSongsToCanonical(songsRes.value as any[]);
+      for (const s of normalized.slice(0, 4)) {
+        suggestions.push({
+          type: "song",
+          text: s.name || "",
+          subtext: s.primaryArtists || "",
+          id: s.id || "",
+          image: Array.isArray(s.image)
+            ? s.image.find((i: any) => i.quality === "500x500")?.url ||
+              s.image[0]?.url
+            : s.image || "",
+          query: s.name || "",
+        });
+      }
+    }
+
+    const payload = { suggestions: suggestions.slice(0, 7) };
+    await redisSet(cacheKey, JSON.stringify(payload), 30).catch(() => {});
+    res.json(payload);
   } catch {
     res.status(500).json({ error: "Failed to get suggestions" });
   }

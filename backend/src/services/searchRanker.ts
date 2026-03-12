@@ -521,13 +521,74 @@ export function getKnownSongIds(query: string): string[] {
 // We fetch from multiple JioSaavn query strings and merge results.
 // More raw material → better recall → better ranking output.
 // ════════════════════════════════════════════════════════════════
+// ── PHONETIC CORRECTIONS ─────────────────────────────────────────────────────
+// Common misspellings / romanisation variants → canonical form
+const PHONETIC_CORRECTIONS: Record<string, string> = {
+  // Artists
+  arjit: "arijit",
+  arjith: "arijit",
+  "arjit singh": "arijit singh",
+  "arjith singh": "arijit singh",
+  anirudh: "anirudh ravichander",
+  "anirudha ravichandran": "anirudh ravichander",
+  "a r rahman": "ar rahman",
+  "ar rehman": "ar rahman",
+  "a.r rehman": "ar rahman",
+  "a.r. rehman": "ar rahman",
+  "ar rahman": "ar rahman",
+  "atif aslam": "atif aslam",
+  "atif islam": "atif aslam",
+  "shreya ghoshal": "shreya ghoshal",
+  "shreya ghoshal": "shreya ghoshal",
+  shreyaghoshal: "shreya ghoshal",
+  "kumar shanu": "kumar sanu",
+  "diljit dosanjh": "diljit dosanjh",
+  "diljeet dosanjh": "diljit dosanjh",
+  "ap dhillon": "ap dhillon",
+  "a.p. dhillon": "ap dhillon",
+  badshah: "badshah",
+  badsha: "badshah",
+  // Song names
+  "shape of u": "shape of you",
+  "tum hi ho": "tum hi ho",
+  "tumhi ho": "tum hi ho",
+  "tujhe kitna chahne lage": "tujhe kitna chahne lage hum",
+  "pasoori nu": "pasoori",
+  "kesariya song": "kesariya",
+  "kya mujhe pyaar": "kya mujhe pyaar hai",
+  // Generic typos
+  songss: "songs",
+  hitz: "hits",
+  "lates songs": "latest songs",
+  "latets songs": "latest songs",
+  "latset songs": "latest songs",
+};
+
+export function correctTypos(query: string): string {
+  const lower = query.trim().toLowerCase();
+  // Exact correction
+  if (PHONETIC_CORRECTIONS[lower]) return PHONETIC_CORRECTIONS[lower];
+  // Partial: check if any key appears as a word in the query
+  for (const [wrong, correct] of Object.entries(PHONETIC_CORRECTIONS)) {
+    if (lower.includes(wrong)) {
+      return lower.replace(wrong, correct).trim();
+    }
+  }
+  return query;
+}
+
 export function buildSearchQueries(query: string): {
   queries: string[];
   knownArtist: string | null;
 } {
-  const q = query.trim();
+  const corrected = correctTypos(query.trim());
+  const q = corrected;
   const qLower = q.toLowerCase();
-  const queries: string[] = [q]; // always include original query first
+  // Start with corrected query; if different from original, add original too
+  const queries: string[] = [q];
+  if (corrected.toLowerCase() !== query.trim().toLowerCase()) {
+    queries.push(query.trim());
+  }
 
   // ── KNOWN SONG: inject artist name ───────────────────────────
   // The wrapper buries originals without the artist name in the query.
