@@ -10,6 +10,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Required for Google OAuth popup to postMessage credentials back to the page.
+    // Without these, Chrome blocks window.postMessage from accounts.google.com
+    // and the credential is never delivered → backend gets nothing → 401.
+    headers: {
+      "Cross-Origin-Opener-Policy": "unsafe-none",
+      "Cross-Origin-Embedder-Policy": "unsafe-none",
+    },
     proxy: {
       "/api": {
         target: "http://localhost:4000",
