@@ -107,34 +107,32 @@ function TopResultCard({
   return (
     <button
       onClick={handleClick}
-      className="w-full h-full flex flex-col items-start p-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.08] hover:border-sp-green/30 active:scale-[0.97] transition-all group cursor-pointer"
+      className="w-full h-full flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 p-3 sm:p-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.08] hover:border-sp-green/30 active:scale-[0.97] transition-all group cursor-pointer text-left"
     >
-      <div className="relative mb-3">
+      <div className="relative flex-shrink-0 sm:mb-3">
         <img
           src={img}
           alt={name}
-          className={`w-20 h-20 object-cover ${isArtist ? "rounded-full" : "rounded-xl"}`}
+          className={`w-14 h-14 sm:w-20 sm:h-20 object-cover ${isArtist ? "rounded-full" : "rounded-xl"}`}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
           }}
         />
-        <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+        <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
           {isArtist || isAlbum ? (
-            <ArrowUpRight size={14} className="text-black" />
+            <ArrowUpRight size={12} className="text-black" />
           ) : (
-            <div className="w-0 h-0 border-t-[5px] border-b-[5px] border-l-[8px] border-transparent border-l-black ml-0.5" />
+            <div className="w-0 h-0 border-t-[4px] border-b-[4px] border-l-[7px] border-transparent border-l-black ml-0.5" />
           )}
         </div>
       </div>
-      <p className="text-white text-[14px] font-bold truncate w-full text-left">
-        {name}
-      </p>
-      <p className="text-white/40 text-[11px] truncate w-full text-left mt-0.5">
-        {subtitle}
-      </p>
-      <span className="mt-2 px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[10px] font-bold uppercase tracking-wide">
-        Top Results
-      </span>
+      <div className="flex-1 min-w-0 sm:w-full">
+        <p className="text-white text-[14px] font-bold truncate">{name}</p>
+        <p className="text-white/40 text-[11px] truncate mt-0.5">{subtitle}</p>
+        <span className="mt-1.5 sm:mt-2 inline-flex px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[10px] font-bold uppercase tracking-wide">
+          Top Results
+        </span>
+      </div>
     </button>
   );
 }
@@ -468,9 +466,9 @@ export function SearchPage() {
               </span>
             )}
 
-            <div className="flex gap-3 items-stretch">
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch">
               {result.topResult && (
-                <div className="w-44 flex-shrink-0">
+                <div className="w-full sm:w-44 sm:flex-shrink-0">
                   <TopResultCard item={result.topResult} onPlay={handlePlay} />
                 </div>
               )}

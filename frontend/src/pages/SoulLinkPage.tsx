@@ -125,7 +125,7 @@ export default function SoulLinkPage() {
   if (active && roomCode) {
     return (
       <div
-        className="min-h-[80dvh] bg-[#0a0a0a] overflow-y-auto"
+        className="bg-[#0a0a0a]"
         style={{
           background:
             "radial-gradient(ellipse at 20% 50%, rgba(29,185,84,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(99,102,241,0.06) 0%, transparent 50%), #0a0a0a",
@@ -144,24 +144,24 @@ export default function SoulLinkPage() {
           </button>
         </div>
 
-        <div className="max-w-2xl mx-auto px-4 pt-8 pb-24 sm:pt-12 sm:pb-12">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 pt-14 pb-6 sm:pt-12 sm:pb-10">
           {/* Background glow */}
           <div className="absolute -top-24 -left-24 w-64 h-64 bg-sp-green/10 blur-[100px] rounded-full pointer-events-none" />
           <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full pointer-events-none" />
 
           <div className="relative z-10">
-            <div className="relative w-16 h-16 sm:w-28 sm:h-28 mx-auto mb-3 sm:mb-6">
+            <div className="relative w-12 h-12 sm:w-20 sm:h-20 mx-auto mb-2 sm:mb-4">
               <PulseRing />
               <div className="w-full h-full rounded-full bg-white/[0.03] border border-white/[0.1] flex items-center justify-center relative z-10 shadow-2xl">
                 {partnerConnected ? (
                   <Headphones
-                    size={28}
-                    className="text-sp-green sm:w-10 sm:h-10"
+                    size={18}
+                    className="text-sp-green sm:w-7 sm:h-7"
                   />
                 ) : (
                   <Radio
-                    size={28}
-                    className="text-sp-green animate-pulse sm:w-10 sm:h-10"
+                    size={18}
+                    className="text-sp-green animate-pulse sm:w-7 sm:h-7"
                   />
                 )}
               </div>
@@ -170,18 +170,18 @@ export default function SoulLinkPage() {
             <motion.h1
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2"
+              className="text-xl sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2"
             >
               {partnerConnected ? "Session Active" : "Waiting for Partner"}
             </motion.h1>
-            <p className="text-white/40 text-xs sm:text-sm mb-6 sm:mb-10 max-w-sm mx-auto px-2">
+            <p className="text-white/40 text-xs sm:text-sm mb-3 sm:mb-8 max-w-sm mx-auto px-2">
               {partnerConnected
                 ? `You are now listening together with ${partnerName}. Every beat, every skip, synced perfectly.`
                 : "Share your unique room code. Once they join, your music worlds will merge."}
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-5 sm:mb-8 text-left">
-              <div className="glass p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-6 text-left">
+              <div className="glass p-3 sm:p-5 rounded-2xl sm:rounded-3xl">
                 <p className="text-[9px] sm:text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1 sm:mb-2">
                   Room Code
                 </p>
@@ -201,7 +201,7 @@ export default function SoulLinkPage() {
                   </button>
                 </div>
               </div>
-              <div className="glass p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl flex items-center justify-between">
+              <div className="glass p-3 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1">
                     Status
@@ -247,7 +247,7 @@ export default function SoulLinkPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/[0.05] overflow-hidden flex flex-col"
+                  className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.05] overflow-hidden flex flex-col"
                 >
                   <div className="flex items-center gap-2 mb-4 sm:mb-6 ml-2">
                     <Send size={14} className="text-white/30" />
@@ -256,7 +256,7 @@ export default function SoulLinkPage() {
                     </h3>
                   </div>
 
-                  <div className="h-48 sm:h-64 overflow-y-auto pr-2 mb-3 sm:mb-4 thin-scrollbar space-y-2 sm:space-y-4 text-left">
+                  <div className="h-36 sm:h-52 overflow-y-auto pr-2 mb-3 sm:mb-4 thin-scrollbar space-y-2 sm:space-y-3 text-left">
                     {messages.length === 0 && (
                       <div className="h-20 flex flex-col items-center justify-center opacity-20 italic text-xs text-white">
                         No messages yet. Send a whisper.
@@ -321,7 +321,7 @@ export default function SoulLinkPage() {
   // ── Creation/Join Flow ──
   return (
     <div
-      className="min-h-[80dvh] p-3 sm:p-4 md:p-8 flex items-center justify-center overflow-y-auto w-full"
+      className="relative min-h-dvh py-14 sm:py-10 px-3 sm:px-4 md:px-8 flex flex-col items-center justify-start sm:justify-center w-full"
       style={{
         background:
           "radial-gradient(ellipse at 20% 50%, rgba(29,185,84,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(99,102,241,0.06) 0%, transparent 50%), #0a0a0a",
