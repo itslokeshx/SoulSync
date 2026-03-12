@@ -34,52 +34,50 @@ export const useLikedSongs = (
     }
   });
 
-  // Sync from cloud once auth is confirmed (avoids race with loadNativeToken)
+  // Sync from cloud once auth is confirmed — cloud is the authoritative source.
+  // We replace (not merge) local state so that songs unliked on another device
+  // don't persist, and old guest-session songs are cleared on login.
   useEffect(() => {
-    if (!isAuthenticated) return; // wait until token is ready
+    if (!isAuthenticated) return;
     let cancelled = false;
     api
       .getLikedSongs()
       .then((cloudLiked: any[]) => {
-        if (cancelled || !cloudLiked?.length) return;
-        setLiked((prev) => {
-          const merged = { ...prev };
-          for (const s of cloudLiked) {
-            const id = s.songId || s.id;
-            if (!id) continue;
-            if (!merged[id]) {
-              merged[id] = {
-                id,
-                name: s.title || s.name || "",
-                image: s.image?.length
-                  ? s.image
-                  : s.albumArt
-                    ? [
-                        {
-                          quality: "500x500",
-                          url:
-                            typeof s.albumArt === "string"
-                              ? s.albumArt
-                              : s.albumArt?.url || "",
-                        },
-                      ]
-                    : [],
-                artists: s.artists,
-                primaryArtists: s.artist || s.primaryArtists || "",
-                duration: s.duration || 0,
-                downloadUrl: s.downloadUrl || [],
-                download_url: s.download_url || [],
-                album: s.album || null,
-                language: s.language || "",
-                playCount: s.playCount || 0,
-              };
-            }
-          }
-          localStorage.setItem("ss_liked", JSON.stringify(merged));
-          return merged;
-        });
+        if (cancelled) return;
+        const cloudMap: Record<string, any> = {};
+        for (const s of cloudLiked) {
+          const id = s.songId || s.id;
+          if (!id) continue;
+          cloudMap[id] = {
+            id,
+            name: s.title || s.name || "",
+            image: s.image?.length
+              ? s.image
+              : s.albumArt
+                ? [
+                    {
+                      quality: "500x500",
+                      url:
+                        typeof s.albumArt === "string"
+                          ? s.albumArt
+                          : s.albumArt?.url || "",
+                    },
+                  ]
+                : [],
+            artists: s.artists,
+            primaryArtists: s.artist || s.primaryArtists || "",
+            duration: s.duration || 0,
+            downloadUrl: s.downloadUrl || [],
+            download_url: s.download_url || [],
+            album: s.album || null,
+            language: s.language || "",
+            playCount: s.playCount || 0,
+          };
+        }
+        localStorage.setItem("ss_liked", JSON.stringify(cloudMap));
+        setLiked(cloudMap);
       })
-      .catch(() => {}); // silently fail if not logged in
+      .catch(() => {}); // If API fails, keep local state as fallback
     return () => {
       cancelled = true;
     };

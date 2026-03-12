@@ -80,11 +80,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await api.logout();
     setUser(null);
-    // Clear dashboard cache so fresh data loads on next login
+    // Clear dashboard cache and liked songs so fresh data loads on next login
+    // and previous user's liked songs never bleed through after logout.
     try {
       for (const key of Object.keys(sessionStorage)) {
         if (key.startsWith("ss_dashboard_")) sessionStorage.removeItem(key);
       }
+      localStorage.removeItem("ss_liked");
     } catch {}
   }, []);
 
