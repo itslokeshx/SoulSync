@@ -137,7 +137,6 @@ export function useSearch() {
 
   const [state, setState] = useState<SearchState>("idle");
   const [result, setResult] = useState<SmartSearchResult | null>(null);
-  const previousResultRef = useRef<SmartSearchResult | null>(null);
 
   // Suggestions
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -242,7 +241,8 @@ export function useSearch() {
       return;
     }
 
-    // Stale-while-revalidate: keep previous result visible during load
+    // Clear immediately so old results never bleed into new search
+    setResult(null);
     setState("loading");
 
     if (abortRef.current) abortRef.current.abort();
@@ -256,7 +256,6 @@ export function useSearch() {
       });
 
       setResult(data);
-      previousResultRef.current = data;
       const hasResults =
         data.songs.length > 0 ||
         data.albums.length > 0 ||
@@ -283,20 +282,11 @@ export function useSearch() {
     setState("idle");
   }, []);
 
-  // When loading, show previous result so page isn't blank
-  const isFirstSearch = state === "loading" && !previousResultRef.current;
-  const displayResult =
-    state === "loading" && previousResultRef.current
-      ? previousResultRef.current
-      : result;
-
   return {
     query,
     setQuery,
     state,
     result,
-    displayResult,
-    isFirstSearch,
     suggestions,
     showSuggestions,
     setShowSuggestions,

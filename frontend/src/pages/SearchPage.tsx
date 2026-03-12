@@ -10,13 +10,22 @@ import {
   Music,
   Disc3,
   Mic2,
-  ArrowUpRight,
   ArrowLeft,
   Clock,
   Trash2,
   Play,
-  User,
   SearchX,
+  Film,
+  Music2,
+  Leaf,
+  CloudRain,
+  Zap,
+  Moon,
+  Activity,
+  Heart,
+  Globe,
+  Star,
+  Sun,
 } from "lucide-react";
 import {
   useSearch,
@@ -24,7 +33,6 @@ import {
   saveRecentSearch,
   removeRecentSearch,
 } from "../hooks/useSearch";
-import type { Suggestion } from "../hooks/useSearch";
 import { useSearchStore } from "../store/searchStore";
 import { bestImg, getArtists, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
@@ -34,84 +42,96 @@ import { useApp } from "../context/AppContext";
 const BROWSE_CATEGORIES = [
   {
     label: "Trending",
-    emoji: "🔥",
+    icon: TrendingUp,
+    iconColor: "text-orange-400",
     bar: "bg-orange-400",
     bg: "bg-orange-400/[0.07]",
     query: "trending songs 2024",
   },
   {
     label: "Bollywood",
-    emoji: "🎬",
+    icon: Film,
+    iconColor: "text-pink-400",
     bar: "bg-pink-400",
     bg: "bg-pink-400/[0.07]",
     query: "bollywood hits",
   },
   {
     label: "Punjabi",
-    emoji: "💛",
+    icon: Music2,
+    iconColor: "text-yellow-400",
     bar: "bg-yellow-400",
     bg: "bg-yellow-400/[0.07]",
     query: "punjabi songs",
   },
   {
     label: "Tamil",
-    emoji: "🌺",
+    icon: Leaf,
+    iconColor: "text-emerald-400",
     bar: "bg-emerald-400",
     bg: "bg-emerald-400/[0.07]",
     query: "tamil hits",
   },
   {
     label: "Sad Hits",
-    emoji: "💔",
+    icon: CloudRain,
+    iconColor: "text-indigo-400",
     bar: "bg-indigo-400",
     bg: "bg-indigo-400/[0.07]",
     query: "sad songs",
   },
   {
     label: "Party",
-    emoji: "🎉",
+    icon: Zap,
+    iconColor: "text-violet-400",
     bar: "bg-violet-400",
     bg: "bg-violet-400/[0.07]",
     query: "party songs",
   },
   {
     label: "Chill",
-    emoji: "🌙",
+    icon: Moon,
+    iconColor: "text-cyan-400",
     bar: "bg-cyan-400",
     bg: "bg-cyan-400/[0.07]",
     query: "chill lofi songs",
   },
   {
     label: "Workout",
-    emoji: "💪",
+    icon: Activity,
+    iconColor: "text-red-400",
     bar: "bg-red-400",
     bg: "bg-red-400/[0.07]",
     query: "gym workout songs",
   },
   {
     label: "Romantic",
-    emoji: "🌹",
+    icon: Heart,
+    iconColor: "text-rose-400",
     bar: "bg-rose-400",
     bg: "bg-rose-400/[0.07]",
     query: "romantic songs",
   },
   {
     label: "International",
-    emoji: "🌍",
+    icon: Globe,
+    iconColor: "text-blue-400",
     bar: "bg-blue-400",
     bg: "bg-blue-400/[0.07]",
     query: "english hits 2024",
   },
   {
     label: "Telugu",
-    emoji: "⭐",
+    icon: Star,
+    iconColor: "text-amber-400",
     bar: "bg-amber-400",
     bg: "bg-amber-400/[0.07]",
     query: "telugu songs",
   },
   {
     label: "Devotional",
-    emoji: "🙏",
+    icon: Sun,
+    iconColor: "text-orange-300",
     bar: "bg-orange-300",
     bg: "bg-orange-300/[0.07]",
     query: "devotional songs",
@@ -358,80 +378,6 @@ function SkeletonRow() {
   );
 }
 
-function SuggestionDropdown({
-  suggestions,
-  onSelect,
-  onHover,
-}: {
-  suggestions: Suggestion[];
-  onSelect: (s: Suggestion) => void;
-  onHover: (q: string) => void;
-}) {
-  if (!suggestions.length) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={{ duration: 0.12 }}
-      className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-2xl overflow-hidden border border-white/[0.08]"
-      style={{
-        background: "rgba(12,12,12,0.98)",
-        backdropFilter: "blur(24px)",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-      }}
-    >
-      {suggestions.map((s, i) => (
-        <button
-          key={i}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onSelect(s);
-          }}
-          onMouseEnter={() => onHover(s.query || s.text)}
-          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.06] transition-colors text-left group"
-        >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-white/[0.04] overflow-hidden">
-            {s.image ? (
-              <img
-                src={s.image}
-                className="w-full h-full object-cover"
-                alt=""
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : s.type === "artist" ? (
-              <User size={13} className="text-sp-green" />
-            ) : s.type === "song" ? (
-              <Music size={13} className="text-white/40" />
-            ) : (
-              <Search size={13} className="text-white/30" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] text-white font-medium truncate">
-              {s.text}
-            </p>
-            {s.subtext && (
-              <p className="text-[11px] text-white/35 truncate">{s.subtext}</p>
-            )}
-          </div>
-          {s.type !== "query" && (
-            <span className="text-[9px] font-bold text-white/25 uppercase tracking-wider flex-shrink-0 capitalize">
-              {s.type}
-            </span>
-          )}
-          <ArrowUpRight
-            size={13}
-            className="text-white/0 group-hover:text-white/35 transition-colors flex-shrink-0"
-          />
-        </button>
-      ))}
-    </motion.div>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SearchPage() {
@@ -446,22 +392,8 @@ export function SearchPage() {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const prefetchRef = useRef<string | null>(null);
 
-  const {
-    query,
-    setQuery,
-    state,
-    displayResult,
-    isFirstSearch,
-    suggestions,
-    showSuggestions,
-    setShowSuggestions,
-    loadMore,
-  } = useSearch();
-
-  const result = displayResult;
-  const isRefreshing = state === "loading" && !isFirstSearch;
+  const { query, setQuery, state, result, loadMore } = useSearch();
 
   // Init from URL and focus
   useEffect(() => {
@@ -474,47 +406,19 @@ export function SearchPage() {
   // Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (showSuggestions) setShowSuggestions(false);
-        else navigate(-1);
-      }
+      if (e.key === "Escape") navigate(-1);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigate, showSuggestions, setShowSuggestions]);
+  }, [navigate]);
 
   const handleChange = useCallback(
     (v: string) => {
       setQuery(v);
       setUrlParams(v.trim() ? { q: v } : {}, { replace: true });
-      setShowSuggestions(true);
     },
-    [setQuery, setUrlParams, setShowSuggestions],
+    [setQuery, setUrlParams],
   );
-
-  const handleSuggestionSelect = useCallback(
-    (s: Suggestion) => {
-      const q = s.query || s.text;
-      setQuery(q);
-      setUrlParams({ q }, { replace: true });
-      setShowSuggestions(false);
-      saveRecentSearch(q);
-      setRecentSearches(getRecentSearches());
-      addRecentSearch(q);
-    },
-    [setQuery, setUrlParams, setShowSuggestions, addRecentSearch],
-  );
-
-  const handleSuggestionHover = useCallback((q: string) => {
-    if (prefetchRef.current === q) return;
-    prefetchRef.current = q;
-    const API = (
-      import.meta.env.VITE_BACKEND_URL || "http://localhost:4000"
-    ).replace(/\/$/, "");
-    fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=60`, {
-      credentials: "include",
-    }).catch(() => {});
-  }, []);
 
   const handleEnter = useCallback(() => {
     if (query.trim() && state === "results") {
@@ -522,8 +426,7 @@ export function SearchPage() {
       setRecentSearches(getRecentSearches());
       addRecentSearch(query.trim());
     }
-    setShowSuggestions(false);
-  }, [query, state, addRecentSearch, setShowSuggestions]);
+  }, [query, state, addRecentSearch]);
 
   // Infinite scroll
   useEffect(() => {
@@ -557,10 +460,9 @@ export function SearchPage() {
       saveRecentSearch(q);
       setRecentSearches(getRecentSearches());
       addRecentSearch(q);
-      setShowSuggestions(false);
       inputRef.current?.focus();
     },
-    [setQuery, setUrlParams, addRecentSearch, setShowSuggestions],
+    [setQuery, setUrlParams, addRecentSearch],
   );
 
   const handleRemoveRecent = useCallback((q: string, e: React.MouseEvent) => {
@@ -611,7 +513,7 @@ export function SearchPage() {
                   : "border-white/[0.08] bg-white/[0.06] hover:border-white/[0.12]"
               }`}
             >
-              {state === "loading" && isFirstSearch ? (
+              {state === "loading" ? (
                 <Loader2
                   size={16}
                   className="text-sp-green flex-shrink-0 animate-spin"
@@ -627,14 +529,8 @@ export function SearchPage() {
                 ref={inputRef}
                 value={query}
                 onChange={(e) => handleChange(e.target.value)}
-                onFocus={() => {
-                  setInputFocused(true);
-                  setShowSuggestions(true);
-                }}
-                onBlur={() => {
-                  setInputFocused(false);
-                  setTimeout(() => setShowSuggestions(false), 160);
-                }}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleEnter();
                 }}
@@ -645,10 +541,6 @@ export function SearchPage() {
                 spellCheck={false}
                 autoFocus
               />
-
-              {isRefreshing && (
-                <div className="w-1.5 h-1.5 rounded-full bg-sp-green/60 animate-pulse flex-shrink-0" />
-              )}
 
               <AnimatePresence>
                 {query && (
@@ -665,17 +557,6 @@ export function SearchPage() {
                 )}
               </AnimatePresence>
             </div>
-
-            {/* Suggestions dropdown */}
-            <AnimatePresence>
-              {showSuggestions && suggestions.length > 0 && (
-                <SuggestionDropdown
-                  suggestions={suggestions}
-                  onSelect={handleSuggestionSelect}
-                  onHover={handleSuggestionHover}
-                />
-              )}
-            </AnimatePresence>
           </div>
 
           {/* Cancel (desktop) */}
@@ -760,31 +641,35 @@ export function SearchPage() {
                 <Sparkles size={11} /> Browse All
               </h3>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                {BROWSE_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.label}
-                    onClick={() => handleChipClick(cat.query)}
-                    className={`relative flex items-center gap-2.5 h-[46px] rounded-xl px-3 ${cat.bg} border border-white/[0.05] hover:border-white/[0.11] hover:brightness-110 active:scale-[0.97] transition-all overflow-hidden group text-left`}
-                  >
-                    {/* Left accent bar */}
-                    <div
-                      className={`absolute left-0 top-0 bottom-0 w-[3px] ${cat.bar} rounded-l-xl opacity-70 group-hover:opacity-100 transition-opacity`}
-                    />
-                    <span className="text-base leading-none opacity-75 pl-1 flex-shrink-0">
-                      {cat.emoji}
-                    </span>
-                    <span className="text-[12px] font-semibold text-white/75 group-hover:text-white transition-colors truncate">
-                      {cat.label}
-                    </span>
-                  </button>
-                ))}
+                {BROWSE_CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  return (
+                    <button
+                      key={cat.label}
+                      onClick={() => handleChipClick(cat.query)}
+                      className={`relative flex items-center gap-2.5 h-[46px] rounded-xl px-3 ${cat.bg} border border-white/[0.05] hover:border-white/[0.11] hover:brightness-110 active:scale-[0.97] transition-all overflow-hidden group text-left`}
+                    >
+                      {/* Left accent bar */}
+                      <div
+                        className={`absolute left-0 top-0 bottom-0 w-[3px] ${cat.bar} rounded-l-xl opacity-70 group-hover:opacity-100 transition-opacity`}
+                      />
+                      <Icon
+                        size={14}
+                        className={`flex-shrink-0 ${cat.iconColor} opacity-70 group-hover:opacity-100 transition-opacity`}
+                      />
+                      <span className="text-[12px] font-semibold text-white/75 group-hover:text-white transition-colors truncate">
+                        {cat.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── SKELETON (first search only) ── */}
-        {isFirstSearch && (
+        {/* ── SKELETON — show while any search is loading ── */}
+        {state === "loading" && (
           <div className="py-4 max-w-2xl">
             <div className="h-px bg-gradient-to-r from-transparent via-sp-green to-transparent mb-5 rounded-full animate-pulse" />
             <div className="flex gap-4 p-4 rounded-2xl bg-white/[0.03] mb-5 animate-pulse">
@@ -804,66 +689,31 @@ export function SearchPage() {
         )}
 
         {/* ── RESULTS ── */}
-        {(state === "results" || (state === "loading" && !isFirstSearch)) &&
-          result && (
-            <div className="py-4 space-y-7 max-w-2xl">
-              {result.parsedIntent?.displayContext && (
-                <div className="flex items-center gap-2 px-1">
-                  <Sparkles size={12} className="text-sp-green flex-shrink-0" />
-                  <span className="text-[12px] text-white/40 font-medium">
-                    {result.parsedIntent.displayContext}
-                  </span>
-                  {isRefreshing && (
-                    <div className="w-1 h-1 rounded-full bg-sp-green/50 animate-pulse ml-1" />
-                  )}
-                </div>
-              )}
+        {state === "results" && result && (
+          <div className="py-4 space-y-7 max-w-2xl">
+            {result.parsedIntent?.displayContext && (
+              <div className="flex items-center gap-2 px-1">
+                <Sparkles size={12} className="text-sp-green flex-shrink-0" />
+                <span className="text-[12px] text-white/40 font-medium">
+                  {result.parsedIntent.displayContext}
+                </span>
+              </div>
+            )}
 
-              {/* Desktop 2-col: Top Result + Songs */}
-              <div className="hidden md:grid md:grid-cols-[280px_1fr] gap-5">
-                {result.topResult && (
-                  <div>
-                    <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                      Top Result
-                    </h3>
-                    <TopResultHero
-                      item={result.topResult}
-                      onPlay={handlePlay}
-                    />
-                  </div>
-                )}
+            {/* Desktop 2-col: Top Result + Songs */}
+            <div className="hidden md:grid md:grid-cols-[280px_1fr] gap-5">
+              {result.topResult && (
                 <div>
                   <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                    Songs
+                    Top Result
                   </h3>
-                  <div className="space-y-0.5">
-                    {firstSectionSongs.map((song, i) => (
-                      <SongRow
-                        key={song.id}
-                        song={song}
-                        index={i}
-                        onPlay={handlePlay}
-                        isCurrent={currentSong?.id === song.id}
-                        isPlaying={isPlaying}
-                      />
-                    ))}
-                  </div>
+                  <TopResultHero item={result.topResult} onPlay={handlePlay} />
                 </div>
-              </div>
-
-              {/* Mobile: stacked */}
-              <div className="md:hidden flex flex-col gap-3">
-                {result.topResult && (
-                  <div>
-                    <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2">
-                      Top Result
-                    </h3>
-                    <TopResultHero
-                      item={result.topResult}
-                      onPlay={handlePlay}
-                    />
-                  </div>
-                )}
+              )}
+              <div>
+                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
+                  Songs
+                </h3>
                 <div className="space-y-0.5">
                   {firstSectionSongs.map((song, i) => (
                     <SongRow
@@ -877,82 +727,107 @@ export function SearchPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Artists */}
-              {result.artists?.length > 0 && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                    <Mic2 size={11} /> Artists
-                  </h3>
-                  <div className="flex gap-5 overflow-x-auto pb-1 thin-scrollbar">
-                    {result.artists.slice(0, 8).map((a: any) => (
-                      <ArtistCircle key={a.id || a.name} artist={a} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Albums */}
-              {result.albums?.length > 0 && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                    <Disc3 size={11} /> Albums
-                  </h3>
-                  <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
-                    {result.albums.slice(0, 10).map((a: any) => (
-                      <AlbumCard key={a.id || a.name} album={a} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Remaining songs — always visible */}
-              {hasMoreSongs && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 flex items-center gap-2">
-                    <Music size={11} /> More Songs
-                    <span className="text-white/20 font-normal normal-case tracking-normal">
-                      {result.songs.length}
-                    </span>
-                  </h3>
-                  <div className="space-y-0.5">
-                    {remainingSongs.map((song, i) => (
-                      <SongRow
-                        key={song.id}
-                        song={song}
-                        index={splitAt + i}
-                        onPlay={handlePlay}
-                        isCurrent={currentSong?.id === song.id}
-                        isPlaying={isPlaying}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Related searches */}
-              {(result.relatedSearches?.length ?? 0) > 0 && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                    Related
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {result.relatedSearches?.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => handleChipClick(s)}
-                        className="px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.07] text-white/55 text-[12px] hover:bg-white/[0.09] hover:text-white hover:border-white/[0.12] transition-all"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div ref={bottomRef} className="py-2" />
             </div>
-          )}
+
+            {/* Mobile: stacked */}
+            <div className="md:hidden flex flex-col gap-3">
+              {result.topResult && (
+                <div>
+                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2">
+                    Top Result
+                  </h3>
+                  <TopResultHero item={result.topResult} onPlay={handlePlay} />
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {firstSectionSongs.map((song, i) => (
+                  <SongRow
+                    key={song.id}
+                    song={song}
+                    index={i}
+                    onPlay={handlePlay}
+                    isCurrent={currentSong?.id === song.id}
+                    isPlaying={isPlaying}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Artists */}
+            {result.artists?.length > 0 && (
+              <div>
+                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                  <Mic2 size={11} /> Artists
+                </h3>
+                <div className="flex gap-5 overflow-x-auto pb-1 thin-scrollbar">
+                  {result.artists.slice(0, 8).map((a: any) => (
+                    <ArtistCircle key={a.id || a.name} artist={a} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Albums */}
+            {result.albums?.length > 0 && (
+              <div>
+                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                  <Disc3 size={11} /> Albums
+                </h3>
+                <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
+                  {result.albums.slice(0, 10).map((a: any) => (
+                    <AlbumCard key={a.id || a.name} album={a} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Remaining songs — always visible */}
+            {hasMoreSongs && (
+              <div>
+                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 flex items-center gap-2">
+                  <Music size={11} /> More Songs
+                  <span className="text-white/20 font-normal normal-case tracking-normal">
+                    {result.songs.length}
+                  </span>
+                </h3>
+                <div className="space-y-0.5">
+                  {remainingSongs.map((song, i) => (
+                    <SongRow
+                      key={song.id}
+                      song={song}
+                      index={splitAt + i}
+                      onPlay={handlePlay}
+                      isCurrent={currentSong?.id === song.id}
+                      isPlaying={isPlaying}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Related searches */}
+            {(result.relatedSearches?.length ?? 0) > 0 && (
+              <div>
+                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
+                  Related
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {result.relatedSearches?.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleChipClick(s)}
+                      className="px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.07] text-white/55 text-[12px] hover:bg-white/[0.09] hover:text-white hover:border-white/[0.12] transition-all"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div ref={bottomRef} className="py-2" />
+          </div>
+        )}
 
         {/* ── NO RESULTS ── */}
         {state === "no-results" && (
