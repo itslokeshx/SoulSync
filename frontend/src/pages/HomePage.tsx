@@ -346,42 +346,53 @@ export const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const fetched = useRef(false);
+  // In-flight guard — persists across React StrictMode unmount/remount so the
+  // second effect pass returns immediately instead of firing a duplicate request.
+  const fetchingRef = useRef(false);
 
   // Cache key includes user language prefs so dashboard refreshes on pref change
   const cacheKey = `ss_dashboard_${(user?.preferences?.languages || []).sort().join(",") || "guest"}`;
 
   const fetchDashboard = useCallback(async () => {
-    // Check local cache first
+    if (fetchingRef.current) return; // already in-flight — drop StrictMode duplicate
+    fetchingRef.current = true;
     try {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed: DashboardData = JSON.parse(cached);
-        if (Date.now() - parsed.generatedAt < CACHE_TTL) {
-          setDashboard(parsed);
-          setLoading(false);
-          return;
+      // Check local cache first
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed: DashboardData = JSON.parse(cached);
+          if (Date.now() - parsed.generatedAt < CACHE_TTL) {
+            setDashboard(parsed);
+            setLoading(false);
+            return; // outer finally resets fetchingRef
+          }
         }
-      }
-    } catch {}
+      } catch {}
 
-    try {
-      const data: any = user ? await getDashboard() : await getGuestDashboard();
-      setDashboard(data);
-      setError(false);
-      sessionStorage.setItem(cacheKey, JSON.stringify(data));
-    } catch {
-      // If authenticated dashboard fails (401 etc), fall back to guest dashboard
-      if (user) {
-        try {
-          const guestData: any = await getGuestDashboard();
-          setDashboard(guestData);
-          setError(false);
-          return;
-        } catch {}
+      try {
+        const data: any = user
+          ? await getDashboard()
+          : await getGuestDashboard();
+        setDashboard(data);
+        setError(false);
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch {
+        // If authenticated dashboard fails (401 etc), fall back to guest dashboard
+        if (user) {
+          try {
+            const guestData: any = await getGuestDashboard();
+            setDashboard(guestData);
+            setError(false);
+            return;
+          } catch {}
+        }
+        setError(true);
+      } finally {
+        setLoading(false);
       }
-      setError(true);
     } finally {
-      setLoading(false);
+      fetchingRef.current = false;
     }
   }, [user, cacheKey]);
 

@@ -80,7 +80,11 @@ app.use(
 );
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
-app.use(rateLimiter(100, 60000));
+// React StrictMode in dev mounts every component twice, triggering 4-6 requests
+// per page navigation.  Use a generous limit in dev so you never hit the ceiling
+// during normal work; production keeps the tight security limit.
+const RATE_LIMIT = process.env.NODE_ENV === "production" ? 100 : 500;
+app.use(rateLimiter(RATE_LIMIT, 60000));
 
 // Routes
 app.use("/api/auth", authRoutes);
