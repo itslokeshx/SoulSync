@@ -1,13 +1,13 @@
 <div align="center">
 
-```
-███████╗ ██████╗ ██╗   ██╗██╗     ███████╗██╗   ██╗███╗   ██╗ ██████╗
-██╔════╝██╔═══██╗██║   ██║██║     ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
-███████╗██║   ██║██║   ██║██║     ███████╗ ╚████╔╝ ██╔██╗ ██║██║
-╚════██║██║   ██║██║   ██║██║     ╚════██║  ╚██╔╝  ██║╚██╗██║██║
-███████║╚██████╔╝╚██████╔╝███████╗███████║   ██║   ██║ ╚████║╚██████╗
-╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝
-```
+<pre>
+ ____              _  ____                      
+/ ___|  ___  _   _| |/ ___| _   _ _ __   ___ 
+\___ \ / _ \| | | | |\___ \| | | | '_ \ / __|
+ ___) | (_) | |_| | | ___) | |_| | | | | (__ 
+|____/ \___/ \__,_|_||____/ \__, |_| |_|\___|
+                            |___/             
+</pre>
 
 ### _Listen together. Feel together._
 
@@ -84,74 +84,6 @@
 <td align="center"><a href="#-contributing"><b>🤝 Contributing</b></a></td>
 </tr>
 </table>
-
-</div>
-
-<br/>
-
----
-
-## 📸 Screenshots
-
-<div align="center">
-
-### Web Application
-
-<table>
-<tr>
-<td width="33%">
-<img src="https://via.placeholder.com/400x800/060606/1DB954?text=Dashboard+3x3+Grid" alt="Dashboard" />
-<p align="center"><b>YouTube Music-Style Dashboard</b><br><sub>3×3 swipeable grid • Mood chips • Time-based sections</sub></p>
-</td>
-<td width="33%">
-<img src="https://via.placeholder.com/400x800/060606/1DB954?text=Intelligent+Search" alt="Search" />
-<p align="center"><b>Intelligent Search</b><br><sub>50 results • Artists & albums • Originals always #1</sub></p>
-</td>
-<td width="33%">
-<img src="https://via.placeholder.com/400x800/060606/1DB954?text=Immersive+Player" alt="Player" />
-<p align="center"><b>Immersive Full Player</b><br><sub>Gradient backgrounds • Vinyl animation • Full controls</sub></p>
-</td>
-</tr>
-<tr>
-<td width="33%">
-<img src="https://via.placeholder.com/400x800/060606/1DB954?text=AI+Playlist+Builder" alt="AI Playlists" />
-<p align="center"><b>AI Playlist Generation</b><br><sub>Natural language input • Groq LLaMA 3.3 70B • Instant matching</sub></p>
-</td>
-<td width="33%">
-<img src="https://via.placeholder.com/400x800/060606/1DB954?text=SoulLink+Session" alt="SoulLink" />
-<p align="center"><b>SoulLink — Listen Together</b><br><sub>Real-time sync • Built-in chat • Beautiful recap cards</sub></p>
-</td>
-<td width="33%">
-<img src="https://via.placeholder.com/400x800/060606/1DB954?text=Universal+Import" alt="Import" />
-<p align="center"><b>Universal Playlist Import</b><br><sub>Spotify • YouTube • Apple Music • No API keys needed</sub></p>
-</td>
-</tr>
-</table>
-
-### Android APK (Capacitor)
-
-<table>
-<tr>
-<td width="25%">
-<img src="https://via.placeholder.com/300x650/060606/1DB954?text=Mobile+Dashboard" alt="Mobile Dashboard" />
-<p align="center"><b>Mobile Dashboard</b><br><sub>Bottom nav • Mini player • Swipe gestures</sub></p>
-</td>
-<td width="25%">
-<img src="https://via.placeholder.com/300x650/060606/1DB954?text=Full+Screen+Player" alt="Mobile Player" />
-<p align="center"><b>Full Screen Player</b><br><sub>Swipe up/down • Haptic feedback • Native controls</sub></p>
-</td>
-<td width="25%">
-<img src="https://via.placeholder.com/300x650/060606/1DB954?text=Lock+Screen" alt="Lock Screen" />
-<p align="center"><b>Lock Screen Controls</b><br><sub>Native media notification • Background playback</sub></p>
-</td>
-<td width="25%">
-<img src="https://via.placeholder.com/300x650/060606/1DB954?text=Offline+Mode" alt="Offline" />
-<p align="center"><b>Instant Offline Mode</b><br><sub>No login required • Downloads available instantly</sub></p>
-</td>
-</tr>
-</table>
-
-> **Note:** Screenshots are placeholders. Actual app screenshots will be added soon. Want to contribute? [Submit screenshots via PR!](https://github.com/itslokeshx/SoulSync/pulls)
 
 </div>
 
@@ -2678,14 +2610,14 @@ _**Listen together. Feel together.**_
 
 <div align="center">
 
-```
-███████╗ ██████╗ ██╗   ██╗██╗     ███████╗██╗   ██╗███╗   ██╗ ██████╗
-██╔════╝██╔═══██╗██║   ██║██║     ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
-███████╗██║   ██║██║   ██║██║     ███████╗ ╚████╔╝ ██╔██╗ ██║██║
-╚════██║██║   ██║██║   ██║██║     ╚════██║  ╚██╔╝  ██║╚██╗██║██║
-███████║╚██████╔╝╚██████╔╝███████╗███████║   ██║   ██║ ╚████║╚██████╗
-╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝
-```
+<pre>
+ ____              _  ____                      
+/ ___|  ___  _   _| |/ ___| _   _ _ __   ___ 
+\___ \ / _ \| | | | |\___ \| | | | '_ \ / __|
+ ___) | (_) | |_| | | ___) | |_| | | | | (__ 
+|____/ \___/ \__,_|_||____/ \__, |_| |_|\___|
+                            |___/             
+</pre>
 
 **🎵 Free. Open Source. No Limits. 🎵**
 
