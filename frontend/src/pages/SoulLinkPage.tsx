@@ -125,141 +125,142 @@ export default function SoulLinkPage() {
   if (active && roomCode) {
     return (
       <div
-        className="bg-[#0a0a0a]"
+        className="relative w-full"
         style={{
           background:
             "radial-gradient(ellipse at 20% 50%, rgba(29,185,84,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(99,102,241,0.06) 0%, transparent 50%), #0a0a0a",
         }}
       >
-        {/* Back button */}
-        <div
-          className="fixed top-3 left-3 sm:top-8 sm:left-8 z-20"
-          style={{ top: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
-        >
+        {/* Back button — sits inside the scrollable flow on mobile so it never
+            covers content; fixed on desktop where there's more room. */}
+        <div className="sticky top-0 left-0 z-20 p-2 sm:p-4 pointer-events-none">
           <button
             onClick={() => navigate("/")}
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full glass flex items-center justify-center hover:scale-110 active:scale-90 transition-all"
+            className="pointer-events-auto w-9 h-9 sm:w-11 sm:h-11 rounded-full glass flex items-center justify-center hover:scale-110 active:scale-90 transition-all"
           >
-            <ArrowLeft size={18} className="text-white" />
+            <ArrowLeft size={16} className="text-white" />
           </button>
         </div>
 
-        <div className="max-w-2xl mx-auto px-3 sm:px-4 pt-14 pb-6 sm:pt-12 sm:pb-10">
-          {/* Background glow */}
-          <div className="absolute -top-24 -left-24 w-64 h-64 bg-sp-green/10 blur-[100px] rounded-full pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full pointer-events-none" />
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 -mt-2 sm:mt-0 pb-2 sm:pb-8 text-center">
+          {/* Background glow — relative so it doesn't escape the container */}
+          <div className="absolute top-0 left-0 w-48 h-48 sm:w-64 sm:h-64 bg-sp-green/10 blur-[80px] sm:blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-48 h-48 sm:w-64 sm:h-64 bg-purple-500/10 blur-[80px] sm:blur-[100px] rounded-full pointer-events-none translate-x-1/2 translate-y-1/2" />
 
           <div className="relative z-10">
-            <div className="relative w-12 h-12 sm:w-20 sm:h-20 mx-auto mb-2 sm:mb-4">
+            {/* Pulse icon */}
+            <div className="relative w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-1.5 sm:mb-3">
               <PulseRing />
               <div className="w-full h-full rounded-full bg-white/[0.03] border border-white/[0.1] flex items-center justify-center relative z-10 shadow-2xl">
                 {partnerConnected ? (
                   <Headphones
-                    size={18}
-                    className="text-sp-green sm:w-7 sm:h-7"
+                    size={16}
+                    className="text-sp-green sm:w-6 sm:h-6"
                   />
                 ) : (
                   <Radio
-                    size={18}
-                    className="text-sp-green animate-pulse sm:w-7 sm:h-7"
+                    size={16}
+                    className="text-sp-green animate-pulse sm:w-6 sm:h-6"
                   />
                 )}
               </div>
             </div>
 
+            {/* Title */}
             <motion.h1
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xl sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2"
+              className="text-lg sm:text-2xl md:text-3xl font-black text-white mb-0.5 sm:mb-1"
             >
               {partnerConnected ? "Session Active" : "Waiting for Partner"}
             </motion.h1>
-            <p className="text-white/40 text-xs sm:text-sm mb-3 sm:mb-8 max-w-sm mx-auto px-2">
+            <p className="text-white/40 text-[11px] sm:text-sm mb-2.5 sm:mb-6 max-w-xs sm:max-w-sm mx-auto leading-relaxed">
               {partnerConnected
-                ? `You are now listening together with ${partnerName}. Every beat, every skip, synced perfectly.`
-                : "Share your unique room code. Once they join, your music worlds will merge."}
+                ? `Listening with ${partnerName}. Every beat, synced.`
+                : "Share the room code below to start."}
             </p>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-6 text-left">
-              <div className="glass p-3 sm:p-5 rounded-2xl sm:rounded-3xl">
-                <p className="text-[9px] sm:text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1 sm:mb-2">
+            {/* Room Code + Status — always side-by-side */}
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-3 mb-2.5 sm:mb-5 text-left">
+              <div className="glass p-2.5 sm:p-4 rounded-xl sm:rounded-2xl">
+                <p className="text-[8px] sm:text-[10px] font-bold text-white/30 uppercase tracking-[0.15em] mb-0.5 sm:mb-1.5">
                   Room Code
                 </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg sm:text-2xl font-black text-white font-mono tracking-wider">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-base sm:text-xl font-black text-white font-mono tracking-wider truncate">
                     {roomCode}
                   </span>
                   <button
                     onClick={copyCode}
-                    className="p-1.5 sm:p-2 rounded-xl hover:bg-white/10 text-white/60 transition-all"
+                    className="p-1 sm:p-1.5 rounded-lg hover:bg-white/10 text-white/60 transition-all flex-shrink-0"
                   >
                     {copied ? (
-                      <Check size={16} className="text-sp-green" />
+                      <Check size={14} className="text-sp-green" />
                     ) : (
-                      <Copy size={16} />
+                      <Copy size={14} />
                     )}
                   </button>
                 </div>
               </div>
-              <div className="glass p-3 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-1">
+              <div className="glass p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-between gap-1">
+                <div className="min-w-0">
+                  <p className="text-[8px] sm:text-[10px] font-bold text-white/30 uppercase tracking-[0.15em] mb-0.5 sm:mb-1">
                     Status
                   </p>
                   <p
-                    className={`text-sm font-bold ${partnerConnected ? "text-sp-green" : "text-amber-400"}`}
+                    className={`text-xs sm:text-sm font-bold truncate ${partnerConnected ? "text-sp-green" : "text-amber-400"}`}
                   >
                     {partnerConnected ? "Connected" : "Syncing..."}
                   </p>
                 </div>
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${partnerConnected ? "bg-sp-green/10" : "bg-amber-400/10"}`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center ${partnerConnected ? "bg-sp-green/10" : "bg-amber-400/10"}`}
                 >
                   <Wifi
-                    size={20}
-                    className={
-                      partnerConnected ? "text-sp-green" : "text-amber-400"
-                    }
+                    size={16}
+                    className={`sm:w-5 sm:h-5 ${partnerConnected ? "text-sp-green" : "text-amber-400"}`}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            {/* Action buttons — row on all sizes */}
+            <div className="flex gap-1.5 sm:gap-3 mb-2.5 sm:mb-0">
               <button
                 onClick={() => navigate("/")}
-                className="flex-1 py-3 sm:py-4 rounded-full bg-sp-green text-black font-black text-xs sm:text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-sp-green/20"
+                className="flex-1 py-2.5 sm:py-3.5 rounded-full bg-sp-green text-black font-black text-[11px] sm:text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-sp-green/20"
               >
                 Start Listening
               </button>
               <button
                 onClick={duo.endSession}
-                className="flex-1 py-3 sm:py-4 rounded-full glass text-white font-bold text-xs sm:text-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
+                className="flex-1 py-2.5 sm:py-3.5 rounded-full glass text-white font-bold text-[11px] sm:text-sm hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
               >
                 End Session
               </button>
             </div>
 
-            {/* ── Messaging Interface ── */}
+            {/* ── Chat ── */}
             <AnimatePresence>
               {partnerConnected && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.05] overflow-hidden flex flex-col"
+                  className="mt-2.5 sm:mt-5 pt-2.5 sm:pt-5 border-t border-white/[0.05] overflow-hidden flex flex-col"
                 >
-                  <div className="flex items-center gap-2 mb-4 sm:mb-6 ml-2">
-                    <Send size={14} className="text-white/30" />
-                    <h3 className="text-[9px] sm:text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">
-                      Synchronized Chat
+                  <div className="flex items-center gap-1.5 mb-2 sm:mb-4 ml-1">
+                    <Send size={12} className="text-white/30" />
+                    <h3 className="text-[8px] sm:text-[10px] font-black text-white/30 uppercase tracking-[0.15em]">
+                      Chat
                     </h3>
                   </div>
 
-                  <div className="h-36 sm:h-52 overflow-y-auto pr-2 mb-3 sm:mb-4 thin-scrollbar space-y-2 sm:space-y-3 text-left">
+                  {/* Messages — flex-grow with min/max height so it adapts to viewport */}
+                  <div className="min-h-[100px] max-h-[30vh] sm:max-h-[40vh] overflow-y-auto pr-1 mb-2 sm:mb-3 thin-scrollbar space-y-1.5 sm:space-y-2.5 text-left">
                     {messages.length === 0 && (
-                      <div className="h-20 flex flex-col items-center justify-center opacity-20 italic text-xs text-white">
-                        No messages yet. Send a whisper.
+                      <div className="h-16 flex flex-col items-center justify-center opacity-20 italic text-[11px] text-white">
+                        No messages yet.
                       </div>
                     )}
                     {messages.map((m, i) => (
@@ -268,7 +269,7 @@ export default function SoulLinkPage() {
                         className={`flex flex-col ${m.from === role ? "items-end" : "items-start"}`}
                       >
                         <div
-                          className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs sm:text-sm max-w-[85%] sm:max-w-[80%] ${
+                          className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl text-[11px] sm:text-sm max-w-[85%] ${
                             m.from === role
                               ? "bg-sp-green text-black font-bold shadow-lg shadow-sp-green/10"
                               : "bg-white/[0.05] text-white border border-white/[0.05]"
@@ -276,7 +277,7 @@ export default function SoulLinkPage() {
                         >
                           {m.text}
                         </div>
-                        <span className="text-[9px] opacity-30 mt-1 uppercase font-bold tracking-wider px-1">
+                        <span className="text-[8px] opacity-30 mt-0.5 uppercase font-bold tracking-wider px-0.5">
                           {m.from === role ? "You" : m.fromName}
                         </span>
                       </div>
@@ -284,6 +285,7 @@ export default function SoulLinkPage() {
                     <div ref={messagesEndRef} />
                   </div>
 
+                  {/* Input */}
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -292,21 +294,21 @@ export default function SoulLinkPage() {
                         setMessageText("");
                       }
                     }}
-                    className="relative"
+                    className="relative flex-shrink-0"
                   >
                     <input
                       type="text"
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
                       placeholder="Type a message..."
-                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl pl-5 pr-14 py-4 text-white placeholder-white/10 focus:outline-none focus:border-sp-green/40 focus:bg-white/[0.05] transition-all text-sm"
+                      className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl sm:rounded-2xl pl-3 sm:pl-4 pr-11 sm:pr-14 py-2.5 sm:py-3.5 text-white placeholder-white/10 focus:outline-none focus:border-sp-green/40 focus:bg-white/[0.05] transition-all text-[13px] sm:text-sm"
                     />
                     <button
                       type="submit"
                       disabled={!messageText.trim()}
-                      className="absolute right-2 top-2 w-10 h-10 rounded-xl bg-sp-green flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-sp-green/20 disabled:grayscale disabled:opacity-50"
+                      className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2 w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-sp-green flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-sp-green/20 disabled:grayscale disabled:opacity-50"
                     >
-                      <Send size={18} />
+                      <Send size={14} className="sm:w-4 sm:h-4" />
                     </button>
                   </form>
                 </motion.div>
