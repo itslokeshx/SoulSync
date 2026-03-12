@@ -480,10 +480,9 @@ router.post(
           code: "NETWORK_ERROR",
         });
       } else {
-        res.status(401).json({
+        res.status(500).json({
           error: "Authentication failed — please try again",
-          code: "AUTH_FAILED",
-          detail: errMsg,
+          code: "SERVER_ERROR",
         });
       }
     }
