@@ -349,6 +349,10 @@ export const HomePage = () => {
   // In-flight guard — persists across React StrictMode unmount/remount so the
   // second effect pass returns immediately instead of firing a duplicate request.
   const fetchingRef = useRef(false);
+  // Timestamp of the last actual HTTP fetch (not a cache hit) — used to debounce
+  // visibility/online re-fetches so rapid tab switching doesn't cause 429s.
+  const lastFetchedAt = useRef(0);
+  const REFETCH_COOLDOWN = 2 * 60_000; // 2 minutes between visibility-triggered fetches
 
   // Cache key includes user language prefs so dashboard refreshes on pref change
   const cacheKey = `ss_dashboard_${(user?.preferences?.languages || []).sort().join(",") || "guest"}`;
@@ -376,6 +380,7 @@ export const HomePage = () => {
           : await getGuestDashboard();
         setDashboard(data);
         setError(false);
+        lastFetchedAt.current = Date.now();
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
       } catch {
         // If authenticated dashboard fails (401 etc), fall back to guest dashboard
@@ -416,6 +421,9 @@ export const HomePage = () => {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
+      // Only re-fetch if enough time has passed since the last HTTP fetch;
+      // otherwise the cached data is still fresh and we'd just waste requests.
+      if (Date.now() - lastFetchedAt.current < REFETCH_COOLDOWN) return;
       try {
         sessionStorage.removeItem(cacheKey);
       } catch {}
@@ -424,11 +432,13 @@ export const HomePage = () => {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [cacheKey, fetchDashboard]);
+  }, [cacheKey, fetchDashboard, REFETCH_COOLDOWN]);
 
   // Re-fetch when the device comes back online after being offline
   useEffect(() => {
     const onOnline = () => {
+      // Always re-fetch when coming back online — the device was offline so the
+      // cache may be stale regardless of TTL.
       try {
         sessionStorage.removeItem(cacheKey);
       } catch {}

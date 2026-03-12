@@ -9,7 +9,7 @@ const router = Router();
 // GET /api/dashboard — Personalized dashboard
 router.get(
   "/",
-  rateLimiter(30, 60000),
+  rateLimiter(300, 60000),
   authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -28,7 +28,7 @@ router.get(
 // GET /api/dashboard/guest — For unauthenticated users
 router.get(
   "/guest",
-  rateLimiter(15, 60000),
+  rateLimiter(200, 60000),
   async (_req: any, res: Response): Promise<void> => {
     try {
       const dashboard = await buildDashboard("guest", "there");

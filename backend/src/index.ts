@@ -84,7 +84,7 @@ app.use(cookieParser());
 // React StrictMode in dev mounts every component twice, triggering 4-6 requests
 // per page navigation.  Use a generous limit in dev so you never hit the ceiling
 // during normal work; production keeps the tight security limit.
-const RATE_LIMIT = process.env.NODE_ENV === "production" ? 100 : 500;
+const RATE_LIMIT = process.env.NODE_ENV === "production" ? 300 : 1000;
 app.use(rateLimiter(RATE_LIMIT, 60000));
 
 // Routes
