@@ -388,7 +388,7 @@ export function useDuo({
             );
           }
 
-          // If host, resync current song + play/pause state to partner
+          // If host, resync current song to partner
           if (store.getState().role === "host") {
             const cs = callbackRefs.current.currentSongRef?.current;
             if (cs) {
@@ -404,19 +404,12 @@ export function useDuo({
                       )
                     : 0,
                 });
-                // Always sync play/pause state so guest starts in host's exact state
                 const audio = callbackRefs.current.audioRef.current;
-                if (audio) {
-                  if (!audio.paused) {
-                    getSocket().emit("duo:sync-play", {
-                      currentTime: audio.currentTime,
-                      songId: cs.id,
-                    });
-                  } else {
-                    getSocket().emit("duo:sync-pause", {
-                      currentTime: audio.currentTime,
-                    });
-                  }
+                if (audio && !audio.paused) {
+                  getSocket().emit("duo:sync-play", {
+                    currentTime: audio.currentTime,
+                    songId: cs.id,
+                  });
                 }
               }, 500);
             }
@@ -461,19 +454,12 @@ export function useDuo({
                       )
                     : 0,
                 });
-                // Always sync play/pause state so reconnecting partner matches host
                 const audio = callbackRefs.current.audioRef.current;
-                if (audio) {
-                  if (!audio.paused) {
-                    getSocket().emit("duo:sync-play", {
-                      currentTime: audio.currentTime,
-                      songId: cs.id,
-                    });
-                  } else {
-                    getSocket().emit("duo:sync-pause", {
-                      currentTime: audio.currentTime,
-                    });
-                  }
+                if (audio && !audio.paused) {
+                  getSocket().emit("duo:sync-play", {
+                    currentTime: audio.currentTime,
+                    songId: cs.id,
+                  });
                 }
               }, 500);
             }

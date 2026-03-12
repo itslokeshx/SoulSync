@@ -258,16 +258,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // 1. DEDUPLICATED: Sync Play/Pause state is now handled natively via the <audio> element's onPlay/onPause events (bottom of file)
   // to avoid React state race conditions.
 
-  // 2. Sync Song/Queue changes — only for locally-initiated changes
+  // 2. Sync Song/Queue changes
   useEffect(() => {
     const isDuoActive = useDuoStore.getState().active;
-    if (!isDuoActive) return;
+    if (!isDuoActive || isFirstPlayRef.current) return;
 
-    // If this song change was triggered by the partner (remote), isRemoteActionRef
-    // is still true here (it's only consumed by onPlay/onPause). Skip the echo.
-    // NOTE: isFirstPlayRef is intentionally NOT checked — it would silently block
-    // the very first song the host/guest picks while the session is active.
-    if (isRemoteActionRef.current) return;
+    // Note: isRemoteActionRef is primarily consumed by the play/pause effect
+    // If a song change came from remote, we still want to avoid echoing it back.
+    // But since the play/pause effect resets it, we use a separate flag or just
+    // rely on the backend ignoring duplicate song sets. For safety, we only sync
+    // if we actually have a valid song.
 
     if (currentSong) {
       const q = queue.length ? queue : [currentSong];
