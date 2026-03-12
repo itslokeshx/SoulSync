@@ -209,7 +209,7 @@ export function AppLayout() {
 
           {/* Main Content */}
           <main
-            className={`flex-1 overflow-y-auto ${!isSearchPage ? "px-4 md:px-8 pb-32 md:pb-24" : ""}`}
+            className={`flex-1 overflow-y-auto ${!isSearchPage ? "px-4 md:px-8 pb-48 md:pb-24" : ""}`}
           >
             <Outlet />
           </main>
