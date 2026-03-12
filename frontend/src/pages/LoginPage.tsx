@@ -214,15 +214,29 @@ export default function LoginPage() {
   }, [resendCountdown]);
 
   const handleGoogleSuccess = async (cred: string) => {
-    setGoogleLoading(true);
-    try {
-      const { isNewUser } = await login(cred);
-      navigate(isNewUser ? "/onboarding" : returnTo, { replace: true });
-    } catch {
-      toast.error("Google sign-in failed. Please try again.");
-    } finally {
-      setGoogleLoading(false);
+    if (!cred) {
+      toast.error(
+        "Google sign-in failed — no credential received. Please try again.",
+      );
+      return;
     }
+    setGoogleLoading(true);
+    let lastError: any;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const { isNewUser } = await login(cred);
+        navigate(isNewUser ? "/onboarding" : returnTo, { replace: true });
+        return;
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+    const msg = lastError?.response?.data?.error || "Google sign-in failed";
+    toast.error(`${msg}. Try signing in with email instead.`);
+    // Auto-switch to email login tab so user has a fallback
+    setAuthState("login");
+    setGoogleLoading(false);
   };
 
   const handleNativeGoogle = async () => {
@@ -499,7 +513,11 @@ export default function LoginPage() {
                   </div>
                   {/* Arrow / Download icon */}
                   <div className="w-9 h-9 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(29,185,84,0.4)] transition-all duration-300">
-                    <Download size={16} className="text-black" strokeWidth={2.5} />
+                    <Download
+                      size={16}
+                      className="text-black"
+                      strokeWidth={2.5}
+                    />
                   </div>
                 </div>
               </a>
@@ -654,9 +672,7 @@ export default function LoginPage() {
                 <Smartphone size={16} className="text-sp-green" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-bold text-white">
-                  Download APK
-                </p>
+                <p className="text-[12px] font-bold text-white">Download APK</p>
                 <p className="text-[9px] text-white/25 mt-0.5">
                   For a better experience
                 </p>

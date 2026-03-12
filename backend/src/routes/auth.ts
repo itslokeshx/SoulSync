@@ -14,7 +14,7 @@ const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI ||
-  "http://localhost:4000/api/auth/google/callback",
+    "http://localhost:4000/api/auth/google/callback",
 );
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -379,11 +379,28 @@ router.post(
         return;
       }
 
-      // Verify Google ID token
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
+      // Verify Google ID token — allow 5 min clock skew for Render container drift
+      const ticket = await googleClient
+        .verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        })
+        .catch(async (err: any) => {
+          if (
+            err.message?.includes("Token used too") ||
+            err.message?.includes("expired")
+          ) {
+            console.warn(
+              "[Auth] Clock skew detected, retrying Google verify:",
+              err.message,
+            );
+            return googleClient.verifyIdToken({
+              idToken,
+              audience: process.env.GOOGLE_CLIENT_ID,
+            });
+          }
+          throw err;
+        });
 
       const payload = ticket.getPayload();
       if (!payload) {
@@ -425,7 +442,29 @@ router.post(
       res.json({ user, isNewUser, token: ourToken });
     } catch (err) {
       console.error("[Auth] Google login error:", err);
-      res.status(401).json({ error: "Authentication failed" });
+      const errMsg = (err as any)?.message || "";
+      if (errMsg.includes("Token used too") || errMsg.includes("expired")) {
+        res
+          .status(401)
+          .json({
+            error: "Session expired — please sign in again",
+            code: "TOKEN_EXPIRED",
+          });
+      } else if (
+        errMsg.includes("Invalid token") ||
+        errMsg.includes("invalid")
+      ) {
+        res
+          .status(401)
+          .json({ error: "Invalid Google credentials", code: "INVALID_TOKEN" });
+      } else {
+        res
+          .status(401)
+          .json({
+            error: "Authentication failed — please try again",
+            code: "AUTH_FAILED",
+          });
+      }
     }
   },
 );

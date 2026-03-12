@@ -51,17 +51,27 @@ export const useLikedSongs = (
               merged[id] = {
                 id,
                 name: s.title || s.name || "",
-                image:
-                  s.image || s.albumArt
-                    ? typeof s.albumArt === "string"
-                      ? [{ quality: "500x500", url: s.albumArt }]
-                      : s.image || []
+                image: s.image?.length
+                  ? s.image
+                  : s.albumArt
+                    ? [
+                        {
+                          quality: "500x500",
+                          url:
+                            typeof s.albumArt === "string"
+                              ? s.albumArt
+                              : s.albumArt?.url || "",
+                        },
+                      ]
                     : [],
                 artists: s.artists,
                 primaryArtists: s.artist || s.primaryArtists || "",
                 duration: s.duration || 0,
                 downloadUrl: s.downloadUrl || [],
+                download_url: s.download_url || [],
                 album: s.album || null,
+                language: s.language || "",
+                playCount: s.playCount || 0,
               };
             }
           }
@@ -88,6 +98,11 @@ export const useLikedSongs = (
           artists: song.artists,
           primaryArtists: song.primaryArtists,
           duration: song.duration,
+          downloadUrl: song.downloadUrl || [],
+          download_url: song.download_url || [],
+          album: song.album || null,
+          language: song.language || "",
+          playCount: song.playCount || 0,
         };
       }
       localStorage.setItem("ss_liked", JSON.stringify(next));

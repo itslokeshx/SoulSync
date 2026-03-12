@@ -7,6 +7,8 @@ import React, {
 } from "react";
 import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
+import { logHistory } from "../api/backend";
+import { bestImg, getArtists } from "../lib/helpers";
 import {
   registerMediaControls,
   updateMediaMetadata,
@@ -107,6 +109,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     isRemoteActionRef,
     isPlayingRef,
   });
+
+  // ── Log play history + bust dashboard cache on every new song ────────
+  const loggedSongRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentSong) return;
+    if (loggedSongRef.current === currentSong.id) return; // already logged this song
+    if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
+    loggedSongRef.current = currentSong.id;
+
+    // Log to backend — invalidates Redis dashboard cache server-side
+    logHistory({
+      songId: currentSong.id,
+      title: currentSong.name || "",
+      artist: getArtists(currentSong),
+      albumArt: bestImg(currentSong.image) || "",
+      duration: Number(currentSong.duration) || 0,
+      source: "player",
+      language: currentSong.language || "",
+    }).catch(() => {});
+
+    // Bust frontend sessionStorage dashboard cache so HomePage re-fetches
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith("ss_dashboard")) sessionStorage.removeItem(key);
+      }
+    } catch {}
+  }, [currentSong?.id]);
 
   // ── Seek handler: updates BOTH audio element AND state ──────────────
   const handleSeek = useCallback(

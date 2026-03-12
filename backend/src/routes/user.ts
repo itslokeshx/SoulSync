@@ -8,19 +8,23 @@ import { redisDel } from "../services/redis.js";
 const router = Router();
 
 // GET /api/user/me — Current user profile
-router.get("/me", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
+router.get(
+  "/me",
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const user = await User.findById(req.userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+      res.json({ user });
+    } catch (err) {
+      console.error("[User] Get me error:", err);
+      res.status(500).json({ error: "Server error" });
     }
-    res.json({ user });
-  } catch (err) {
-    console.error("[User] Get me error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+  },
+);
 
 // PATCH /api/user/preferences — Update preferences + mark onboarding complete
 router.patch(
@@ -47,7 +51,7 @@ router.patch(
       }
 
       // Clear cached dashboard so it rebuilds with new language prefs
-      await redisDel(`dashboard:${req.userId}`).catch(() => { });
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
 
       res.json({ user });
     } catch (err) {
@@ -88,6 +92,9 @@ router.post(
           $inc: { totalListeningTime: duration },
         });
       }
+
+      // Invalidate the dashboard cache so "Continue Listening" stays fresh
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
 
       res.json({ success: true });
     } catch (err) {
@@ -263,77 +270,85 @@ router.delete(
 );
 
 // GET /api/user/liked — All liked songs
-router.get("/liked", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.userId) {
-      res.json({ likedSongs: [] });
-      return;
+router.get(
+  "/liked",
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.userId) {
+        res.json({ likedSongs: [] });
+        return;
+      }
+      const user = await User.findById(req.userId).select("likedSongs");
+      res.json({ likedSongs: user?.likedSongs || [] });
+    } catch (err) {
+      console.error("[User] Get liked error:", err);
+      res.status(500).json({ error: "Failed to fetch liked songs" });
     }
-    const user = await User.findById(req.userId).select("likedSongs");
-    res.json({ likedSongs: user?.likedSongs || [] });
-  } catch (err) {
-    console.error("[User] Get liked error:", err);
-    res.status(500).json({ error: "Failed to fetch liked songs" });
-  }
-});
+  },
+);
 
 // GET /api/user/stats — Aggregated listening stats
-router.get("/stats", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
-  try {
-    if (!req.userId) {
-      res.json({
-        totalSongsPlayed: 0,
-        totalListeningTime: 0,
-        likedSongsCount: 0,
-        topArtists: [],
-        languageBreakdown: [],
+router.get(
+  "/stats",
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.userId) {
+        res.json({
+          totalSongsPlayed: 0,
+          totalListeningTime: 0,
+          likedSongsCount: 0,
+          topArtists: [],
+          languageBreakdown: [],
+        });
+        return;
+      }
+      const user = await User.findById(req.userId).select(
+        "totalListeningTime likedSongs",
+      );
+      const totalPlayed = await ListeningHistory.countDocuments({
+        userId: req.userId,
       });
-      return;
+
+      // Top artists — split comma-separated artist strings
+      const topArtists = await ListeningHistory.aggregate([
+        { $match: { userId: user?._id } },
+        {
+          $group: {
+            _id: "$artist",
+            count: { $sum: 1 },
+            albumArt: { $first: "$albumArt" },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]);
+
+      // Language breakdown — only include entries that have a language
+      const languageBreakdown = await ListeningHistory.aggregate([
+        {
+          $match: {
+            userId: user?._id,
+            language: { $exists: true, $ne: "" },
+          },
+        },
+        { $group: { _id: "$language", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]);
+
+      res.json({
+        totalSongsPlayed: totalPlayed,
+        totalListeningTime: user?.totalListeningTime || 0,
+        likedSongsCount: user?.likedSongs?.length || 0,
+        topArtists,
+        languageBreakdown,
+      });
+    } catch (err) {
+      console.error("[User] Stats error:", err);
+      res.status(500).json({ error: "Failed to fetch stats" });
     }
-    const user = await User.findById(req.userId).select(
-      "totalListeningTime likedSongs",
-    );
-    const totalPlayed = await ListeningHistory.countDocuments({
-      userId: req.userId,
-    });
-
-    // Top artists — split comma-separated artist strings
-    const topArtists = await ListeningHistory.aggregate([
-      { $match: { userId: user?._id } },
-      {
-        $group: {
-          _id: "$artist",
-          count: { $sum: 1 },
-          albumArt: { $first: "$albumArt" },
-        },
-      },
-      { $sort: { count: -1 } },
-      { $limit: 10 },
-    ]);
-
-    // Language breakdown — only include entries that have a language
-    const languageBreakdown = await ListeningHistory.aggregate([
-      {
-        $match: {
-          userId: user?._id,
-          language: { $exists: true, $ne: "" },
-        },
-      },
-      { $group: { _id: "$language", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-    ]);
-
-    res.json({
-      totalSongsPlayed: totalPlayed,
-      totalListeningTime: user?.totalListeningTime || 0,
-      likedSongsCount: user?.likedSongs?.length || 0,
-      topArtists,
-      languageBreakdown,
-    });
-  } catch (err) {
-    console.error("[User] Stats error:", err);
-    res.status(500).json({ error: "Failed to fetch stats" });
-  }
-});
+  },
+);
 
 export default router;

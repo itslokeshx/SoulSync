@@ -134,10 +134,10 @@ export function DuoPanel({ onSendMessage, onEndSession }: DuoPanelProps) {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-4 py-3 flex flex-col">
+      <div className="flex-1 overflow-hidden px-4 py-3 flex flex-col">
         {activeTab === "chat" && (
-          <div className="flex-1 flex flex-col">
-            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-1.5 pb-2">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-1.5 pb-2 min-h-0">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12 opacity-40">
                   <MessageCircle size={28} className="text-sp-sub/30 mb-3" />
@@ -187,7 +187,7 @@ export function DuoPanel({ onSendMessage, onEndSession }: DuoPanelProps) {
               )}
               <div ref={chatEndRef} />
             </div>
-            <div className="flex gap-2 pt-2 border-t border-white/[0.04] mt-auto">
+            <div className="flex gap-2 pt-2 border-t border-white/[0.04] flex-shrink-0">
               <input
                 type="text"
                 value={msgText}

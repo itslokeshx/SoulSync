@@ -1,7 +1,15 @@
 import { Router, Response } from "express";
 import { groqManager } from "../services/groq.js";
-import { searchSongs } from "../services/jiosaavn.js";
+import {
+  searchSongs,
+  normalizeSongsToCanonical,
+  fetchSongsByIds,
+} from "../services/jiosaavn.js";
 import { parseQuery } from "../services/searchEnhancer.js";
+import {
+  rankSearchResults,
+  getKnownSongIds,
+} from "../services/searchRanker.js";
 import { redisGet, redisSet } from "../services/redis.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
@@ -76,9 +84,55 @@ async function searchOneSong(
   artistHint?: string | null,
 ): Promise<MatchedSong> {
   try {
-    const songs = await searchSongs(searchQuery, 10);
-    if (songs.length === 0)
+    // ── Inject pinned originals for known songs ─────────────────────────────
+    // For songs like "Shape of You", JioSaavn search returns covers before the
+    // original. Fetch the known original IDs directly and prepend them to the
+    // candidate pool so the ranker's knownArtist bonus can do its job.
+    const lookupKeys = [
+      original.trim().toLowerCase(),
+      searchQuery.trim().toLowerCase(),
+    ];
+    let pinnedSongs: any[] = [];
+    for (const key of lookupKeys) {
+      const ids = getKnownSongIds(key);
+      if (ids.length > 0) {
+        try {
+          pinnedSongs = await fetchSongsByIds(ids);
+        } catch {
+          /* ignore */
+        }
+        break;
+      }
+    }
+
+    // Fetch more candidates so the ranker has more originals to surface
+    let rawSongs = await searchSongs(searchQuery, 15);
+    if (pinnedSongs.length > 0) {
+      const seen = new Set(rawSongs.map((s: any) => String(s.id || "")));
+      for (const p of [...pinnedSongs].reverse())
+        if (!seen.has(p.id)) rawSongs = [p, ...rawSongs];
+    }
+    if (rawSongs.length === 0)
       return { original, song: null, confidence: "none", score: 0 };
+
+    // Normalize to canonical format for rankSearchResults (needs primaryArtists
+    // as string + playCount as number to apply cover-penalty scoring)
+    const normalized = normalizeSongsToCanonical(rawSongs);
+    const ranked = rankSearchResults(
+      normalized,
+      searchQuery,
+      undefined,
+      artistHint || undefined,
+    );
+
+    // Map ranked IDs back to original raw songs (frontend expects JioSaavnSong shape)
+    const rawById = new Map<string, any>(
+      rawSongs.map((s: any) => [String(s.id || ""), s]),
+    );
+    const songs: any[] = ranked.map((r) => rawById.get(r.id)).filter(Boolean);
+
+    // Safety: if mapping failed, fall back to original list
+    if (songs.length === 0) songs.push(...rawSongs);
 
     const cleanOrig = original
       .toLowerCase()
@@ -87,38 +141,61 @@ async function searchOneSong(
       .replace(/[^a-z0-9\s]/g, " ")
       .trim();
 
-    const queryWords = cleanOrig
-      .split(/\s+/)
-      .filter((w) => w.length > 1);
+    const queryWords = cleanOrig.split(/\s+/).filter((w) => w.length > 1);
 
     let bestSong = songs[0];
     let bestScore = -1;
 
-    for (const song of songs) {
-      const songNameLower = (song.name || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
+    for (let i = 0; i < songs.length; i++) {
+      const song = songs[i];
+      const songNameLower = (song.name || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .trim();
       const artists = (song.artists?.primary || []).map((a: any) =>
-        a.name.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim()
+        a.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .trim(),
       );
       if (song.subtitle) {
-        artists.push(song.subtitle.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim());
+        artists.push(
+          song.subtitle
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, " ")
+            .trim(),
+        );
       }
 
       const combined = songNameLower + " " + artists.join(" ");
       let matchCount = queryWords.filter((w) => combined.includes(w)).length;
-      let score = queryWords.length > 0 ? (matchCount / queryWords.length) * 100 : 50;
+      let score =
+        queryWords.length > 0 ? (matchCount / queryWords.length) * 100 : 50;
 
       // Exact title match bonus
       if (songNameLower === cleanOrig || cleanOrig.includes(songNameLower)) {
         score += 30;
       }
 
-      // Hint bonus
+      // Artist hint bonus
       if (artistHint) {
-        const hintLower = artistHint.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
-        if (artists.some((a: string) => a.includes(hintLower) || hintLower.includes(a))) {
+        const hintLower = artistHint
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .trim();
+        if (
+          artists.some(
+            (a: string) => a.includes(hintLower) || hintLower.includes(a),
+          )
+        ) {
           score += 40;
         }
       }
+
+      // Cover-rank tiebreaker: songs ranked higher by rankSearchResults (i.e.
+      // originals with cover penalty applied) get a small bonus to win ties
+      const rankBonus = Math.max(0, ((songs.length - i) / songs.length) * 20);
+      score += rankBonus;
 
       if (score > bestScore) {
         bestScore = score;
@@ -128,10 +205,58 @@ async function searchOneSong(
 
     if (bestScore >= 80)
       return { original, song: bestSong, confidence: "high", score: bestScore };
-    if (bestScore >= 40)
-      return { original, song: bestSong, confidence: "partial", score: bestScore };
+    // Lowered to 18 — requires at least one word match; reduces "none" results
+    if (bestScore >= 18)
+      return {
+        original,
+        song: bestSong,
+        confidence: "partial",
+        score: bestScore,
+      };
 
-    // Low score implies incorrect song
+    // ── Fallback retry with raw original title ───────────────────────────────
+    // When the AI-optimized query fails, search using the exact original string.
+    if (searchQuery !== original && original.trim().length >= 3) {
+      try {
+        const fallbackRaw = await searchSongs(original, 10);
+        if (fallbackRaw.length > 0) {
+          const fallbackNorm = normalizeSongsToCanonical(fallbackRaw);
+          const fallbackRanked = rankSearchResults(
+            fallbackNorm,
+            original,
+            undefined,
+            artistHint || undefined,
+          );
+          const fallbackById = new Map<string, any>(
+            fallbackRaw.map((s: any) => [String(s.id || ""), s]),
+          );
+          const fallbackSongs = fallbackRanked
+            .map((r) => fallbackById.get(r.id))
+            .filter(Boolean);
+          if (fallbackSongs.length > 0) {
+            const top = fallbackSongs[0];
+            const topName = (top.name || "")
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, " ")
+              .trim();
+            const fCount = queryWords.filter((w) => topName.includes(w)).length;
+            const fScore =
+              queryWords.length > 0 ? (fCount / queryWords.length) * 100 : 50;
+            if (fScore >= 10) {
+              return {
+                original,
+                song: top,
+                confidence: "partial",
+                score: fScore,
+              };
+            }
+          }
+        }
+      } catch {
+        // retry failed — fall through to none
+      }
+    }
+
     return { original, song: null, confidence: "none", score: bestScore };
   } catch {
     return { original, song: null, confidence: "none", score: 0 };
@@ -209,6 +334,11 @@ router.post(
 
       // ── Mood-based generation ──
       if (mood && !songs) {
+        // Request 50% more songs than the user asked for so that search
+        // failures don't shrink the final playlist below the target count.
+        const requestCount = Math.min(Math.ceil(maxSongs * 1.5), 150);
+        const tokenBudget = Math.max(4000, requestCount * 55);
+
         emit("progress", {
           step: "thinking",
           message: `Crafting ${maxSongs} songs for your mood...`,
@@ -217,8 +347,8 @@ router.post(
 
         const moodResult = await groqManager.callWithFallback(
           "You are a world-class music curator. Return ONLY valid JSON, no explanation.",
-          `Suggest exactly ${maxSongs} songs for this mood/vibe: "${mood}"\n\nReturn JSON:\n{"songs": ["song name - artist", ...], "playlistName": "creative 4-word name"}`,
-          maxSongs > 30 ? 2000 : 1000,
+          `Suggest EXACTLY ${requestCount} diverse, specific songs for this mood/vibe: "${mood}"\nRules: use real song names & artists, no generic titles, vary artists (max 3 per artist).\n\nReturn JSON:\n{"songs": ["Song Name - Artist Name", ...], "playlistName": "creative 4-word name"}`,
+          tokenBudget,
         );
 
         let songList: string[] = [];
@@ -226,10 +356,14 @@ router.post(
 
         try {
           const parsed = JSON.parse(moodResult);
-          songList = (parsed.songs || []).slice(0, maxSongs);
+          songList = (parsed.songs || []).slice(0, requestCount);
           playlistName = parsed.playlistName || playlistName;
         } catch (err) {
-          console.error("[AI] Mood suggestion parsing failed:", err, moodResult);
+          console.error(
+            "[AI] Mood suggestion parsing failed:",
+            err,
+            moodResult,
+          );
           if (res.headersSent) {
             sseEvent(res, "error", { error: "AI response parsing failed" });
             res.end();
@@ -269,8 +403,15 @@ router.post(
         );
 
         const allResults = await withConcurrency(tasks, MAX_SEARCH_CONCURRENT);
-        const matched = allResults.filter((r) => r.confidence === "high");
-        const partial = allResults.filter((r) => r.confidence === "partial");
+
+        // Sort: high-confidence first, then partial. Trim to the count the user
+        // actually requested so the result is always exactly maxSongs songs.
+        const allFound = [
+          ...allResults.filter((r) => r.confidence === "high"),
+          ...allResults.filter((r) => r.confidence === "partial"),
+        ].slice(0, maxSongs);
+        const matched = allFound.filter((r) => r.confidence === "high");
+        const partial = allFound.filter((r) => r.confidence === "partial");
         const unmatched = allResults
           .filter((r) => r.confidence === "none")
           .map((r) => r.original);
@@ -330,7 +471,7 @@ router.post(
             res.end();
           } else res.json(parsed);
           return;
-        } catch { }
+        } catch {}
       }
 
       emit("progress", {
@@ -399,18 +540,20 @@ router.post(
       // ── Parallel search with progress ──
       const searchTasks = allQueries.map(
         (q, i) => () =>
-          searchOneSong(q.original, q.searchQuery || q.original, q.artistHint).then(
-            (result) => {
-              const pct = 35 + Math.round(((i + 1) / allQueries.length) * 55);
-              emit("song", {
-                ...result,
-                index: i,
-                total: allQueries.length,
-                percent: pct,
-              });
-              return result;
-            },
-          ),
+          searchOneSong(
+            q.original,
+            q.searchQuery || q.original,
+            q.artistHint,
+          ).then((result) => {
+            const pct = 35 + Math.round(((i + 1) / allQueries.length) * 55);
+            emit("song", {
+              ...result,
+              index: i,
+              total: allQueries.length,
+              percent: pct,
+            });
+            return result;
+          }),
       );
 
       const allResults = await withConcurrency(
@@ -418,8 +561,14 @@ router.post(
         MAX_SEARCH_CONCURRENT,
       );
 
-      const matched = allResults.filter((r) => r.confidence === "high");
-      const partial = allResults.filter((r) => r.confidence === "partial");
+      // Sort: high-confidence first, then partial. Trim to the user's requested
+      // count so the final playlist always has exactly maxSongs songs.
+      const allFound = [
+        ...allResults.filter((r) => r.confidence === "high"),
+        ...allResults.filter((r) => r.confidence === "partial"),
+      ].slice(0, maxSongs);
+      const matched = allFound.filter((r) => r.confidence === "high");
+      const partial = allFound.filter((r) => r.confidence === "partial");
       const unmatched = allResults
         .filter((r) => r.confidence === "none")
         .map((r) => r.original);

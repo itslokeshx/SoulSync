@@ -42,6 +42,12 @@ const FRONTEND_URL = (
 ).replace(/\/+$/, "");
 
 // Middleware
+app.use((_req, res, next) => {
+  // Fix Google OAuth COOP issue — must be before cors()
+  res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  next();
+});
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },

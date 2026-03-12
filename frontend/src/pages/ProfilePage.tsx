@@ -16,9 +16,10 @@ import {
   Download,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { useApp } from "../context/AppContext";
 import * as api from "../api/backend";
 import { UserStats } from "../types/user";
-import { onImgErr } from "../lib/helpers";
+import { onImgErr, bestImg } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 
@@ -57,9 +58,11 @@ const ALL_MOODS = [
 
 export default function ProfilePage() {
   const { user, logout, updateUser, isAuthenticated } = useAuth();
+  const { currentSong, isPlaying, likedSongs } = useApp();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -72,12 +75,27 @@ export default function ProfilePage() {
     user?.preferences?.moods || [],
   );
 
-  useEffect(() => {
+  const fetchStats = (showLoading = true) => {
+    if (showLoading) setLoading(true);
     api
       .getUserStats()
-      .then(setStats)
-      .catch(() => { })
+      .then((data) => {
+        setStats(data);
+        setStatsError(false);
+      })
+      .catch(() => setStatsError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    // Fetch on mount
+    fetchStats();
+    // Re-fetch whenever the tab/app comes back into focus — silently, no skeleton
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchStats(false);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   // Reset edit fields when user changes
@@ -159,7 +177,8 @@ export default function ProfilePage() {
           Your Profile awaits
         </h1>
         <p className="text-sm text-white/40 mb-8 max-w-xs leading-relaxed">
-          Sign in to view your listening stats, customize your preferences, and sync your data across devices.
+          Sign in to view your listening stats, customize your preferences, and
+          sync your data across devices.
         </p>
         <button
           onClick={() => navigate("/login")}
@@ -192,7 +211,9 @@ export default function ProfilePage() {
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-[13px] font-bold text-white">Download APK</p>
-                <p className="text-[10px] text-white/30">For a better experience</p>
+                <p className="text-[10px] text-white/30">
+                  For a better experience
+                </p>
               </div>
               <div className="w-8 h-8 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_16px_rgba(29,185,84,0.4)] transition-all duration-300">
                 <Download size={14} className="text-black" strokeWidth={2.5} />
@@ -239,18 +260,73 @@ export default function ProfilePage() {
             </h1>
           )}
           <p className="text-white/40 text-sm">{user?.email}</p>
-          {!editing && (
-            <div className="flex gap-2 mt-2">
-              {user?.preferences?.languages?.map((lang) => (
+          {/* ── Now Playing status ─────────────────────────────── */}
+          {currentSong && (
+            <div className="flex items-center gap-2 mt-2 max-w-xs">
+              <div className="relative flex-shrink-0">
+                <img
+                  src={bestImg(currentSong.image, "50x50") || ""}
+                  onError={onImgErr}
+                  className="w-6 h-6 rounded object-cover"
+                />
+                {isPlaying && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-sp-green border border-[#0a0a0a] flex items-center justify-center">
+                    <span className="w-1 h-1 rounded-full bg-black" />
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-white/50 truncate">
+                <span className="text-sp-green font-semibold">
+                  {isPlaying ? "Playing" : "Paused"}
+                </span>
+                {" · "}
+                {currentSong.name}
+              </p>
+            </div>
+          )}
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {user?.username && (
+              <span className="text-[11px] text-white/30 font-mono">
+                @{user.username}
+              </span>
+            )}
+            {(user as any)?.authProvider && (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
+                  (user as any).authProvider === "google" ||
+                  (user as any).authProvider === "both"
+                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                    : "bg-white/[0.04] text-white/30 border-white/[0.06]"
+                }`}
+              >
+                {(user as any).authProvider === "google"
+                  ? "🔵 Google"
+                  : (user as any).authProvider === "both"
+                    ? "🔵 Google + Email"
+                    : "📧 Email"}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-1.5 mt-2 flex-wrap">
+            {(editing ? editLanguages : user?.preferences?.languages || [])
+              .slice(0, 4)
+              .map((lang) => (
                 <span
                   key={lang}
-                  className="px-2.5 py-0.5 rounded-full bg-white/[0.06] text-white/50 text-[10px] font-semibold uppercase"
+                  className="px-2 py-0.5 rounded-full bg-white/[0.06] text-white/40 text-[9px] font-semibold uppercase"
                 >
                   {lang}
                 </span>
               ))}
-            </div>
-          )}
+            {(editing ? editLanguages : user?.preferences?.languages || [])
+              .length > 4 && (
+              <span className="text-[9px] text-white/25">
+                +
+                {(editing ? editLanguages : user?.preferences?.languages || [])
+                  .length - 4}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Edit / Save / Cancel buttons */}
@@ -304,6 +380,29 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+      ) : statsError ? (
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="col-span-3 py-4 text-center">
+            <p className="text-white/20 text-xs">Couldn't load stats</p>
+            <button
+              onClick={() => {
+                setLoading(true);
+                setStatsError(false);
+                api
+                  .getUserStats()
+                  .then((d) => {
+                    setStats(d);
+                    setStatsError(false);
+                  })
+                  .catch(() => setStatsError(true))
+                  .finally(() => setLoading(false));
+              }}
+              className="text-sp-green text-xs mt-1 hover:underline"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-3 gap-3 mb-8">
           <motion.div
@@ -313,7 +412,7 @@ export default function ProfilePage() {
           >
             <Music2 size={20} className="text-sp-green mx-auto mb-2" />
             <p className="text-2xl font-black text-white">
-              {stats?.totalSongsPlayed || 0}
+              {stats?.totalSongsPlayed ?? "—"}
             </p>
             <p className="text-[11px] text-white/40 font-medium mt-1">
               Songs Played
@@ -328,7 +427,9 @@ export default function ProfilePage() {
           >
             <Clock size={20} className="text-purple-400 mx-auto mb-2" />
             <p className="text-2xl font-black text-white">
-              {formatTime(stats?.totalListeningTime || 0)}
+              {stats?.totalListeningTime
+                ? formatTime(stats.totalListeningTime)
+                : "—"}
             </p>
             <p className="text-[11px] text-white/40 font-medium mt-1">
               Listen Time
@@ -343,7 +444,7 @@ export default function ProfilePage() {
           >
             <Heart size={20} className="text-red-400 mx-auto mb-2" />
             <p className="text-2xl font-black text-white">
-              {stats?.likedSongsCount || 0}
+              {Object.keys(likedSongs).length}
             </p>
             <p className="text-[11px] text-white/40 font-medium mt-1">
               Liked Songs
@@ -389,14 +490,19 @@ export default function ProfilePage() {
                 {artist.albumArt ? (
                   <img
                     src={artist.albumArt}
-                    onError={onImgErr}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
                     className="w-10 h-10 rounded-full object-cover"
                   />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
-                    <UserIcon size={16} className="text-white/30" />
-                  </div>
-                )}
+                ) : null}
+                <div
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-sp-green/20 to-purple-500/20 flex items-center justify-center flex-shrink-0 ${artist.albumArt ? "hidden" : ""}`}
+                >
+                  <span className="text-sm font-black text-white/60">
+                    {artist._id?.[0]?.toUpperCase()}
+                  </span>
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-semibold text-sm truncate">
                     {artist._id}
@@ -460,10 +566,11 @@ export default function ProfilePage() {
                       onClick={() =>
                         toggleTag(editLanguages, setEditLanguages, l)
                       }
-                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${active
-                        ? "bg-sp-green/20 text-sp-green border-sp-green/30"
-                        : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
-                        }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${
+                        active
+                          ? "bg-sp-green/20 text-sp-green border-sp-green/30"
+                          : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
+                      }`}
                     >
                       {l}
                     </button>
@@ -499,10 +606,11 @@ export default function ProfilePage() {
                     <button
                       key={m}
                       onClick={() => toggleTag(editMoods, setEditMoods, m)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${active
-                        ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                        : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
-                        }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${
+                        active
+                          ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                          : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
+                      }`}
                     >
                       {m}
                     </button>
@@ -556,9 +664,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-[14px] font-bold text-white">
-                  Download APK
-                </p>
+                <p className="text-[14px] font-bold text-white">Download APK</p>
                 <span className="px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[9px] font-bold uppercase tracking-wider border border-sp-green/20">
                   APK
                 </span>

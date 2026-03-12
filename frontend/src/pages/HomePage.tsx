@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MoreHorizontal, Sparkles } from "lucide-react";
+import {
+  Heart,
+  MoreHorizontal,
+  Sparkles,
+  Play,
+  MoreVertical,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { HSection } from "../components/cards/HSection";
 import { SongCard } from "../components/cards/SongCard";
 import { bestImg, onImgErr } from "../lib/helpers";
@@ -17,11 +24,11 @@ interface DashboardSection {
   title: string;
   subtitle?: string;
   type:
-  | "quick_grid"
-  | "horizontal"
-  | "artist_spotlight"
-  | "mood_grid"
-  | "continue";
+    | "quick_grid"
+    | "horizontal"
+    | "artist_spotlight"
+    | "mood_grid"
+    | "continue";
   songs: any[];
   meta?: Record<string, any>;
 }
@@ -33,7 +40,7 @@ interface DashboardData {
   generatedAt: number;
 }
 
-const CACHE_TTL = 30 * 60_000; // 30 minutes
+const CACHE_TTL = 5 * 60_000; // 5 minutes — keeps Continue Listening fresh
 
 const MOOD_COLORS: Record<string, string> = {
   "😊 Happy Vibes": "from-yellow-500/20 to-transparent",
@@ -43,6 +50,284 @@ const MOOD_COLORS: Record<string, string> = {
   "💪 Workout": "from-red-500/20 to-transparent",
   "🌧️ Rainy Day": "from-blue-500/20 to-transparent",
 };
+
+function formatPlayCount(n: number | string | undefined): string {
+  const num = Number(n) || 0;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M plays`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K plays`;
+  return num > 0 ? `${num} plays` : "";
+}
+
+// ── SpeedDial card — album art fills card, title overlaid at bottom ──
+function SpeedDialCard({
+  song,
+  isCurrent,
+  isPlaying,
+  onPlay,
+}: {
+  song: any;
+  isCurrent: boolean;
+  isPlaying: boolean;
+  onPlay: () => void;
+}) {
+  const img =
+    bestImg(song.image, "500x500") ||
+    bestImg(song.image, "150x150") ||
+    FALLBACK_IMG;
+  return (
+    <div
+      onClick={onPlay}
+      className="relative aspect-square overflow-hidden cursor-pointer group"
+    >
+      <img
+        src={img}
+        onError={onImgErr}
+        className="w-full h-full object-cover transition-transform duration-300 group-active:scale-110"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+      <p className="absolute bottom-1.5 left-1.5 right-1.5 text-[10px] font-bold text-white leading-tight line-clamp-2 drop-shadow-sm">
+        {song.name}
+      </p>
+      {isCurrent && isPlaying && (
+        <div className="absolute top-1.5 right-1.5 flex gap-[2px] items-end h-3">
+          {[1, 2, 3].map((k) => (
+            <motion.div
+              key={k}
+              className="w-[2px] bg-sp-green rounded-full"
+              animate={{ height: ["30%", "100%", "30%"] }}
+              transition={{ duration: 0.7, delay: k * 0.12, repeat: Infinity }}
+            />
+          ))}
+        </div>
+      )}
+      {isCurrent && !isPlaying && (
+        <div className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-sp-green flex items-center justify-center">
+          <div className="w-1 h-1 rounded-full bg-black" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SpeedDial Section — 3×3 swipeable slides (mobile only) ──
+function SpeedDialSection({
+  songs,
+  currentSong,
+  isPlaying,
+  onPlay,
+  userName,
+  userPhotoURL,
+}: {
+  songs: any[];
+  currentSong: any;
+  isPlaying: boolean;
+  onPlay: (song: any, queue: any[]) => void;
+  userName?: string;
+  userPhotoURL?: string;
+}) {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const touchStartX = useRef(0);
+
+  const slides: any[][] = [];
+  for (let i = 0; i < Math.min(songs.length, 27); i += 9) {
+    slides.push(songs.slice(i, i + 9));
+  }
+  if (slides.length === 0) return null;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) {
+      setSlideIndex((prev) =>
+        Math.max(0, Math.min(slides.length - 1, prev + (dx < 0 ? 1 : -1))),
+      );
+    }
+  };
+
+  return (
+    <div className="mb-4 md:hidden">
+      {/* Header — stays within normal content padding */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-9 h-9 rounded-full overflow-hidden bg-sp-green/20 flex-shrink-0 flex items-center justify-center ring-2 ring-sp-green/20">
+          {userPhotoURL ? (
+            <img
+              src={userPhotoURL}
+              className="w-full h-full object-cover"
+              onError={onImgErr}
+            />
+          ) : (
+            <span className="text-sm font-black text-sp-green">
+              {userName?.[0]?.toUpperCase() || "Y"}
+            </span>
+          )}
+        </div>
+        <div>
+          <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.12em] leading-none">
+            {userName || "You"}
+          </p>
+          <p className="text-[16px] font-black text-white leading-snug tracking-tight">
+            Speed dial
+          </p>
+        </div>
+      </div>
+
+      {/* Grid — breaks out of px-4 container to go full-width */}
+      <div
+        className="-mx-4"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={slideIndex}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="grid grid-cols-3 gap-[2px]"
+          >
+            {(slides[slideIndex] || []).map((song) => (
+              <SpeedDialCard
+                key={song.id}
+                song={song}
+                isCurrent={currentSong?.id === song.id}
+                isPlaying={isPlaying}
+                onPlay={() => onPlay(song, songs)}
+              />
+            ))}
+            {Array.from({ length: 9 - (slides[slideIndex]?.length || 0) }).map(
+              (_, i) => (
+                <div
+                  key={`empty-${i}`}
+                  className="aspect-square bg-white/[0.04] flex items-center justify-center"
+                >
+                  <div className="flex gap-1 items-center">
+                    {[12, 18, 12].map((sz, k) => (
+                      <div
+                        key={k}
+                        className="rounded-full bg-white/10"
+                        style={{ width: sz, height: sz }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ),
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Page dots */}
+      {slides.length > 1 && (
+        <div className="flex justify-center gap-[5px] mt-3">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setSlideIndex(i)}
+              className={`rounded-full transition-all duration-300 ${
+                i === slideIndex
+                  ? "w-4 h-[5px] bg-white"
+                  : "w-[5px] h-[5px] bg-white/25"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Quick Picks Section — YT Music style vertical list (mobile only) ──
+function QuickPicksSection({
+  songs,
+  onPlay,
+  currentSong,
+  isPlaying,
+}: {
+  songs: any[];
+  onPlay: (song: any, queue: any[]) => void;
+  currentSong: any;
+  isPlaying: boolean;
+}) {
+  const showContextMenu = useUIStore((s) => s.showContextMenu);
+  if (!songs.length) return null;
+  return (
+    <div className="md:hidden mb-6">
+      <div className="flex items-center justify-between px-1 mb-3">
+        <h2 className="text-[15px] font-black text-white">Quick picks</h2>
+        <button
+          onClick={() => onPlay(songs[0], songs)}
+          className="text-[12px] text-white/50 font-semibold px-3 py-1 rounded-full border border-white/10 hover:border-white/20 hover:text-white/70 transition-all"
+        >
+          Play all
+        </button>
+      </div>
+      <div className="space-y-0">
+        {songs.slice(0, 8).map((song) => {
+          const img = bestImg(song.image, "50x50") || FALLBACK_IMG;
+          const isCur = currentSong?.id === song.id;
+          return (
+            <div
+              key={song.id}
+              onClick={() => onPlay(song, songs)}
+              className="flex items-center gap-3 py-2.5 px-1 group cursor-pointer"
+            >
+              <div className="relative w-[52px] h-[52px] flex-shrink-0 rounded overflow-hidden">
+                <img
+                  src={img}
+                  onError={onImgErr}
+                  className="w-full h-full object-cover"
+                />
+                {isCur && isPlaying && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="flex gap-[2px] items-end h-3">
+                      {[1, 2, 3].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-[3px] bg-sp-green rounded-full"
+                          animate={{ height: ["40%", "100%", "40%"] }}
+                          transition={{
+                            duration: 0.8,
+                            delay: i * 0.15,
+                            repeat: Infinity,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p
+                  className={`text-[14px] font-semibold truncate ${isCur ? "text-sp-green" : "text-white"}`}
+                >
+                  {song.name}
+                </p>
+                <p className="text-[12px] text-white/40 truncate">
+                  {song.primaryArtists || ""}
+                  {song.playCount
+                    ? ` • ${formatPlayCount(song.playCount)}`
+                    : ""}
+                </p>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  showContextMenu(e.clientX, e.clientY, song);
+                }}
+                className="p-2 text-white/0 group-hover:text-white/40 transition-colors"
+              >
+                <MoreVertical size={18} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -77,7 +362,7 @@ export const HomePage = () => {
           return;
         }
       }
-    } catch { }
+    } catch {}
 
     try {
       const data: any = user ? await getDashboard() : await getGuestDashboard();
@@ -92,7 +377,7 @@ export const HomePage = () => {
           setDashboard(guestData);
           setError(false);
           return;
-        } catch { }
+        } catch {}
       }
       setError(true);
     } finally {
@@ -108,8 +393,28 @@ export const HomePage = () => {
   useEffect(() => {
     if (fetched.current) return;
     fetched.current = true;
+    // Bust on every mount so in-app navigation gives fresh data from the backend
+    try {
+      sessionStorage.removeItem(cacheKey);
+    } catch {}
     fetchDashboard();
-  }, [fetchDashboard]);
+  }, [fetchDashboard, cacheKey]);
+
+  // Re-fetch whenever the tab/app comes back into focus so "Continue Listening"
+  // always reflects songs played since the last visit.  Backend Redis is already
+  // invalidated on every history write — we just need to bust the frontend cache.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        sessionStorage.removeItem(cacheKey);
+      } catch {}
+      fetched.current = false;
+      fetchDashboard();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [cacheKey, fetchDashboard]);
 
   const firstName = user?.name?.split(" ")[0] || "there";
 
@@ -188,17 +493,29 @@ export const HomePage = () => {
 
   return (
     <div className="animate-fadeIn">
-      {/* Greeting */}
-      <div className="mb-8">
+      {/* MOBILE: Speed Dial at the very top */}
+      {recentlyPlayed.length > 0 && (
+        <SpeedDialSection
+          songs={recentlyPlayed}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPlay={onPlay}
+          userName={user?.name?.split(" ")[0]}
+          userPhotoURL={user?.photoURL}
+        />
+      )}
+
+      {/* DESKTOP: Greeting */}
+      <div className="hidden md:block mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
           {localGreeting}
         </h1>
         <p className="text-white/30 text-sm mt-1">{localSubtitle}</p>
       </div>
 
-      {/* Recently played — always from local state */}
+      {/* DESKTOP: Recently played grid */}
       {recentlyPlayed.length > 0 && (
-        <div className="mb-10">
+        <div className="hidden md:block mb-10">
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
             Recently Played
           </h2>
@@ -215,12 +532,12 @@ export const HomePage = () => {
                     e.preventDefault();
                     showContextMenu(e.clientX, e.clientY, s);
                   }}
-                  className="flex items-center gap-3 bg-white/[0.04] hover:bg-white/[0.07] rounded-lg overflow-hidden transition-colors h-14 group cursor-pointer relative"
+                  className="flex items-center gap-3 bg-white/[0.04] hover:bg-white/[0.07] rounded-lg overflow-hidden transition-all h-16 group cursor-pointer relative hover:scale-[1.01]"
                 >
                   <img
                     src={img}
                     onError={onImgErr}
-                    className="w-14 h-14 object-cover flex-shrink-0"
+                    className="w-16 h-16 object-cover flex-shrink-0"
                   />
                   <span
                     className={`flex-1 text-[13px] font-medium text-left truncate ${isCur ? "text-sp-green" : "text-white"}`}
@@ -254,6 +571,15 @@ export const HomePage = () => {
                       <MoreHorizontal size={12} className="text-white/40" />
                     </button>
                   </div>
+                  {/* Play button overlay on hover */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-0 pointer-events-none">
+                    <div className="w-8 h-8 rounded-full bg-sp-green flex items-center justify-center">
+                      <Play
+                        size={12}
+                        className="text-black fill-black ml-0.5"
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -261,11 +587,27 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* Dashboard sections from API */}
+      {/* MOBILE: Quick Picks from dashboard API first section */}
+      {dashboard?.sections?.[0]?.songs?.length > 0 && (
+        <QuickPicksSection
+          songs={dashboard.sections[0].songs.filter(
+            (s: any) =>
+              !recentlyPlayed.some(
+                (rp) => rp.id === s.id || rp.id === s.songId,
+              ),
+          )}
+          onPlay={onPlay}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+        />
+      )}
+
+      {/* Dashboard sections — both mobile and desktop */}
       {dashboard?.sections?.map((section) => {
         // Filter out songs that are already in recentlyPlayed
-        const filteredSongs = section.songs.filter(s =>
-          !recentlyPlayed.some(rp => rp.id === s.id || rp.id === s.songId)
+        const filteredSongs = section.songs.filter(
+          (s) =>
+            !recentlyPlayed.some((rp) => rp.id === s.id || rp.id === s.songId),
         );
 
         // ── Mood Grid ──
@@ -372,6 +714,14 @@ export const HomePage = () => {
                   onPlay(song, queue.length ? queue : filteredSongs)
                 }
                 onAlbumClick={(al: any) => navigate(`/album/${al.id}`)}
+                onSeeAll={
+                  section.songs.length > 8
+                    ? () =>
+                        navigate(
+                          `/search?q=${encodeURIComponent(section.title)}`,
+                        )
+                    : undefined
+                }
               />
             </div>
           );
@@ -402,4 +752,3 @@ export const HomePage = () => {
 };
 
 export default HomePage;
-
