@@ -163,7 +163,6 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     };
 
     // Smart TTL: short queries cached longer (popular), long tail shorter
-    const wordCount = q.trim().split(/\s+/).length;
     const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
     await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
     res.json(result);
@@ -249,13 +248,11 @@ router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
     if (!q || q.length < 2) {
       const top = await getTopSearches();
       res.json({
-        suggestions: top
-          .slice(0, 8)
-          .map((t: any) => ({
-            type: "query",
-            text: t.title || t.name || t,
-            query: t.title || t.name || t,
-          })),
+        suggestions: top.slice(0, 8).map((t: any) => ({
+          type: "query",
+          text: t.title || t.name || t,
+          query: t.title || t.name || t,
+        })),
       });
       return;
     }

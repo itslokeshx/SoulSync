@@ -11,7 +11,6 @@ import {
   Disc3,
   Mic2,
   ArrowUpRight,
-  ChevronDown,
   ArrowLeft,
   Clock,
   Trash2,
@@ -36,73 +35,85 @@ const BROWSE_CATEGORIES = [
   {
     label: "Trending",
     emoji: "🔥",
-    color: "from-orange-500/40 to-red-500/25",
+    bar: "bg-orange-400",
+    bg: "bg-orange-400/[0.07]",
     query: "trending songs 2024",
   },
   {
     label: "Bollywood",
     emoji: "🎬",
-    color: "from-pink-500/40 to-rose-500/25",
+    bar: "bg-pink-400",
+    bg: "bg-pink-400/[0.07]",
     query: "bollywood hits",
   },
   {
     label: "Punjabi",
     emoji: "💛",
-    color: "from-yellow-500/40 to-amber-500/25",
+    bar: "bg-yellow-400",
+    bg: "bg-yellow-400/[0.07]",
     query: "punjabi songs",
   },
   {
     label: "Tamil",
     emoji: "🌺",
-    color: "from-green-500/40 to-emerald-500/25",
+    bar: "bg-emerald-400",
+    bg: "bg-emerald-400/[0.07]",
     query: "tamil hits",
   },
   {
     label: "Sad Hits",
     emoji: "💔",
-    color: "from-blue-500/40 to-indigo-500/25",
+    bar: "bg-indigo-400",
+    bg: "bg-indigo-400/[0.07]",
     query: "sad songs",
   },
   {
     label: "Party",
     emoji: "🎉",
-    color: "from-purple-500/40 to-violet-500/25",
+    bar: "bg-violet-400",
+    bg: "bg-violet-400/[0.07]",
     query: "party songs",
   },
   {
     label: "Chill",
     emoji: "🌙",
-    color: "from-teal-500/40 to-cyan-500/25",
+    bar: "bg-cyan-400",
+    bg: "bg-cyan-400/[0.07]",
     query: "chill lofi songs",
   },
   {
     label: "Workout",
     emoji: "💪",
-    color: "from-red-500/40 to-orange-500/25",
+    bar: "bg-red-400",
+    bg: "bg-red-400/[0.07]",
     query: "gym workout songs",
   },
   {
     label: "Romantic",
     emoji: "🌹",
-    color: "from-rose-500/40 to-pink-500/25",
+    bar: "bg-rose-400",
+    bg: "bg-rose-400/[0.07]",
     query: "romantic songs",
   },
   {
     label: "International",
     emoji: "🌍",
-    color: "from-sky-500/40 to-blue-500/25",
+    bar: "bg-blue-400",
+    bg: "bg-blue-400/[0.07]",
     query: "english hits 2024",
   },
   {
     label: "Telugu",
     emoji: "⭐",
-    color: "from-amber-500/40 to-yellow-500/25",
+    bar: "bg-amber-400",
+    bg: "bg-amber-400/[0.07]",
     query: "telugu songs",
   },
   {
     label: "Devotional",
     emoji: "🙏",
-    color: "from-orange-500/30 to-amber-500/20",
+    bar: "bg-orange-300",
+    bg: "bg-orange-300/[0.07]",
     query: "devotional songs",
   },
 ];
@@ -257,7 +268,7 @@ function TopResultHero({
             e.stopPropagation();
             onPlay(item);
           }}
-          className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 shadow-xl"
+          className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 shadow-xl"
           style={{ boxShadow: "0 8px 24px rgba(29,185,84,0.5)" }}
         >
           <Play size={18} className="text-black fill-black ml-0.5" />
@@ -431,7 +442,6 @@ export function SearchPage() {
   const [recentSearches, setRecentSearches] = useState<string[]>(() =>
     getRecentSearches(),
   );
-  const [showAllSongs, setShowAllSongs] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -452,10 +462,6 @@ export function SearchPage() {
 
   const result = displayResult;
   const isRefreshing = state === "loading" && !isFirstSearch;
-
-  useEffect(() => {
-    setShowAllSongs(false);
-  }, [query]);
 
   // Init from URL and focus
   useEffect(() => {
@@ -573,13 +579,10 @@ export function SearchPage() {
     inputRef.current?.focus();
   }, [handleChange]);
 
-  const firstSectionSongs =
-    result?.songs.slice(0, result.topResult ? 4 : 5) || [];
-  const remainingSongs = showAllSongs
-    ? result?.songs.slice(result?.topResult ? 4 : 5) || []
-    : [];
-  const hasMoreSongs =
-    (result?.songs.length || 0) > (result?.topResult ? 4 : 5);
+  const splitAt = result?.topResult ? 4 : 5;
+  const firstSectionSongs = result?.songs.slice(0, splitAt) || [];
+  const remainingSongs = result?.songs.slice(splitAt) || [];
+  const hasMoreSongs = (result?.songs.length || 0) > splitAt;
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -753,21 +756,25 @@ export function SearchPage() {
 
             {/* Browse grid */}
             <div>
-              <h3 className="text-white/40 text-[11px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                <Sparkles size={12} /> Browse All
+              <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <Sparkles size={11} /> Browse All
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                 {BROWSE_CATEGORIES.map((cat) => (
                   <button
                     key={cat.label}
                     onClick={() => handleChipClick(cat.query)}
-                    className={`relative h-20 rounded-xl overflow-hidden text-left px-3.5 py-3 bg-gradient-to-br ${cat.color} border border-white/[0.06] hover:scale-[1.02] active:scale-[0.97] transition-all group`}
+                    className={`relative flex items-center gap-2.5 h-[46px] rounded-xl px-3 ${cat.bg} border border-white/[0.05] hover:border-white/[0.11] hover:brightness-110 active:scale-[0.97] transition-all overflow-hidden group text-left`}
                   >
-                    <p className="text-[14px] font-black text-white">
-                      {cat.label}
-                    </p>
-                    <span className="absolute bottom-2 right-3 text-3xl opacity-80 group-hover:scale-110 transition-transform">
+                    {/* Left accent bar */}
+                    <div
+                      className={`absolute left-0 top-0 bottom-0 w-[3px] ${cat.bar} rounded-l-xl opacity-70 group-hover:opacity-100 transition-opacity`}
+                    />
+                    <span className="text-base leading-none opacity-75 pl-1 flex-shrink-0">
                       {cat.emoji}
+                    </span>
+                    <span className="text-[12px] font-semibold text-white/75 group-hover:text-white transition-colors truncate">
+                      {cat.label}
                     </span>
                   </button>
                 ))}
@@ -899,35 +906,21 @@ export function SearchPage() {
                 </div>
               )}
 
-              {/* More songs with toggle */}
+              {/* Remaining songs — always visible */}
               {hasMoreSongs && (
                 <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2">
-                      <Music size={11} /> Songs
-                      <span className="ml-1 text-white/20 font-normal normal-case tracking-normal">
-                        {result.songs.length}
-                      </span>
-                    </h3>
-                    <button
-                      onClick={() => setShowAllSongs(!showAllSongs)}
-                      className="text-[11px] text-sp-green font-semibold hover:text-sp-green/80 transition-colors flex items-center gap-1"
-                    >
-                      {showAllSongs
-                        ? "Show less"
-                        : `See all ${result.songs.length}`}
-                      <ChevronDown
-                        size={12}
-                        className={`transition-transform ${showAllSongs ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                  </div>
+                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 flex items-center gap-2">
+                    <Music size={11} /> More Songs
+                    <span className="text-white/20 font-normal normal-case tracking-normal">
+                      {result.songs.length}
+                    </span>
+                  </h3>
                   <div className="space-y-0.5">
                     {remainingSongs.map((song, i) => (
                       <SongRow
                         key={song.id}
                         song={song}
-                        index={(result.topResult ? 4 : 5) + i}
+                        index={splitAt + i}
                         onPlay={handlePlay}
                         isCurrent={currentSong?.id === song.id}
                         isPlaying={isPlaying}
