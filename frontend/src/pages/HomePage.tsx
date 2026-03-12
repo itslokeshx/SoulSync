@@ -588,9 +588,9 @@ export const HomePage = () => {
       )}
 
       {/* MOBILE: Quick Picks from dashboard API first section */}
-      {dashboard?.sections?.[0]?.songs?.length > 0 && (
+      {(dashboard?.sections?.[0]?.songs?.length ?? 0) > 0 && (
         <QuickPicksSection
-          songs={dashboard.sections[0].songs.filter(
+          songs={dashboard!.sections[0].songs.filter(
             (s: any) =>
               !recentlyPlayed.some(
                 (rp) => rp.id === s.id || rp.id === s.songId,

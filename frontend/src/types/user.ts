@@ -3,6 +3,7 @@ export interface User {
   googleId: string;
   email: string;
   name: string;
+  username?: string;
   photoURL?: string;
   preferences: {
     languages: string[];

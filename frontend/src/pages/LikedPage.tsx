@@ -93,18 +93,13 @@ export const LikedPage = () => {
               onClick={async () => {
                 setShuffling(true);
                 try {
-                  const result = await shuffleLikedSongs();
-                  if (result?.songs?.length) {
-                    setLikedSongs(result.songs);
-                    toast.success("Songs shuffled!");
-                  } else {
-                    // Fallback: shuffle local state
-                    const localShuffled = [...songs].sort(
-                      () => Math.random() - 0.5,
-                    );
-                    setLikedSongs(localShuffled);
-                    toast.success("Songs shuffled!");
-                  }
+                  await shuffleLikedSongs();
+                  // Backend shuffles in-place; shuffle local state to reflect it
+                  const localShuffled = [...songs].sort(
+                    () => Math.random() - 0.5,
+                  );
+                  setLikedSongs(localShuffled);
+                  toast.success("Songs shuffled!");
                 } catch {
                   toast.error("Failed to shuffle");
                 } finally {

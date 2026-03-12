@@ -212,25 +212,35 @@ export function useDuo({
   );
 
   // ═══ SYNC CONTROLS ════════════════════════════════════════════════
+  // IMPORTANT: Always check sock.connected before emitting sync events.
+  // Socket.IO flushes its sendBuffer BEFORE firing the "connect" event,
+  // which means events emitted while disconnected arrive at the server
+  // before "duo:join" — the server drops them because the user isn't in
+  // a room yet. Checking .connected prevents this pre-join buffering
+  // and ensures the first play/pause is properly synced.
   const syncPlay = useCallback((currentTime: number, songId: string) => {
-    if (!store.getState().active) return;
-    getSocket().emit("duo:sync-play", { currentTime, songId });
+    const sock = getSocket();
+    if (!store.getState().active || !sock.connected) return;
+    sock.emit("duo:sync-play", { currentTime, songId });
   }, []);
 
   const syncPause = useCallback((currentTime: number) => {
-    if (!store.getState().active) return;
-    getSocket().emit("duo:sync-pause", { currentTime });
+    const sock = getSocket();
+    if (!store.getState().active || !sock.connected) return;
+    sock.emit("duo:sync-pause", { currentTime });
   }, []);
 
   const syncSeek = useCallback((currentTime: number) => {
-    if (!store.getState().active) return;
-    getSocket().emit("duo:sync-seek", { currentTime });
+    const sock = getSocket();
+    if (!store.getState().active || !sock.connected) return;
+    sock.emit("duo:sync-seek", { currentTime });
   }, []);
 
   const syncSongChange = useCallback(
     (song: any, queue: any[], queueIndex: number) => {
-      if (!store.getState().active) return;
-      getSocket().emit("duo:sync-song-change", { song, queue, queueIndex });
+      const sock = getSocket();
+      if (!store.getState().active || !sock.connected) return;
+      sock.emit("duo:sync-song-change", { song, queue, queueIndex });
     },
     [],
   );
