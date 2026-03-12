@@ -37,62 +37,65 @@ import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
 
 // ─── Browse categories — universal moods & vibes ────────────────────────────
+// NOTE: queries are carefully chosen to return good results from JioSaavn's
+// literal-match search. Avoid generic "sad songs" (matches "Sadhli" etc.).
+// Instead use specific well-known titles, playlist names, or descriptive terms.
 const BROWSE_CATEGORIES = [
   {
     label: "Trending",
     icon: TrendingUp,
     iconColor: "text-orange-400",
     bg: "bg-orange-400/[0.07]",
-    query: "trending songs 2026",
+    query: "top hits 2026",
   },
   {
     label: "Party",
     icon: Zap,
     iconColor: "text-violet-400",
     bg: "bg-violet-400/[0.07]",
-    query: "party songs 2026",
+    query: "dance party hits",
   },
   {
     label: "Chill",
     icon: Moon,
     iconColor: "text-cyan-400",
     bg: "bg-cyan-400/[0.07]",
-    query: "chill lofi songs",
+    query: "chill vibes lofi",
   },
   {
     label: "Sad",
     icon: CloudRain,
     iconColor: "text-indigo-400",
     bg: "bg-indigo-400/[0.07]",
-    query: "sad songs",
+    query: "heartbreak emotional hits",
   },
   {
     label: "Romantic",
     icon: Heart,
     iconColor: "text-rose-400",
     bg: "bg-rose-400/[0.07]",
-    query: "romantic songs",
+    query: "love romantic hits",
   },
   {
     label: "Workout",
     icon: Activity,
     iconColor: "text-red-400",
     bg: "bg-red-400/[0.07]",
-    query: "gym workout songs",
+    query: "high energy workout pump",
   },
   {
     label: "New Releases",
     icon: Flame,
     iconColor: "text-amber-400",
     bg: "bg-amber-400/[0.07]",
-    query: "new songs 2026",
+    query: "latest new releases 2026",
   },
   {
     label: "Focus",
     icon: Coffee,
     iconColor: "text-emerald-400",
     bg: "bg-emerald-400/[0.07]",
-    query: "focus study music",
+    query: "instrumental focus study",
   },
   {
     label: "Podcasts",
@@ -106,7 +109,7 @@ const BROWSE_CATEGORIES = [
     icon: Headphones,
     iconColor: "text-teal-400",
     bg: "bg-teal-400/[0.07]",
-    query: "acoustic covers",
+    query: "unplugged acoustic live",
   },
 ];
 
