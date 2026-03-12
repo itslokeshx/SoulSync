@@ -238,18 +238,18 @@ function TopResultHero({
           alt=""
         />
       </div>
-      <div className="relative z-10 flex flex-col gap-3">
+      <div className="relative z-10 flex flex-row sm:flex-col gap-3 items-center sm:items-start">
         <img
           src={img}
           alt={name}
-          className={`w-16 h-16 sm:w-20 sm:h-20 object-cover shadow-2xl flex-shrink-0 ${isArtist ? "rounded-full" : "rounded-xl"}`}
+          className={`w-14 h-14 sm:w-20 sm:h-20 object-cover shadow-2xl flex-shrink-0 ${isArtist ? "rounded-full" : "rounded-xl"}`}
           style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
           }}
         />
-        <div className="min-w-0">
-          <p className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight truncate">
+        <div className="min-w-0 flex-1">
+          <p className="text-base sm:text-2xl font-black text-white tracking-tight leading-tight line-clamp-2">
             {name}
           </p>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
