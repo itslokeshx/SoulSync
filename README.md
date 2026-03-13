@@ -1,13 +1,6 @@
 <div align="center">
 
-<pre>
-███████╗ ██████╗ ██╗   ██╗██╗     ███████╗██╗   ██╗███╗   ██╗ ██████╗
-██╔════╝██╔═══██╗██║   ██║██║     ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
-███████╗██║   ██║██║   ██║██║     ███████╗ ╚████╔╝ ██╔██╗ ██║██║
-╚════██║██║   ██║██║   ██║██║     ╚════██║  ╚██╔╝  ██║╚██╗██║██║
-███████║╚██████╔╝╚██████╔╝███████╗███████║   ██║   ██║ ╚████║╚██████╗
-╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝
-</pre>
+<code>███████╗&nbsp;██████╗&nbsp;██╗&nbsp;&nbsp;&nbsp;██╗██╗&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;███████╗██╗&nbsp;&nbsp;&nbsp;██╗███╗&nbsp;&nbsp;&nbsp;██╗&nbsp;██████╗<br>██╔════╝██╔═══██╗██║&nbsp;&nbsp;&nbsp;██║██║&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;██╔════╝╚██╗&nbsp;██╔╝████╗&nbsp;&nbsp;██║██╔════╝<br>███████╗██║&nbsp;&nbsp;&nbsp;██║██║&nbsp;&nbsp;&nbsp;██║██║&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;███████╗&nbsp;╚████╔╝&nbsp;██╔██╗&nbsp;██║██║&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>╚════██║██║&nbsp;&nbsp;&nbsp;██║██║&nbsp;&nbsp;&nbsp;██║██║&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;╚════██║&nbsp;&nbsp;╚██╔╝&nbsp;&nbsp;██║╚██╗██║██║&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>███████║╚██████╔╝╚██████╔╝███████╗███████║&nbsp;&nbsp;&nbsp;██║&nbsp;&nbsp;&nbsp;██║&nbsp;╚████║╚██████╗<br>╚══════╝&nbsp;╚═════╝&nbsp;&nbsp;╚═════╝&nbsp;╚══════╝╚══════╝&nbsp;&nbsp;&nbsp;╚═╝&nbsp;&nbsp;&nbsp;╚═╝&nbsp;&nbsp;╚═══╝&nbsp;╚═════╝</code>
 
 **Listen together. Feel together.**
 
