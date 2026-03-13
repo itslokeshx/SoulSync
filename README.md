@@ -2,13 +2,51 @@
 
 <br/>
 
-<a href="https://soul-sync-beta.vercel.app">
-  <img src="frontend/public/banner.png" alt="SoulSync: Free, open-source music streaming" width="100%" />
-</a>
-
-# SoulSync
-
-### *Listen together. Feel together.*
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  .wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 1rem 1rem;
+    background: transparent;
+  }
+  .ascii {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 900;
+    white-space: pre;
+    line-height: 1.15;
+    user-select: none;
+    background: linear-gradient(135deg, #1ed760 0%, #1db954 60%, #1aa34a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: clamp(4px, 1.65vw, 13px);
+    letter-spacing: 0;
+  }
+  .tagline {
+    margin-top: 0.75rem;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(9px, 1.4vw, 13px);
+    color: #a0a0a0;
+    letter-spacing: 0.15em;
+    text-transform: lowercase;
+  }
+  .tagline span {
+    color: #1ed760;
+    font-weight: 900;
+  }
+</style>
+<div class="wrap">
+  <div class="ascii">
+███████╗ ██████╗ ██╗   ██╗██╗     ███████╗██╗   ██╗███╗   ██╗ ██████╗
+██╔════╝██╔═══██╗██║   ██║██║     ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
+███████╗██║   ██║██║   ██║██║     ███████╗ ╚████╔╝ ██╔██╗ ██║██║     
+╚════██║██║   ██║██║   ██║██║     ╚════██║  ╚██╔╝  ██║╚██╗██║██║     
+███████║╚██████╔╝╚██████╔╝███████╗███████║   ██║   ██║ ╚████║╚██████╗
+╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝</div>
+  <div class="tagline"><span>listen together.</span> feel together.</div>
+</div>
 
 **Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Android. No ads. No limits. No subscription. Ever.**
 
