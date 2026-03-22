@@ -11,8 +11,8 @@
 
 **Listen together. Feel together.**
 
-*Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Android.*
-*No ads. No limits. No subscription. Ever.*
+_Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Android._
+_No ads. No limits. No subscription. Ever._
 
 <br/>
 
@@ -35,15 +35,15 @@ SoulSync gives you everything Spotify Premium charges ₹119/month for — compl
 
 ## Tech Stack
 
-| Layer | Technologies |
-|---|---|
+| Layer        | Technologies                                                                                                |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
 | **Frontend** | TypeScript 5.7 · React 18.3 · Vite 6.1 · Tailwind CSS 3.4 · Zustand 5 · Framer Motion 12 · TanStack Query 5 |
-| **Mobile** | Capacitor 8.1 · Android API 24+ · Capacitor Filesystem · Capacitor Network · Capacitor Haptics |
-| **Backend** | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 · Zod · Helmet |
-| **Data** | MongoDB 8.9 · Upstash Redis · 90-day TTL on listening history |
-| **AI** | Groq SDK · LLaMA 3.3 70B · Multi-key rotation · Redis cache |
-| **Auth** | Google OAuth 2.0 · JWT RS256 · httpOnly cookies |
-| **Infra** | Vercel · Render · MongoDB Atlas |
+| **Mobile**   | Capacitor 8.1 · Android API 24+ · Capacitor Filesystem · Capacitor Network · Capacitor Haptics              |
+| **Backend**  | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 · Zod · Helmet                                  |
+| **Data**     | MongoDB 8.9 · Upstash Redis · 90-day TTL on listening history                                               |
+| **AI**       | Groq SDK · LLaMA 3.3 70B · Multi-key rotation · Redis cache                                                 |
+| **Auth**     | Google OAuth 2.0 · JWT RS256 · httpOnly cookies                                                             |
+| **Infra**    | Vercel · Render · MongoDB Atlas                                                                             |
 
 ---
 
@@ -53,15 +53,15 @@ SoulSync gives you everything Spotify Premium charges ₹119/month for — compl
 
 A 7-factor ranking engine — originals always rank first.
 
-| Signal | Weight | Effect |
-|---|---|---|
-| Play count | Dominant · 0–80 pts | 2.1B-play original always beats a 5K-play cover |
-| Cover penalty | Hard · −100 pts | "cover", "karaoke", "tribute", "recreation" → buried |
-| Title match | Strong · 0–50 pts | Exact phrase ranks above partial overlap |
-| Artist match | Medium · 0–20 pts | Queried artist name boosts their own songs |
-| Original markers | Bonus · +15 pts | "official audio", "official video" boosted |
-| Language preference | Soft · +10 pts | Your preferred language surfaces first |
-| Stream URL check | Required · −50 if missing | Unplayable songs automatically buried |
+| Signal              | Weight                    | Effect                                               |
+| ------------------- | ------------------------- | ---------------------------------------------------- |
+| Play count          | Dominant · 0–80 pts       | 2.1B-play original always beats a 5K-play cover      |
+| Cover penalty       | Hard · −100 pts           | "cover", "karaoke", "tribute", "recreation" → buried |
+| Title match         | Strong · 0–50 pts         | Exact phrase ranks above partial overlap             |
+| Artist match        | Medium · 0–20 pts         | Queried artist name boosts their own songs           |
+| Original markers    | Bonus · +15 pts           | "official audio", "official video" boosted           |
+| Language preference | Soft · +10 pts            | Your preferred language surfaces first               |
+| Stream URL check    | Required · −50 if missing | Unplayable songs automatically buried                |
 
 - 50 results per search · artists section · albums section · full deduplication
 - Redis cache — 10-min TTL, repeat searches return in under 50ms
@@ -100,14 +100,14 @@ Host                    Server                   Guest
  └── heartbeat (5s) ────▶ ◀─── heartbeat ─────────┘
 ```
 
-| Event | Direction | Purpose |
-|---|---|---|
-| `duo:join` | Client → Server | Join room with code, name, role |
-| `duo:sync-song-change` | Client ↔ Server | Sync current song + queue |
-| `duo:sync-play` | Client ↔ Server | Sync play + timestamp |
-| `duo:sync-seek` | Client ↔ Server | Sync seek position |
-| `duo:message` | Client ↔ Server | In-session chat |
-| `duo:end-session` | Client → Server | End session for both |
+| Event                  | Direction       | Purpose                         |
+| ---------------------- | --------------- | ------------------------------- |
+| `duo:join`             | Client → Server | Join room with code, name, role |
+| `duo:sync-song-change` | Client ↔ Server | Sync current song + queue       |
+| `duo:sync-play`        | Client ↔ Server | Sync play + timestamp           |
+| `duo:sync-seek`        | Client ↔ Server | Sync seek position              |
+| `duo:message`          | Client ↔ Server | In-session chat                 |
+| `duo:end-session`      | Client → Server | End session for both            |
 
 Built-in chat overlay. Beautiful recap card on session end. Powered by Socket.io with heartbeat and disconnect cleanup.
 
@@ -117,17 +117,17 @@ Built-in chat overlay. Beautiful recap card on session end. Powered by Socket.io
 
 One codebase. One backend. Two platforms. Zero compromise.
 
-| Feature | Description |
-|---|---|
-| Instant offline | Opens directly — no login screen required when offline |
-| Native file storage | Songs saved to device via `@capacitor/filesystem` |
-| Lock screen controls | Play, pause, skip from Android lock screen |
-| Background audio | Music keeps playing when app is minimized |
-| Haptic feedback | Every tap, like, skip, seek feels native |
-| Native Google Sign-In | Bottom sheet — no popup |
-| Native share sheet | Share songs via any installed app |
-| Swipe-up player | Mini bar → full screen immersive view |
-| Swipe-down minimize | Full player → collapses to mini bar |
+| Feature               | Description                                            |
+| --------------------- | ------------------------------------------------------ |
+| Instant offline       | Opens directly — no login screen required when offline |
+| Native file storage   | Songs saved to device via `@capacitor/filesystem`      |
+| Lock screen controls  | Play, pause, skip from Android lock screen             |
+| Background audio      | Music keeps playing when app is minimized              |
+| Haptic feedback       | Every tap, like, skip, seek feels native               |
+| Native Google Sign-In | Bottom sheet — no popup                                |
+| Native share sheet    | Share songs via any installed app                      |
+| Swipe-up player       | Mini bar → full screen immersive view                  |
+| Swipe-down minimize   | Full player → collapses to mini bar                    |
 
 ---
 
@@ -144,12 +144,12 @@ One codebase. One backend. Two platforms. Zero compromise.
 
 ### ✈️ Offline Mode
 
-| Scenario | Web | APK |
-|---|---|---|
-| Online + logged in | Full access | Full access |
-| Online + not logged in | → Login required | → Login required |
-| Offline + logged in | Downloaded songs only | Downloaded songs only |
-| **Offline + not logged in** | ❌ Login page | ✅ Opens directly |
+| Scenario                    | Web                   | APK                   |
+| --------------------------- | --------------------- | --------------------- |
+| Online + logged in          | Full access           | Full access           |
+| Online + not logged in      | → Login required      | → Login required      |
+| Offline + logged in         | Downloaded songs only | Downloaded songs only |
+| **Offline + not logged in** | ❌ Login page         | ✅ Opens directly     |
 
 `NetworkProvider` is the single source of truth for online/offline state across the entire app. Seamless reconnection with no reload. Yellow offline banner and green "Back online" toast.
 
@@ -157,19 +157,19 @@ One codebase. One backend. Two platforms. Zero compromise.
 
 ## SoulSync vs Spotify
 
-| Feature | SoulSync | Spotify Free | Spotify Premium |
-|---|:---:|:---:|:---:|
-| Ad-free listening | ✅ Always | ❌ Every song | ✅ Paid |
-| AI Playlist Builder | ✅ Free | ❌ | ❌ |
-| Listen Together + chat | ✅ Free | ❌ | ✅ Paid, no chat |
-| Song Downloads | ✅ Free | ❌ | ✅ Paid |
-| Originals-first search | ✅ | ❌ | ❌ |
-| Share — no account to play | ✅ | ❌ | ❌ |
-| Playlist import | ✅ Spotify · YT · Apple | ❌ | ❌ |
-| Offline without login | ✅ APK | ❌ | ❌ |
-| 10+ Indian languages | ✅ | ❌ | ❌ |
-| Open source | ✅ MIT | ❌ | ❌ |
-| **Price** | **₹0 forever** | ₹0 with ads | **₹119/month** |
+| Feature                    |        SoulSync         | Spotify Free  | Spotify Premium  |
+| -------------------------- | :---------------------: | :-----------: | :--------------: |
+| Ad-free listening          |        ✅ Always        | ❌ Every song |     ✅ Paid      |
+| AI Playlist Builder        |         ✅ Free         |      ❌       |        ❌        |
+| Listen Together + chat     |         ✅ Free         |      ❌       | ✅ Paid, no chat |
+| Song Downloads             |         ✅ Free         |      ❌       |     ✅ Paid      |
+| Originals-first search     |           ✅            |      ❌       |        ❌        |
+| Share — no account to play |           ✅            |      ❌       |        ❌        |
+| Playlist import            | ✅ Spotify · YT · Apple |      ❌       |        ❌        |
+| Offline without login      |         ✅ APK          |      ❌       |        ❌        |
+| 10+ Indian languages       |           ✅            |      ❌       |        ❌        |
+| Open source                |         ✅ MIT          |      ❌       |        ❌        |
+| **Price**                  |     **₹0 forever**      |  ₹0 with ads  |  **₹119/month**  |
 
 ---
 
@@ -204,63 +204,63 @@ One codebase. One backend. Two platforms. Zero compromise.
 
 ### Data Models
 
-| Model | Key Fields |
-|---|---|
-| **User** | googleId, email, name, photo, preferences, likedSongs[], totalListeningTime |
-| **Playlist** | userId, name, songs[], isPublic, isAIGenerated, tags[], songCount, totalDuration |
-| **ListeningHistory** | userId, songId, title, artist, source — 90-day TTL |
-| **DuoSession** | host/guest, roomCode, currentSong, playState, messages[] |
-| **Share** | slug (nanoid), type (song/playlist), data, createdAt, viewCount |
-| **Import** | userId, sourceUrl, platform, songs[], status |
+| Model                | Key Fields                                                                       |
+| -------------------- | -------------------------------------------------------------------------------- |
+| **User**             | googleId, email, name, photo, preferences, likedSongs[], totalListeningTime      |
+| **Playlist**         | userId, name, songs[], isPublic, isAIGenerated, tags[], songCount, totalDuration |
+| **ListeningHistory** | userId, songId, title, artist, source — 90-day TTL                               |
+| **DuoSession**       | host/guest, roomCode, currentSong, playState, messages[]                         |
+| **Share**            | slug (nanoid), type (song/playlist), data, createdAt, viewCount                  |
+| **Import**           | userId, sourceUrl, platform, songs[], status                                     |
 
 ### Zustand Stores
 
-| Store | Manages |
-|---|---|
-| `playerStore` | Current song, play/pause, time, volume, shuffle, repeat, isExpanded |
-| `queueStore` | Song queue, history, add/remove/reorder |
-| `searchStore` | Query, results (songs + artists + albums), filters |
-| `duoStore` | SoulLink session state + sessionStorage persistence |
-| `offlineStore` | Downloaded songs, offline flag, cached user |
+| Store          | Manages                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `playerStore`  | Current song, play/pause, time, volume, shuffle, repeat, isExpanded |
+| `queueStore`   | Song queue, history, add/remove/reorder                             |
+| `searchStore`  | Query, results (songs + artists + albums), filters                  |
+| `duoStore`     | SoulLink session state + sessionStorage persistence                 |
+| `offlineStore` | Downloaded songs, offline flag, cached user                         |
 
 ---
 
 ## Performance
 
-| Metric | Before | After | Δ |
-|---|---|---|---|
-| Search latency (cached) | 1.2s | 45ms | −96% |
-| Dashboard load (cached) | 2.1s | 95ms | −95% |
-| Results per query | 20 | 50 | +150% |
-| Original song at rank #1 | Never | Always | ✅ |
-| Cache hit rate | 0% | 78% | — |
+| Metric                   | Before | After  | Δ     |
+| ------------------------ | ------ | ------ | ----- |
+| Search latency (cached)  | 1.2s   | 45ms   | −96%  |
+| Dashboard load (cached)  | 2.1s   | 95ms   | −95%  |
+| Results per query        | 20     | 50     | +150% |
+| Original song at rank #1 | Never  | Always | ✅    |
+| Cache hit rate           | 0%     | 78%    | —     |
 
-| Optimization | Detail |
-|---|---|
-| Parallel API calls | `/search/songs` + `/search` in parallel — 2× data, same latency |
-| Redis search cache | 10-min TTL — repeat searches < 50ms |
-| Redis dashboard cache | 30-min TTL — repeat loads < 100ms |
-| Redis AI cache | 30-min TTL — no duplicate Groq calls |
-| Deduplication engine | Parallel results merged, best play-count kept |
-| Debounced search | 200ms delay + AbortController on stale requests |
-| Skeleton loaders | Grid-matched shimmer — CLS 0.02 |
-| 13-min self-ping | Prevents Render cold starts |
+| Optimization          | Detail                                                          |
+| --------------------- | --------------------------------------------------------------- |
+| Parallel API calls    | `/search/songs` + `/search` in parallel — 2× data, same latency |
+| Redis search cache    | 10-min TTL — repeat searches < 50ms                             |
+| Redis dashboard cache | 30-min TTL — repeat loads < 100ms                               |
+| Redis AI cache        | 30-min TTL — no duplicate Groq calls                            |
+| Deduplication engine  | Parallel results merged, best play-count kept                   |
+| Debounced search      | 200ms delay + AbortController on stale requests                 |
+| Skeleton loaders      | Grid-matched shimmer — CLS 0.02                                 |
+| 13-min self-ping      | Prevents Render cold starts                                     |
 
 ---
 
 ## Security
 
-| Layer | Implementation |
-|---|---|
-| Authentication | Google OAuth 2.0 — no passwords stored |
-| Sessions | httpOnly, Secure, SameSite cookies (web) · Capacitor Preferences (APK) |
-| Headers | Helmet: CORP, COOP, CSP on all responses |
-| CORS | Exact origin validation — Vercel URL + `capacitor://localhost` |
-| Rate limiting | 100 req/min global · 15 req/min AI endpoints |
-| JWT | RS256, verified on every protected route |
-| Validation | Zod schemas on all REST endpoints |
-| APK secrets | No secrets in APK — all sensitive ops server-side |
-| Share links | Read-only — slugs cannot modify any user data |
+| Layer          | Implementation                                                         |
+| -------------- | ---------------------------------------------------------------------- |
+| Authentication | Google OAuth 2.0 — no passwords stored                                 |
+| Sessions       | httpOnly, Secure, SameSite cookies (web) · Capacitor Preferences (APK) |
+| Headers        | Helmet: CORP, COOP, CSP on all responses                               |
+| CORS           | Exact origin validation — Vercel URL + `capacitor://localhost`         |
+| Rate limiting  | 100 req/min global · 15 req/min AI endpoints                           |
+| JWT            | RS256, verified on every protected route                               |
+| Validation     | Zod schemas on all REST endpoints                                      |
+| APK secrets    | No secrets in APK — all sensitive ops server-side                      |
+| Share links    | Read-only — slugs cannot modify any user data                          |
 
 ---
 
@@ -268,14 +268,14 @@ One codebase. One backend. Two platforms. Zero compromise.
 
 ### Prerequisites
 
-| Requirement | Version | Notes |
-|---|---|---|
-| Node.js | ≥ 18 | Required |
-| npm | ≥ 9 | Required |
-| MongoDB Atlas | Free M0 | Required |
-| Google Cloud | OAuth 2.0 Client ID | Required |
-| Groq API | Free key | AI features |
-| Android Studio | Latest | APK builds only |
+| Requirement    | Version             | Notes           |
+| -------------- | ------------------- | --------------- |
+| Node.js        | ≥ 18                | Required        |
+| npm            | ≥ 9                 | Required        |
+| MongoDB Atlas  | Free M0             | Required        |
+| Google Cloud   | OAuth 2.0 Client ID | Required        |
+| Groq API       | Free key            | AI features     |
+| Android Studio | Latest              | APK builds only |
 
 ### Quick Start
 
@@ -303,6 +303,7 @@ npm run dev:frontend
 ### Environment Variables
 
 **`frontend/.env`**
+
 ```env
 VITE_BACKEND_URL=https://your-soulsync-backend.onrender.com
 VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
@@ -312,6 +313,7 @@ VITE_FRONTEND_URL=https://soul-sync-beta.vercel.app
 ```
 
 **`backend/.env`**
+
 ```env
 PORT=4000
 NODE_ENV=production
@@ -373,6 +375,7 @@ npx cap open android
 ```
 
 **Install on device:**
+
 ```
 1. Download SoulSync.apk from Releases
 2. Settings → Security → Enable "Install from unknown sources"
@@ -384,11 +387,13 @@ npx cap open android
 ## API Reference
 
 **`POST /api/auth/google`** — Authenticate with Google ID token.
+
 ```json
 { "idToken": "..." }  →  { "user": {...}, "isNewUser": true }
 ```
 
 **`GET /api/search?q=...&lang=...&limit=50`** — 7-factor ranked search.
+
 ```json
 →  { "songs": [...50], "artists": [...], "albums": [...] }
 ```
@@ -398,6 +403,7 @@ npx cap open android
 **`GET /api/search/album/:id`** — Full album tracklist.
 
 **`POST /api/share/song`** · **`POST /api/share/playlist`** — Generate shareable slug. Auth required.
+
 ```json
 { "song": {...} }  →  { "slug": "abc123", "url": "https://..." }
 ```
@@ -405,6 +411,7 @@ npx cap open android
 **`GET /api/share/s/:slug`** · **`GET /api/share/p/:slug`** — Retrieve share. No auth. URLs auto-refreshed.
 
 **`POST /api/import/detect`** — Detect platform and extract songs from URL.
+
 ```json
 { "url": "https://open.spotify.com/playlist/..." }  →  { "platform": "spotify", "songs": [...] }
 ```
@@ -467,45 +474,55 @@ SoulSync/
 <summary><b>Songs won't play / silent playback</b></summary>
 
 Ensure `normalizeSong()` is called before `loadAndPlay()`:
+
 ```typescript
 const normalized = normalizeSong(song);
 loadAndPlay(normalized);
 ```
+
 On APK, use `Capacitor.convertFileSrc()` for downloaded files:
+
 ```typescript
 if (Capacitor.isNativePlatform()) {
   audioUrl = Capacitor.convertFileSrc(localPath);
 }
 ```
+
 </details>
 
 <details>
 <summary><b>SoulLink desync</b></summary>
 
 `isHost` must be a `ref`, not state, to avoid stale closures in socket listeners:
+
 ```typescript
 const isHostRef = useRef(isHost);
 isHostRef.current = isHost;
 ```
+
 Also verify `socket.connected === true` and both users are using the exact same 6-character code.
+
 </details>
 
 <details>
 <summary><b>Search returns covers before originals</b></summary>
 
 Check that `JIOSAAVN_API` (no `VITE_` prefix) is set in `backend/.env`. Clear Redis cache or wait for the 10-minute TTL. Verify `searchRanker.ts` is imported in `routes/search.ts`.
+
 </details>
 
 <details>
 <summary><b>APK won't install</b></summary>
 
 Enable unknown sources: **Settings → Security → Install unknown apps → Allow**. Requires Android 7.0 (API 24)+. Uninstall any older version before upgrading.
+
 </details>
 
 <details>
 <summary><b>Backend 502 / connection refused</b></summary>
 
 First request after inactivity on Render's free tier takes 30–60s. Self-ping at 13-min intervals mitigates this. Verify `VITE_BACKEND_URL` uses `https://` and `JIOSAAVN_API` is set in Render's dashboard — not just in a local `.env` file.
+
 </details>
 
 <details>
@@ -521,7 +538,9 @@ JIOSAAVN_API=https://saavn.sumit.co/api
 # ✅ Correct in frontend/.env
 VITE_JIOSAAVN_API=https://saavn.sumit.co/api
 ```
+
 Always restart both dev servers after changing `.env` files.
+
 </details>
 
 ---
@@ -554,6 +573,7 @@ git commit -m "feat: your feature description"
 **Commit convention:** `feat` · `fix` · `docs` · `style` · `refactor` · `perf` · `chore`
 
 **PR checklist:**
+
 - [ ] `npm run build` passes
 - [ ] `npm run typecheck` passes
 - [ ] No console errors
@@ -567,20 +587,20 @@ git commit -m "feat: your feature description"
 
 ## License
 
-[MIT License](LICENSE) · Copyright © 2025–2026 Lokesh Kumar
+[MIT License](LICENSE).
 
 ---
 
 ## Acknowledgments
 
-| Project | Role |
-|---|---|
+| Project                                                               | Role                     |
+| --------------------------------------------------------------------- | ------------------------ |
 | [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Music streaming backbone |
-| [Groq Cloud](https://groq.com) | LLaMA 3.3 70B inference |
-| [Ionic Capacitor](https://github.com/ionic-team/capacitor) | Native Android bridge |
-| [Socket.io](https://github.com/socketio/socket.io) | Real-time duo sessions |
-| [Zustand](https://github.com/pmndrs/zustand) | State management |
-| [Framer Motion](https://github.com/framer/motion) | Animations |
+| [Groq Cloud](https://groq.com)                                        | LLaMA 3.3 70B inference  |
+| [Ionic Capacitor](https://github.com/ionic-team/capacitor)            | Native Android bridge    |
+| [Socket.io](https://github.com/socketio/socket.io)                    | Real-time duo sessions   |
+| [Zustand](https://github.com/pmndrs/zustand)                          | State management         |
+| [Framer Motion](https://github.com/framer/motion)                     | Animations               |
 
 ---
 
@@ -590,12 +610,12 @@ git commit -m "feat: your feature description"
 
 **Built with ❤️ by [Loki](https://github.com/itslokeshx)**
 
-*No ads. No paywalls. No limits.*
+_No ads. No paywalls. No limits._
 
 [![GitHub](https://img.shields.io/badge/GitHub-itslokeshx-181717?style=flat-square&logo=github)](https://github.com/itslokeshx)
 [![Twitter](https://img.shields.io/badge/Twitter-@itslokeshx-1DA1F2?style=flat-square&logo=twitter&logoColor=white)](https://twitter.com/itslokeshx)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://linkedin.com/in/itslokeshx)
 
-*If this saved you ₹119/month — drop a ⭐*
+_If this saved you ₹119/month — drop a ⭐_
 
 </div>
