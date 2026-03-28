@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Minus,
   Plus,
+  Infinity,
 } from "lucide-react";
 import {
   bestImg,
@@ -34,6 +35,7 @@ import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
 import { useOfflineStore } from "../../store/offlineStore";
 import { useDownloadStore } from "../../store/downloadStore";
+import { usePlayerStore } from "../../store/playerStore";
 import { downloadSong } from "../../utils/downloadSong";
 import { EqBars } from "../ui/EqBars";
 
@@ -139,6 +141,7 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
+  const { autoplay, toggleAutoplay } = usePlayerStore();
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -502,6 +505,14 @@ export const NowPlayingView = ({
               className={`transition-all duration-200 p-2 rounded-full ${repeat !== "off" ? "text-sp-green" : "text-white/40 hover:text-white"}`}
             >
               {repeat === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
+            </button>
+            <button
+              onClick={toggleAutoplay}
+              className={`transition-all duration-200 p-2 rounded-full ${autoplay ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
+              aria-label={autoplay ? "Autoplay on" : "Autoplay off"}
+              title={autoplay ? "Autoplay: On" : "Autoplay: Off"}
+            >
+              <Infinity size={18} />
             </button>
           </div>
 

@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useDebounce } from "use-debounce";
 
-const API = (
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:4000"
-).replace(/\/$/, "");
+// Use relative paths so requests go through the Vite proxy → Render backend
+// (avoids CORS issues that block cross-origin withCredentials requests from localhost)
+const API = "";
 
 export interface SmartSearchResult {
   songs: any[];
@@ -150,7 +150,7 @@ export function useSearch() {
     if (suggestionAbortRef.current) suggestionAbortRef.current.abort();
     suggestionAbortRef.current = new AbortController();
     try {
-      const res = await axios.get(`${API}/api/search/suggestions`, {
+      const res = await axios.get(`/api/search/suggestions`, {
         params: { q },
         signal: suggestionAbortRef.current.signal,
         withCredentials: true,
@@ -249,7 +249,7 @@ export function useSearch() {
     abortRef.current = new AbortController();
 
     try {
-      const { data } = await axios.get<SmartSearchResult>(`${API}/api/search`, {
+      const { data } = await axios.get<SmartSearchResult>(`/api/search`, {
         params: { q: term, limit: 50 },
         signal: abortRef.current.signal,
         withCredentials: true,
