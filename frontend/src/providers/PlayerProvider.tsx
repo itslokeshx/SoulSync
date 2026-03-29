@@ -49,6 +49,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     volume,
     isMuted,
     repeatMode,
+    autoplay,
     currentTime,
     duration,
     setCurrentTime,
@@ -61,7 +62,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsPlaying,
   } = usePlayerStore();
 
-  const { next, prev, queue } = useQueueStore();
+  const { next, prev, queue, addLast } = useQueueStore();
 
   // ── Refs & Synchronization Flags ──────────────────────────────────
   const isRemoteActionRef = useRef(false);
@@ -377,8 +378,29 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } else {
       const n = next(repeatMode);
-      if (n) playSong(n);
-      else pause();
+      if (n) {
+        playSong(n);
+      } else {
+        // Queue exhausted — fetch autoplay suggestions if enabled
+        const { autoplay: ap, currentSong: song } = usePlayerStore.getState();
+        if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
+          toast("Finding similar songs...");
+          fetch(`/api/search/autoplay/${song.id}`, { credentials: "include" })
+            .then((r) => r.json())
+            .then((data) => {
+              const songs: any[] = data?.songs ?? [];
+              if (!songs.length) { pause(); return; }
+              songs.forEach((s) => addLast(s));
+              // Advance past the now-extended queue
+              const nextSong = useQueueStore.getState().next(repeatMode);
+              if (nextSong) playSong(nextSong);
+              else pause();
+            })
+            .catch(() => pause());
+        } else {
+          pause();
+        }
+      }
     }
   };
 

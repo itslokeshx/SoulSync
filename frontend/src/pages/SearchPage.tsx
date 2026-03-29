@@ -24,6 +24,7 @@ import {
   Coffee,
   Radio,
   Headphones,
+  MoreVertical,
 } from "lucide-react";
 import {
   useSearch,
@@ -32,6 +33,7 @@ import {
   removeRecentSearch,
 } from "../hooks/useSearch";
 import { useSearchStore } from "../store/searchStore";
+import { useUIStore } from "../store/uiStore";
 import { bestImg, getArtists, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
@@ -131,9 +133,13 @@ function SongRow({
   const img = bestImg(song.image) || FALLBACK_IMG;
   const artist = getArtists(song);
   const duration = fmt(song.duration);
+  const showContextMenu = useUIStore((s) => s.showContextMenu);
   return (
-    <button
+    <div
       onClick={() => onPlay(song)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onPlay(song)}
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] active:bg-white/[0.13] active:scale-[0.99] transition-all group text-left cursor-pointer"
     >
       <span className="w-5 text-center text-[12px] text-white/20 group-hover:hidden flex-shrink-0 font-mono select-none">
@@ -185,7 +191,17 @@ function SongRow({
           {duration}
         </span>
       )}
-    </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          showContextMenu(e.clientX, e.clientY, song);
+        }}
+        className="flex-shrink-0 p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.08] transition-all"
+        aria-label="More options"
+      >
+        <MoreVertical size={15} />
+      </button>
+    </div>
   );
 }
 

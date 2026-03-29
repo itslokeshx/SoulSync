@@ -1,8 +1,10 @@
-import { useState, useRef, useCallback } from "react";
-import { X, GripVertical, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, GripVertical, Trash2, Plus } from "lucide-react";
 import { EqBars } from "../ui/EqBars";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
+import { usePlayerStore } from "../../store/playerStore";
+import { useQueueStore } from "../../store/queueStore";
 
 interface QueuePanelProps {
   queue: any[];
@@ -31,6 +33,33 @@ export const QueuePanel = ({
   const upcoming = queue.slice(queueIndex + 1);
 
   const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
+
+  // ── Autoplay preview ─────────────────────────────────────────────
+  const { autoplay } = usePlayerStore();
+  const { addLast } = useQueueStore();
+  const [autoplaySongs, setAutoplaySongs] = useState<any[]>([]);
+  const [autoplayLoading, setAutoplayLoading] = useState(false);
+
+  useEffect(() => {
+    if (!autoplay || !currentSong?.id || currentSong?._isOffline) {
+      setAutoplaySongs([]);
+      return;
+    }
+    let cancelled = false;
+    setAutoplayLoading(true);
+    fetch(`/api/search/autoplay/${currentSong.id}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const inQueue = new Set(queue.map((s: any) => s.id));
+        setAutoplaySongs(
+          (data.songs ?? []).filter((s: any) => !inQueue.has(s.id)),
+        );
+      })
+      .catch(() => !cancelled && setAutoplaySongs([]))
+      .finally(() => !cancelled && setAutoplayLoading(false));
+    return () => { cancelled = true; };
+  }, [currentSong?.id, autoplay]);
 
   const handleDragStart = useCallback((e: React.DragEvent, relIdx: number) => {
     setDragIdx(relIdx);
@@ -182,6 +211,50 @@ export const QueuePanel = ({
             </div>
           );
         })}
+
+        {/* ── Autoplay preview section ── */}
+        {autoplay && (
+          <div className="mt-1 border-t border-white/[0.04]">
+            <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
+              Up next · Autoplay
+            </p>
+            {autoplayLoading && (
+              <p className="text-sp-muted text-xs px-5 py-2 text-center opacity-50">
+                Loading…
+              </p>
+            )}
+            {autoplaySongs.map((s, i) => (
+              <div
+                key={`ap-${s.id}-${i}`}
+                className="flex items-center gap-2 px-3 pr-2 py-2 mx-2 rounded-xl hover:bg-white/[0.04] group"
+              >
+                <img
+                  src={bestImg(s.image, "50x50") || FALLBACK_IMG}
+                  onError={onImgErr}
+                  className="w-9 h-9 rounded-xl object-cover flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-white/60 group-hover:text-white/90 truncate transition-colors">
+                    {s.name}
+                  </p>
+                  <p className="text-[11px] text-sp-sub/40 truncate">
+                    {getArtists(s)}
+                  </p>
+                </div>
+                <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
+                  {fmt(s.duration)}
+                </span>
+                <button
+                  onClick={() => addLast(s)}
+                  className="p-1 rounded-lg text-white/15 hover:text-sp-green hover:bg-sp-green/10 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  title="Add to queue"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
