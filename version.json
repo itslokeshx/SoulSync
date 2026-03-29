@@ -1,0 +1,10 @@
+{
+    "version": "2.1.0",
+    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/latest",
+    "force": false,
+    "changelog": [
+        "Added autoplay",
+        "Context menu improvements",
+        "Bug fixes"
+    ]
+}
