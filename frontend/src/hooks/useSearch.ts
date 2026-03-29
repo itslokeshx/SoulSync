@@ -120,14 +120,14 @@ export function saveRecentSearch(q: string) {
       "ss_recent_searches",
       JSON.stringify([q, ...hist].slice(0, 10)),
     );
-  } catch {}
+  } catch { }
 }
 
 export function removeRecentSearch(q: string) {
   try {
     const hist = getRecentSearches().filter((h) => h !== q);
     localStorage.setItem("ss_recent_searches", JSON.stringify(hist));
-  } catch {}
+  } catch { }
 }
 
 export function useSearch() {
@@ -255,11 +255,18 @@ export function useSearch() {
         withCredentials: true,
       });
 
-      setResult(data);
+      // Ensure arrays are always defined to prevent runtime errors
+      const safeData = {
+        ...data,
+        songs: data.songs || [],
+        albums: data.albums || [],
+        artists: data.artists || [],
+      };
+      setResult(safeData);
       const hasResults =
-        data.songs.length > 0 ||
-        data.albums.length > 0 ||
-        data.artists.length > 0;
+        safeData.songs.length > 0 ||
+        safeData.albums.length > 0 ||
+        safeData.artists.length > 0;
       setState(hasResults ? "results" : "no-results");
     } catch (err: any) {
       if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;

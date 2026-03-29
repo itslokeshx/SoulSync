@@ -486,9 +486,10 @@ export function SearchPage() {
   }, [handleChange]);
 
   const splitAt = result?.topResult ? 4 : 5;
-  const firstSectionSongs = result?.songs.slice(0, splitAt) || [];
-  const remainingSongs = result?.songs.slice(splitAt) || [];
-  const hasMoreSongs = (result?.songs.length || 0) > splitAt;
+  const songs = result?.songs ?? [];
+  const firstSectionSongs = songs.slice(0, splitAt);
+  const remainingSongs = songs.slice(splitAt);
+  const hasMoreSongs = songs.length > splitAt;
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -512,8 +513,8 @@ export function SearchPage() {
           <div className="flex-1 relative">
             <div
               className={`flex items-center gap-2.5 h-12 px-4 rounded-2xl border transition-all duration-200 ${inputFocused
-                  ? "border-sp-green/50 bg-white/[0.09] shadow-[0_0_24px_rgba(29,185,84,0.07)]"
-                  : "border-white/[0.08] bg-white/[0.06] hover:border-white/[0.12]"
+                ? "border-sp-green/50 bg-white/[0.09] shadow-[0_0_24px_rgba(29,185,84,0.07)]"
+                : "border-white/[0.08] bg-white/[0.06] hover:border-white/[0.12]"
                 }`}
             >
               {state === "loading" ? (
@@ -786,7 +787,7 @@ export function SearchPage() {
                 <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 flex items-center gap-2">
                   <Music size={11} /> More Songs
                   <span className="text-white/20 font-normal normal-case tracking-normal">
-                    {result.songs.length}
+                    {songs.length}
                   </span>
                 </h3>
                 <div className="space-y-0.5">
