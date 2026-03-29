@@ -24,11 +24,11 @@ interface DashboardSection {
   title: string;
   subtitle?: string;
   type:
-    | "quick_grid"
-    | "horizontal"
-    | "artist_spotlight"
-    | "mood_grid"
-    | "continue";
+  | "quick_grid"
+  | "horizontal"
+  | "artist_spotlight"
+  | "mood_grid"
+  | "continue";
   songs: any[];
   meta?: Record<string, any>;
 }
@@ -226,11 +226,10 @@ function SpeedDialSection({
             <button
               key={i}
               onClick={() => setSlideIndex(i)}
-              className={`rounded-full transition-all duration-300 ${
-                i === slideIndex
+              className={`rounded-full transition-all duration-300 ${i === slideIndex
                   ? "w-4 h-[5px] bg-white"
                   : "w-[5px] h-[5px] bg-white/25"
-              }`}
+                }`}
             />
           ))}
         </div>
@@ -339,7 +338,7 @@ export const HomePage = () => {
     likedSongs,
     handleLike,
   } = useApp();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const showContextMenu = useUIStore((s) => s.showContextMenu);
 
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -372,7 +371,7 @@ export const HomePage = () => {
             return; // outer finally resets fetchingRef
           }
         }
-      } catch {}
+      } catch { }
 
       try {
         const data: any = user
@@ -390,7 +389,7 @@ export const HomePage = () => {
             setDashboard(guestData);
             setError(false);
             return;
-          } catch {}
+          } catch { }
         }
         setError(true);
       } finally {
@@ -407,13 +406,14 @@ export const HomePage = () => {
   }, [user]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (fetched.current) return;
     fetched.current = true;
     // Use the cached response when fresh (PlayerProvider busts the cache on every
     // new song play, visibilitychange busts it on tab-focus — no need to bust on
     // every mount, which would cause 429s if the user navigates rapidly).
     fetchDashboard();
-  }, [fetchDashboard, cacheKey]);
+  }, [fetchDashboard, cacheKey, authLoading]);
 
   // Re-fetch whenever the tab/app comes back into focus so "Continue Listening"
   // always reflects songs played since the last visit.  Backend Redis is already
@@ -426,7 +426,7 @@ export const HomePage = () => {
       if (Date.now() - lastFetchedAt.current < REFETCH_COOLDOWN) return;
       try {
         sessionStorage.removeItem(cacheKey);
-      } catch {}
+      } catch { }
       fetched.current = false;
       fetchDashboard();
     };
@@ -441,7 +441,7 @@ export const HomePage = () => {
       // cache may be stale regardless of TTL.
       try {
         sessionStorage.removeItem(cacheKey);
-      } catch {}
+      } catch { }
       fetched.current = false;
       fetchDashboard();
     };
@@ -486,7 +486,7 @@ export const HomePage = () => {
   };
 
   // ── Loading state
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="animate-fadeIn space-y-10">
         <div>
@@ -750,9 +750,9 @@ export const HomePage = () => {
                 onSeeAll={
                   section.songs.length > 8
                     ? () =>
-                        navigate(
-                          `/search?q=${encodeURIComponent(section.title)}`,
-                        )
+                      navigate(
+                        `/search?q=${encodeURIComponent(section.title)}`,
+                      )
                     : undefined
                 }
               />
