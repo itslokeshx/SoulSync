@@ -213,6 +213,7 @@ function TopResultHero({
   onPlay: (s: any) => void;
 }) {
   const navigate = useNavigate();
+  const showContextMenu = useUIStore((s) => s.showContextMenu);
   const isArtist = item.type === "artist" || item.description === "Artist";
   const isAlbum =
     item.type === "album" || item.description?.toLowerCase().includes("album");
@@ -259,7 +260,7 @@ function TopResultHero({
             (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
           }}
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pr-6">
           <p className="text-base sm:text-2xl font-black text-white tracking-tight leading-tight line-clamp-2">
             {name}
           </p>
@@ -274,16 +275,28 @@ function TopResultHero({
         </div>
       </div>
       {!isArtist && !isAlbum && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPlay(item);
-          }}
-          className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 shadow-xl"
-          style={{ boxShadow: "0 8px 24px rgba(29,185,84,0.5)" }}
-        >
-          <Play size={18} className="text-black fill-black ml-0.5" />
-        </button>
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              showContextMenu(e.clientX, e.clientY, item);
+            }}
+            className="absolute top-3 right-3 z-20 p-2 rounded-full text-white/30 hover:text-white hover:bg-white/[0.1] transition-all"
+            aria-label="More options"
+          >
+            <MoreVertical size={18} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlay(item);
+            }}
+            className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 shadow-xl z-20"
+            style={{ boxShadow: "0 8px 24px rgba(29,185,84,0.5)" }}
+          >
+            <Play size={18} className="text-black fill-black ml-0.5" />
+          </button>
+        </>
       )}
     </motion.div>
   );
@@ -498,11 +511,10 @@ export function SearchPage() {
           {/* Input pill + suggestions dropdown */}
           <div className="flex-1 relative">
             <div
-              className={`flex items-center gap-2.5 h-12 px-4 rounded-2xl border transition-all duration-200 ${
-                inputFocused
+              className={`flex items-center gap-2.5 h-12 px-4 rounded-2xl border transition-all duration-200 ${inputFocused
                   ? "border-sp-green/50 bg-white/[0.09] shadow-[0_0_24px_rgba(29,185,84,0.07)]"
                   : "border-white/[0.08] bg-white/[0.06] hover:border-white/[0.12]"
-              }`}
+                }`}
             >
               {state === "loading" ? (
                 <Loader2
