@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { useNetwork } from "./providers/NetworkProvider";
@@ -6,8 +6,7 @@ import { getOfflineSongs } from "./utils/offlineDB";
 import { useOfflineStore } from "./store/offlineStore";
 import { isNative } from "./utils/platform";
 
-import { checkForUpdate } from "./utils/updateChecker";
-import { UpdatePopup, openUpdateLink } from "./components/UpdatePopup";
+
 
 import { AppLayout } from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
@@ -26,7 +25,7 @@ import SongSharePage from "./pages/SongSharePage";
 import { PlayerProvider } from "./providers/PlayerProvider";
 
 export default function App() {
-  const [update, setUpdate] = useState<any>(null);
+
 
   useEffect(() => {
     if (!isNative()) {
@@ -54,29 +53,13 @@ export default function App() {
       });
     }
 
-    const checkAppUpdate = async () => {
-      const res = await checkForUpdate();
-      if (res) setUpdate(res);
-    };
 
-    if (isNative()) {
-      checkAppUpdate();
-    }
   }, []);
 
   return (
-    <>
-      {update && (
-        <UpdatePopup
-          data={update}
-          onUpdate={() => openUpdateLink(update.apk_url)}
-          onClose={() => setUpdate(null)}
-        />
-      )}
-      <PlayerProvider>
-        <AppRouter />
-      </PlayerProvider>
-    </>
+    <PlayerProvider>
+      <AppRouter />
+    </PlayerProvider>
   );
 }
 
