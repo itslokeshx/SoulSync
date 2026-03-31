@@ -11,6 +11,8 @@
 
 <br/>
 
+<h3>📥 Download SoulSync</h3>
+
 <table align="center">
   <tr>
     <td align="center" width="200">
