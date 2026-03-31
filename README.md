@@ -11,12 +11,32 @@
 
 <br/>
 
-[![Web App](https://img.shields.io/badge/Launch%20Web%20App-1DB954?style=for-the-badge&logo=vercel&logoColor=white)](https://soul-sync-beta.vercel.app/)
-[![Windows EXE](https://img.shields.io/badge/Windows%20EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.exe)
-[![Linux DEB](https://img.shields.io/badge/Linux%20DEB-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/soulsync_2.1.0.deb)
-[![Android APK](https://img.shields.io/badge/Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.apk)
+<table align="center">
+  <tr>
+    <td align="center" width="200">
+      <img src="https://img.shields.io/badge/Web_App-1DB954?style=flat-square&logo=vercel&logoColor=white" alt="Web App" /><br><br>
+      <a href="https://soul-sync-beta.vercel.app/"><b>🚀 Launch via Browser</b></a><br>
+      <sub>No install required</sub>
+    </td>
+    <td align="center" width="200">
+      <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" /><br><br>
+      <a href="https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.exe"><b>⬇️ Download .exe</b></a><br>
+      <sub>Windows 10+</sub>
+    </td>
+    <td align="center" width="200">
+      <img src="https://img.shields.io/badge/Linux-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Linux" /><br><br>
+      <a href="https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/soulsync_2.1.0.deb"><b>⬇️ Download .deb</b></a><br>
+      <sub>Debian / Ubuntu</sub>
+    </td>
+    <td align="center" width="200">
+      <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" /><br><br>
+      <a href="https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.apk"><b>⬇️ Download .apk</b></a><br>
+      <sub>Android 7.0+</sub>
+    </td>
+  </tr>
+</table>
 
-<sub>Windows 10+ · Debian/Ubuntu · Android 7.0+ · No Play Store needed · <a href="https://github.com/itslokeshx/SoulSync/releases">All Releases</a></sub>
+<sub>Looking for older versions? <a href="https://github.com/itslokeshx/SoulSync/releases">View All Releases →</a></sub>
 
 </div>
 
