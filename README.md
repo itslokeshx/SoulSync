@@ -1,25 +1,22 @@
 <div align="center">
 
-<pre>
-███████╗ ██████╗ ██╗   ██╗██╗     ███████╗██╗   ██╗███╗   ██╗ ██████╗
-██╔════╝██╔═══██╗██║   ██║██║     ██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
-███████╗██║   ██║██║   ██║██║     ███████╗ ╚████╔╝ ██╔██╗ ██║██║
-╚════██║██║   ██║██║   ██║██║     ╚════██║  ╚██╔╝  ██║╚██╗██║██║
-███████║╚██████╔╝╚██████╔╝███████╗███████║   ██║   ██║ ╚████║╚██████╗
-╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝
-</pre>
+<h1 align="center" style="font-weight: bold; letter-spacing: 0.1rem;">
+  ✦ S O U L S Y N C ✦
+</h1>
 
 **Listen together. Feel together.**
 
-_Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Android._
-_No ads. No limits. No subscription. Ever._
+*Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Desktop & Android apps.*<br>
+*No ads. No limits. No subscription. Ever.*
 
 <br/>
 
 [![Web App](https://img.shields.io/badge/Launch%20Web%20App-1DB954?style=for-the-badge&logo=vercel&logoColor=white)](https://soul-sync-beta.vercel.app/)
-[![Download APK](https://img.shields.io/badge/Download%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk)
+[![Windows EXE](https://img.shields.io/badge/Windows%20EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.exe)
+[![Linux DEB](https://img.shields.io/badge/Linux%20DEB-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/soulsync_2.1.0.deb)
+[![Android APK](https://img.shields.io/badge/Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.apk)
 
-<sub>Android 7.0+ required · No Play Store needed · <a href="https://github.com/itslokeshx/SoulSync/releases">All Releases</a></sub>
+<sub>Windows 10+ · Debian/Ubuntu · Android 7.0+ · No Play Store needed · <a href="https://github.com/itslokeshx/SoulSync/releases">All Releases</a></sub>
 
 </div>
 
@@ -27,9 +24,38 @@ _No ads. No limits. No subscription. Ever._
 
 ---
 
+## 🎉 What's New in v2.1.0
+
+**💻 Brand New Desktop Apps! (Windows & Linux)**
+- Windows (`.exe`) & Linux (`.deb`) installers are now officially available!
+- Fully offline-capable desktop client with a native system experience.
+- Seamless and secure Google Authentication via internal custom protocols.
+- Install and enjoy SoulSync directly from your desktop.
+
+**🎧 Playback Improvements**
+- Autoplay enabled — songs now continue seamlessly
+- Fixed unexpected pause issues during track transitions
+- Improved play/pause synchronization in SoulLink duo sessions
+- Enhanced shuffle logic on the Liked Songs page
+
+**💜 SoulLink Redesign**
+- Fully responsive desktop layout with side-by-side columns
+- Improved messaging UI for better clarity and usability
+- More reliable sync controls with socket connection checks
+
+**🛠️ Fixes & Improvements**
+- Fixed dashboard loading flicker for logged-in users
+- Added safety checks for undefined search responses
+- Resolved Google OAuth credential delivery issues
+- Improved rate limiting in development environment
+- Cleaner authentication error responses
+- Logout now properly clears liked songs
+
+---
+
 ## Overview
 
-SoulSync gives you everything Spotify Premium charges ₹119/month for — completely free. Built on a single codebase that ships both a web app and a native Android APK, it combines a 7-factor intelligent search engine, AI-powered playlist generation via Groq's LLaMA 3.3 70B, real-time synchronized listening sessions, and seamless offline support.
+SoulSync gives you everything Spotify Premium charges ₹119/month for — completely free. Built on a single codebase that ships a web app, native desktop apps (Windows/Linux), and a native Android APK, it combines a 7-factor intelligent search engine, AI-powered playlist generation via Groq's LLaMA 3.3 70B, real-time synchronized listening sessions, and seamless offline support.
 
 ---
 
