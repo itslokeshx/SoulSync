@@ -9,7 +9,6 @@
 *Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Desktop & Android apps.*<br>
 *No ads. No limits. No subscription. Ever.*
 
-<br/>
 
 <h3>📥 Download SoulSync</h3>
 
@@ -43,35 +42,6 @@
 </div>
 
 <br/>
-
----
-
-## 🎉 What's New in v2.1.0
-
-**💻 Brand New Desktop Apps! (Windows & Linux)**
-- Windows (`.exe`) & Linux (`.deb`) installers are now officially available!
-- Fully offline-capable desktop client with a native system experience.
-- Seamless and secure Google Authentication via internal custom protocols.
-- Install and enjoy SoulSync directly from your desktop.
-
-**🎧 Playback Improvements**
-- Autoplay enabled — songs now continue seamlessly
-- Fixed unexpected pause issues during track transitions
-- Improved play/pause synchronization in SoulLink duo sessions
-- Enhanced shuffle logic on the Liked Songs page
-
-**💜 SoulLink Redesign**
-- Fully responsive desktop layout with side-by-side columns
-- Improved messaging UI for better clarity and usability
-- More reliable sync controls with socket connection checks
-
-**🛠️ Fixes & Improvements**
-- Fixed dashboard loading flicker for logged-in users
-- Added safety checks for undefined search responses
-- Resolved Google OAuth credential delivery issues
-- Improved rate limiting in development environment
-- Cleaner authentication error responses
-- Logout now properly clears liked songs
 
 ---
 
