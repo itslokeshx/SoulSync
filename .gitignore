@@ -27,6 +27,11 @@ Thumbs.db
 # Android APK builds — released via GitHub Releases, not committed to repo
 *.apk
 
+# Electron Desktop builds
+release/
+*.AppImage
+*.dmg
+
 # Logs
 *.log
 npm-debug.log*

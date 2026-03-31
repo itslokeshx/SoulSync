@@ -65,6 +65,7 @@ app.use(
         origin === "https://localhost" ||
         origin === "capacitor://localhost" ||
         origin === "http://localhost" ||
+        origin === "file://" ||
         origin === FRONTEND_URL ||
         /^http:\/\/localhost:\d+$/.test(origin) ||
         /\.vercel\.app$/.test(origin);

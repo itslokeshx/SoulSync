@@ -2,6 +2,13 @@
   "name": "soulsync-frontend",
   "private": true,
   "version": "2.1.0",
+  "homepage": "https://soul-sync-beta.vercel.app",
+  "author": {
+    "name": "SoulSync",
+    "email": "soulsync@proton.me"
+  },
+  "description": "Your music. Personalized. Together.",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +20,9 @@
     "cap:open": "npx cap open android",
     "cap:run": "npx cap run android",
     "cap:build": "npm run build && npx cap sync android",
-    "apk": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
+    "apk": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "electron:dev": "cp .env.electron .env.production.local && tsc -b && vite build && npx electron . && rm -f .env.production.local",
+    "electron:build": "cp .env.electron .env.production.local && tsc -b && vite build && npx electron-builder --linux deb --win nsis && rm -f .env.production.local"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
@@ -45,12 +54,37 @@
     "use-debounce": "^10.1.0",
     "zustand": "^5.0.11"
   },
+  "build": {
+    "appId": "com.soulsync.desktop",
+    "productName": "SoulSync",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "category": "Audio",
+      "icon": "dist/favicon.svg"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  },
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.0",
