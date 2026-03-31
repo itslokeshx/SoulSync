@@ -9,6 +9,7 @@
 *Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Desktop & Android apps.*<br>
 *No ads. No limits. No subscription. Ever.*
 
+<br/>
 
 <h3>📥 Download SoulSync</h3>
 
