@@ -31,6 +31,10 @@ Thumbs.db
 release/
 *.AppImage
 *.dmg
+*.exe
+*.deb
+*.deb
+*.exe
 
 # Logs
 *.log
