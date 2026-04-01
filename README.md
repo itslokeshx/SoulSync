@@ -104,21 +104,74 @@ No ads. No subscription. Ever.
 ## 🏗️ Architecture
 
 ```
-┌──────────────────┐       ┌──────────────────┐
-│    Web App       │       │   Android APK    │
-│  (Vite + React)  │       │   (Capacitor)    │
-└────────┬─────────┘       └────────┬─────────┘
-         │                          │
-         └────────────┬─────────────┘
-                      │
-          ┌───────────▼───────────┐
-          │    Express API         │
-          │   + Socket.io         │
-          └───────────┬───────────┘
-                      │
-        ┌─────────────┼─────────────┐
-        ▼             ▼             ▼
-    MongoDB        Redis         Groq
+┌──────────────── WEB BROWSER ─────────────────┐   ┌─────────── ANDROID APK ──────────┐
+│                                              │   │                                  │
+│  Auth → Zustand → Router → IndexedDB         │   │  Auth → Zustand → Router         │
+│  NetworkProvider                             │   │  Capacitor Filesystem            │
+│                                              │   │  NetworkProvider                 │
+│  ┌─ AppLayout ─────────────────────────────┐ │   │  ┌─ Mobile Layout ─────────────┐ │
+│  │  Sidebar · Pages · PlayerBar · Duo     │ │   │  │  BottomNav · MiniPlayer     │ │
+│  └─────────────────────────────────────────┘ │   │  │  FullScreenPlayer · Queue  │ │
+└──────────────────────┬───────────────────────┘   │  └─────────────────────────────┘ │
+                       │                           └──────────────┬───────────────────┘
+                       │         REST API + WebSocket             │
+                       └─────────────────────┬────────────────────┘
+                                             │
+                           ┌─────────────────▼─────────────────┐
+                           │          RENDER BACKEND            │
+                           │        Express + Socket.io         │
+                           │                                    │
+                           │  /auth  /search  /playlist         │
+                           │  /user  /ai  /session              │
+                           │  /dashboard  /share  /import       │
+                           │                                    │
+                           │  MongoDB Atlas  ·  Redis Cache     │
+                           │  Groq AI  ·  saavn.sumit.co        │
+                           └────────────────────────────────────┘
+```
+
+---
+
+## 📁 Project Structure
+
+```
+SoulSync/
+├── frontend/
+│   ├── capacitor.config.ts
+│   ├── android/
+│   └── src/
+│       ├── providers/
+│       │   └── NetworkProvider.tsx         # App-wide online/offline state
+│       ├── pages/
+│       │   ├── Dashboard.tsx               # 3×3 swipeable grid
+│       │   ├── SearchPage.tsx              # 50 songs + artists + albums
+│       │   ├── ArtistPage.tsx
+│       │   ├── AlbumPage.tsx
+│       │   ├── SharePage.tsx               # Public share link player
+│       │   └── Downloads.tsx               # Sort, search, swipe-to-delete
+│       ├── components/
+│       │   ├── dashboard/
+│       │   │   ├── QuickPlaySlider.tsx     # 3×3 grid with slide tabs
+│       │   │   ├── DashboardHeader.tsx     # Greeting + mood chips
+│       │   │   └── MoodChips.tsx
+│       │   └── player/
+│       │       ├── MobilePlayerFull.tsx    # Swipe-down, minimize
+│       │       └── AudioEngine.tsx         # URL decode, event guards
+│       └── utils/
+│           ├── normalizeSong.ts            # Handles all API response shapes
+│           └── platform.ts                 # getBaseUrl() for APK vs web
+│
+└── backend/
+    └── src/
+        ├── routes/
+        │   ├── search.ts                   # Parallel fetch + 7-factor ranker
+        │   ├── dashboard.ts                # 3-slide grid sections
+        │   ├── share.ts
+        │   └── import.ts
+        └── services/
+            ├── jiosaavn.ts                 # saavn.sumit.co API wrapper
+            ├── searchRanker.ts             # 7-factor ranking engine
+            └── queryBuilder.ts             # Intelligent query expansion
 ```
 
 ---
