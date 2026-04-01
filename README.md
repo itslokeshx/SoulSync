@@ -1,246 +1,116 @@
 <div align="center">
 
-<h1 align="center" style="font-weight: bold; letter-spacing: 0.1rem;">
-  ✦ S O U L S Y N C ✦
-</h1>
+# ✦ SoulSync
 
 **Listen together. Feel together.**
 
-*Free, open-source music streaming — AI playlists, real-time duo sessions, intelligent search, native Desktop & Android apps.*<br>
-*No ads. No limits. No subscription. Ever.*
-
-<br/>
-
-<h3>📥 Download SoulSync</h3>
-
-<table align="center">
-  <tr>
-    <td align="center" width="200">
-      <img src="https://img.shields.io/badge/Web_App-1DB954?style=flat-square&logo=vercel&logoColor=white" alt="Web App" /><br><br>
-      <a href="https://soul-sync-beta.vercel.app/"><b>🚀 Launch via Browser</b></a><br>
-      <sub>No install required</sub>
-    </td>
-    <td align="center" width="200">
-      <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" /><br><br>
-      <a href="https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.exe"><b>⬇️ Download .exe</b></a><br>
-      <sub>Windows 10+</sub>
-    </td>
-    <td align="center" width="200">
-      <img src="https://img.shields.io/badge/Linux-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Linux" /><br><br>
-      <a href="https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/soulsync_2.1.0.deb"><b>⬇️ Download .deb</b></a><br>
-      <sub>Debian / Ubuntu</sub>
-    </td>
-    <td align="center" width="200">
-      <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" /><br><br>
-      <a href="https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.apk"><b>⬇️ Download .apk</b></a><br>
-      <sub>Android 7.0+</sub>
-    </td>
-  </tr>
-</table>
-
-<sub>Looking for older versions? <a href="https://github.com/itslokeshx/SoulSync/releases">View All Releases →</a></sub>
-
-</div>
-
-<br/>
+Free, open-source music streaming with AI playlists, real-time listening sessions, and native apps. No ads. No subscription. Ever.
 
 ---
 
-## Overview
+### Quick Access
 
-SoulSync gives you everything Spotify Premium charges ₹119/month for — completely free. Built on a single codebase that ships a web app, native desktop apps (Windows/Linux), and a native Android APK, it combines a 7-factor intelligent search engine, AI-powered playlist generation via Groq's LLaMA 3.3 70B, real-time synchronized listening sessions, and seamless offline support.
+| [🌐 Web App](https://soul-sync-beta.vercel.app/) | [💻 Windows](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.exe) | [🐧 Linux](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/soulsync_2.1.0.deb) | [📱 Android](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.apk) |
+| :---: | :---: | :---: | :---: |
+
+[All Releases →](https://github.com/itslokeshx/SoulSync/releases)
+
+---
+
+### Why SoulSync?
+
+| Feature | SoulSync | Spotify Free | Spotify Premium |
+| :--- | :---: | :---: | :---: |
+| Ad-free | ✅ | ❌ | ✅ |
+| AI Playlists | ✅ | ❌ | ❌ |
+| Listen Together + Chat | ✅ | ❌ | ❌ (no chat) |
+| Offline Downloads | ✅ | ❌ | ✅ |
+| Originals-first Search | ✅ | ❌ | ❌ |
+| Playlist Import | ✅ (Spotify, YT, Apple, Gaana) | ❌ | ❌ |
+| Open Source | ✅ MIT | ❌ | ❌ |
+| **Price** | **₹0 forever** | ₹0 w/ ads | **₹119/month** |
 
 ---
 
 ## Tech Stack
 
-| Layer        | Technologies                                                                                                |
-| ------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Frontend** | TypeScript 5.7 · React 18.3 · Vite 6.1 · Tailwind CSS 3.4 · Zustand 5 · Framer Motion 12 · TanStack Query 5 |
-| **Mobile**   | Capacitor 8.1 · Android API 24+ · Capacitor Filesystem · Capacitor Network · Capacitor Haptics              |
-| **Backend**  | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 · Zod · Helmet                                  |
-| **Data**     | MongoDB 8.9 · Upstash Redis · 90-day TTL on listening history                                               |
-| **AI**       | Groq SDK · LLaMA 3.3 70B · Multi-key rotation · Redis cache                                                 |
-| **Auth**     | Google OAuth 2.0 · JWT RS256 · httpOnly cookies                                                             |
-| **Infra**    | Vercel · Render · MongoDB Atlas                                                                             |
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 18.3 · TypeScript 5.7 · Vite 6.1 · Tailwind CSS 3.4 · Zustand 5 · TanStack Query 5 |
+| **Mobile** | Capacitor 8.1 · Android API 24+ |
+| **Backend** | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 |
+| **Data** | MongoDB 8.9 · Upstash Redis (90-day TTL) |
+| **AI** | Groq SDK · LLaMA 3.3 70B |
+| **Auth** | Google OAuth 2.0 · JWT RS256 · httpOnly cookies |
+| **Infra** | Vercel · Render · MongoDB Atlas |
 
 ---
 
-## Features
+## Core Features
 
-### 🔍 Intelligent Search
+### 🔍 7-Factor Intelligent Search
+- **Originals first** — songs with "cover", "karaoke", "tribute" are automatically penalized
+- **7 ranking signals** — play count (dominant), title/artist match, language preference
+- **50 results** per query with artists and albums sections
+- **Redis cache** — 10-min TTL, repeat searches return in under 50ms
 
-A 7-factor ranking engine — originals always rank first.
+### 🤖 AI Playlist Generator
+- **Mood-based** — describe a vibe, get 15 songs with a creative name
+- **Song matching** — paste a list of songs, AI finds matches from JioSaavn
+- **Multi-key rotation** — up to 5 Groq API keys with auto-fallback
+- **Universal import** — Spotify, YouTube Music, Apple Music, Gaana, or plain text
 
-| Signal              | Weight                    | Effect                                               |
-| ------------------- | ------------------------- | ---------------------------------------------------- |
-| Play count          | Dominant · 0–80 pts       | 2.1B-play original always beats a 5K-play cover      |
-| Cover penalty       | Hard · −100 pts           | "cover", "karaoke", "tribute", "recreation" → buried |
-| Title match         | Strong · 0–50 pts         | Exact phrase ranks above partial overlap             |
-| Artist match        | Medium · 0–20 pts         | Queried artist name boosts their own songs           |
-| Original markers    | Bonus · +15 pts           | "official audio", "official video" boosted           |
-| Language preference | Soft · +10 pts            | Your preferred language surfaces first               |
-| Stream URL check    | Required · −50 if missing | Unplayable songs automatically buried                |
+### 🎧 Listen Together (SoulLink)
+- **Real-time sync** — host plays, pause, seeks, queue changes sync to all guests
+- **6-character room codes** — simple sharing, no account needed to join
+- **Built-in chat** — message within the session
+- **Heartbeat protocol** — auto-cleanup on disconnect
 
-- 50 results per search · artists section · albums section · full deduplication
-- Redis cache — 10-min TTL, repeat searches return in under 50ms
+### 📱 Native Android App
+- **Offline without login** — opens directly when offline
+- **Lock screen controls** — play/pause/skip from Android notification
+- **Background audio** — keeps playing when minimized
+- **Haptic feedback** — native tap responses
+- **Swipe player** — mini bar ↔ full screen
 
----
-
-### 🤖 AI Playlist Engine
-
-```
-User input  ──▶  Groq LLaMA 3.3 70B  ──▶  Optimized search queries
-                                                       │
-NLP pipeline  ◀──  500+ artist dict · mood tokens · language detection
-      │
-      ▼
-7-factor ranker  ──▶  Deduplicated results  ──▶  Confidence scoring  ──▶  Save
-```
-
-- **Mood-based generation** — describe a vibe, get 15 songs with a creative playlist name
-- **Song list mode** — paste song names, AI matches from JioSaavn automatically
-- **Confidence scoring** — high / partial / none per match
-- **Multi-key rotation** — up to 5 Groq API keys, round-robin with auto-fallback
-- **Universal import** — Spotify, YouTube Music, Apple Music, Gaana, or plain text — zero API keys
-
----
-
-### 🎧 SoulLink — Listen Together
-
-Create a room → share the 6-character code → everything syncs in real time.
-
-```
-Host                    Server                   Guest
- ├── song-change ──────▶ ──── song-change ───────▶
- ├── play ──────────────▶ ──── play ─────────────▶
- ├── seek ──────────────▶ ──── seek ─────────────▶
- │◀── message ─────────── ◀─── message ───────────┤
- └── heartbeat (5s) ────▶ ◀─── heartbeat ─────────┘
-```
-
-| Event                  | Direction       | Purpose                         |
-| ---------------------- | --------------- | ------------------------------- |
-| `duo:join`             | Client → Server | Join room with code, name, role |
-| `duo:sync-song-change` | Client ↔ Server | Sync current song + queue       |
-| `duo:sync-play`        | Client ↔ Server | Sync play + timestamp           |
-| `duo:sync-seek`        | Client ↔ Server | Sync seek position              |
-| `duo:message`          | Client ↔ Server | In-session chat                 |
-| `duo:end-session`      | Client → Server | End session for both            |
-
-Built-in chat overlay. Beautiful recap card on session end. Powered by Socket.io with heartbeat and disconnect cleanup.
-
----
-
-### 📱 Native Android APK
-
-One codebase. One backend. Two platforms. Zero compromise.
-
-| Feature               | Description                                            |
-| --------------------- | ------------------------------------------------------ |
-| Instant offline       | Opens directly — no login screen required when offline |
-| Native file storage   | Songs saved to device via `@capacitor/filesystem`      |
-| Lock screen controls  | Play, pause, skip from Android lock screen             |
-| Background audio      | Music keeps playing when app is minimized              |
-| Haptic feedback       | Every tap, like, skip, seek feels native               |
-| Native Google Sign-In | Bottom sheet — no popup                                |
-| Native share sheet    | Share songs via any installed app                      |
-| Swipe-up player       | Mini bar → full screen immersive view                  |
-| Swipe-down minimize   | Full player → collapses to mini bar                    |
-
----
-
-### 🔗 Sharing
-
-- Song links — `soul-sync-beta.vercel.app/s/:slug` — plays without an account
-- Playlist links — `soul-sync-beta.vercel.app/p/:slug` — full playlist, no login required
-- Rich OG meta tags — preview cards in WhatsApp, iMessage, Telegram
-- Dominant color gradient from album art as animated background
-- Share from full player, song context menu, or playlist page header
-- Never expires — stored permanently in MongoDB, stream URLs auto-refreshed
-
----
+### 🔗 Shareable Links
+- **Song links** — `soul-sync-beta.vercel.app/s/:slug` — plays without account
+- **Playlist links** — `soul-sync-beta.vercel.app/p/:slug` — no login required
+- **Rich previews** — OG meta tags show album art in WhatsApp, iMessage, Telegram
 
 ### ✈️ Offline Mode
-
-| Scenario                    | Web                   | APK                   |
-| --------------------------- | --------------------- | --------------------- |
-| Online + logged in          | Full access           | Full access           |
-| Online + not logged in      | → Login required      | → Login required      |
-| Offline + logged in         | Downloaded songs only | Downloaded songs only |
-| **Offline + not logged in** | ❌ Login page         | ✅ Opens directly     |
-
-`NetworkProvider` is the single source of truth for online/offline state across the entire app. Seamless reconnection with no reload. Yellow offline banner and green "Back online" toast.
-
----
-
-## SoulSync vs Spotify
-
-| Feature                    |        SoulSync         | Spotify Free  | Spotify Premium  |
-| -------------------------- | :---------------------: | :-----------: | :--------------: |
-| Ad-free listening          |        ✅ Always        | ❌ Every song |     ✅ Paid      |
-| AI Playlist Builder        |         ✅ Free         |      ❌       |        ❌        |
-| Listen Together + chat     |         ✅ Free         |      ❌       | ✅ Paid, no chat |
-| Song Downloads             |         ✅ Free         |      ❌       |     ✅ Paid      |
-| Originals-first search     |           ✅            |      ❌       |        ❌        |
-| Share — no account to play |           ✅            |      ❌       |        ❌        |
-| Playlist import            | ✅ Spotify · YT · Apple |      ❌       |        ❌        |
-| Offline without login      |         ✅ APK          |      ❌       |        ❌        |
-| 10+ Indian languages       |           ✅            |      ❌       |        ❌        |
-| Open source                |         ✅ MIT          |      ❌       |        ❌        |
-| **Price**                  |     **₹0 forever**      |  ₹0 with ads  |  **₹119/month**  |
+| Scenario | Web | APK |
+| :--- | :--- | :--- |
+| Offline + logged in | ✅ Downloads | ✅ Downloads |
+| Offline + not logged in | ❌ Login required | ✅ Opens directly |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────── WEB BROWSER ─────────────────┐   ┌─────────── ANDROID APK ──────────┐
-│                                              │   │                                  │
-│  Auth → Zustand → Router → IndexedDB         │   │  Auth → Zustand → Router         │
-│  NetworkProvider                             │   │  Capacitor Filesystem            │
-│                                              │   │  NetworkProvider                 │
-│  ┌─ AppLayout ─────────────────────────────┐ │   │  ┌─ Mobile Layout ─────────────┐ │
-│  │  Sidebar · Pages · PlayerBar · Duo     │ │   │  │  BottomNav · MiniPlayer     │ │
-│  └─────────────────────────────────────────┘ │   │  │  FullScreenPlayer · Queue  │ │
-└──────────────────────┬───────────────────────┘   │  └─────────────────────────────┘ │
-                       │                           └──────────────┬───────────────────┘
-                       │         REST API + WebSocket             │
-                       └─────────────────────┬────────────────────┘
-                                             │
-                           ┌─────────────────▼─────────────────┐
-                           │          RENDER BACKEND            │
-                           │        Express + Socket.io         │
-                           │                                    │
-                           │  /auth  /search  /playlist         │
-                           │  /user  /ai  /session              │
-                           │  /dashboard  /share  /import       │
-                           │                                    │
-                           │  MongoDB Atlas  ·  Redis Cache     │
-                           │  Groq AI  ·  saavn.sumit.co        │
-                           └────────────────────────────────────┘
+┌──────────────┐      ┌──────────────┐
+│   Web App    │      │ Android APK │
+│  (Vite/React)│      │ (Capacitor) │
+└──────┬───────┘      └──────┬───────┘
+       │                     │
+       └─────────┬───────────┘
+                 │
+        ┌────────▼────────┐
+        │   Express API   │
+        │   + Socket.io   │
+        └────────┬────────┘
+                 │
+     ┌───────────┼───────────┐
+     ▼           ▼           ▼
+  MongoDB     Redis       Groq
 ```
 
-### Data Models
-
-| Model                | Key Fields                                                                       |
-| -------------------- | -------------------------------------------------------------------------------- |
-| **User**             | googleId, email, name, photo, preferences, likedSongs[], totalListeningTime      |
-| **Playlist**         | userId, name, songs[], isPublic, isAIGenerated, tags[], songCount, totalDuration |
-| **ListeningHistory** | userId, songId, title, artist, source — 90-day TTL                               |
-| **DuoSession**       | host/guest, roomCode, currentSong, playState, messages[]                         |
-| **Share**            | slug (nanoid), type (song/playlist), data, createdAt, viewCount                  |
-| **Import**           | userId, sourceUrl, platform, songs[], status                                     |
-
-### Zustand Stores
-
-| Store          | Manages                                                             |
-| -------------- | ------------------------------------------------------------------- |
-| `playerStore`  | Current song, play/pause, time, volume, shuffle, repeat, isExpanded |
-| `queueStore`   | Song queue, history, add/remove/reorder                             |
-| `searchStore`  | Query, results (songs + artists + albums), filters                  |
-| `duoStore`     | SoulLink session state + sessionStorage persistence                 |
-| `offlineStore` | Downloaded songs, offline flag, cached user                         |
+**Key stores (Zustand):**
+- `playerStore` — play state, queue, volume
+- `searchStore` — query, results
+- `duoStore` — session state
+- `offlineStore` — downloaded songs
 
 ---
 
