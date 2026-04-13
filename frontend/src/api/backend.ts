@@ -71,7 +71,11 @@ export async function clearNativeToken(): Promise<void> {
 // Attach Bearer token for native requests (and web fallback)
 api.interceptors.request.use((config) => {
   if (_nativeToken) {
-    config.headers.Authorization = `Bearer ${_nativeToken}`;
+    if (config.headers && typeof config.headers.set === 'function') {
+      config.headers.set("Authorization", `Bearer ${_nativeToken}`);
+    } else {
+      config.headers.Authorization = `Bearer ${_nativeToken}`;
+    }
   }
   return config;
 });
