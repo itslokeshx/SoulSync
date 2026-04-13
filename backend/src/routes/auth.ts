@@ -22,7 +22,7 @@ const googleClient = new OAuth2Client(
 function signJwt(userId: string, extra?: Record<string, string>) {
   const secret = process.env.JWT_SECRET!;
   return jwt.sign({ userId, ...extra }, secret, {
-    expiresIn: 7 * 24 * 60 * 60,
+    expiresIn: "30d",
   });
 }
 
@@ -32,7 +32,7 @@ function setAuthCookie(res: Response, token: string) {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
   });
   if (isProd) {
     console.log("[Auth] Setting secure cross-site cookie");

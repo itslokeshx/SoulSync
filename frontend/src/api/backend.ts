@@ -13,7 +13,7 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// ── Native token management ──
+// ── Native and Web token management ──
 let _nativeToken: string | null = null;
 
 export function setNativeToken(token: string | null) {
@@ -26,40 +26,51 @@ export function getNativeToken(): string | null {
 
 /** Load token from Capacitor Preferences (call once on app start) */
 export async function loadNativeToken(): Promise<string | null> {
-  if (!isNative()) return null;
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    const { value } = await Preferences.get({ key: "auth_token" });
-    if (value) _nativeToken = value;
-    return value;
-  } catch {
-    return null;
+  if (isNative()) {
+    try {
+      const { Preferences } = await import("@capacitor/preferences");
+      const { value } = await Preferences.get({ key: "auth_token" });
+      if (value) _nativeToken = value;
+      return value;
+    } catch {
+      return null;
+    }
+  } else {
+    const val = localStorage.getItem("auth_token_web");
+    if (val) _nativeToken = val;
+    return val;
   }
 }
 
 /** Save token to Capacitor Preferences */
 export async function saveNativeToken(token: string): Promise<void> {
   _nativeToken = token;
-  if (!isNative()) return;
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    await Preferences.set({ key: "auth_token", value: token });
-  } catch {}
+  if (isNative()) {
+    try {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.set({ key: "auth_token", value: token });
+    } catch {}
+  } else {
+    localStorage.setItem("auth_token_web", token);
+  }
 }
 
 /** Clear stored native token */
 export async function clearNativeToken(): Promise<void> {
   _nativeToken = null;
-  if (!isNative()) return;
-  try {
-    const { Preferences } = await import("@capacitor/preferences");
-    await Preferences.remove({ key: "auth_token" });
-  } catch {}
+  if (isNative()) {
+    try {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.remove({ key: "auth_token" });
+    } catch {}
+  } else {
+    localStorage.removeItem("auth_token_web");
+  }
 }
 
-// Attach Bearer token for native requests
+// Attach Bearer token for native requests (and web fallback)
 api.interceptors.request.use((config) => {
-  if (isNative() && _nativeToken) {
+  if (_nativeToken) {
     config.headers.Authorization = `Bearer ${_nativeToken}`;
   }
   return config;
@@ -165,10 +176,14 @@ export async function resetPassword(
 }
 
 export async function getMe(): Promise<User | null> {
+  await ensureBackendAwake();
   try {
-    const { data } = await api.get("/api/auth/me");
+    const { data } = await api.get("/api/auth/me", { timeout: 45000 });
     return data.user;
-  } catch {
+  } catch (err: any) {
+    if (err?.response?.status === 401) {
+      await clearNativeToken();
+    }
     return null;
   }
 }
