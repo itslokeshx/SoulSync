@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=FF6B35&height=120&section=header&animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=1DB954&height=120&section=header&animation=fadeIn" width="100%"/>
 
 # ✦ SoulSync
 
@@ -9,10 +9,10 @@
 **Free, open-source music streaming — AI playlists, real-time listening sessions, native apps.**
 No ads. No subscription. Ever.
 
-[![Live App](https://img.shields.io/badge/Web_App-Live-FF6B35?style=for-the-badge&logoColor=white)](https://soul-sync-beta.vercel.app/)
-[![Release](https://img.shields.io/github/v/release/itslokeshx/SoulSync?style=for-the-badge&color=FF6B35)](https://github.com/itslokeshx/SoulSync/releases)
-[![License](https://img.shields.io/badge/License-MIT-FF6B35?style=for-the-badge)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/itslokeshx/SoulSync?style=for-the-badge&color=FF6B35)](https://github.com/itslokeshx/SoulSync/stargazers)
+[![Live App](https://img.shields.io/badge/Web_App-Live-1DB954?style=for-the-badge&logoColor=white)](https://soul-sync-beta.vercel.app/)
+[![Release](https://img.shields.io/github/v/release/itslokeshx/SoulSync?style=for-the-badge&color=1DB954)](https://github.com/itslokeshx/SoulSync/releases)
+[![License](https://img.shields.io/badge/License-MIT-1DB954?style=for-the-badge)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/itslokeshx/SoulSync?style=for-the-badge&color=1DB954)](https://github.com/itslokeshx/SoulSync/stargazers)
 
 </div>
 
@@ -770,6 +770,6 @@ _No ads. No paywalls. No limits._
 
 _If SoulSync saved you ₹119/month — drop a ⭐_
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=FF6B35&height=80&section=footer" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=1DB954&height=80&section=footer" width="100%"/>
 
 </div>
