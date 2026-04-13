@@ -116,6 +116,10 @@ export function AppLayout() {
               artist: getArtists(song),
               albumArt: bestImg(song.image) || "",
               duration: Number(song.duration) || 0,
+              downloadUrl: (song.downloadUrl || song.download_url || []).map((u: any) => ({
+                quality: u.quality || "",
+                url: u.url || u.link || "",
+              })),
             })
             .catch(() => {});
       }, "Sign in to save this song to your library");

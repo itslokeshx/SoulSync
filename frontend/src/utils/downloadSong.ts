@@ -24,9 +24,28 @@ export async function downloadSong(
     }
   }
 
-  const url = getBestAudioUrl(song.downloadUrl || song.download_url);
+  let url = getBestAudioUrl(song.downloadUrl || song.download_url);
+  if (!url && song.id) {
+    try {
+      const BACKEND = (
+        import.meta.env.VITE_BACKEND_URL ||
+        "https://soulsync-backend-a5fs.onrender.com"
+      ).replace(/\/$/, "");
+      const resp = await fetch(`${BACKEND}/api/search/stream-url?id=${song.id}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.downloadUrl?.length) {
+          song.downloadUrl = data.downloadUrl;
+          url = getBestAudioUrl(song.downloadUrl);
+        }
+      }
+    } catch (e) {
+      console.warn("[Download] Failed to fetch missing URL", e);
+    }
+  }
+
   if (!url) {
-    toast.error("Download URL not available");
+    toast.error(`Download URL not available for ${song.name || 'song'}`);
     return;
   }
 
@@ -124,7 +143,11 @@ export async function downloadSong(
 
         // On native, also write to device filesystem for lock-screen / background playback
         if (isNative()) {
-          finalFilePath = await saveAudioToDevice(song.id, blob, filename);
+          try {
+            finalFilePath = await saveAudioToDevice(song.id, blob, filename);
+          } catch (e) {
+            console.warn("Failed to write to native filesystem (fallback to IDB):", e);
+          }
         }
 
         // Save metadata to offlineStore for UI rendering (Native + Web)
