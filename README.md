@@ -14,6 +14,16 @@ No ads. No subscription. Ever.
 [![License](https://img.shields.io/badge/License-MIT-1DB954?style=for-the-badge)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/itslokeshx/SoulSync?style=for-the-badge&color=1DB954)](https://github.com/itslokeshx/SoulSync/stargazers)
 
+<br>
+
+### ✦ Shipped & Adopted
+
+![Users](https://img.shields.io/badge/100%2B_Users-joined-1DB954?style=for-the-badge&logoColor=white)
+![Songs](https://img.shields.io/badge/4,000%2B_Songs-streamed-1DB954?style=for-the-badge&logoColor=white)
+![Playlists](https://img.shields.io/badge/100%2B_Playlists-created_by_users-1DB954?style=for-the-badge&logoColor=white)
+
+_Not a tutorial project — a product people actually use._
+
 </div>
 
 ---
