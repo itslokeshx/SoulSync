@@ -16,7 +16,7 @@ No ads. No subscription. Ever.
 
 <br>
 
-### ✦ Shipped & Adopted
+### ✦ Currently Used By!
 
 ![Users](https://img.shields.io/badge/100%2B_Users-joined-1DB954?style=for-the-badge&logoColor=white)
 ![Songs](https://img.shields.io/badge/4,000%2B_Songs-streamed-1DB954?style=for-the-badge&logoColor=white)
