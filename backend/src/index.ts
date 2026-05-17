@@ -132,10 +132,23 @@ function startKeepAlive() {
 initializeSocket(httpServer);
 
 // Connect to MongoDB and start server
-const PORT = parseInt(process.env.PORT || "4000", 10);
+const PORT = Number.parseInt(process.env.PORT || "4000", 10);
+
+function handleListenError(error: NodeJS.ErrnoException) {
+  if (error.code === "EADDRINUSE") {
+    logger.error(
+      `[Startup] Port ${PORT} is already in use. Stop the existing process or start this app with a different PORT value.`,
+    );
+    process.exit(1);
+  }
+
+  throw error;
+}
 
 async function start() {
   await connectMongoDB();
+
+  httpServer.once("error", handleListenError);
 
   httpServer.listen(PORT, () => {
     console.log(`\n🚀 SoulSync Backend running on port ${PORT}`);

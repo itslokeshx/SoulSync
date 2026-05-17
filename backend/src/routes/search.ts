@@ -441,7 +441,7 @@ router.get("/autoplay/:songId", async (req: any, res: Response): Promise<void> =
 
   try {
     const apiBase = (
-      process.env.JIOSAAVN_API || "https://saavn.sumit.co/api"
+      process.env.JIOSAAVN_API || "https://jiosavan-api2.vercel.app/api"
     ).replace(/\/+$/, "");
 
     const resp = await fetch(

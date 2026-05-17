@@ -1361,7 +1361,7 @@ export async function enhancedSearch(
       searchAlbums(query, 12),
       searchArtists(query, 10),
       fetch(
-        (process.env.JIOSAAVN_API || "https://saavn.sumit.co/api") +
+        (process.env.JIOSAAVN_API || "https://jiosavan-api2.vercel.app/api") +
           `/search?query=${encodeURIComponent(query)}`,
       ).then((r) => r.json()),
     ]);

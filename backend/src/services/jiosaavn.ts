@@ -4,13 +4,8 @@
 
 import { ParsedIntent, QueryWithWeight } from "./intentParser.js";
 
-const JIOSAAVN_BASE = process.env.JIOSAAVN_API || "https://saavn.sumit.co/api";
-// V1 wrapper: older format (primaryArtists string, downloadUrl[].link)
-// Hosted on Vercel — accessible from all servers including Render US.
-// Critically, it has a CORRECT search index: Ed Sheeran / Weeknd / etc.
-// come back as #1 unlike saavn.sumit.co which returns covers.
-const JIOSAAVN_V1 =
-  process.env.JIOSAAVN_API_V1 || "https://jiosaavn-api-privatecvc2.vercel.app";
+const JIOSAAVN_BASE =
+  process.env.JIOSAAVN_API || "https://jiosavan-api2.vercel.app/api";
 const REQUEST_TIMEOUT = 3500; // 3.5 seconds max
 
 export interface SearchResult {
@@ -180,20 +175,13 @@ async function fetchDirect(url: string, timeout = 3000): Promise<any> {
 }
 
 // ───────────────────────────────────────────────────────────────
-// HYBRID SEARCH — three-tier fallback for correct results everywhere
+// HYBRID SEARCH — two-tier fallback for correct results everywhere
 //
-// Problem: saavn.sumit.co (V2 wrapper) has a broken search index for many
-// international songs — covers dominate instead of the original.
+// Tier 1 — direct jiosaavn.com: best ranking, may be geo-blocked on Render US
+// Tier 2 — wrapper API (JIOSAAVN_BASE): accessible everywhere, good fallback
 //
-// Solution:
-//   Tier 1 — direct jiosaavn.com: best ranking, may be geo-blocked on Render US
-//   Tier 2 — jiosaavn-api-privatecvc2.vercel.app (V1): correct results on ALL
-//             servers (Vercel, not blocked). Ed Sheeran / Weeknd / etc. all #1.
-//   Tier 3 — saavn.sumit.co (V2 wrapper): last resort, may return covers
-//
-// Tier 1 and Tier 2 fire in PARALLEL — zero extra latency on Render.
-// NO per-song enrichment fetches — direct songs use more_info.encrypted_media_url,
-// V1 songs already carry downloadUrl[].link. Both handled by normalizeSongToCanonical.
+// Both fire in PARALLEL — zero extra latency.
+// normalizeSongToCanonical handles both direct and wrapper response formats.
 // ───────────────────────────────────────────────────────────────
 export async function searchSongsHybrid(
   query: string,
@@ -205,16 +193,14 @@ export async function searchSongsHybrid(
 
   const n = Math.min(limit, 50);
 
-  // Fire Tier 1 (direct jiosaavn.com) and Tier 2 (V1 Vercel) in PARALLEL.
-  // On Render: Tier 1 times out (~3s), Tier 2 responds (~0.5s) — no net delay.
-  // Locally: Tier 1 wins quickly with popularity-ranked results.
-  const [directSettled, v1Settled] = await Promise.allSettled([
+  // Fire Tier 1 (direct jiosaavn.com) and Tier 2 (wrapper) in PARALLEL.
+  const [directSettled, wrapperSettled] = await Promise.allSettled([
     fetchDirect(
       `${JIOSAAVN_DIRECT}?__call=search.getResults&_format=json&_marker=0&ctx=web6dot0` +
         `&n=${n}&p=1&q=${encodeURIComponent(q)}`,
     ),
     fetchSafe(
-      `${JIOSAAVN_V1}/search/songs?query=${encodeURIComponent(q)}&limit=${n}`,
+      `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(q)}&limit=${n}`,
     ),
   ]);
 
@@ -222,61 +208,40 @@ export async function searchSongsHybrid(
     directSettled.status === "fulfilled"
       ? directSettled.value?.results || []
       : [];
-  const rawV1: any[] =
-    v1Settled.status === "fulfilled"
-      ? v1Settled.value?.data?.results || v1Settled.value?.results || []
+  const rawWrapper: any[] =
+    wrapperSettled.status === "fulfilled"
+      ? wrapperSettled.value?.data?.results || wrapperSettled.value?.results || []
       : [];
 
   // ── TIER 1: direct jiosaavn.com returned results ────────────────────
   if (rawDirect.length > 0) {
-    // Merge V1 results in for extra coverage (dedup by ID)
+    // Merge wrapper results for extra coverage (dedup by ID)
     const seen = new Set<string>(rawDirect.map((s: any) => String(s.id || "")));
     const combined = [...rawDirect];
-    for (const s of rawV1) {
+    for (const s of rawWrapper) {
       const id = String(s.id || "");
       if (id && !seen.has(id)) {
         seen.add(id);
         combined.push(s);
       }
     }
-    // ✅ FIX: Return directly — no per-song enrichment fetches needed.
-    // Direct jiosaavn.com songs carry more_info.encrypted_media_url for stream URLs.
-    // V1 songs carry downloadUrl[].link.
-    // normalizeSongToCanonical handles both fields correctly.
     return combined.slice(0, limit);
   }
 
-  // ── TIER 2: V1 Vercel wrapper (production / Render) ─────────────────
-  // V1 results include downloadUrl[].link — normalizeSongToCanonical handles it.
-  if (rawV1.length > 0) {
-    return rawV1.slice(0, limit);
+  // ── TIER 2: wrapper fallback ────────────────────────────────────────
+  if (rawWrapper.length > 0) {
+    return rawWrapper.slice(0, limit);
   }
 
-  // ── TIER 3: both blocked — V2 wrapper last resort ────────────────────
-  const seen = new Set<string>();
-  const combined: any[] = [];
-  const addResults = (songs: any[]) => {
-    for (const s of songs) {
-      const id = String(s.id || s.songId || "");
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        combined.push(s);
-      }
-    }
-  };
+  // ── Last resort: enriched wrapper query with knownArtist ────────────
   if (knownArtist) {
-    const enrichedWrapper = (await fetchSafe(
+    const enriched = (await fetchSafe(
       `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(`${q} ${knownArtist}`)}&limit=30`,
     )) as any;
-    addResults(
-      enrichedWrapper?.data?.results || enrichedWrapper?.results || [],
-    );
+    return (enriched?.data?.results || enriched?.results || []).slice(0, limit);
   }
-  const plain = (await fetchSafe(
-    `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(q)}&limit=${n}`,
-  )) as any;
-  addResults(plain?.data?.results || plain?.results || []);
-  return combined;
+
+  return [];
 }
 
 // Wrapper-based search (used by dashboardEngine, searchEnhancer, ai route, etc.)
