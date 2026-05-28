@@ -22,7 +22,7 @@ No ads. No subscription. Ever.
 ![Songs](https://img.shields.io/badge/4,000%2B_Songs-streamed-1DB954?style=for-the-badge&logoColor=white)
 ![Playlists](https://img.shields.io/badge/100%2B_Playlists-created_by_users-1DB954?style=for-the-badge&logoColor=white)
 
-_Not a tutorial project — a product people actually been used!._
+_Not a tutorial project — a product people have actually been using!_
 
 </div>
 
