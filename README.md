@@ -772,7 +772,7 @@ Distributed under the [MIT License](LICENSE).
 
 **Built with ❤️ by [Loki](https://github.com/itslokeshx)**
 
-_No ads. No paywalls. No limits._
+_No ads. No paywalls. No limits. Simply pure music._
 
 [![GitHub](https://img.shields.io/badge/GitHub-itslokeshx-181717?style=flat-square&logo=github)](https://github.com/itslokeshx)
 [![Twitter](https://img.shields.io/badge/Twitter-@itslokeshx-1DA1F2?style=flat-square&logo=twitter&logoColor=white)](https://twitter.com/itslokeshx)
