@@ -22,6 +22,7 @@ import { UserStats } from "../types/user";
 import { onImgErr, bestImg } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
+import { APK_DOWNLOAD_URL } from "../lib/constants";
 
 const ALL_LANGUAGES = [
   "hindi",
@@ -191,7 +192,7 @@ export default function ProfilePage() {
         {/* Download APK — web only, even before sign in */}
         {!isNative() && (
           <a
-            href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+            href={APK_DOWNLOAD_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="group mt-8 w-full max-w-xs block relative overflow-hidden rounded-2xl p-[1px]"
@@ -640,7 +641,7 @@ export default function ProfilePage() {
       {/* Download APK — web only */}
       {!isNative() && (
         <a
-          href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+          href={APK_DOWNLOAD_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="group block relative overflow-hidden rounded-2xl p-[1px] mb-4"

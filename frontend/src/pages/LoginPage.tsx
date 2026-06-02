@@ -22,6 +22,7 @@ import { useAuth } from "../auth/AuthContext";
 import { isNative } from "../utils/platform";
 import * as api from "../api/backend";
 import toast from "react-hot-toast";
+import { APK_DOWNLOAD_URL } from "../lib/constants";
 
 type AuthState = "welcome" | "login" | "register" | "forgot-password";
 
@@ -474,7 +475,7 @@ export default function LoginPage() {
               className="mt-10"
             >
               <a
-                href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+                href={APK_DOWNLOAD_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group block relative overflow-hidden rounded-2xl p-[1px]"
@@ -663,7 +664,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+              href={APK_DOWNLOAD_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="relative z-10 mt-5 flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-sp-green/20 hover:bg-white/[0.05] transition-all duration-300 group"

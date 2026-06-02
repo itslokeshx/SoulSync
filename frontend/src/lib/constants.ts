@@ -1,4 +1,9 @@
+import packageJson from "../../package.json";
+
 export const API = "https://jiosaavn.rajputhemant.dev";
+
+export const APK_DOWNLOAD_URL = `https://github.com/itslokeshx/SoulSync/releases/download/v${packageJson.version}/SoulSync_${packageJson.version}.apk`;
+
 
 export const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23282828'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.35em' font-size='64' fill='%23535353'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";

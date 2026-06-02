@@ -14,6 +14,7 @@ import { useDownloadStore } from "../../store/downloadStore";
 import { isNative } from "../../utils/platform";
 import { DuoButton } from "../../duo";
 import { SearchTrigger } from "../ui/SearchTrigger";
+import { APK_DOWNLOAD_URL } from "../../lib/constants";
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -123,7 +124,7 @@ export const Sidebar = () => {
         {/* Download APK — web only */}
         {!isNative() && (
           <a
-            href="https://github.com/itslokeshx/SoulSync/releases/latest/download/SoulSync.apk"
+            href={APK_DOWNLOAD_URL}
             target="_blank"
             rel="noopener noreferrer"
             title={collapsed ? "Get Android App" : undefined}
