@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { groqManager } from "../services/groq.js";
 import {
   searchSongs,
+  searchSongsHybrid,
   normalizeSongsToCanonical,
   fetchSongsByIds,
 } from "../services/jiosaavn.js";
@@ -28,6 +29,7 @@ interface AIQuery {
   searchQuery: string;
   artistHint: string | null;
   movieHint: string | null;
+  languageHint: string | null;
 }
 
 interface MatchedSong {
@@ -35,6 +37,44 @@ interface MatchedSong {
   song: unknown;
   confidence: "high" | "partial" | "none";
   score: number;
+}
+
+// ─── Language detection from user input ─────────────────────────────────────
+const LANGUAGE_KEYWORDS: Record<string, string> = {
+  tamil: "tamil",
+  tamizh: "tamil",
+  kollywood: "tamil",
+  english: "english",
+  hindi: "hindi",
+  bollywood: "hindi",
+  telugu: "telugu",
+  tollywood: "telugu",
+  kannada: "kannada",
+  malayalam: "malayalam",
+  punjabi: "punjabi",
+  bengali: "bengali",
+  marathi: "marathi",
+  gujarati: "gujarati",
+  bhojpuri: "bhojpuri",
+  korean: "korean",
+  kpop: "korean",
+  "k-pop": "korean",
+  japanese: "japanese",
+  spanish: "spanish",
+  french: "french",
+  arabic: "arabic",
+};
+
+function detectLanguage(text: string): string | null {
+  const lower = text.toLowerCase();
+  // Check multi-word keys first (longest match), then single words
+  const sorted = Object.entries(LANGUAGE_KEYWORDS).sort(
+    (a, b) => b[0].length - a[0].length,
+  );
+  for (const [keyword, lang] of sorted) {
+    if (lower.includes(keyword)) return lang;
+  }
+  return null;
 }
 
 // ─── Helper: send SSE event ─────────────────────────────────────────────────
@@ -48,7 +88,7 @@ function sseEvent(res: Response, event: string, data: unknown) {
 function parseSongList(input: string): string[] {
   return input
     .split(/[\n,]/)
-    .map((s) => s.replace(/^\d+[\.\)]\s*/, "").trim())
+    .map((s) => s.replace(/^\d+[\.\)\]]\s*/, "").trim())
     .filter((s) => s.length > 0 && s.length < 200);
 }
 
@@ -77,17 +117,41 @@ async function withConcurrency<T>(
   return results;
 }
 
-// ─── Search a single song with scoring ─────────────────────────────────────
+// ─── Check if a song matches the requested language ─────────────────────────
+function songMatchesLanguage(song: any, targetLang: string | null): boolean {
+  if (!targetLang) return true; // no language constraint
+  const songLang = (
+    song.language ||
+    song?.more_info?.language ||
+    ""
+  ).toLowerCase();
+  if (!songLang) return true; // can't determine, allow it
+  return songLang === targetLang;
+}
+
+// ─── Score a song's language relevance (for ranking, not filtering) ─────────
+function languageBonus(song: any, targetLang: string | null): number {
+  if (!targetLang) return 0;
+  const songLang = (
+    song.language ||
+    song?.more_info?.language ||
+    ""
+  ).toLowerCase();
+  if (!songLang) return 0;
+  if (songLang === targetLang) return 50; // strong boost for matching language
+  if (songLang === "english" && targetLang !== "english") return -10; // mild penalty
+  return -30; // wrong language penalty
+}
+
+// ─── Search a single song with scoring (IMPROVED) ───────────────────────────
 async function searchOneSong(
   original: string,
   searchQuery: string,
   artistHint?: string | null,
+  targetLang?: string | null,
 ): Promise<MatchedSong> {
   try {
     // ── Inject pinned originals for known songs ─────────────────────────────
-    // For songs like "Shape of You", JioSaavn search returns covers before the
-    // original. Fetch the known original IDs directly and prepend them to the
-    // candidate pool so the ranker's knownArtist bonus can do its job.
     const lookupKeys = [
       original.trim().toLowerCase(),
       searchQuery.trim().toLowerCase(),
@@ -105,8 +169,21 @@ async function searchOneSong(
       }
     }
 
-    // Fetch more candidates so the ranker has more originals to surface
-    let rawSongs = await searchSongs(searchQuery, 15);
+    // Use hybrid search for better quality results (fetches from both
+    // direct jiosaavn.com AND wrapper API in parallel)
+    let rawSongs = await searchSongsHybrid(searchQuery, 20, artistHint);
+
+    // If hybrid didn't return enough, fall back to wrapper
+    if (rawSongs.length < 3) {
+      const fallback = await searchSongs(searchQuery, 20);
+      const seenIds = new Set(rawSongs.map((s: any) => String(s.id || "")));
+      for (const s of fallback) {
+        if (!seenIds.has(String(s.id || ""))) {
+          rawSongs.push(s);
+        }
+      }
+    }
+
     if (pinnedSongs.length > 0) {
       const seen = new Set(rawSongs.map((s: any) => String(s.id || "")));
       for (const p of [...pinnedSongs].reverse())
@@ -115,13 +192,12 @@ async function searchOneSong(
     if (rawSongs.length === 0)
       return { original, song: null, confidence: "none", score: 0 };
 
-    // Normalize to canonical format for rankSearchResults (needs primaryArtists
-    // as string + playCount as number to apply cover-penalty scoring)
+    // Normalize to canonical format for rankSearchResults
     const normalized = normalizeSongsToCanonical(rawSongs);
     const ranked = rankSearchResults(
       normalized,
       searchQuery,
-      undefined,
+      targetLang || undefined,
       artistHint || undefined,
     );
 
@@ -192,8 +268,10 @@ async function searchOneSong(
         }
       }
 
-      // Cover-rank tiebreaker: songs ranked higher by rankSearchResults (i.e.
-      // originals with cover penalty applied) get a small bonus to win ties
+      // Language matching bonus/penalty — critical for fixing language mixing
+      score += languageBonus(song, targetLang || null);
+
+      // Cover-rank tiebreaker: songs ranked higher by rankSearchResults get a bonus
       const rankBonus = Math.max(0, ((songs.length - i) / songs.length) * 20);
       score += rankBonus;
 
@@ -205,7 +283,6 @@ async function searchOneSong(
 
     if (bestScore >= 80)
       return { original, song: bestSong, confidence: "high", score: bestScore };
-    // Lowered to 18 — requires at least one word match; reduces "none" results
     if (bestScore >= 18)
       return {
         original,
@@ -214,17 +291,16 @@ async function searchOneSong(
         score: bestScore,
       };
 
-    // ── Fallback retry with raw original title ───────────────────────────────
-    // When the AI-optimized query fails, search using the exact original string.
+    // ── Fallback retry with raw original title ───────────────────────────
     if (searchQuery !== original && original.trim().length >= 3) {
       try {
-        const fallbackRaw = await searchSongs(original, 10);
+        const fallbackRaw = await searchSongsHybrid(original, 15, artistHint);
         if (fallbackRaw.length > 0) {
           const fallbackNorm = normalizeSongsToCanonical(fallbackRaw);
           const fallbackRanked = rankSearchResults(
             fallbackNorm,
             original,
-            undefined,
+            targetLang || undefined,
             artistHint || undefined,
           );
           const fallbackById = new Map<string, any>(
@@ -234,7 +310,14 @@ async function searchOneSong(
             .map((r) => fallbackById.get(r.id))
             .filter(Boolean);
           if (fallbackSongs.length > 0) {
-            const top = fallbackSongs[0];
+            // Prefer a song that matches the target language
+            let top = fallbackSongs[0];
+            if (targetLang) {
+              const langMatch = fallbackSongs.find((s: any) =>
+                songMatchesLanguage(s, targetLang),
+              );
+              if (langMatch) top = langMatch;
+            }
             const topName = (top.name || "")
               .toLowerCase()
               .replace(/[^a-z0-9\s]/g, " ")
@@ -263,17 +346,27 @@ async function searchOneSong(
   }
 }
 
-// ─── Process one chunk via Groq ─────────────────────────────────────────────
-async function processChunkWithGroq(songList: string[]): Promise<AIQuery[]> {
+// ─── Process one chunk via Groq (IMPROVED with language awareness) ──────────
+async function processChunkWithGroq(
+  songList: string[],
+  languageHint: string | null,
+): Promise<AIQuery[]> {
   try {
+    const langInstruction = languageHint
+      ? `\nIMPORTANT: These songs are in ${languageHint}. Keep search queries in ${languageHint}. Do NOT translate to any other language. Preserve the original language of song titles and artist names.`
+      : "";
+
     const groqResult = await groqManager.callWithFallback(
-      "You are a music search optimizer for JioSaavn. Return ONLY valid JSON. No explanation. No markdown.",
-      `Convert these song inputs to optimized JioSaavn search queries:\n${songList.join("\n")}\n\nReturn exactly:\n{"queries": [{"original": "input", "searchQuery": "optimized query", "artistHint": "artist or null", "movieHint": "movie or null"}]}`,
+      "You are a music search optimizer for JioSaavn (Indian music platform). Return ONLY valid JSON. No explanation. No markdown.",
+      `Convert these song inputs to optimized JioSaavn search queries. Each query should be the song title + artist name to find the EXACT original song (not covers or remixes).${langInstruction}\n\nSongs:\n${songList.join("\n")}\n\nReturn exactly:\n{"queries": [{"original": "input", "searchQuery": "optimized query with artist name", "artistHint": "primary artist name or null", "movieHint": "movie/album name or null", "languageHint": "${languageHint || "null"}"}]}`,
       1200,
     );
     const parsed = JSON.parse(groqResult);
     if (Array.isArray(parsed.queries) && parsed.queries.length > 0) {
-      return parsed.queries;
+      return parsed.queries.map((q: any) => ({
+        ...q,
+        languageHint: q.languageHint || languageHint,
+      }));
     }
   } catch {
     // Fallback to parseQuery
@@ -283,7 +376,37 @@ async function processChunkWithGroq(songList: string[]): Promise<AIQuery[]> {
     searchQuery: parseQuery(s).expandedQueries[0] || s,
     artistHint: null,
     movieHint: null,
+    languageHint,
   }));
+}
+
+// ─── Build a high-quality Groq prompt for mood-based generation ─────────────
+function buildMoodPrompt(
+  mood: string,
+  requestCount: number,
+  detectedLang: string | null,
+): string {
+  const langConstraint = detectedLang
+    ? `\n\nCRITICAL LANGUAGE RULE: You MUST suggest ONLY ${detectedLang} language songs. Every single song must be a ${detectedLang} song. Do NOT include songs from any other language (no Hindi if Tamil was asked, no Hindi if English was asked, no English if Tamil was asked). If you cannot find enough ${detectedLang} songs, suggest fewer songs rather than mixing languages.`
+    : "";
+
+  const langContext = detectedLang
+    ? `\nAll songs must be ${detectedLang} language songs from well-known ${detectedLang} artists and albums.`
+    : "";
+
+  return `You are a world-class music curator with deep knowledge of music across all languages and genres. You must suggest EXACTLY ${requestCount} songs for this mood/vibe: "${mood}"
+
+RULES:
+1. Use REAL, well-known, popular song names with their CORRECT artist names
+2. Format each entry as "Song Title - Artist Name" (include the real original artist)
+3. Prioritize popular, critically acclaimed, and widely loved songs — NOT obscure or generic tracks
+4. Vary artists (maximum 3 songs per artist) for diversity
+5. Include a mix of classic hits and modern favorites that match the mood
+6. Every song should be a real track that exists on music platforms like JioSaavn, Spotify, etc.
+7. Do NOT make up fake song names or pair wrong artists with songs${langConstraint}${langContext}
+
+Return JSON:
+{"songs": ["Song Title - Artist Name", ...], "playlistName": "creative 4-word playlist name"}`;
 }
 
 // ─── POST /api/ai/build-playlist ─────────────────────────────────────────────
@@ -319,6 +442,9 @@ router.post(
         return;
       }
 
+      // ── Detect language from user's input ──
+      const detectedLang = detectLanguage(mood || songs || "");
+
       // ── SSE setup ──
       if (isSSE) {
         res.setHeader("Content-Type", "text/event-stream");
@@ -334,20 +460,24 @@ router.post(
 
       // ── Mood-based generation ──
       if (mood && !songs) {
-        // Request 50% more songs than the user asked for so that search
-        // failures don't shrink the final playlist below the target count.
-        const requestCount = Math.min(Math.ceil(maxSongs * 1.5), 150);
-        const tokenBudget = Math.max(4000, requestCount * 55);
+        // Request 80% more songs than the user asked for so that search
+        // failures and language-mismatch filtering don't shrink the final
+        // playlist below the target count.
+        const requestCount = Math.min(Math.ceil(maxSongs * 1.8), 180);
+        const tokenBudget = Math.max(4000, requestCount * 60);
 
         emit("progress", {
           step: "thinking",
-          message: `Crafting ${maxSongs} songs for your mood...`,
+          message: detectedLang
+            ? `Crafting ${maxSongs} ${detectedLang} songs for your mood...`
+            : `Crafting ${maxSongs} songs for your mood...`,
           percent: 5,
         });
 
+        const moodPrompt = buildMoodPrompt(mood, requestCount, detectedLang);
         const moodResult = await groqManager.callWithFallback(
           "You are a world-class music curator. Return ONLY valid JSON, no explanation.",
-          `Suggest EXACTLY ${requestCount} diverse, specific songs for this mood/vibe: "${mood}"\nRules: use real song names & artists, no generic titles, vary artists (max 3 per artist).\n\nReturn JSON:\n{"songs": ["Song Name - Artist Name", ...], "playlistName": "creative 4-word name"}`,
+          moodPrompt,
           tokenBudget,
         );
 
@@ -387,32 +517,55 @@ router.post(
         });
 
         const tasks = songList.map(
-          (s, i) => () =>
-            searchOneSong(s, parseQuery(s).expandedQueries[0] || s).then(
-              (result) => {
-                const pct = 30 + Math.round(((i + 1) / songList.length) * 60);
-                emit("song", {
-                  ...result,
-                  index: i,
-                  total: songList.length,
-                  percent: pct,
-                });
-                return result;
-              },
-            ),
+          (s, i) => () => {
+            // Extract artist hint from "Song - Artist" format
+            const parts = s.split(" - ");
+            const songTitle = parts[0]?.trim() || s;
+            const artistFromList = parts.length > 1 ? parts[1]?.trim() : null;
+            const searchQ = artistFromList
+              ? `${songTitle} ${artistFromList}`
+              : parseQuery(s).expandedQueries[0] || s;
+
+            return searchOneSong(
+              s,
+              searchQ,
+              artistFromList,
+              detectedLang,
+            ).then((result) => {
+              const pct = 30 + Math.round(((i + 1) / songList.length) * 60);
+              emit("song", {
+                ...result,
+                index: i,
+                total: songList.length,
+                percent: pct,
+              });
+              return result;
+            });
+          },
         );
 
         const allResults = await withConcurrency(tasks, MAX_SEARCH_CONCURRENT);
 
-        // Sort: high-confidence first, then partial. Trim to the count the user
-        // actually requested so the result is always exactly maxSongs songs.
+        // Filter by language if a language was detected, then sort by confidence
+        let filteredResults = allResults;
+        if (detectedLang) {
+          filteredResults = allResults.map((r) => {
+            if (r.confidence === "none" || !r.song) return r;
+            const song = r.song as any;
+            if (songMatchesLanguage(song, detectedLang)) return r;
+            // Downgrade confidence for wrong-language songs
+            return { ...r, confidence: "none" as const, score: 0 };
+          });
+        }
+
+        // Sort: high-confidence first, then partial. Trim to target count.
         const allFound = [
-          ...allResults.filter((r) => r.confidence === "high"),
-          ...allResults.filter((r) => r.confidence === "partial"),
+          ...filteredResults.filter((r) => r.confidence === "high"),
+          ...filteredResults.filter((r) => r.confidence === "partial"),
         ].slice(0, maxSongs);
         const matched = allFound.filter((r) => r.confidence === "high");
         const partial = allFound.filter((r) => r.confidence === "partial");
-        const unmatched = allResults
+        const unmatched = filteredResults
           .filter((r) => r.confidence === "none")
           .map((r) => r.original);
 
@@ -453,9 +606,9 @@ router.post(
       }
 
       // Cache check
-      const cacheKey = `ai:playlist:v2:${crypto
+      const cacheKey = `ai:playlist:v3:${crypto
         .createHash("md5")
-        .update(songList.join("|") + maxSongs)
+        .update(songList.join("|") + maxSongs + (detectedLang || ""))
         .digest("hex")}`;
       const cached = await redisGet(cacheKey);
       if (cached) {
@@ -491,6 +644,7 @@ router.post(
             searchQuery: parsed.expandedQueries[0] || s,
             artistHint: parsed.entities.artist,
             movieHint: parsed.entities.movie,
+            languageHint: detectedLang,
           };
         });
       } else {
@@ -502,7 +656,7 @@ router.post(
         });
 
         const chunkTasks = chunks.map((c, ci) => async () => {
-          const queries = await processChunkWithGroq(c);
+          const queries = await processChunkWithGroq(c, detectedLang);
           const pct = 10 + Math.round(((ci + 1) / chunks.length) * 20);
           emit("progress", {
             step: "thinking",
@@ -544,6 +698,7 @@ router.post(
             q.original,
             q.searchQuery || q.original,
             q.artistHint,
+            q.languageHint || detectedLang,
           ).then((result) => {
             const pct = 35 + Math.round(((i + 1) / allQueries.length) * 55);
             emit("song", {

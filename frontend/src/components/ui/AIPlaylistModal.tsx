@@ -26,16 +26,18 @@ const MAX_SONGS_INPUT = 100;
 const MAX_CHARS = 10000;
 
 const MOOD_CHIPS = [
-  "Chill late night",
+  "Chill Tamil songs",
+  "English pop hits",
   "Tamil party vibes",
-  "Romantic drive",
-  "Focus & study",
-  "Workout pump",
-  "Sad & emotional",
-  "90s nostalgia",
-  "Morning energy",
-  "Rainy day",
-  "Bollywood classics",
+  "Romantic Hindi songs",
+  "English workout pump",
+  "Sad Tamil songs",
+  "90s Bollywood classics",
+  "English chill & study",
+  "Tamil romantic drive",
+  "Telugu party hits",
+  "Rainy day English songs",
+  "Malayalam melodies",
 ];
 
 export function AIPlaylistModal() {
@@ -312,7 +314,7 @@ export function AIPlaylistModal() {
                       <textarea
                         value={mood}
                         onChange={(e) => setMood(e.target.value)}
-                        placeholder='Describe your vibe... e.g. "chill late night tamil songs with emotional feels"'
+                        placeholder='Describe your vibe + language... e.g. "chill Tamil songs" or "upbeat English pop hits" or "romantic Hindi songs"'
                         rows={3}
                         className="w-full rounded-2xl px-4 py-3 text-white text-[13px] placeholder-white/20 outline-none resize-none transition-colors"
                         style={{
