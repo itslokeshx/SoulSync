@@ -93,6 +93,24 @@ function parseSongList(input: string): string[] {
     .filter((s) => s.length > 0 && s.length < 200);
 }
 
+function parseSongLine(line: string): { searchQuery: string; artistHint: string | null } {
+  // Split by common separators: " - ", " – " (en dash), " — " (em dash), " by ", or " : "
+  const parts = line.split(/\s*(?: - | – | — | by | : )\s*/i);
+  if (parts.length >= 2) {
+    const title = parts[0].trim();
+    const artist = parts.slice(1).join(" ").trim();
+    return {
+      searchQuery: `${title} ${artist}`,
+      artistHint: artist,
+    };
+  }
+  const parsed = parseQuery(line);
+  return {
+    searchQuery: parsed.expandedQueries[0] || line,
+    artistHint: parsed.entities.artist,
+  };
+}
+
 // ─── Helper: chunk array ────────────────────────────────────────────────────
 function chunk<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -446,9 +464,7 @@ router.post(
       }
 
       // ── Detect language from user's input ──
-      const detectedLang = detectLanguage(
-        mood || (Array.isArray(songs) ? songs.join("\n") : songs) || "",
-      );
+      const detectedLang = mood ? detectLanguage(mood) : null;
 
       // ── SSE setup ──
       if (isSSE) {
@@ -634,49 +650,21 @@ router.post(
 
       emit("progress", {
         step: "thinking",
-        message: `Optimizing ${songList.length} songs with AI...`,
-        percent: 5,
+        message: `Parsing ${songList.length} songs...`,
+        percent: 10,
       });
 
-      // ── Chunked Groq processing ──
-      let allQueries: AIQuery[] = [];
-
-      if (songList.length <= 5) {
-        allQueries = songList.map((s) => {
-          const parsed = parseQuery(s);
-          return {
-            original: s,
-            searchQuery: parsed.expandedQueries[0] || s,
-            artistHint: parsed.entities.artist,
-            movieHint: parsed.entities.movie,
-            languageHint: detectedLang,
-          };
-        });
-      } else {
-        const chunks = chunk(songList, CHUNK_SIZE);
-        emit("progress", {
-          step: "thinking",
-          message: `Processing ${chunks.length} batches...`,
-          percent: 10,
-        });
-
-        const chunkTasks = chunks.map((c, ci) => async () => {
-          const queries = await processChunkWithGroq(c, detectedLang);
-          const pct = 10 + Math.round(((ci + 1) / chunks.length) * 20);
-          emit("progress", {
-            step: "thinking",
-            message: `Processed batch ${ci + 1}/${chunks.length}`,
-            percent: pct,
-          });
-          return queries;
-        });
-
-        const chunkedResults = await withConcurrency(
-          chunkTasks,
-          MAX_GROQ_CONCURRENT,
-        );
-        allQueries = chunkedResults.flat();
-      }
+      // ── Process song queries programmatically without Groq to ensure 100% accuracy ──
+      const allQueries: AIQuery[] = songList.map((s) => {
+        const parsed = parseSongLine(s);
+        return {
+          original: s,
+          searchQuery: parsed.searchQuery,
+          artistHint: parsed.artistHint,
+          movieHint: null,
+          languageHint: null,
+        };
+      });
 
       // Generate playlist name in parallel
       const [playlistName] = await Promise.all([
