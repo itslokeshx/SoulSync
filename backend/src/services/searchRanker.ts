@@ -64,14 +64,28 @@ function computeScore(
   const lang = clean(song.language);
   const q = query;
 
+  // Split query by common separators to extract just the title part for titleMatchScore
+  const parts = query.split(/\s*(?: - | – | — | by | : )\s*/i);
+  let qTitle = parts[0].trim().toLowerCase();
+  qTitle = qTitle
+    .replace(/\s*\((?:super\s+)?slowed(?:\s+down)?(?:\s+version)?\)/i, "")
+    .replace(/\s*\((?:super\s+)?sped\s+up(?:\s+version)?\)/i, "")
+    .replace(/\s*\(remastered(?: \d+)?\)/i, "")
+    .replace(/\s*\(live(?: version)?\)/i, "")
+    .replace(/\s*\(acoustic(?: version)?\)/i, "")
+    .replace(/\s*\(radio edit\)/i, "")
+    .replace(/\s*\(lofi\)/i, "")
+    .replace(/\s*\(slowed\s*\+\s*reverb\)/i, "")
+    .trim();
+
   // ── 1. POPULARITY SCORE (0–80 pts) ───────────────────────────
   score += popularityScore(song.playCount);
 
   // ── 2. COVER / FAKE / RECREATED PENALTY (−20 to −100 pts) ────
-  score += coverPenalty(title);
+  score += coverPenalty(title, query.toLowerCase());
 
   // ── 3. TITLE MATCH SCORE (0–60 pts) ──────────────────────────
-  score += titleMatchScore(title, q);
+  score += titleMatchScore(title, qTitle);
 
   // ── 4. ARTIST MATCH BONUS (0–25 pts) ─────────────────────────
   score += artistMatchScore(artist, q);
@@ -145,7 +159,7 @@ function popularityScore(playCount: number): number {
 // ════════════════════════════════════════════════════════════════
 // FACTOR 2 — COVER PENALTY
 // ════════════════════════════════════════════════════════════════
-function coverPenalty(title: string): number {
+function coverPenalty(title: string, rawQueryLower?: string): number {
   // HARD PENALTY — these words ALWAYS mean it's not the original.
   // Large enough to push below originals even with a perfect title match.
   const HARD_KEYWORDS = [
@@ -192,7 +206,10 @@ function coverPenalty(title: string): number {
   ];
 
   for (const kw of SOFT_KEYWORDS) {
-    if (title.includes(kw)) return -30;
+    if (title.includes(kw)) {
+      if (rawQueryLower && rawQueryLower.includes(kw)) continue;
+      return -30;
+    }
   }
 
   return 0;

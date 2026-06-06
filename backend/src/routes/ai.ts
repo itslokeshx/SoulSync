@@ -93,11 +93,24 @@ function parseSongList(input: string): string[] {
     .filter((s) => s.length > 0 && s.length < 200);
 }
 
+function cleanSongTitleForSearch(title: string): string {
+  return title
+    .replace(/\s*\((?:super\s+)?slowed(?:\s+down)?(?:\s+version)?\)/i, "")
+    .replace(/\s*\((?:super\s+)?sped\s+up(?:\s+version)?\)/i, "")
+    .replace(/\s*\(remastered(?: \d+)?\)/i, "")
+    .replace(/\s*\(live(?: version)?\)/i, "")
+    .replace(/\s*\(acoustic(?: version)?\)/i, "")
+    .replace(/\s*\(radio edit\)/i, "")
+    .replace(/\s*\(lofi\)/i, "")
+    .replace(/\s*\(slowed\s*\+\s*reverb\)/i, "")
+    .trim();
+}
+
 function parseSongLine(line: string): { searchQuery: string; artistHint: string | null } {
   // Split by common separators: " - ", " – " (en dash), " — " (em dash), " by ", or " : "
   const parts = line.split(/\s*(?: - | – | — | by | : )\s*/i);
   if (parts.length >= 2) {
-    const title = parts[0].trim();
+    const title = cleanSongTitleForSearch(parts[0].trim());
     const artist = parts.slice(1).join(" ").trim();
     return {
       searchQuery: `${title} ${artist}`,
@@ -106,7 +119,7 @@ function parseSongLine(line: string): { searchQuery: string; artistHint: string 
   }
   const parsed = parseQuery(line);
   return {
-    searchQuery: parsed.expandedQueries[0] || line,
+    searchQuery: cleanSongTitleForSearch(parsed.expandedQueries[0] || line),
     artistHint: parsed.entities.artist,
   };
 }
