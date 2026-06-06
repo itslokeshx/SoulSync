@@ -443,7 +443,9 @@ router.post(
       }
 
       // ── Detect language from user's input ──
-      const detectedLang = detectLanguage(mood || songs || "");
+      const detectedLang = detectLanguage(
+        mood || (Array.isArray(songs) ? songs.join("\n") : songs) || "",
+      );
 
       // ── SSE setup ──
       if (isSSE) {
