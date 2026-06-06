@@ -4,6 +4,7 @@ import {
   searchSongs,
   searchSongsHybrid,
   normalizeSongsToCanonical,
+  normalizeSongToCanonical,
   fetchSongsByIds,
 } from "../services/jiosaavn.js";
 import { parseQuery } from "../services/searchEnhancer.js";
@@ -281,12 +282,14 @@ async function searchOneSong(
       }
     }
 
+    const finalSong = bestSong ? normalizeSongToCanonical(bestSong) : null;
+
     if (bestScore >= 80)
-      return { original, song: bestSong, confidence: "high", score: bestScore };
+      return { original, song: finalSong, confidence: "high", score: bestScore };
     if (bestScore >= 18)
       return {
         original,
-        song: bestSong,
+        song: finalSong,
         confidence: "partial",
         score: bestScore,
       };
@@ -328,7 +331,7 @@ async function searchOneSong(
             if (fScore >= 10) {
               return {
                 original,
-                song: top,
+                song: normalizeSongToCanonical(top),
                 confidence: "partial",
                 score: fScore,
               };

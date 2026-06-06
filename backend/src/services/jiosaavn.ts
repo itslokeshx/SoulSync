@@ -615,7 +615,7 @@ export function normalizeSongToCanonical(raw: any): Song | null {
   return {
     id: String(raw.id || raw.songId || ""),
     name: decodeHtmlEntities(raw.name || raw.title || raw.song || "Unknown"),
-    primaryArtists: primaryArtists.trim(),
+    primaryArtists: decodeHtmlEntities(primaryArtists.trim()),
     image,
     album:
       typeof raw.album === "object"

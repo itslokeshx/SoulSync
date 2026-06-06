@@ -35,17 +35,35 @@ export const fmt = (s: number | undefined | null): string => {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 };
 
+export const decodeHtml = (str: string): string => {
+  if (typeof str !== "string") return str;
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'");
+};
+
 export const getArtists = (song: any): string => {
   if (!song) return "—";
+  let artistStr = "";
   if (
     Array.isArray(song.artist_map?.primary_artists) &&
     song.artist_map.primary_artists.length
-  )
-    return song.artist_map.primary_artists.map((a: any) => a.name).join(", ");
-  if (Array.isArray(song.artists?.primary) && song.artists.primary.length)
-    return song.artists.primary.map((a: any) => a.name).join(", ");
-  if (song.music) return song.music;
-  return song.primaryArtists || song.subtitle || "—";
+  ) {
+    artistStr = song.artist_map.primary_artists.map((a: any) => a.name).join(", ");
+  } else if (Array.isArray(song.artists?.primary) && song.artists.primary.length) {
+    artistStr = song.artists.primary.map((a: any) => a.name).join(", ");
+  } else if (song.primary_artists || song.primaryArtists) {
+    artistStr = song.primary_artists || song.primaryArtists;
+  } else if (song.music) {
+    artistStr = song.music;
+  } else {
+    artistStr = song.subtitle || "—";
+  }
+  return decodeHtml(artistStr);
 };
 
 export const getGreeting = (): string => {
