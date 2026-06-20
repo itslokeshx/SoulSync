@@ -83,6 +83,7 @@ _Not a tutorial project — a product people have actually been using!_
 - **Lock screen controls** — play / pause / skip from notification
 - **Background audio** — keeps playing when minimized
 - **Haptic feedback** + swipe player (mini bar ↔ full screen)
+- **Dynamic release resolution** — download paths resolve the latest APK release asset directly from GitHub's live API
 
 ### 📊 SoulSync Wrapped — Live Listening Story
 
@@ -426,6 +427,7 @@ SoulSync/
 │   │   │
 │   │   ├── hooks/
 │   │   │   ├── index.ts                  # Hook exports
+│   │   │   ├── useApkDownloadUrl.ts      # Dynamic GitHub release asset fetch
 │   │   │   ├── useAuthGate.ts            # Authentication gate hook
 │   │   │   ├── useDashboard.ts           # Dashboard data fetching hook
 │   │   │   ├── useNetwork.ts             # Network status hook
