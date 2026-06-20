@@ -84,6 +84,13 @@ _Not a tutorial project — a product people have actually been using!_
 - **Background audio** — keeps playing when minimized
 - **Haptic feedback** + swipe player (mini bar ↔ full screen)
 
+### 📊 SoulSync Wrapped — Live Listening Story
+
+- **Responsive Viewport Deck**: A gorgeous full-screen visual modal covering the entire viewport, responsive across mobile, tablet, and desktop screens.
+- **Dynamic Stats Aggregation**: Real-time calculations of joined date milestones, total minutes listened, total play count, and liked songs directly from Mongo db.
+- **Top Songs & Vinyl Disc**: Shows the top 5 most-played songs and rotates a custom album-art styled vinyl record for the primary artist.
+- **Ticket Infographic Pass**: Renders an authentic concert ticket pass, featuring perforated edges, barcodes, cutouts, and shareable summaries.
+
 ### 🔗 Shareable Links
 
 - Song links: `soul-sync-beta.vercel.app/s/:slug`
@@ -385,6 +392,9 @@ SoulSync/
 │   │   │   │   ├── PlayerBar.tsx         # Bottom player bar
 │   │   │   │   └── QueuePanel.tsx        # Song queue panel
 │   │   │   │
+│   │   │   ├── profile/
+│   │   │   │   └── SoulSyncWrapped.tsx   # Premium wrapped analytics story
+│   │   │   │
 │   │   │   ├── ui/
 │   │   │   │   ├── index.ts              # UI component exports
 │   │   │   │   ├── AIPlaylistModal.tsx   # AI playlist generation modal
@@ -633,6 +643,7 @@ cd android && ./gradlew assembleRelease
 | `POST` | `/api/ai/match`                       | Match songs from list             |
 | `POST` | `/api/session/create`                 | Create SoulLink room              |
 | `POST` | `/api/session/join`                   | Join SoulLink room                |
+| `GET`  | `/api/user/stats`                     | Get user Wrapped stats & timeline |
 
 ---
 
