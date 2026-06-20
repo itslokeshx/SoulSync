@@ -11,6 +11,7 @@ import { useUIStore } from '../store/uiStore'
 import { FALLBACK_IMG } from '../lib/constants'
 import { useDownloadStore } from '../store/downloadStore'
 import { saveOfflineSong, removeOfflineSong } from '../utils/offlineDB'
+import { deleteAudioFromDevice } from '../capacitor/filesystem'
 
 type FilterKey = 'playlists' | 'songs'
 
@@ -87,6 +88,12 @@ export default function DownloadsPage() {
   }
 
   const handleDelete = async (songId: string) => {
+    // Attempt to delete physical file on device if path is present
+    const songMeta = downloads.find(d => d.songId === songId);
+    if (songMeta?.filePath) {
+      await deleteAudioFromDevice(songMeta.filePath);
+    }
+
     try {
       await removeOfflineSong(songId)
     } catch (err) {
@@ -194,12 +201,21 @@ export default function DownloadsPage() {
               </p>
             </div>
           </div>
-          {!isOnline && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
-              <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-              <span className="text-yellow-400 text-[10px] font-bold uppercase tracking-wider">Offline</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {!isOnline && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                <span className="text-yellow-400 text-[10px] font-bold uppercase tracking-wider">Offline</span>
+              </div>
+            )}
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white transition-all"
+              title="Import Local Audio"
+            >
+              <Upload size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -424,16 +440,6 @@ export default function DownloadsPage() {
               : 'Songs you download will appear here for offline listening.'
             }
           </p>
-
-          {!search && (
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-sm font-bold text-white transition-all"
-            >
-              <Upload size={18} />
-              Import Local Audio
-            </button>
-          )}
         </div>
       )}
     </div>

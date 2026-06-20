@@ -28,32 +28,28 @@ export default function App() {
 
 
   useEffect(() => {
-    if (!isNative()) {
-      getOfflineSongs().then((songs) => {
-        const store = useOfflineStore.getState();
+    getOfflineSongs().then((songs) => {
+      const store = useOfflineStore.getState();
 
-        // Merge state: Keep existing Zustand data if it exists (for fileSize, etc)
-        const hydrated = songs.map((s) => {
-          const existing = store.downloads.find(d => d.songId === s.id);
-          return {
-            songId: s.id,
-            title: s.name,
-            artist: s.artist,
-            albumArt: s.albumArt,
-            duration: s.duration,
-            filePath: existing?.filePath || "",
-            downloadedAt: s.savedAt,
-            fileSize: existing?.fileSize || s.fileSize || 0,
-            playlistName: s.playlistName,
-            songData: existing?.songData || s,
-          };
-        });
-
-        store.updateDownloadsOrder(hydrated);
+      // Merge state: Keep existing Zustand data if it exists (for fileSize, etc)
+      const hydrated = songs.map((s) => {
+        const existing = store.downloads.find(d => d.songId === s.id);
+        return {
+          songId: s.id,
+          title: s.name,
+          artist: s.artist,
+          albumArt: s.albumArt,
+          duration: s.duration,
+          filePath: existing?.filePath || s.downloadUrl?.[0]?.url || "",
+          downloadedAt: s.savedAt,
+          fileSize: existing?.fileSize || s.fileSize || 0,
+          playlistName: s.playlistName,
+          songData: existing?.songData || s,
+        };
       });
-    }
 
-
+      store.updateDownloadsOrder(hydrated);
+    });
   }, []);
 
   return (

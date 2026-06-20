@@ -1,4 +1,5 @@
 /** IndexedDB wrapper for offline song storage */
+import { isNative } from "./platform";
 
 const DB_NAME = "soulsync_offline";
 const DB_VERSION = 1;
@@ -59,9 +60,15 @@ export async function saveOfflineSong(
   audioBlob: Blob,
 ): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction([STORE_SONGS, STORE_BLOBS], "readwrite");
+  const native = isNative();
+  const tx = db.transaction(
+    native ? [STORE_SONGS] : [STORE_SONGS, STORE_BLOBS],
+    "readwrite",
+  );
   tx.objectStore(STORE_SONGS).put(song);
-  tx.objectStore(STORE_BLOBS).put({ id: song.id, blob: audioBlob });
+  if (!native) {
+    tx.objectStore(STORE_BLOBS).put({ id: song.id, blob: audioBlob });
+  }
   return new Promise((res, rej) => {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
@@ -94,9 +101,15 @@ export async function getOfflineBlob(id: string): Promise<Blob | null> {
 
 export async function removeOfflineSong(id: string): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction([STORE_SONGS, STORE_BLOBS], "readwrite");
+  const native = isNative();
+  const tx = db.transaction(
+    native ? [STORE_SONGS] : [STORE_SONGS, STORE_BLOBS],
+    "readwrite",
+  );
   tx.objectStore(STORE_SONGS).delete(id);
-  tx.objectStore(STORE_BLOBS).delete(id);
+  if (!native) {
+    tx.objectStore(STORE_BLOBS).delete(id);
+  }
   return new Promise((res, rej) => {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);

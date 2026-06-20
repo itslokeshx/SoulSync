@@ -19,7 +19,7 @@ import {
 export async function saveAudioToDevice(
   songId: string,
   audioBlob: Blob,
-  _fileName: string,
+  fileName: string,
 ): Promise<string> {
   if (!isNative()) {
     // Web: persist in IndexedDB via existing helper
@@ -27,18 +27,29 @@ export async function saveAudioToDevice(
     return URL.createObjectURL(audioBlob);
   }
 
+  // Request permissions if needed
+  try {
+    const permStatus = await Filesystem.checkPermissions();
+    if (permStatus.publicStorage !== "granted") {
+      await Filesystem.requestPermissions();
+    }
+  } catch (e) {
+    console.warn("Permission check/request failed:", e);
+  }
+
   const base64 = await blobToBase64(audioBlob);
+  const cleanFileName = fileName.replace(/[/\\?%*:|"<>]/g, "_"); // sanitize filename
 
   await Filesystem.writeFile({
-    path: `downloads/${songId}.m4a`,
+    path: `SoulSync/${cleanFileName}`,
     data: base64,
-    directory: Directory.Data,
+    directory: Directory.Documents,
     recursive: true,
   });
 
   const { uri } = await Filesystem.getUri({
-    path: `downloads/${songId}.m4a`,
-    directory: Directory.Data,
+    path: `SoulSync/${cleanFileName}`,
+    directory: Directory.Documents,
   });
 
   return uri;
@@ -54,6 +65,8 @@ export async function readAudioFromDevice(
     return blob ? URL.createObjectURL(blob) : null;
   }
 
+  // NOTE: On native, the app reads directly using the uri stored in the store.
+  // This function is kept for compatibility but shouldn't be relied upon without a filename map.
   try {
     const { uri } = await Filesystem.getUri({
       path: `downloads/${songId}.m4a`,
@@ -67,19 +80,27 @@ export async function readAudioFromDevice(
 
 // ── Delete ──────────────────────────────────────────────────────
 
-export async function deleteAudioFromDevice(songId: string): Promise<void> {
-  if (!isNative()) {
-    await removeOfflineSong(songId);
+export async function deleteAudioFromDevice(filePath: string): Promise<void> {
+  if (!isNative() || !filePath) {
     return;
   }
 
   try {
+    // Attempt deleting the full path URI
     await Filesystem.deleteFile({
-      path: `downloads/${songId}.m4a`,
-      directory: Directory.Data,
+      path: filePath,
     });
   } catch {
-    // file may not exist — ignore
+    try {
+      // Fallback: delete by extracting name
+      const filename = filePath.split("/").pop() || "";
+      await Filesystem.deleteFile({
+        path: `SoulSync/${filename}`,
+        directory: Directory.Documents,
+      });
+    } catch (e) {
+      console.warn("Failed to delete file from device:", e);
+    }
   }
 }
 
@@ -96,15 +117,15 @@ export async function getStorageInfo(): Promise<{
 
   try {
     const listing = await Filesystem.readdir({
-      path: "downloads",
-      directory: Directory.Data,
+      path: "SoulSync",
+      directory: Directory.Documents,
     });
 
     let totalBytes = 0;
     for (const file of listing.files) {
       const stat = await Filesystem.stat({
-        path: `downloads/${file.name}`,
-        directory: Directory.Data,
+        path: `SoulSync/${file.name}`,
+        directory: Directory.Documents,
       });
       totalBytes += stat.size;
     }
