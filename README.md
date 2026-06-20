@@ -33,9 +33,9 @@ _Not a tutorial project — a product people have actually been using!_
 |  Platform  |                                                   Link                                                   |   Requirement   |
 | :--------: | :------------------------------------------------------------------------------------------------------: | :-------------: |
 |   🌐 Web   |                     [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app/)                      |   No install    |
-| 💻 Windows | [SoulSync_2.1.0.exe](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.exe) |   Windows 10+   |
-|  🐧 Linux  | [soulsync_2.1.0.deb](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/soulsync_2.1.0.deb) | Debian / Ubuntu |
-| 📱 Android | [SoulSync_2.1.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v2.1.0/SoulSync_2.1.0.apk) |  Android 7.0+   |
+| 💻 Windows | [SoulSync_2.2.0.exe](https://github.com/itslokeshx/SoulSync/releases/download/v2.2.0/SoulSync_2.2.0.exe) |   Windows 10+   |
+|  🐧 Linux  | [soulsync_2.2.0.deb](https://github.com/itslokeshx/SoulSync/releases/download/v2.2.0/soulsync_2.2.0.deb) | Debian / Ubuntu |
+| 📱 Android | [SoulSync_2.2.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v2.2.0/SoulSync_2.2.0.apk) |  Android 7.0+   |
 
 ---
 

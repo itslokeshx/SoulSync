@@ -1,7 +1,7 @@
 {
   "name": "soulsync-frontend",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "homepage": "https://soul-sync-beta.vercel.app",
   "author": {
     "name": "SoulSync",
