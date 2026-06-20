@@ -14,13 +14,14 @@ import { useDownloadStore } from "../../store/downloadStore";
 import { isNative } from "../../utils/platform";
 import { DuoButton } from "../../duo";
 import { SearchTrigger } from "../ui/SearchTrigger";
-import { APK_DOWNLOAD_URL } from "../../lib/constants";
+import { useApkDownloadUrl } from "../../hooks/useApkDownloadUrl";
 
 export const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const apkDownloadUrl = useApkDownloadUrl();
   const view =
     location.pathname === "/"
       ? "home"
@@ -124,7 +125,7 @@ export const Sidebar = () => {
         {/* Download APK — web only */}
         {!isNative() && (
           <a
-            href={APK_DOWNLOAD_URL}
+            href={apkDownloadUrl}
             target="_blank"
             rel="noopener noreferrer"
             title={collapsed ? "Get Android App" : undefined}

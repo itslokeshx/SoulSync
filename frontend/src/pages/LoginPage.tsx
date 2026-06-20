@@ -22,7 +22,7 @@ import { useAuth } from "../auth/AuthContext";
 import { isNative } from "../utils/platform";
 import * as api from "../api/backend";
 import toast from "react-hot-toast";
-import { APK_DOWNLOAD_URL } from "../lib/constants";
+import { useApkDownloadUrl } from "../hooks/useApkDownloadUrl";
 
 type AuthState = "welcome" | "login" | "register" | "forgot-password";
 
@@ -182,6 +182,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo") || "/";
+  const apkDownloadUrl = useApkDownloadUrl();
   const [authState, setAuthState] = useState<AuthState>(
     searchParams.get("mode") === "register" ? "register" : "welcome",
   );
@@ -479,7 +480,7 @@ export default function LoginPage() {
               className="mt-10"
             >
               <a
-                href={APK_DOWNLOAD_URL}
+                href={apkDownloadUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group block relative overflow-hidden rounded-2xl p-[1px]"
@@ -668,7 +669,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              href={APK_DOWNLOAD_URL}
+              href={apkDownloadUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="relative z-10 mt-5 flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-sp-green/20 hover:bg-white/[0.05] transition-all duration-300 group"

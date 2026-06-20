@@ -22,7 +22,7 @@ import { UserStats } from "../types/user";
 import { onImgErr, bestImg } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
-import { APK_DOWNLOAD_URL } from "../lib/constants";
+import { useApkDownloadUrl } from "../hooks/useApkDownloadUrl";
 import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
 
 const ALL_LANGUAGES = [
@@ -61,6 +61,7 @@ const ALL_MOODS = [
 export default function ProfilePage() {
   const { user, logout, updateUser, isAuthenticated } = useAuth();
   const { currentSong, isPlaying, likedSongs } = useApp();
+  const apkDownloadUrl = useApkDownloadUrl();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,7 +194,7 @@ export default function ProfilePage() {
         {/* Download APK — web only, even before sign in */}
         {!isNative() && (
           <a
-            href={APK_DOWNLOAD_URL}
+            href={apkDownloadUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="group mt-8 w-full max-w-xs block relative overflow-hidden rounded-2xl p-[1px]"
@@ -552,7 +553,7 @@ export default function ProfilePage() {
       {/* Download APK Banner */}
       {!isNative() && (
         <a
-          href={APK_DOWNLOAD_URL}
+          href={apkDownloadUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="group block relative overflow-hidden rounded-[24px] p-[1px] mb-6"
