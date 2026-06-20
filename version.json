@@ -1,10 +1,11 @@
 {
-    "version": "2.2.0",
+    "version": "3.0.0",
     "apk_url": "https://github.com/itslokeshx/SoulSync/releases/latest",
     "force": false,
     "changelog": [
-        "Added autoplay",
-        "Context menu improvements",
-        "Bug fixes"
+        "Live Wrapped analytics deck",
+        "Premium glassmorphic user profile theme",
+        "Interactive vinyl and ticket infographics",
+        "Bug fixes and performance optimization"
     ]
 }
