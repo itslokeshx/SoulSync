@@ -683,7 +683,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                     </p>
                   </div>
 
-                  <div className="space-y-4.5 pt-1">
+                  <div className="space-y-6 pt-1">
                     {stats?.topArtists?.slice(0, 5).map((artist, idx) => {
                       const maxCount = stats.topArtists[0]?.count || 1;
                       const percent = Math.max(12, Math.min(100, (artist.count / maxCount) * 100));
