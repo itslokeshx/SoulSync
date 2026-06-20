@@ -28,5 +28,6 @@ export interface UserStats {
   totalListeningTime: number;
   likedSongsCount: number;
   topArtists: { _id: string; count: number; albumArt?: string }[];
+  topSongs: { _id: string; title: string; artist: string; albumArt?: string; count: number }[];
   languageBreakdown: { _id: string; count: number }[];
 }

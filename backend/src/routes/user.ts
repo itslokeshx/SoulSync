@@ -325,6 +325,22 @@ router.get(
         { $limit: 10 },
       ]);
 
+      // Top songs
+      const topSongs = await ListeningHistory.aggregate([
+        { $match: { userId: user?._id } },
+        {
+          $group: {
+            _id: "$songId",
+            title: { $first: "$title" },
+            artist: { $first: "$artist" },
+            albumArt: { $first: "$albumArt" },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]);
+
       // Language breakdown — only include entries that have a language
       const languageBreakdown = await ListeningHistory.aggregate([
         {
@@ -342,6 +358,7 @@ router.get(
         totalListeningTime: user?.totalListeningTime || 0,
         likedSongsCount: user?.likedSongs?.length || 0,
         topArtists,
+        topSongs,
         languageBreakdown,
       });
     } catch (err) {

@@ -133,7 +133,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const totalSlides = 7;
+  const totalSlides = 8;
   const slideDuration = 6500; // 6.5 seconds per slide
   const progressInterval = 50;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -266,9 +266,10 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
     "from-[#0b3c29] via-[#03150e] to-[#010604]", // Slide 1 (Milestones): Deep Mint/Forest
     "from-[#4c0519] via-[#1c0209] to-[#0a0003]", // Slide 2 (Top Artist): Rich Wine Red
     "from-[#431407] via-[#1a0502] to-[#070100]", // Slide 3 (Artists List): Warm Copper
-    "from-[#083344] via-[#02151e] to-[#010609]", // Slide 4 (Languages): Cyan Wave
-    "from-[#4a044e] via-[#1a021c] to-[#070008]", // Slide 5 (Identity): Fuchsia/Purple
-    "from-[#111827] via-[#090d16] to-[#030407]", // Slide 6 (Poster): Clean Dark Slate
+    "from-[#0c1b40] via-[#03091c] to-[#010208]", // Slide 4 (Top Songs): Deep Indigo
+    "from-[#083344] via-[#02151e] to-[#010609]", // Slide 5 (Languages): Cyan Wave
+    "from-[#4a044e] via-[#1a021c] to-[#070008]", // Slide 6 (Identity): Fuchsia/Purple
+    "from-[#111827] via-[#090d16] to-[#030407]", // Slide 7 (Poster): Clean Dark Slate
   ];
 
   return (
@@ -387,10 +388,12 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                       : currentSlide === 3
                         ? "rgba(249, 115, 22, 0.6)"
                         : currentSlide === 4
-                          ? "rgba(6, 182, 212, 0.6)"
+                          ? "rgba(99, 102, 241, 0.6)" // Royal blue/Indigo glow
                           : currentSlide === 5
-                            ? "rgba(217, 70, 239, 0.6)"
-                            : "rgba(29, 185, 84, 0.4)",
+                            ? "rgba(6, 182, 212, 0.6)" // Cyan glow
+                            : currentSlide === 6
+                              ? "rgba(217, 70, 239, 0.6)" // Fuchsia glow
+                              : "rgba(29, 185, 84, 0.4)", // Poster glow
             }}
           />
 
@@ -647,6 +650,70 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
               {currentSlide === 4 && (
                 <motion.div
                   key="slide4"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ type: "spring", stiffness: 120, damping: 14 }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center text-left"
+                >
+                  <div className="space-y-4">
+                    <span className="text-xs uppercase tracking-wider text-indigo-400 font-black px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 w-fit">
+                      Your Anthems
+                    </span>
+                    <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
+                      Your Top <br />Played Songs
+                    </h2>
+                    <p className="text-sm md:text-base text-white/50 leading-relaxed">
+                      These were the tracks you couldn't stop playing. Your ultimate soundtrack, logged back-to-back.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {stats?.topSongs && stats.topSongs.length > 0 ? (
+                      stats.topSongs.slice(0, 5).map((song, idx) => (
+                        <div
+                          key={song._id}
+                          className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-all"
+                        >
+                          <span className="w-5 text-center text-xs font-black text-white/40">
+                            {idx + 1}
+                          </span>
+                          <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 flex-shrink-0 relative flex items-center justify-center">
+                            {song.albumArt ? (
+                              <img
+                                src={song.albumArt}
+                                onError={onImgErr}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Music size={16} className="text-white/40" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-bold text-sm text-white truncate block">
+                              {song.title || "Unknown Title"}
+                            </span>
+                            <span className="text-xs text-white/50 truncate block">
+                              {song.artist || "Unknown Artist"}
+                            </span>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-[10px] font-black text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                              {song.count} plays
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-white/30 italic text-center py-6">No song history logged.</p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {currentSlide === 5 && (
+                <motion.div
+                  key="slide5"
                   initial={{ opacity: 0, y: -15 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 15 }}
@@ -697,9 +764,9 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                 </motion.div>
               )}
 
-              {currentSlide === 5 && (
+              {currentSlide === 6 && (
                 <motion.div
-                  key="slide5"
+                  key="slide6"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.05 }}
@@ -751,9 +818,9 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                 </motion.div>
               )}
 
-              {currentSlide === 6 && (
+              {currentSlide === 7 && (
                 <motion.div
-                  key="slide6"
+                  key="slide7"
                   initial={{ opacity: 0, y: 25 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
@@ -806,10 +873,10 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                         </div>
                         <div>
                           <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold block mb-0.5">
-                            Minutes Synced
+                            Top Song
                           </span>
-                          <span className="text-sm font-black text-white">
-                            {stats ? formatListeningTime(stats.totalListeningTime) : "0"}
+                          <span className="text-sm font-black text-white truncate block">
+                            {stats?.topSongs?.[0]?.title || "—"}
                           </span>
                         </div>
                       </div>
