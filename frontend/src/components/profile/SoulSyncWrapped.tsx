@@ -293,7 +293,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
               <span className="px-3 py-1 rounded-full bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 text-fuchsia-300 text-[10px] font-black tracking-widest uppercase border border-fuchsia-500/20 flex items-center gap-1.5 shadow-[0_0_15px_rgba(217,70,239,0.1)]">
-                <Sparkles size={11} className="animate-spin text-fuchsia-400" style={{ animationDuration: "3s" }} /> Live Wrapped
+                <Sparkles size={11} className="text-fuchsia-400" /> Live Wrapped
               </span>
               <span className="text-white/40 text-xs font-semibold">Since Day One</span>
             </div>
