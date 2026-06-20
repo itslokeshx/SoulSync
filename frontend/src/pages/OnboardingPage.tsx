@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Music2, ArrowRight, ArrowLeft, Check } from "lucide-react";
@@ -50,7 +50,18 @@ const slide = {
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, isLoading, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        navigate("/login", { replace: true });
+      } else if (user?.onboardingComplete) {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [isLoading, isAuthenticated, user, navigate]);
+
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [displayName, setDisplayName] = useState(user?.name || "");
@@ -58,6 +69,15 @@ export default function OnboardingPage() {
   const [eras, setEras] = useState<string[]>([]);
   const [moods, setMoods] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // If still checking auth status, show a spinner to avoid content flash or premature redirect
+  if (isLoading) {
+    return (
+      <div className="min-h-[100dvh] bg-[#050505] flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const toggle = (
     list: string[],
