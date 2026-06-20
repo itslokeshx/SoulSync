@@ -11,7 +11,7 @@ import { useUIStore } from '../store/uiStore'
 import { FALLBACK_IMG } from '../lib/constants'
 import { useDownloadStore } from '../store/downloadStore'
 import { saveOfflineSong, removeOfflineSong } from '../utils/offlineDB'
-import { deleteAudioFromDevice } from '../capacitor/filesystem'
+import { deleteAudioFromDevice, saveAudioToDevice } from '../capacitor/filesystem'
 
 type FilterKey = 'playlists' | 'songs'
 
@@ -120,14 +120,22 @@ export default function DownloadsPage() {
 
       const songId = `local_${Date.now()}_${i}`
 
-      // Save the raw file permanently into IndexedDB first
+      let finalFilePath = ""
+      try {
+        // Copy the imported file to the native public storage folder
+        finalFilePath = await saveAudioToDevice(songId, file, file.name)
+      } catch (err) {
+        console.warn("Failed to write imported audio to device:", err)
+      }
+
+      // Save metadata into IndexedDB
       await saveOfflineSong({
         id: songId,
         name: title,
         artist: artist,
         albumArt: FALLBACK_IMG,
         duration: 0,
-        downloadUrl: [],
+        downloadUrl: finalFilePath ? [{ quality: "320kbps", url: finalFilePath }] : [],
         image: [],
         savedAt: Date.now()
       }, file).catch(console.error)
@@ -138,7 +146,7 @@ export default function DownloadsPage() {
         artist,
         albumArt: FALLBACK_IMG,
         duration: 0,
-        filePath: '', // Resolves dynamically inside PlayerProvider via active getOfflineBlob
+        filePath: finalFilePath,
         downloadedAt: Date.now(),
         fileSize: file.size,
         songData: {
@@ -148,7 +156,7 @@ export default function DownloadsPage() {
           isAIGenerated: false,
           primaryArtists: artist,
           image: [{ quality: "500x500", url: FALLBACK_IMG }],
-          downloadUrl: [] // Omit temporary URL since PlayerProvider loads from IDB
+          downloadUrl: finalFilePath ? [{ quality: "320kbps", url: finalFilePath }] : []
         }
       }
       useOfflineStore.getState().addDownloadedSong(meta)
