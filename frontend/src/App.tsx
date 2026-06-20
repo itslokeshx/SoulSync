@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { useNetwork } from "./providers/NetworkProvider";
 import { getOfflineSongs } from "./utils/offlineDB";
 import { useOfflineStore } from "./store/offlineStore";
@@ -68,7 +69,7 @@ function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
 
-      <Route path="/" element={<AppLayout />}>
+      <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         {/* These work ALWAYS — online or offline */}
         <Route index element={<HomePage />} />
         <Route path="downloads" element={<DownloadsPage />} />

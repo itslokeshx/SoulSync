@@ -174,6 +174,7 @@ export default function LoginPage() {
   const {
     isAuthenticated,
     isLoading,
+    user,
     login,
     loginWithCredentials,
     loginAfterRegister,
@@ -204,9 +205,12 @@ export default function LoginPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
 
+  // Redirect already-authenticated users — to onboarding if incomplete, otherwise to returnTo
   useEffect(() => {
-    if (isAuthenticated) navigate(returnTo, { replace: true });
-  }, [isAuthenticated, navigate, returnTo]);
+    if (isAuthenticated) {
+      navigate(user && !user.onboardingComplete ? "/onboarding" : returnTo, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, returnTo]);
 
   useEffect(() => {
     if (resendCountdown <= 0) return;
