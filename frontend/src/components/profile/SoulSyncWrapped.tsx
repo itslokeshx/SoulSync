@@ -441,7 +441,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
           </div>
 
           {/* Slide Content Viewport */}
-          <div className="flex-1 flex flex-col justify-center px-6 md:px-12 relative z-20 select-none w-full max-w-5xl mx-auto py-8">
+          <div className="flex-1 flex flex-col justify-center px-6 md:px-12 relative z-20 select-none w-full max-w-5xl mx-auto py-8 overflow-y-auto scrollbar-none">
             <AnimatePresence mode="wait">
               {currentSlide === 0 && (
                 <motion.div
@@ -669,14 +669,14 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ type: "spring", stiffness: 100, damping: 15 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center text-left"
+                  className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-16 items-center text-left"
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     <span className="text-[10px] uppercase tracking-wider text-orange-400 font-black px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 w-fit">
                       In Heavy Rotation
                     </span>
-                    <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
-                      Your Top 5 <br />Artists
+                    <h2 className="text-3xl md:text-6xl font-black text-white tracking-tight leading-tight">
+                      Your Top 5 <br className="hidden md:inline" />Artists
                     </h2>
                     <p className="text-xs md:text-sm text-white/40 leading-relaxed max-w-sm">
                       These artists provided the constant backbeat to your days, racking up the highest play counts in your library.
