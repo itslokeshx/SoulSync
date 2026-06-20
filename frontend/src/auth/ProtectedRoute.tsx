@@ -35,3 +35,26 @@ export function ProtectedRoute({ children }: Props) {
 
   return <>{children}</>;
 }
+
+export function OnboardingGate({ children }: Props) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-400">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Only redirect if they ARE authenticated but onboarding is not complete
+  if (isAuthenticated && user && !user.onboardingComplete && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
