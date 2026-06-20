@@ -23,6 +23,7 @@ import { onImgErr, bestImg } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 import { APK_DOWNLOAD_URL } from "../lib/constants";
+import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
 
 const ALL_LANGUAGES = [
   "hindi",
@@ -454,99 +455,8 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Top Artists */}
-      {loading ? (
-        <div className="mb-8">
-          <div className="h-3.5 w-24 rounded bg-white/[0.06] mb-4 animate-pulse" />
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.02]"
-              >
-                <div className="w-5 h-4 rounded bg-white/[0.04] animate-pulse" />
-                <div className="w-10 h-10 rounded-full bg-white/[0.06] animate-pulse" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3.5 w-28 rounded bg-white/[0.06] animate-pulse" />
-                  <div className="h-2.5 w-14 rounded bg-white/[0.04] animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : stats?.topArtists && stats.topArtists.length > 0 ? (
-        <div className="mb-8">
-          <h3 className="text-sm font-bold text-white/60 uppercase tracking-wider mb-4">
-            Top Artists
-          </h3>
-          <div className="space-y-2">
-            {stats.topArtists.slice(0, 5).map((artist, i) => (
-              <div
-                key={artist._id}
-                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-all"
-              >
-                <span className="text-sm font-bold text-white/20 w-5 text-center">
-                  {i + 1}
-                </span>
-                {artist.albumArt ? (
-                  <img
-                    src={artist.albumArt}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                ) : null}
-                <div
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br from-sp-green/20 to-purple-500/20 flex items-center justify-center flex-shrink-0 ${artist.albumArt ? "hidden" : ""}`}
-                >
-                  <span className="text-sm font-black text-white/60">
-                    {artist._id?.[0]?.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">
-                    {artist._id}
-                  </p>
-                  <p className="text-white/30 text-xs">{artist.count} plays</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Language breakdown */}
-      {loading ? (
-        <div className="mb-8">
-          <div className="h-3.5 w-20 rounded bg-white/[0.06] mb-4 animate-pulse" />
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-7 rounded-full bg-white/[0.04] animate-pulse"
-                style={{ width: `${60 + i * 12}px` }}
-              />
-            ))}
-          </div>
-        </div>
-      ) : stats?.languageBreakdown && stats.languageBreakdown.length > 0 ? (
-        <div className="mb-8">
-          <h3 className="text-sm font-bold text-white/60 uppercase tracking-wider mb-4">
-            Languages
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {stats.languageBreakdown.map((lb) => (
-              <span
-                key={lb._id}
-                className="px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-300 text-xs font-semibold capitalize"
-              >
-                {lb._id} · {lb.count}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {/* SoulSync Wrapped (Dynamic, premium story-teller and dashboard widget) */}
+      <SoulSyncWrapped stats={stats} user={user} loading={loading} />
 
       {/* Preferences (editable) */}
       <div className="mb-8">
