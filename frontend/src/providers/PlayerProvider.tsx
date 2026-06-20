@@ -244,7 +244,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         if (
           targetSrc.startsWith("blob:") ||
           targetSrc.startsWith("file:") ||
-          targetSrc.startsWith("ms-appdata:")
+          targetSrc.startsWith("ms-appdata:") ||
+          targetSrc.includes("_capacitor_file_")
         ) {
           audioRef.current!.removeAttribute("crossOrigin");
         } else {

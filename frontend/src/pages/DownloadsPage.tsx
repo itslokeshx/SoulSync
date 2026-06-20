@@ -59,7 +59,11 @@ export default function DownloadsPage() {
   }
 
   const makeSongs = (list: any[]) =>
-    list.map(d => ({ ...d.songData, _isOffline: true, downloadUrl: d.filePath }))
+    list.map(d => ({
+      ...d.songData,
+      _isOffline: true,
+      downloadUrl: d.filePath ? [{ quality: "320kbps", url: d.filePath }] : d.songData?.downloadUrl || []
+    }))
 
   const shuffleAndPlay = () => {
     if (!sorted.length) return
@@ -76,8 +80,13 @@ export default function DownloadsPage() {
 
   const playOfflineSong = (dl: any) => {
     const songs = makeSongs(sorted)
-    const target = { ...dl.songData, _isOffline: true, downloadUrl: dl.filePath }
+    const target = {
+      ...dl.songData,
+      _isOffline: true,
+      downloadUrl: dl.filePath ? [{ quality: "320kbps", url: dl.filePath }] : dl.songData?.downloadUrl || []
+    }
     playSong(target, songs)
+
   }
 
   const handleMenu = (e: React.MouseEvent, dl: any) => {

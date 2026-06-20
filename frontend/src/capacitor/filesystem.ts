@@ -52,7 +52,8 @@ export async function saveAudioToDevice(
     directory: Directory.Documents,
   });
 
-  return uri;
+  // Convert file:// URI to a WebView-safe URL (https://localhost/_capacitor_file_/...)
+  return Capacitor.convertFileSrc(uri);
 }
 
 // ── Read ────────────────────────────────────────────────────────
