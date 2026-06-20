@@ -228,164 +228,162 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="animate-fadeIn max-w-2xl mx-auto">
-      {/* Profile header */}
-      <div className="flex items-center gap-5 mb-10">
-        <div className="relative">
-          {user?.photoURL ? (
-            <img
-              src={user.photoURL}
-              onError={onImgErr}
-              className="w-20 h-20 rounded-full object-cover ring-2 ring-sp-green/20"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-sp-green to-emerald-600 flex items-center justify-center">
-              <UserIcon size={32} className="text-black" />
-            </div>
-          )}
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-sp-green flex items-center justify-center ring-2 ring-[#0a0a0a]">
-            <Music2 size={10} className="text-black" />
-          </div>
-        </div>
-        <div className="flex-1">
-          {editing ? (
-            <input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="text-2xl font-black text-white tracking-tight bg-white/[0.06] border border-white/10 rounded-xl px-3 py-1.5 outline-none focus:border-sp-green/40 transition-colors w-full max-w-xs"
-              placeholder="Your name"
-            />
-          ) : (
-            <h1 className="text-2xl font-black text-white tracking-tight">
-              {user?.name}
-            </h1>
-          )}
-          <p className="text-white/40 text-sm">{user?.email}</p>
-          {/* ── Now Playing status ─────────────────────────────── */}
-          {currentSong && (
-            <div className="flex items-center gap-2 mt-2 max-w-xs">
-              <div className="relative flex-shrink-0">
-                <img
-                  src={bestImg(currentSong.image, "50x50") || ""}
-                  onError={onImgErr}
-                  className="w-6 h-6 rounded object-cover"
-                />
-                {isPlaying && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-sp-green border border-[#0a0a0a] flex items-center justify-center">
-                    <span className="w-1 h-1 rounded-full bg-black" />
-                  </span>
-                )}
+    <div className="animate-fadeIn max-w-3xl mx-auto pb-12">
+      {/* Profile Header Banner */}
+      <div className="relative overflow-hidden rounded-[32px] p-6 md:p-8 border border-white/[0.06] bg-white/[0.01] backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.01] to-transparent pointer-events-none" />
+        
+        <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+          <div className="relative flex-shrink-0">
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                onError={onImgErr}
+                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-sp-green/20"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-sp-green to-emerald-600 flex items-center justify-center">
+                <UserIcon size={36} className="text-black" />
               </div>
-              <p className="text-[11px] text-white/50 truncate">
-                <span className="text-sp-green font-semibold">
-                  {isPlaying ? "Playing" : "Paused"}
-                </span>
-                {" · "}
-                {currentSong.name}
-              </p>
+            )}
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-sp-green flex items-center justify-center ring-2 ring-[#08080a]">
+              <Music2 size={11} className="text-black" />
             </div>
-          )}
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {user?.username && (
-              <span className="text-[11px] text-white/30 font-mono">
-                @{user.username}
-              </span>
-            )}
-            {(user as any)?.authProvider && (
-              <span
-                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
-                  (user as any).authProvider === "google" ||
-                  (user as any).authProvider === "both"
-                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                    : "bg-white/[0.04] text-white/30 border-white/[0.06]"
-                }`}
-              >
-                {(user as any).authProvider === "google"
-                  ? "🔵 Google"
-                  : (user as any).authProvider === "both"
-                    ? "🔵 Google + Email"
-                    : "📧 Email"}
-              </span>
-            )}
           </div>
-          <div className="flex gap-1.5 mt-2 flex-wrap">
-            {(editing ? editLanguages : user?.preferences?.languages || [])
-              .slice(0, 4)
-              .map((lang) => (
-                <span
-                  key={lang}
-                  className="px-2 py-0.5 rounded-full bg-white/[0.06] text-white/40 text-[9px] font-semibold uppercase"
-                >
-                  {lang}
+
+          <div className="text-center sm:text-left space-y-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap justify-center sm:justify-start">
+              {editing ? (
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="text-2xl font-black text-white tracking-tight bg-white/[0.06] border border-white/10 rounded-xl px-3 py-1 outline-none focus:border-sp-green/45 transition-colors w-full max-w-xs"
+                  placeholder="Your name"
+                />
+              ) : (
+                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
+                  {user?.name}
+                </h1>
+              )}
+              {user?.username && (
+                <span className="text-xs text-white/30 font-mono sm:mt-1.5">
+                  @{user.username}
                 </span>
-              ))}
-            {(editing ? editLanguages : user?.preferences?.languages || [])
-              .length > 4 && (
-              <span className="text-[9px] text-white/25">
-                +
-                {(editing ? editLanguages : user?.preferences?.languages || [])
-                  .length - 4}
-              </span>
+              )}
+            </div>
+
+            <p className="text-white/40 text-xs md:text-sm">{user?.email}</p>
+            
+            {/* Now Playing status */}
+            {currentSong && (
+              <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
+                <div className="relative flex-shrink-0 border border-white/5 rounded">
+                  <img
+                    src={bestImg(currentSong.image, "50x50") || ""}
+                    onError={onImgErr}
+                    className="w-5.5 h-5.5 rounded object-cover"
+                  />
+                  {isPlaying && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-sp-green border border-[#08080a]" />
+                  )}
+                </div>
+                <p className="text-[11px] text-white/40 truncate max-w-[200px]">
+                  <span className="text-sp-green font-semibold">
+                    {isPlaying ? "Playing" : "Paused"}
+                  </span>
+                  {" · "}
+                  {currentSong.name}
+                </p>
+              </div>
             )}
+
+            <div className="flex items-center gap-2 mt-2 flex-wrap justify-center sm:justify-start">
+              {(user as any)?.authProvider && (
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
+                    (user as any).authProvider === "google" ||
+                    (user as any).authProvider === "both"
+                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      : "bg-white/[0.03] text-white/30 border-white/[0.05]"
+                  }`}
+                >
+                  {(user as any).authProvider === "google"
+                    ? "🔵 Google"
+                    : (user as any).authProvider === "both"
+                      ? "🔵 Google + Email"
+                      : "📧 Email"}
+                </span>
+              )}
+              {(editing ? editLanguages : user?.preferences?.languages || [])
+                .slice(0, 3)
+                .map((lang) => (
+                  <span
+                    key={lang}
+                    className="px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 text-[9px] font-bold uppercase border border-white/[0.05]"
+                  >
+                    {lang}
+                  </span>
+                ))}
+            </div>
           </div>
         </div>
 
         {/* Edit / Save / Cancel buttons */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-center sm:justify-start relative z-10">
           {editing ? (
             <>
               <button
                 onClick={handleCancel}
-                className="p-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white transition-all"
+                className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/50 hover:text-white transition-all active:scale-95"
                 title="Cancel"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="p-2.5 rounded-xl bg-sp-green/20 hover:bg-sp-green/30 text-sp-green transition-all disabled:opacity-50"
+                className="p-2.5 rounded-xl bg-sp-green/10 border border-sp-green/20 hover:bg-sp-green/20 text-sp-green transition-all active:scale-95 disabled:opacity-50"
                 title="Save"
               >
-                <Check size={16} />
+                <Check size={15} />
               </button>
             </>
           ) : (
             <button
               onClick={() => setEditing(true)}
-              className="p-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white transition-all"
+              className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95"
               title="Edit profile"
             >
-              <Pencil size={16} />
+              <Pencil size={15} />
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats grid */}
-      <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <BarChart3 size={18} className="text-sp-green" />
-        Listening Stats
-      </h2>
+      {/* Stats Section */}
+      <div className="mb-6">
+        <h2 className="text-sm font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <BarChart3 size={15} className="text-sp-green" />
+          Listening Stats
+        </h2>
 
-      {loading ? (
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.04] text-center"
-            >
-              <div className="w-5 h-5 rounded-full bg-white/[0.06] mx-auto mb-2 animate-pulse" />
-              <div className="h-7 w-12 rounded-lg bg-white/[0.06] mx-auto mb-1.5 animate-pulse" />
-              <div className="h-3 w-16 rounded bg-white/[0.04] mx-auto animate-pulse" />
-            </div>
-          ))}
-        </div>
-      ) : statsError ? (
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="col-span-3 py-4 text-center">
-            <p className="text-white/20 text-xs">Couldn't load stats</p>
+        {loading ? (
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="p-6 rounded-[24px] bg-white/[0.01] border border-white/[0.04] text-center"
+              >
+                <div className="w-5 h-5 rounded-full bg-white/[0.04] mx-auto mb-2.5 animate-pulse" />
+                <div className="h-6 w-14 bg-white/[0.04] rounded-lg mx-auto mb-2 animate-pulse" />
+                <div className="h-3 w-16 bg-white/[0.03] rounded mx-auto animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : statsError ? (
+          <div className="p-6 rounded-[24px] bg-white/[0.01] border border-white/[0.04] text-center mb-8">
+            <p className="text-white/20 text-xs">Failed to load listening stats</p>
             <button
               onClick={() => {
                 setLoading(true);
@@ -399,74 +397,77 @@ export default function ProfilePage() {
                   .catch(() => setStatsError(true))
                   .finally(() => setLoading(false));
               }}
-              className="text-sp-green text-xs mt-1 hover:underline"
+              className="text-sp-green text-xs mt-2 hover:underline"
             >
-              Retry
+              Retry Connection
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.04] text-center"
-          >
-            <Music2 size={20} className="text-sp-green mx-auto mb-2" />
-            <p className="text-2xl font-black text-white">
-              {stats?.totalSongsPlayed ?? "—"}
-            </p>
-            <p className="text-[11px] text-white/40 font-medium mt-1">
-              Songs Played
-            </p>
-          </motion.div>
+        ) : (
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4, borderColor: "rgba(29,185,84,0.2)" }}
+              className="p-6 rounded-[24px] bg-white/[0.01] border border-white/[0.04] transition-all duration-300 text-center"
+            >
+              <Music2 size={18} className="text-sp-green mx-auto mb-2.5" />
+              <p className="text-2xl font-black text-white leading-none">
+                {stats?.totalSongsPlayed ?? "—"}
+              </p>
+              <p className="text-[10px] text-white/35 font-bold uppercase tracking-wider mt-2.5">
+                Songs Played
+              </p>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.04] text-center"
-          >
-            <Clock size={20} className="text-purple-400 mx-auto mb-2" />
-            <p className="text-2xl font-black text-white">
-              {stats?.totalListeningTime
-                ? formatTime(stats.totalListeningTime)
-                : "—"}
-            </p>
-            <p className="text-[11px] text-white/40 font-medium mt-1">
-              Listen Time
-            </p>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              whileHover={{ y: -4, borderColor: "rgba(167,139,250,0.2)" }}
+              className="p-6 rounded-[24px] bg-white/[0.01] border border-white/[0.04] transition-all duration-300 text-center"
+            >
+              <Clock size={18} className="text-purple-400 mx-auto mb-2.5" />
+              <p className="text-2xl font-black text-white leading-none">
+                {stats?.totalListeningTime
+                  ? formatTime(stats.totalListeningTime)
+                  : "—"}
+              </p>
+              <p className="text-[10px] text-white/35 font-bold uppercase tracking-wider mt-2.5">
+                Listen Time
+              </p>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.04] text-center"
-          >
-            <Heart size={20} className="text-red-400 mx-auto mb-2" />
-            <p className="text-2xl font-black text-white">
-              {Object.keys(likedSongs).length}
-            </p>
-            <p className="text-[11px] text-white/40 font-medium mt-1">
-              Liked Songs
-            </p>
-          </motion.div>
-        </div>
-      )}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ y: -4, borderColor: "rgba(251,113,133,0.2)" }}
+              className="p-6 rounded-[24px] bg-white/[0.01] border border-white/[0.04] transition-all duration-300 text-center"
+            >
+              <Heart size={18} className="text-red-400 mx-auto mb-2.5" />
+              <p className="text-2xl font-black text-white leading-none">
+                {Object.keys(likedSongs).length}
+              </p>
+              <p className="text-[10px] text-white/35 font-bold uppercase tracking-wider mt-2.5">
+                Liked Songs
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </div>
 
       {/* SoulSync Wrapped (Dynamic, premium story-teller and dashboard widget) */}
       <SoulSyncWrapped stats={stats} user={user} loading={loading} />
 
-      {/* Preferences (editable) */}
+      {/* Preferences Section */}
       <div className="mb-8">
-        <h3 className="text-sm font-bold text-white/60 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Settings size={14} /> Preferences
+        <h3 className="text-sm font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <Settings size={14} className="text-white/40" /> Preferences
         </h3>
-        <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.04] space-y-5">
+        <div className="p-6 rounded-[28px] bg-white/[0.01] border border-white/[0.04] space-y-6">
           {/* Languages */}
           <div>
-            <p className="text-xs text-white/40 mb-2.5">Languages</p>
+            <p className="text-[11px] uppercase tracking-wider text-white/30 font-bold mb-3">Languages</p>
             {editing ? (
               <div className="flex flex-wrap gap-2">
                 {ALL_LANGUAGES.map((l) => {
@@ -480,7 +481,7 @@ export default function ProfilePage() {
                       className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${
                         active
                           ? "bg-sp-green/20 text-sp-green border-sp-green/30"
-                          : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
+                          : "bg-white/[0.03] text-white/30 border-white/[0.05] hover:text-white/50 hover:border-white/10"
                       }`}
                     >
                       {l}
@@ -493,7 +494,7 @@ export default function ProfilePage() {
                 {user.preferences.languages.map((l) => (
                   <span
                     key={l}
-                    className="px-3 py-1 rounded-full bg-sp-green/10 text-sp-green text-xs font-semibold capitalize"
+                    className="px-3 py-1 rounded-full bg-sp-green/10 text-sp-green text-xs font-bold capitalize border border-sp-green/15"
                   >
                     {l}
                   </span>
@@ -508,7 +509,7 @@ export default function ProfilePage() {
 
           {/* Moods */}
           <div>
-            <p className="text-xs text-white/40 mb-2.5">Moods</p>
+            <p className="text-[11px] uppercase tracking-wider text-white/30 font-bold mb-3">Moods</p>
             {editing ? (
               <div className="flex flex-wrap gap-2">
                 {ALL_MOODS.map((m) => {
@@ -520,7 +521,7 @@ export default function ProfilePage() {
                       className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 border ${
                         active
                           ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                          : "bg-white/[0.04] text-white/30 border-white/[0.06] hover:text-white/50 hover:border-white/10"
+                          : "bg-white/[0.03] text-white/30 border-white/[0.05] hover:text-white/50 hover:border-white/10"
                       }`}
                     >
                       {m}
@@ -533,7 +534,7 @@ export default function ProfilePage() {
                 {user.preferences.moods.map((m) => (
                   <span
                     key={m}
-                    className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-300 text-xs font-semibold capitalize"
+                    className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-300 text-xs font-bold capitalize border border-purple-500/15"
                   >
                     {m}
                   </span>
@@ -548,55 +549,54 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Download APK — web only */}
+      {/* Download APK Banner */}
       {!isNative() && (
         <a
           href={APK_DOWNLOAD_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="group block relative overflow-hidden rounded-2xl p-[1px] mb-4"
+          className="group block relative overflow-hidden rounded-[24px] p-[1px] mb-6"
         >
-          {/* Animated gradient border */}
+          {/* Animated border line */}
           <div
-            className="absolute inset-0 rounded-2xl opacity-40 group-hover:opacity-80 transition-opacity duration-500"
+            className="absolute inset-0 rounded-[24px] opacity-30 group-hover:opacity-75 transition-opacity duration-500"
             style={{
               background:
-                "linear-gradient(135deg, rgba(29,185,84,0.5), rgba(16,185,129,0.1), rgba(29,185,84,0.3), rgba(52,211,153,0.4))",
+                "linear-gradient(135deg, rgba(29,185,84,0.4), rgba(16,185,129,0.1), rgba(29,185,84,0.2), rgba(52,211,153,0.3))",
               backgroundSize: "300% 300%",
               animation: "gradientShift 6s ease infinite",
             }}
           />
-          <div className="relative rounded-2xl bg-[#0a0a0a]/90 backdrop-blur-xl px-5 py-4 flex items-center gap-4">
+          <div className="relative rounded-[24px] bg-[#070709]/95 backdrop-blur-xl px-5 py-4 flex items-center gap-4 border border-white/[0.04]">
             <div
-              className="w-12 h-12 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 group-hover:border-sp-green/30 transition-all duration-300"
-              style={{ boxShadow: "0 0 20px rgba(29,185,84,0.1)" }}
+              className="w-12 h-12 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 transition-all duration-300"
             >
-              <Smartphone size={22} className="text-sp-green" />
+              <Smartphone size={20} className="text-sp-green" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-[14px] font-bold text-white">Download APK</p>
-                <span className="px-2 py-0.5 rounded-full bg-sp-green/15 text-sp-green text-[9px] font-bold uppercase tracking-wider border border-sp-green/20">
-                  APK
+                <p className="text-sm font-bold text-white">Download APK</p>
+                <span className="px-2 py-0.5 rounded-full bg-sp-green/10 text-sp-green text-[9px] font-black uppercase tracking-wider border border-sp-green/25">
+                  Mobile
                 </span>
               </div>
               <p className="text-[11px] text-white/30 mt-0.5">
                 For a better experience · Free from GitHub
               </p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(29,185,84,0.4)] transition-all duration-300">
-              <Download size={16} className="text-black" strokeWidth={2.5} />
+            <div className="w-8.5 h-8.5 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-105 group-hover:shadow-[0_0_15px_rgba(29,185,84,0.3)] transition-all duration-300">
+              <Download size={14} className="text-black" strokeWidth={2.5} />
             </div>
           </div>
         </a>
       )}
 
-      {/* Logout */}
+      {/* Logout Button */}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-semibold transition-all duration-300 border border-red-500/10 hover:border-red-500/20"
+        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-[20px] bg-red-500/10 hover:bg-red-500/15 text-red-400 text-xs font-bold uppercase tracking-wider transition-all duration-300 border border-red-500/10 hover:border-red-500/20 active:scale-[0.99]"
       >
-        <LogOut size={16} /> Sign Out
+        <LogOut size={14} /> Sign Out
       </button>
     </div>
   );
