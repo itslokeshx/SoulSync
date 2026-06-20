@@ -2,6 +2,7 @@ import axios from "axios";
 import { Playlist, AIPlaylistResult } from "../types/playlist";
 import { User, UserStats } from "../types/user";
 import { isNative } from "../utils/platform";
+import { bestImg, getArtists } from "../lib/helpers";
 
 const api = axios.create({
   baseURL: (
@@ -304,10 +305,22 @@ export async function deletePlaylist(id: string): Promise<void> {
 
 export async function addSongToPlaylist(
   playlistId: string,
-  song: unknown,
+  song: any,
 ): Promise<Playlist> {
+  const mappedSong = {
+    songId: song.songId || song.id,
+    title: song.title || song.name || "",
+    artist: song.artist || getArtists(song),
+    albumArt: song.albumArt || bestImg(song.image) || "",
+    duration: Number(song.duration) || 0,
+    downloadUrl: (song.downloadUrl || song.download_url || []).map((u: any) => ({
+      quality: u.quality || "",
+      url: u.url || u.link || "",
+    })),
+  };
+
   const { data } = await api.post(`/api/playlists/${playlistId}/songs`, {
-    song,
+    song: mappedSong,
   });
   return data.playlist;
 }
