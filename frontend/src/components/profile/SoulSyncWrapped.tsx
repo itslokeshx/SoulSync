@@ -260,13 +260,13 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
   const joinDays = getJoinDays();
   const hasHistory = stats && stats.totalSongsPlayed > 0;
 
-  // Rich Spotify-wrapped bold color block backgrounds
+  // Rich Spotify-wrapped bold color block backgrounds (Ordered: Welcome -> Milestones -> Top Songs -> Top Artist -> Top Artists Chart -> Languages -> Persona -> Poster)
   const slideGradients = [
     "from-[#2e0854] via-[#0f051d] to-[#040108]", // Slide 0 (Welcome): Deep Electric Violet
     "from-[#0b3c29] via-[#03150e] to-[#010604]", // Slide 1 (Milestones): Deep Mint/Forest
-    "from-[#4c0519] via-[#1c0209] to-[#0a0003]", // Slide 2 (Top Artist): Rich Wine Red
-    "from-[#431407] via-[#1a0502] to-[#070100]", // Slide 3 (Artists List): Warm Copper
-    "from-[#0c1b40] via-[#03091c] to-[#010208]", // Slide 4 (Top Songs): Deep Indigo
+    "from-[#0c1b40] via-[#03091c] to-[#010208]", // Slide 2 (Top Songs): Deep Indigo
+    "from-[#4c0519] via-[#1c0209] to-[#0a0003]", // Slide 3 (Top Artist): Rich Wine Red
+    "from-[#431407] via-[#1a0502] to-[#070100]", // Slide 4 (Artists List): Warm Copper
     "from-[#083344] via-[#02151e] to-[#010609]", // Slide 5 (Languages): Cyan Wave
     "from-[#4a044e] via-[#1a021c] to-[#070008]", // Slide 6 (Identity): Fuchsia/Purple
     "from-[#111827] via-[#090d16] to-[#030407]", // Slide 7 (Poster): Clean Dark Slate
@@ -384,15 +384,15 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                   : currentSlide === 1
                     ? "rgba(52, 211, 153, 0.6)"
                     : currentSlide === 2
-                      ? "rgba(244, 63, 94, 0.6)"
+                      ? "rgba(99, 102, 241, 0.6)" // Royal blue/Indigo glow for top songs
                       : currentSlide === 3
-                        ? "rgba(249, 115, 22, 0.6)"
+                        ? "rgba(244, 63, 94, 0.6)" // Wine Red glow for top artist
                         : currentSlide === 4
-                          ? "rgba(99, 102, 241, 0.6)" // Royal blue/Indigo glow
+                          ? "rgba(249, 115, 22, 0.6)" // Warm Copper/Orange glow for artists list
                           : currentSlide === 5
-                            ? "rgba(6, 182, 212, 0.6)" // Cyan glow
+                            ? "rgba(6, 182, 212, 0.6)" // Cyan glow for languages
                             : currentSlide === 6
-                              ? "rgba(217, 70, 239, 0.6)" // Fuchsia glow
+                              ? "rgba(217, 70, 239, 0.6)" // Fuchsia glow for persona
                               : "rgba(29, 185, 84, 0.4)", // Poster glow
             }}
           />
@@ -546,110 +546,6 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
               {currentSlide === 2 && (
                 <motion.div
                   key="slide2"
-                  initial={{ opacity: 0, scale: 0.9, y: 15 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 1.05, y: -15 }}
-                  transition={{ type: "spring", stiffness: 120, damping: 14 }}
-                  className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 text-center md:text-left"
-                >
-                  {stats?.topArtists?.[0] ? (
-                    <>
-                      <div className="relative w-36 h-36 md:w-64 md:h-64 rounded-full overflow-hidden ring-4 ring-rose-500/20 flex-shrink-0 flex items-center justify-center bg-white/[0.02] shadow-2xl">
-                        {stats.topArtists[0].albumArt ? (
-                          <img
-                            src={stats.topArtists[0].albumArt}
-                            onError={onImgErr}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-5xl font-black text-rose-400">
-                            {stats.topArtists[0]._id?.[0]?.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="space-y-4 max-w-md">
-                        <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-wider w-fit mx-auto md:mx-0 flex items-center gap-1.5">
-                          <Heart size={12} fill="currentColor" /> Ultimate Muse
-                        </span>
-                        <p className="text-white/50 text-xs md:text-sm uppercase tracking-widest font-bold">Your #1 played artist</p>
-                        <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-none">
-                          {stats.topArtists[0]._id}
-                        </h2>
-                        <p className="text-lg md:text-xl font-black text-rose-400">
-                          {stats.topArtists[0].count} plays
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2 py-8">
-                      <Music size={48} className="text-white/20 mx-auto" />
-                      <p className="text-white/50 text-xs">No artists logged yet.</p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
-              {currentSlide === 3 && (
-                <motion.div
-                  key="slide3"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -30 }}
-                  transition={{ type: "spring", stiffness: 120, damping: 14 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center text-left"
-                >
-                  <div className="space-y-4">
-                    <span className="text-xs uppercase tracking-wider text-orange-400 font-black px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 w-fit">
-                      In Heavy Rotation
-                    </span>
-                    <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
-                      Your Top 5 <br />Artists
-                    </h2>
-                    <p className="text-sm md:text-base text-white/50 leading-relaxed">
-                      These artists provided the constant backbeat to your days, racking up the highest play counts in your library.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 pt-1">
-                    {stats?.topArtists?.slice(0, 5).map((artist, idx) => {
-                      const maxCount = stats.topArtists[0]?.count || 1;
-                      const percent = Math.max(12, Math.min(100, (artist.count / maxCount) * 100));
-
-                      const barColors = [
-                        "bg-gradient-to-r from-amber-400 to-orange-500",
-                        "bg-gradient-to-r from-orange-400 to-pink-500",
-                        "bg-gradient-to-r from-pink-400 to-fuchsia-500",
-                        "bg-gradient-to-r from-fuchsia-400 to-violet-500",
-                        "bg-gradient-to-r from-violet-400 to-indigo-500",
-                      ];
-
-                      return (
-                        <div key={artist._id} className="space-y-1">
-                          <div className="flex justify-between items-center text-xs md:text-sm">
-                            <span className="font-semibold text-white/95 truncate max-w-[280px] md:max-w-xs">
-                              {idx + 1}. {artist._id}
-                            </span>
-                            <span className="text-white/40">{artist.count} plays</span>
-                          </div>
-                          <div className="h-2.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${percent}%` }}
-                              transition={{ duration: 1.2, type: "spring", stiffness: 80, damping: 12 }}
-                              className={`h-full ${barColors[idx % barColors.length]} rounded-full`}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-
-              {currentSlide === 4 && (
-                <motion.div
-                  key="slide4"
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -30 }}
@@ -707,6 +603,110 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                     ) : (
                       <p className="text-xs text-white/30 italic text-center py-6">No song history logged.</p>
                     )}
+                  </div>
+                </motion.div>
+              )}
+
+              {currentSlide === 3 && (
+                <motion.div
+                  key="slide3"
+                  initial={{ opacity: 0, scale: 0.9, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 1.05, y: -15 }}
+                  transition={{ type: "spring", stiffness: 120, damping: 14 }}
+                  className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 text-center md:text-left"
+                >
+                  {stats?.topArtists?.[0] ? (
+                    <>
+                      <div className="relative w-36 h-36 md:w-64 md:h-64 rounded-full overflow-hidden ring-4 ring-rose-500/20 flex-shrink-0 flex items-center justify-center bg-white/[0.02] shadow-2xl">
+                        {stats.topArtists[0].albumArt ? (
+                          <img
+                            src={stats.topArtists[0].albumArt}
+                            onError={onImgErr}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-5xl font-black text-rose-400">
+                            {stats.topArtists[0]._id?.[0]?.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-4 max-w-md">
+                        <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-wider w-fit mx-auto md:mx-0 flex items-center gap-1.5">
+                          <Heart size={12} fill="currentColor" /> Ultimate Muse
+                        </span>
+                        <p className="text-white/50 text-xs md:text-sm uppercase tracking-widest font-bold">Your #1 played artist</p>
+                        <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-none">
+                          {stats.topArtists[0]._id}
+                        </h2>
+                        <p className="text-lg md:text-xl font-black text-rose-400">
+                          {stats.topArtists[0].count} plays
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2 py-8">
+                      <Music size={48} className="text-white/20 mx-auto" />
+                      <p className="text-white/50 text-xs">No artists logged yet.</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {currentSlide === 4 && (
+                <motion.div
+                  key="slide4"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ type: "spring", stiffness: 120, damping: 14 }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center text-left"
+                >
+                  <div className="space-y-4">
+                    <span className="text-xs uppercase tracking-wider text-orange-400 font-black px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 w-fit">
+                      In Heavy Rotation
+                    </span>
+                    <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
+                      Your Top 5 <br />Artists
+                    </h2>
+                    <p className="text-sm md:text-base text-white/50 leading-relaxed">
+                      These artists provided the constant backbeat to your days, racking up the highest play counts in your library.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 pt-1">
+                    {stats?.topArtists?.slice(0, 5).map((artist, idx) => {
+                      const maxCount = stats.topArtists[0]?.count || 1;
+                      const percent = Math.max(12, Math.min(100, (artist.count / maxCount) * 100));
+
+                      const barColors = [
+                        "bg-gradient-to-r from-amber-400 to-orange-500",
+                        "bg-gradient-to-r from-orange-400 to-pink-500",
+                        "bg-gradient-to-r from-pink-400 to-fuchsia-500",
+                        "bg-gradient-to-r from-fuchsia-400 to-violet-500",
+                        "bg-gradient-to-r from-violet-400 to-indigo-500",
+                      ];
+
+                      return (
+                        <div key={artist._id} className="space-y-1">
+                          <div className="flex justify-between items-center text-xs md:text-sm">
+                            <span className="font-semibold text-white/95 truncate max-w-[280px] md:max-w-xs">
+                              {idx + 1}. {artist._id}
+                            </span>
+                            <span className="text-white/40">{artist.count} plays</span>
+                          </div>
+                          <div className="h-2.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${percent}%` }}
+                              transition={{ duration: 1.2, type: "spring", stiffness: 80, damping: 12 }}
+                              className={`h-full ${barColors[idx % barColors.length]} rounded-full`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
