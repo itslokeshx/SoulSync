@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth/AuthContext";
 import { Toaster } from "react-hot-toast";
 import App from "./App";
+import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 import { initCapacitor } from "./capacitor";
 import { isNative } from "./utils/platform";
@@ -65,6 +66,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <NetworkProvider>
           <AuthProvider>
             <App />
+            <Analytics />
             <Toaster
               position="top-center"
               toastOptions={{
