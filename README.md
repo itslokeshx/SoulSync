@@ -47,8 +47,6 @@ _Not a tutorial project — a product people have actually been using!_
 | AI Playlists                                |       ✅       |      ❌      |       ❌        |
 | Listen Together + Chat                      |       ✅       |      ❌      |       ❌        |
 | Offline Downloads                           |       ✅       |      ❌      |       ✅        |
-| Originals-first Search                      |       ✅       |      ❌      |       ❌        |
-| Playlist Import (Spotify, YT, Apple, Gaana) |       ✅       |      ❌      |       ❌        |
 | Open Source                                 |     ✅ MIT     |      ❌      |       ❌        |
 | **Price**                                   | **₹0 forever** |  ₹0 w/ ads   |   ₹119/month    |
 
