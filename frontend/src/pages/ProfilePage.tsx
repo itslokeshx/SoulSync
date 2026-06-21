@@ -19,7 +19,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
 import * as api from "../api/backend";
 import { UserStats } from "../types/user";
-import { onImgErr, bestImg } from "../lib/helpers";
+import { onImgErr } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 import { useApkDownloadUrl } from "../hooks/useApkDownloadUrl";
@@ -60,7 +60,7 @@ const ALL_MOODS = [
 
 export default function ProfilePage() {
   const { user, logout, updateUser, isAuthenticated } = useAuth();
-  const { currentSong, isPlaying, likedSongs } = useApp();
+  const { likedSongs } = useApp();
   const apkDownloadUrl = useApkDownloadUrl();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -231,78 +231,55 @@ export default function ProfilePage() {
   return (
     <div className="animate-fadeIn max-w-3xl mx-auto pb-12">
       {/* Profile Header Banner */}
-      <div className="relative overflow-hidden rounded-[32px] p-6 md:p-8 border border-white/[0.06] bg-white/[0.01] backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+      <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] p-5 sm:p-6 md:p-8 border border-white/[0.06] bg-white/[0.01] backdrop-blur-md flex flex-row items-center justify-between gap-4 sm:gap-6 mb-8">
         <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.01] to-transparent pointer-events-none" />
         
-        <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+        <div className="flex flex-row items-center gap-4 sm:gap-6 relative z-10 min-w-0 flex-1">
           <div className="relative flex-shrink-0">
             {user?.photoURL ? (
               <img
                 src={user.photoURL}
                 onError={onImgErr}
-                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-sp-green/20"
+                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-sp-green/20"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-sp-green to-emerald-600 flex items-center justify-center">
-                <UserIcon size={36} className="text-black" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-sp-green to-emerald-600 flex items-center justify-center">
+                <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-black" />
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-sp-green flex items-center justify-center ring-2 ring-[#08080a]">
-              <Music2 size={11} className="text-black" />
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-sp-green flex items-center justify-center ring-2 ring-[#08080a]">
+              <Music2 size={10} className="text-black" />
             </div>
           </div>
 
-          <div className="text-center sm:text-left space-y-1">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap justify-center sm:justify-start">
+          <div className="text-left space-y-1 min-w-0 flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap min-w-0">
               {editing ? (
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="text-2xl font-black text-white tracking-tight bg-white/[0.06] border border-white/10 rounded-xl px-3 py-1 outline-none focus:border-sp-green/45 transition-colors w-full max-w-xs"
+                  className="text-lg sm:text-2xl md:text-3xl font-black text-white tracking-tight bg-white/[0.06] border border-white/10 rounded-xl px-3 py-1 outline-none focus:border-sp-green/45 transition-colors w-full max-w-[160px] sm:max-w-xs"
                   placeholder="Your name"
                 />
               ) : (
-                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight leading-tight truncate">
                   {user?.name}
                 </h1>
               )}
               {user?.username && (
-                <span className="text-xs text-white/30 font-mono sm:mt-1.5">
+                <span className="text-[10px] sm:text-xs text-white/30 font-mono sm:mt-1">
                   @{user.username}
                 </span>
               )}
             </div>
 
-            <p className="text-white/40 text-xs md:text-sm">{user?.email}</p>
-            
-            {/* Now Playing status */}
-            {currentSong && (
-              <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
-                <div className="relative flex-shrink-0 border border-white/5 rounded">
-                  <img
-                    src={bestImg(currentSong.image, "50x50") || ""}
-                    onError={onImgErr}
-                    className="w-5.5 h-5.5 rounded object-cover"
-                  />
-                  {isPlaying && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-sp-green border border-[#08080a]" />
-                  )}
-                </div>
-                <p className="text-[11px] text-white/40 truncate max-w-[200px]">
-                  <span className="text-sp-green font-semibold">
-                    {isPlaying ? "Playing" : "Paused"}
-                  </span>
-                  {" · "}
-                  {currentSong.name}
-                </p>
-              </div>
-            )}
+            <p className="text-white/40 text-[11px] sm:text-xs md:text-sm truncate">{user?.email}</p>
 
-            <div className="flex items-center gap-2 mt-2 flex-wrap justify-center sm:justify-start">
+            <div className="flex items-center gap-1.5 mt-1 sm:mt-2 flex-wrap">
               {(user as any)?.authProvider && (
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
+                  className={`px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold uppercase tracking-wider border ${
                     (user as any).authProvider === "google" ||
                     (user as any).authProvider === "both"
                       ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
@@ -321,7 +298,7 @@ export default function ProfilePage() {
                 .map((lang) => (
                   <span
                     key={lang}
-                    className="px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 text-[9px] font-bold uppercase border border-white/[0.05]"
+                    className="px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 text-[8px] sm:text-[9px] font-bold uppercase border border-white/[0.05]"
                   >
                     {lang}
                   </span>
@@ -331,32 +308,32 @@ export default function ProfilePage() {
         </div>
 
         {/* Edit / Save / Cancel buttons */}
-        <div className="flex gap-2 justify-center sm:justify-start relative z-10">
+        <div className="flex gap-2 relative z-10 flex-shrink-0">
           {editing ? (
             <>
               <button
                 onClick={handleCancel}
-                className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/50 hover:text-white transition-all active:scale-95"
+                className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/50 hover:text-white transition-all active:scale-95"
                 title="Cancel"
               >
-                <X size={15} />
+                <X size={14} />
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="p-2.5 rounded-xl bg-sp-green/10 border border-sp-green/20 hover:bg-sp-green/20 text-sp-green transition-all active:scale-95 disabled:opacity-50"
+                className="p-2 sm:p-2.5 rounded-xl bg-sp-green/10 border border-sp-green/20 hover:bg-sp-green/20 text-sp-green transition-all active:scale-95 disabled:opacity-50"
                 title="Save"
               >
-                <Check size={15} />
+                <Check size={14} />
               </button>
             </>
           ) : (
             <button
               onClick={() => setEditing(true)}
-              className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95"
               title="Edit profile"
             >
-              <Pencil size={15} />
+              <Pencil size={14} />
             </button>
           )}
         </div>
