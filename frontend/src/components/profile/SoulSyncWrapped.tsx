@@ -231,15 +231,21 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
 
   const getJoinDays = () => {
     if (!user?.createdAt) return 0;
-    const diffTime = Math.abs(Date.now() - new Date(user.createdAt).getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const joinedAt = new Date(user.createdAt);
+    joinedAt.setHours(0, 0, 0, 0);
+    
+    const diffTime = today.getTime() - joinedAt.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(1, diffDays);
   };
 
-  const getJoinMonthYear = () => {
+  const getJoinDateFormatted = () => {
     if (!user?.createdAt) return "some time ago";
     return new Date(user.createdAt).toLocaleDateString(undefined, {
       month: "long",
+      day: "numeric",
       year: "numeric",
     });
   };
@@ -325,7 +331,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                 {joinDays}
               </p>
               <p className="text-[9px] uppercase tracking-wider text-white/30 font-black">
-                Days Synced
+                Days Joined
               </p>
             </div>
           </div>
@@ -476,7 +482,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                     <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-none">
                       Your Music Year <br />
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-emerald-400">
-                        In Sync.
+                        {new Date().getFullYear()} In Sync.
                       </span>
                     </h1>
                     <p className="text-xs md:text-sm text-white/40 leading-relaxed max-w-sm pt-1">
@@ -501,28 +507,27 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                     </span>
                     <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
                       Synced since <br />
-                      <span className="text-emerald-400">{getJoinMonthYear()}</span>
+                      <span className="text-emerald-400">{getJoinDateFormatted()}</span>
                     </h2>
                     <p className="text-xs md:text-sm text-white/40 leading-relaxed max-w-sm">
                       You've been mapping your musical state to SoulSync, capturing each beat, vibe, and play counts along the way.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="p-6 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04] flex items-center justify-between">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-5 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04] flex flex-col justify-between">
                       <div>
-                        <span className="text-[10px] text-white/30 uppercase font-black tracking-wider block mb-1">
+                        <span className="text-[9px] text-white/30 uppercase font-black tracking-wider block mb-1">
                           Minutes Listened
                         </span>
-                        <span className="text-3xl md:text-4xl font-black text-emerald-400">
+                        <span className="text-2xl md:text-3xl font-black text-emerald-400">
                           <Counter value={formatListeningTime(stats?.totalListeningTime || 0)} />
                         </span>
                       </div>
-                      <Clock size={32} className="text-emerald-500/20" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-5 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04]">
+                    <div className="p-5 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04] flex flex-col justify-between">
+                      <div>
                         <span className="text-[9px] text-white/30 uppercase font-black tracking-wider block mb-1">
                           Songs Played
                         </span>
@@ -530,12 +535,26 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                           <Counter value={stats?.totalSongsPlayed || 0} />
                         </span>
                       </div>
-                      <div className="p-5 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04]">
+                    </div>
+
+                    <div className="p-5 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04] flex flex-col justify-between">
+                      <div>
                         <span className="text-[9px] text-white/30 uppercase font-black tracking-wider block mb-1">
                           Liked Songs
                         </span>
                         <span className="text-2xl md:text-3xl font-black text-white">
                           <Counter value={stats?.likedSongsCount || 0} />
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 rounded-3xl bg-white/[0.01] backdrop-blur-lg border border-white/[0.04] flex flex-col justify-between">
+                      <div>
+                        <span className="text-[9px] text-white/30 uppercase font-black tracking-wider block mb-1">
+                          Days Joined
+                        </span>
+                        <span className="text-2xl md:text-3xl font-black text-emerald-400">
+                          <Counter value={joinDays} />
                         </span>
                       </div>
                     </div>
@@ -915,7 +934,7 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                       {/* Ticket Footer / Barcode */}
                       <div className="flex items-end justify-between pt-2">
                         <div className="text-[9px] text-white/20 font-bold tracking-widest uppercase font-mono">
-                          <span>SOULSYNC 2026</span>
+                          <span>SOULSYNC {new Date().getFullYear()}</span>
                         </div>
                         {/* Mock vertical lines barcode */}
                         <div className="flex gap-[2px] items-center h-6 opacity-30 flex-shrink-0">
