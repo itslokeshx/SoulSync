@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, GripVertical, Trash2, Plus } from "lucide-react";
+import { X, GripVertical, Trash2, Plus, Infinity } from "lucide-react";
 import { EqBars } from "../ui/EqBars";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
-import { usePlayerStore } from "../../store/playerStore";
 import { useQueueStore } from "../../store/queueStore";
 
 interface QueuePanelProps {
@@ -35,8 +34,7 @@ export const QueuePanel = ({
   const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
 
   // ── Autoplay preview ─────────────────────────────────────────────
-  const { autoplay } = usePlayerStore();
-  const { addLast } = useQueueStore();
+  const { autoplay, setAutoplay, addLast } = useQueueStore();
   const [autoplaySongs, setAutoplaySongs] = useState<any[]>([]);
   const [autoplayLoading, setAutoplayLoading] = useState(false);
 
@@ -111,12 +109,27 @@ export const QueuePanel = ({
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
         <h3 className="font-semibold text-white text-[13px]">Queue</h3>
-        <button
-          onClick={onClose}
-          className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
-        >
-          <X size={15} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoplay(!autoplay)}
+            className={`transition-colors p-1 rounded-full ${
+              autoplay
+                ? "text-green-400 bg-green-400/10"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+            title={autoplay ? "Autoplay On" : "Autoplay Off"}
+            aria-label={autoplay ? "Autoplay On" : "Autoplay Off"}
+            aria-pressed={autoplay}
+          >
+            <Infinity size={15} />
+          </button>
+          <button
+            onClick={onClose}
+            className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+          >
+            <X size={15} />
+          </button>
+        </div>
       </div>
 
       {currentSong && (

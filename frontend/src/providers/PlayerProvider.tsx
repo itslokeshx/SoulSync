@@ -24,6 +24,7 @@ import { isNative } from "../utils/platform";
 import { useDuo } from "../duo/useDuo";
 import { useDuoStore } from "../duo/duoStore";
 import { getOfflineBlob } from "../utils/offlineDB";
+import { useQueueAutoFill } from "../hooks/useQueueAutoFill";
 import toast from "react-hot-toast";
 
 interface PlayerContextType {
@@ -49,7 +50,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     volume,
     isMuted,
     repeatMode,
-    autoplay,
     currentTime,
     duration,
     setCurrentTime,
@@ -63,6 +63,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   } = usePlayerStore();
 
   const { next, prev, queue, addLast } = useQueueStore();
+  useQueueAutoFill();
 
   // ── Refs & Synchronization Flags ──────────────────────────────────
   const isRemoteActionRef = useRef(false);
@@ -383,7 +384,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         playSong(n);
       } else {
         // Queue exhausted — fetch autoplay suggestions if enabled
-        const { autoplay: ap, currentSong: song } = usePlayerStore.getState();
+        const ap = useQueueStore.getState().autoplay;
+        const song = usePlayerStore.getState().currentSong;
         if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
           toast("Finding similar songs...");
           fetch(`/api/search/autoplay/${song.id}`, { credentials: "include" })

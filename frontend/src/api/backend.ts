@@ -378,6 +378,21 @@ export async function getRelatedSongs(
   return data;
 }
 
+export async function getRecommendations(payload: {
+  song: {
+    id: string;
+    title?: string;
+    artist?: string;
+    artistId?: string;
+    language?: string;
+    albumId?: string;
+  };
+  excludeIds: string[];
+}): Promise<{ songs: any[] }> {
+  const { data } = await api.post("/api/recommendations", payload);
+  return data;
+}
+
 // ── Dashboard ───────────────────────────────────────────────────────────────
 export async function getDashboard(): Promise<any> {
   const { data } = await api.get("/api/dashboard");

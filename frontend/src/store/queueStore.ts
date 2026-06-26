@@ -7,6 +7,7 @@ interface QueueState {
   history: Song[];
   originalQueue: Song[];
   isShuffled: boolean;
+  autoplay: boolean;
 }
 
 interface QueueActions {
@@ -21,6 +22,7 @@ interface QueueActions {
   next: (repeatMode: "off" | "one" | "all") => Song | null;
   prev: () => Song | null;
   getCurrentSong: () => Song | null;
+  setAutoplay: (val: boolean) => void;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -38,6 +40,7 @@ export const useQueueStore = create<QueueState & QueueActions>((set, get) => ({
   history: [],
   originalQueue: [],
   isShuffled: false,
+  autoplay: true,
 
   setQueue: (songs, startIndex = 0) =>
     set({
@@ -152,4 +155,6 @@ export const useQueueStore = create<QueueState & QueueActions>((set, get) => ({
     const s = get();
     return s.queue[s.queueIndex] || null;
   },
+
+  setAutoplay: (val) => set({ autoplay: val }),
 }));
