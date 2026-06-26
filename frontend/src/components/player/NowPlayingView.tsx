@@ -147,6 +147,7 @@ export const NowPlayingView = ({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const dragNodeRef = useRef<HTMLDivElement | null>(null);
+  const played = queue.slice(0, queueIndex);
   const upcoming = queue.slice(queueIndex + 1);
   const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
 
@@ -558,7 +559,65 @@ export const NowPlayingView = ({
 
                 {/* Queue list */}
                 <div className="max-h-48 sm:max-h-56 lg:max-h-72 overflow-y-auto hide-scrollbar space-y-0.5">
-                  {upcoming.length === 0 ? (
+                  {/* ── Played songs (dimmed) ── */}
+                  {played.length > 0 && (
+                    <>
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest px-2 py-1.5">
+                        Played · {played.length}
+                      </p>
+                      {played.map((s, i) => {
+                        const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
+                        return (
+                          <button
+                            key={`played-${s.id}-${i}`}
+                            onClick={() => onJump?.(i)}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/[0.04] transition-all w-full text-left opacity-35 hover:opacity-60"
+                          >
+                            <img
+                              src={sImg}
+                              onError={onImgErr}
+                              className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[12px] text-white/70 truncate">
+                                {s.name}
+                              </p>
+                              <p className="text-[10px] text-white/25 truncate">
+                                {getArtists(s)}
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
+                              {fmt(s.duration)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      <div className="border-t border-white/[0.04] my-1" />
+                    </>
+                  )}
+
+                  {/* ── Currently playing indicator ── */}
+                  {currentSong && (
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-sp-green/[0.08] border border-sp-green/15">
+                      <img
+                        src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
+                        onError={onImgErr}
+                        className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] text-sp-green font-semibold truncate">
+                          {currentSong.name}
+                        </p>
+                        <p className="text-[10px] text-white/30 truncate">
+                          {getArtists(currentSong)}
+                        </p>
+                      </div>
+                      <EqBars />
+                    </div>
+                  )}
+
+                  {/* ── Upcoming songs ── */}
+                  {upcoming.length === 0 && played.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
                       <Music size={32} className="text-white/10 mb-3" />
                       <p className="text-white/30 text-sm font-medium">

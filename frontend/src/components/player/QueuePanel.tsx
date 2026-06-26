@@ -28,11 +28,18 @@ export const QueuePanel = ({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const dragNodeRef = useRef<HTMLDivElement | null>(null);
+  const currentRef = useRef<HTMLDivElement | null>(null);
 
-  // "Next Up" items start after queueIndex
+  // Split queue into played, current, and upcoming
+  const played = queue.slice(0, queueIndex);
   const upcoming = queue.slice(queueIndex + 1);
 
-  const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
+  // Scroll to the currently playing song when the panel opens or song changes
+  useEffect(() => {
+    if (currentRef.current) {
+      currentRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [queueIndex, currentSong?.id]);
 
   // ── Autoplay preview ─────────────────────────────────────────────
   const { autoplay } = usePlayerStore();
@@ -60,6 +67,9 @@ export const QueuePanel = ({
       .finally(() => !cancelled && setAutoplayLoading(false));
     return () => { cancelled = true; };
   }, [currentSong?.id, autoplay]);
+
+  // Drag handlers operate on upcoming items only (relative index in upcoming array)
+  const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
 
   const handleDragStart = useCallback((e: React.DragEvent, relIdx: number) => {
     setDragIdx(relIdx);
@@ -111,6 +121,9 @@ export const QueuePanel = ({
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
         <h3 className="font-semibold text-white text-[13px]">Queue</h3>
+        <span className="text-[10px] text-white/25 tabular-nums mr-auto ml-2">
+          {queue.length} {queue.length === 1 ? "song" : "songs"}
+        </span>
         <button
           onClick={onClose}
           className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
@@ -119,31 +132,67 @@ export const QueuePanel = ({
         </button>
       </div>
 
-      {currentSong && (
-        <div className="px-5 py-3 border-b border-white/[0.04]">
-          <p className="text-[10px] font-semibold text-sp-green uppercase tracking-[0.15em] mb-2">
-            Now Playing
-          </p>
-          <div className="flex items-center gap-3">
-            <img
-              src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
-              onError={onImgErr}
-              className="w-10 h-10 rounded-xl object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-sp-green truncate">
-                {currentSong.name}
-              </p>
-              <p className="text-[11px] text-sp-sub/60 truncate">
-                {getArtists(currentSong)}
-              </p>
-            </div>
-            <EqBars />
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 overflow-y-auto hide-scrollbar">
+        {/* ── Played songs section ── */}
+        {played.length > 0 && (
+          <>
+            <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest px-5 py-3">
+              Played · {played.length}
+            </p>
+            {played.map((s, i) => (
+              <button
+                key={`played-${s.id}-${i}`}
+                onClick={() => onJump(i)}
+                className="flex items-center gap-3 px-5 pr-3 py-2 mx-2 rounded-xl hover:bg-white/[0.04] transition-all w-[calc(100%-1rem)] text-left opacity-40 hover:opacity-70"
+              >
+                <span className="text-[10px] text-white/20 tabular-nums w-5 text-right flex-shrink-0">
+                  {i + 1}
+                </span>
+                <img
+                  src={bestImg(s.image, "50x50") || FALLBACK_IMG}
+                  onError={onImgErr}
+                  className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-white/70 truncate">{s.name}</p>
+                  <p className="text-[11px] text-white/30 truncate">
+                    {getArtists(s)}
+                  </p>
+                </div>
+                <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
+                  {fmt(s.duration)}
+                </span>
+              </button>
+            ))}
+          </>
+        )}
+
+        {/* ── Now Playing ── */}
+        {currentSong && (
+          <div ref={currentRef}>
+            <p className="text-[10px] font-semibold text-sp-green uppercase tracking-[0.15em] px-5 py-3">
+              Now Playing
+            </p>
+            <div className="flex items-center gap-3 px-5 pr-3 py-2.5 mx-2 rounded-xl bg-sp-green/[0.08] border border-sp-green/15">
+              <img
+                src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
+                onError={onImgErr}
+                className="w-10 h-10 rounded-xl object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-sp-green truncate">
+                  {currentSong.name}
+                </p>
+                <p className="text-[11px] text-sp-sub/60 truncate">
+                  {getArtists(currentSong)}
+                </p>
+              </div>
+              <EqBars />
+            </div>
+          </div>
+        )}
+
+        {/* ── Next Up section ── */}
         <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
           Next Up · {upcoming.length} songs
         </p>
