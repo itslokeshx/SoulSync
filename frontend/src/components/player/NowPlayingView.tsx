@@ -70,6 +70,7 @@ interface NowPlayingViewProps {
   onMove?: (from: number, to: number) => void;
   onRemove?: (index: number) => void;
   onShuffleQueue?: () => void;
+  canGoPrev?: boolean;
 }
 
 const VolumeIcon = ({ volume }: { volume: number }) => {
@@ -105,6 +106,7 @@ export const NowPlayingView = ({
   onMove,
   onRemove,
   onShuffleQueue,
+  canGoPrev = true,
 }: NowPlayingViewProps) => {
   const [bgColor, setBgColor] = useState("#18181a");
   const [showVol, setShowVol] = useState(false);
@@ -479,7 +481,12 @@ export const NowPlayingView = ({
             </button>
             <button
               onClick={onPrev}
-              className="text-white hover:scale-110 transition-all p-1"
+              disabled={!canGoPrev}
+              className={`transition-all p-1 ${
+                canGoPrev
+                  ? "text-white hover:scale-110"
+                  : "text-white/20 cursor-default"
+              }`}
             >
               <SkipBack size={26} className="fill-current" />
             </button>

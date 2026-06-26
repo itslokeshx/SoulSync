@@ -62,7 +62,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsPlaying,
   } = usePlayerStore();
 
-  const { next, prev, queue, addLast } = useQueueStore();
+  const { playNext, playPrev, queue } = useQueueStore();
   useQueueAutoFill();
 
   // ── Refs & Synchronization Flags ──────────────────────────────────
@@ -322,19 +322,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       onPlay: resume,
       onPause: pause,
       onNext: () => {
-        const n = next(repeatMode);
-        if (n) playSong(n);
+        playNext();
       },
       onPrev: () => {
-        const p = prev();
-        if (p) playSong(p);
+        playPrev();
       },
       onSeek: (v) => {
         if (audioRef.current) audioRef.current.currentTime = v;
         seekTo(v);
       },
     });
-  }, [resume, pause, next, prev, repeatMode, playSong, seekTo]);
+  }, [resume, pause, playNext, playPrev, seekTo]);
 
   useEffect(() => {
     if (currentSong) {
@@ -379,31 +377,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         audioRef.current.play();
       }
     } else {
-      const n = next(repeatMode);
-      if (n) {
-        playSong(n);
-      } else {
-        // Queue exhausted — fetch autoplay suggestions if enabled
-        const ap = useQueueStore.getState().autoplay;
-        const song = usePlayerStore.getState().currentSong;
-        if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
-          toast("Finding similar songs...");
-          fetch(`/api/search/autoplay/${song.id}`, { credentials: "include" })
-            .then((r) => r.json())
-            .then((data) => {
-              const songs: any[] = data?.songs ?? [];
-              if (!songs.length) { pause(); return; }
-              songs.forEach((s) => addLast(s));
-              // Advance past the now-extended queue
-              const nextSong = useQueueStore.getState().next(repeatMode);
-              if (nextSong) playSong(nextSong);
-              else pause();
-            })
-            .catch(() => pause());
-        } else {
-          pause();
-        }
-      }
+      const before = useQueueStore.getState().queueIndex;
+      useQueueStore.getState().playNext();
+      const after = useQueueStore.getState().queueIndex;
+      if (after === before) pause();
     }
   };
 
@@ -431,8 +408,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     // Auto-skip on error after 2s delay
     setTimeout(() => {
       if (repeatMode !== "one") {
-        const n = next(repeatMode);
-        if (n) playSong(n);
+        useQueueStore.getState().playNext();
       }
     }, 2000);
   };

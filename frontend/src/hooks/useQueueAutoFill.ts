@@ -14,7 +14,7 @@ export function useQueueAutoFill() {
   const queue = useQueueStore((s) => s.queue);
   const queueIndex = useQueueStore((s) => s.queueIndex);
   const autoplay = useQueueStore((s) => s.autoplay);
-  const addLast = useQueueStore((s) => s.addLast);
+  const addToQueue = useQueueStore((s) => s.addToQueue);
 
   const playedHistory = useRef<string[]>([]);
   const isFetching = useRef(false);
@@ -46,6 +46,10 @@ export function useQueueAutoFill() {
           "";
         const albumId =
           (currentSong as any).albumId || currentSong.album?.id || "";
+        const album =
+          typeof currentSong.album === "object"
+            ? currentSong.album?.name || ""
+            : currentSong.album || "";
         const artist = getArtists(currentSong);
         const excludeIds = Array.from(
           new Set([
@@ -62,6 +66,7 @@ export function useQueueAutoFill() {
             artistId,
             language: currentSong.language || "",
             albumId,
+            album,
           },
           excludeIds,
         });
@@ -82,7 +87,7 @@ export function useQueueAutoFill() {
           })
           .slice(0, ADD_LIMIT);
 
-        songsToAdd.forEach((song) => addLast(song as any));
+        songsToAdd.forEach((song) => addToQueue(song as any));
       } catch {
         // Silent fail: autoplay should never interrupt playback.
       } finally {
@@ -91,5 +96,5 @@ export function useQueueAutoFill() {
     };
 
     fillQueue();
-  }, [autoplay, currentSong?.id, queue.length, queueIndex, addLast]);
+  }, [autoplay, currentSong?.id, queue.length, queueIndex, addToQueue]);
 }

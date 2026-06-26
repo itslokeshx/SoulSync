@@ -38,6 +38,7 @@ interface PlayerBarProps {
   onOpenFullscreen: () => void;
   onToggleQueue: () => void;
   queueOpen: boolean;
+  canGoPrev?: boolean;
 }
 
 const VolumeIcon = ({ volume }: { volume: number }) => {
@@ -68,6 +69,7 @@ export const PlayerBar = ({
   onOpenFullscreen,
   onToggleQueue,
   queueOpen,
+  canGoPrev = true,
 }: PlayerBarProps) => {
   const progress = duration ? currentTime / duration : 0;
   const volPct = Math.round(volume * 100);
@@ -241,7 +243,12 @@ export const PlayerBar = ({
 
           <button
             onClick={onPrev}
-            className="text-white/70 p-2 hover:text-white hover:scale-110 transition-all"
+            disabled={!canGoPrev}
+            className={`p-2 transition-all ${
+              canGoPrev
+                ? "text-white/70 hover:text-white hover:scale-110"
+                : "text-white/20 cursor-default"
+            }`}
           >
             <SkipBack size={18} className="fill-current" />
           </button>
@@ -277,8 +284,13 @@ export const PlayerBar = ({
             </button>
             <button
               onClick={onPrev}
+              disabled={!canGoPrev}
               title="Previous (←)"
-              className="text-white hover:scale-110 transition-transform"
+              className={`transition-transform ${
+                canGoPrev
+                  ? "text-white hover:scale-110"
+                  : "text-white/20 cursor-default"
+              }`}
             >
               <SkipBack size={21} className="fill-current" />
             </button>
