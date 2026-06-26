@@ -1,100 +1,99 @@
-import { useEffect, useRef } from "react";
-import { getRecommendations } from "../api/backend";
-import { usePlayerStore } from "../store/playerStore";
-import { useQueueStore } from "../store/queueStore";
-import { getArtists } from "../lib/helpers";
-import { normalizeSong, NormalizedSong } from "../utils/normalizeSong";
+import { useEffect, useRef, useCallback } from "react";
+import { getRelatedSongs } from "../api/backend";
 
-const REFILL_THRESHOLD = 3;
-const ADD_LIMIT = 5;
-const MAX_HISTORY = 50;
+const REFILL_THRESHOLD = 100; // trigger when fewer than N songs remain
+const PREFETCH_LIMIT = 100;
+const MAX_QUEUE_SIZE = 300;
+const FETCH_COOLDOWN_MS = 5_000; // faster refill for large targets
+const MAX_EMPTY_ROUNDS = 3;
 
-export function useQueueAutoFill() {
-  const currentSong = usePlayerStore((s) => s.currentSong);
-  const queue = useQueueStore((s) => s.queue);
-  const queueIndex = useQueueStore((s) => s.queueIndex);
-  const autoplay = useQueueStore((s) => s.autoplay);
-  const addToQueue = useQueueStore((s) => s.addToQueue);
+interface UseQueueAutoFillOptions {
+  queue: any[];
+  queueIndex: number;
+  currentSong: any;
+  enabled?: boolean;
+  onAddSongs: (songs: any[]) => void;
+}
 
-  const playedHistory = useRef<string[]>([]);
-  const isFetching = useRef(false);
+export function useQueueAutoFill({
+  queue,
+  queueIndex,
+  currentSong,
+  enabled = true,
+  onAddSongs,
+}: UseQueueAutoFillOptions) {
+  // Use refs so fetchRelated never needs to be recreated
+  const queueRef = useRef(queue);
+  const onAddSongsRef = useRef(onAddSongs);
+  queueRef.current = queue;
+  onAddSongsRef.current = onAddSongs;
 
+  const fetchingRef = useRef(false);
+  const lastSongIdRef = useRef<string | null>(null);
+  const pageRef = useRef(1);
+  const addedIdsRef = useRef<Set<string>>(new Set());
+  const lastFetchAtRef = useRef<number>(0);
+  const emptyRoundsRef = useRef(0);
+
+  // Reset all counters when the song changes
   useEffect(() => {
-    const id = currentSong?.id;
-    if (!id) return;
-
-    playedHistory.current = [
-      ...playedHistory.current.filter((songId) => songId !== id),
-      id,
-    ].slice(-MAX_HISTORY);
+    if (currentSong?.id !== lastSongIdRef.current) {
+      lastSongIdRef.current = currentSong?.id ?? null;
+      pageRef.current = 1;
+      addedIdsRef.current = new Set();
+      emptyRoundsRef.current = 0;
+      lastFetchAtRef.current = 0;
+      fetchingRef.current = false;
+    }
   }, [currentSong?.id]);
 
-  useEffect(() => {
-    const fillQueue = async () => {
-      if (!autoplay || !currentSong?.id) return;
-      if (currentSong._isOffline || currentSong.id.startsWith("local_")) return;
+  // Stable fetch function — deps are only refs, never changes
+  const fetchRelated = useCallback(async () => {
+    const songId = lastSongIdRef.current;
+    if (!songId) return;
+    if (fetchingRef.current) return;
+    if (emptyRoundsRef.current >= MAX_EMPTY_ROUNDS) return;
+    const now = Date.now();
+    if (now - lastFetchAtRef.current < FETCH_COOLDOWN_MS) return;
 
-      const remaining = Math.max(0, queue.length - queueIndex - 1);
-      if (remaining >= REFILL_THRESHOLD || isFetching.current) return;
+    fetchingRef.current = true;
+    lastFetchAtRef.current = now;
 
-      isFetching.current = true;
+    try {
+      const { songs, hasMore } = await getRelatedSongs(
+        songId,
+        pageRef.current,
+        PREFETCH_LIMIT,
+      );
 
-      try {
-        const artistId =
-          currentSong.artists?.primary?.[0]?.id ||
-          currentSong.artist_map?.primary_artists?.[0]?.id ||
-          "";
-        const albumId =
-          (currentSong as any).albumId || currentSong.album?.id || "";
-        const album =
-          typeof currentSong.album === "object"
-            ? currentSong.album?.name || ""
-            : currentSong.album || "";
-        const artist = getArtists(currentSong);
-        const excludeIds = Array.from(
-          new Set([
-            ...playedHistory.current,
-            ...queue.map((song) => song.id).filter(Boolean),
-          ]),
-        );
+      const existingIds = new Set(queueRef.current.map((s) => s.id));
+      const newSongs = songs.filter(
+        (s: any) =>
+          s?.id && !existingIds.has(s.id) && !addedIdsRef.current.has(s.id),
+      );
 
-        const { songs } = await getRecommendations({
-          song: {
-            id: currentSong.id,
-            title: currentSong.name || "",
-            artist: artist === "—" ? "" : artist,
-            artistId,
-            language: currentSong.language || "",
-            albumId,
-            album,
-          },
-          excludeIds,
-        });
-
-        const existingIds = new Set([
-          ...playedHistory.current,
-          ...useQueueStore
-            .getState()
-            .queue.map((song) => song.id)
-            .filter(Boolean),
-        ]);
-        const songsToAdd = (songs || [])
-          .map((song) => normalizeSong(song))
-          .filter((song): song is NormalizedSong => {
-            if (!song?.id || existingIds.has(song.id)) return false;
-            existingIds.add(song.id);
-            return true;
-          })
-          .slice(0, ADD_LIMIT);
-
-        songsToAdd.forEach((song) => addToQueue(song as any));
-      } catch {
-        // Silent fail: autoplay should never interrupt playback.
-      } finally {
-        isFetching.current = false;
+      if (newSongs.length > 0) {
+        newSongs.forEach((s: any) => addedIdsRef.current.add(s.id));
+        onAddSongsRef.current(newSongs);
+        emptyRoundsRef.current = 0;
+        if (hasMore) pageRef.current += 1;
+      } else {
+        // No new songs — increment exhaustion counter
+        emptyRoundsRef.current += 1;
       }
-    };
+    } catch {
+      // Silent fail
+    } finally {
+      fetchingRef.current = false;
+    }
+  }, []); // stable — no deps needed since we use refs
 
-    fillQueue();
-  }, [autoplay, currentSong?.id, queue.length, queueIndex, addToQueue]);
+  useEffect(() => {
+    if (!enabled || !currentSong) return;
+    const remaining = queue.length - queueIndex - 1;
+    // Aggressively fill if under 300 songs OR approaching end
+    if (queue.length < MAX_QUEUE_SIZE || remaining < REFILL_THRESHOLD) {
+      fetchRelated();
+    }
+  }, [enabled, queue.length, queueIndex, currentSong?.id]);
 }

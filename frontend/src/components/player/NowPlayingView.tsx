@@ -35,7 +35,7 @@ import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
 import { useOfflineStore } from "../../store/offlineStore";
 import { useDownloadStore } from "../../store/downloadStore";
-import { useQueueStore } from "../../store/queueStore";
+import { usePlayerStore } from "../../store/playerStore";
 import { downloadSong } from "../../utils/downloadSong";
 import { EqBars } from "../ui/EqBars";
 
@@ -70,7 +70,6 @@ interface NowPlayingViewProps {
   onMove?: (from: number, to: number) => void;
   onRemove?: (index: number) => void;
   onShuffleQueue?: () => void;
-  canGoPrev?: boolean;
 }
 
 const VolumeIcon = ({ volume }: { volume: number }) => {
@@ -106,7 +105,6 @@ export const NowPlayingView = ({
   onMove,
   onRemove,
   onShuffleQueue,
-  canGoPrev = true,
 }: NowPlayingViewProps) => {
   const [bgColor, setBgColor] = useState("#18181a");
   const [showVol, setShowVol] = useState(false);
@@ -143,7 +141,7 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
-  const { autoplay, setAutoplay } = useQueueStore();
+  const { autoplay, toggleAutoplay } = usePlayerStore();
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -481,12 +479,7 @@ export const NowPlayingView = ({
             </button>
             <button
               onClick={onPrev}
-              disabled={!canGoPrev}
-              className={`transition-all p-1 ${
-                canGoPrev
-                  ? "text-white hover:scale-110"
-                  : "text-white/20 cursor-default"
-              }`}
+              className="text-white hover:scale-110 transition-all p-1"
             >
               <SkipBack size={26} className="fill-current" />
             </button>
@@ -514,7 +507,7 @@ export const NowPlayingView = ({
               {repeat === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
             </button>
             <button
-              onClick={() => setAutoplay(!autoplay)}
+              onClick={toggleAutoplay}
               className={`transition-all duration-200 p-2 rounded-full ${autoplay ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
               aria-label={autoplay ? "Autoplay on" : "Autoplay off"}
               title={autoplay ? "Autoplay: On" : "Autoplay: Off"}

@@ -1,15 +1,9 @@
-import { useState, useRef, useCallback } from "react";
-import {
-  X,
-  GripVertical,
-  Trash2,
-  Infinity,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, GripVertical, Trash2, Plus } from "lucide-react";
 import { EqBars } from "../ui/EqBars";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
+import { usePlayerStore } from "../../store/playerStore";
 import { useQueueStore } from "../../store/queueStore";
 
 interface QueuePanelProps {
@@ -33,19 +27,45 @@ export const QueuePanel = ({
 }: QueuePanelProps) => {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const dragNodeRef = useRef<HTMLDivElement | null>(null);
 
-  const past = queue.slice(0, Math.max(queueIndex, 0));
-  const activeSong = queue[queueIndex] || currentSong;
+  // "Next Up" items start after queueIndex
   const upcoming = queue.slice(queueIndex + 1);
 
-  const { autoplay, setAutoplay } = useQueueStore();
+  const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
+
+  // ── Autoplay preview ─────────────────────────────────────────────
+  const { autoplay } = usePlayerStore();
+  const { addLast } = useQueueStore();
+  const [autoplaySongs, setAutoplaySongs] = useState<any[]>([]);
+  const [autoplayLoading, setAutoplayLoading] = useState(false);
+
+  useEffect(() => {
+    if (!autoplay || !currentSong?.id || currentSong?._isOffline) {
+      setAutoplaySongs([]);
+      return;
+    }
+    let cancelled = false;
+    setAutoplayLoading(true);
+    fetch(`/api/search/autoplay/${currentSong.id}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const inQueue = new Set(queue.map((s: any) => s.id));
+        setAutoplaySongs(
+          (data.songs ?? []).filter((s: any) => !inQueue.has(s.id)),
+        );
+      })
+      .catch(() => !cancelled && setAutoplaySongs([]))
+      .finally(() => !cancelled && setAutoplayLoading(false));
+    return () => { cancelled = true; };
+  }, [currentSong?.id, autoplay]);
 
   const handleDragStart = useCallback((e: React.DragEvent, relIdx: number) => {
     setDragIdx(relIdx);
     dragNodeRef.current = e.currentTarget as HTMLDivElement;
     e.dataTransfer.effectAllowed = "move";
+    // ghost image
     const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
     ghost.style.opacity = "0.6";
     ghost.style.position = "absolute";
@@ -68,110 +88,18 @@ export const QueuePanel = ({
     (e: React.DragEvent, relIdx: number) => {
       e.preventDefault();
       if (dragIdx !== null && dragIdx !== relIdx) {
-        onMove(queueIndex + 1 + dragIdx, queueIndex + 1 + relIdx);
+        onMove(toAbsolute(dragIdx), toAbsolute(relIdx));
       }
       setDragIdx(null);
       setOverIdx(null);
     },
-    [dragIdx, onMove, queueIndex],
+    [dragIdx, onMove, queueIndex], // eslint-disable-line
   );
 
   const handleDragEnd = useCallback(() => {
     setDragIdx(null);
     setOverIdx(null);
   }, []);
-
-  const renderSong = (
-    song: any,
-    absoluteIndex: number,
-    options: {
-      dimmed?: boolean;
-      current?: boolean;
-      draggable?: boolean;
-      relIdx?: number;
-    } = {},
-  ) => {
-    const isDragging = options.relIdx !== undefined && dragIdx === options.relIdx;
-    const isOver = options.relIdx !== undefined && overIdx === options.relIdx;
-
-    return (
-      <div
-        key={`${song.id}-${absoluteIndex}`}
-        draggable={options.draggable}
-        onDragStart={
-          options.draggable && options.relIdx !== undefined
-            ? (e) => handleDragStart(e, options.relIdx!)
-            : undefined
-        }
-        onDragOver={
-          options.draggable && options.relIdx !== undefined
-            ? (e) => handleDragOver(e, options.relIdx!)
-            : undefined
-        }
-        onDrop={
-          options.draggable && options.relIdx !== undefined
-            ? (e) => handleDrop(e, options.relIdx!)
-            : undefined
-        }
-        onDragEnd={options.draggable ? handleDragEnd : undefined}
-        className={`flex items-center gap-2 px-3 pr-2 py-2 mx-2 rounded-xl transition-all duration-150 group cursor-default select-none ${
-          options.current
-            ? "bg-sp-green/10 border-l-2 border-sp-green"
-            : isDragging
-              ? "opacity-30 scale-95"
-              : isOver
-                ? "bg-sp-green/10 border border-sp-green/20"
-                : "hover:bg-white/[0.04] border border-transparent"
-        } ${options.dimmed ? "opacity-40 hover:opacity-70" : ""}`}
-      >
-        {options.draggable ? (
-          <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">
-            <GripVertical size={14} />
-          </div>
-        ) : (
-          <div className="w-[14px] flex-shrink-0" />
-        )}
-
-        <button
-          onClick={() => onJump(absoluteIndex)}
-          className="flex items-center gap-3 flex-1 min-w-0 text-left"
-        >
-          <img
-            src={bestImg(song.image, "50x50") || FALLBACK_IMG}
-            onError={onImgErr}
-            className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
-          />
-          <div className="min-w-0 flex-1">
-            <p
-              className={`text-[13px] truncate ${
-                options.current ? "text-sp-green font-semibold" : "text-white"
-              }`}
-            >
-              {song.name}
-            </p>
-            <p className="text-[11px] text-sp-sub/50 truncate">
-              {getArtists(song)}
-            </p>
-          </div>
-        </button>
-
-        {options.current && <EqBars />}
-        <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
-          {fmt(song.duration)}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(absoluteIndex);
-          }}
-          className="p-1 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-          title="Remove from queue"
-        >
-          <Trash2 size={12} />
-        </button>
-      </div>
-    );
-  };
 
   return (
     <div
@@ -183,74 +111,150 @@ export const QueuePanel = ({
     >
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
         <h3 className="font-semibold text-white text-[13px]">Queue</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setAutoplay(!autoplay)}
-            className={`transition-colors p-1 rounded-full ${
-              autoplay
-                ? "text-green-400 bg-green-400/10"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-            title={autoplay ? "Autoplay On" : "Autoplay Off"}
-            aria-label={autoplay ? "Autoplay On" : "Autoplay Off"}
-            aria-pressed={autoplay}
-          >
-            <Infinity size={15} />
-          </button>
-          <button
-            onClick={onClose}
-            className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
-          >
-            <X size={15} />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+        >
+          <X size={15} />
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar">
-        <button
-          onClick={() => setHistoryOpen((open) => !open)}
-          className="w-full flex items-center justify-between text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3 hover:text-white/50 transition-colors"
-        >
-          <span>History · {past.length} songs</span>
-          {historyOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        </button>
-        {historyOpen &&
-          past.map((song, index) =>
-            renderSong(song, index, {
-              dimmed: true,
-            }),
-          )}
+      {currentSong && (
+        <div className="px-5 py-3 border-b border-white/[0.04]">
+          <p className="text-[10px] font-semibold text-sp-green uppercase tracking-[0.15em] mb-2">
+            Now Playing
+          </p>
+          <div className="flex items-center gap-3">
+            <img
+              src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
+              onError={onImgErr}
+              className="w-10 h-10 rounded-xl object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-sp-green truncate">
+                {currentSong.name}
+              </p>
+              <p className="text-[11px] text-sp-sub/60 truncate">
+                {getArtists(currentSong)}
+              </p>
+            </div>
+            <EqBars />
+          </div>
+        </div>
+      )}
 
-        {activeSong && (
-          <div className="border-t border-white/[0.04]">
+      <div className="flex-1 overflow-y-auto hide-scrollbar">
+        <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
+          Next Up · {upcoming.length} songs
+        </p>
+        {upcoming.length === 0 && (
+          <p className="text-sp-muted text-sm px-5 py-4 text-center">
+            Nothing in queue
+          </p>
+        )}
+        {upcoming.map((s, i) => {
+          const isDragging = dragIdx === i;
+          const isOver = overIdx === i;
+          return (
+            <div
+              key={`${s.id}-${i}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, i)}
+              onDragOver={(e) => handleDragOver(e, i)}
+              onDrop={(e) => handleDrop(e, i)}
+              onDragEnd={handleDragEnd}
+              className={`flex items-center gap-2 px-3 pr-2 py-2 mx-2 rounded-xl transition-all duration-150 group cursor-default select-none ${
+                isDragging
+                  ? "opacity-30 scale-95"
+                  : isOver
+                    ? "bg-sp-green/10 border border-sp-green/20"
+                    : "hover:bg-white/[0.04] border border-transparent"
+              }`}
+            >
+              {/* Drag handle */}
+              <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">
+                <GripVertical size={14} />
+              </div>
+
+              {/* Song thumbnail + info (clickable to jump) */}
+              <button
+                onClick={() => onJump(toAbsolute(i))}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left"
+              >
+                <img
+                  src={bestImg(s.image, "50x50") || FALLBACK_IMG}
+                  onError={onImgErr}
+                  className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-white truncate">{s.name}</p>
+                  <p className="text-[11px] text-sp-sub/50 truncate">
+                    {getArtists(s)}
+                  </p>
+                </div>
+              </button>
+
+              {/* Duration + remove */}
+              <span className="text-[10px] text-white/20 tabular-nums flex-shrink-0">
+                {fmt(s.duration)}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(toAbsolute(i));
+                }}
+                className="p-1 rounded-lg text-white/15 hover:text-red-400 hover:bg-white/[0.06] transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+                title="Remove from queue"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          );
+        })}
+
+        {/* ── Autoplay preview section ── */}
+        {autoplay && (
+          <div className="mt-1 border-t border-white/[0.04]">
             <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
-              Now Playing
+              Up next · Autoplay
             </p>
-            {renderSong(activeSong, queueIndex, { current: true })}
+            {autoplayLoading && (
+              <p className="text-sp-muted text-xs px-5 py-2 text-center opacity-50">
+                Loading…
+              </p>
+            )}
+            {autoplaySongs.map((s, i) => (
+              <div
+                key={`ap-${s.id}-${i}`}
+                className="flex items-center gap-2 px-3 pr-2 py-2 mx-2 rounded-xl hover:bg-white/[0.04] group"
+              >
+                <img
+                  src={bestImg(s.image, "50x50") || FALLBACK_IMG}
+                  onError={onImgErr}
+                  className="w-9 h-9 rounded-xl object-cover flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-white/60 group-hover:text-white/90 truncate transition-colors">
+                    {s.name}
+                  </p>
+                  <p className="text-[11px] text-sp-sub/40 truncate">
+                    {getArtists(s)}
+                  </p>
+                </div>
+                <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
+                  {fmt(s.duration)}
+                </span>
+                <button
+                  onClick={() => addLast(s)}
+                  className="p-1 rounded-lg text-white/15 hover:text-sp-green hover:bg-sp-green/10 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  title="Add to queue"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+            ))}
           </div>
         )}
-
-        <div className="border-t border-white/[0.04] mt-2">
-          <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
-            Up Next · {upcoming.length} songs
-          </p>
-          {upcoming.length === 0 && (
-            <p className="text-sp-muted text-sm px-5 py-4 text-center">
-              Nothing in queue
-            </p>
-          )}
-          {upcoming.map((song, index) =>
-            renderSong(song, queueIndex + 1 + index, {
-              draggable: true,
-              relIdx: index,
-            }),
-          )}
-          {autoplay && (
-            <p className="text-[10px] font-bold text-sp-green uppercase tracking-widest px-5 py-4">
-              Autoplay
-            </p>
-          )}
-        </div>
       </div>
     </div>
   );

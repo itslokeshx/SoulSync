@@ -1,49 +1,26 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { Song } from "../types/song";
-import { usePlayerStore } from "./playerStore";
 
 interface QueueState {
   queue: Song[];
   queueIndex: number;
-  autoplay: boolean;
+  history: Song[];
+  originalQueue: Song[];
+  isShuffled: boolean;
 }
 
 interface QueueActions {
   setQueue: (songs: Song[], startIndex?: number) => void;
-  addToQueue: (song: Song) => void;
   addNext: (song: Song) => void;
-  removeFromQueue: (index: number) => void;
-  clearQueue: () => void;
-  playAtIndex: (index: number) => void;
-  playNext: () => void;
-  playPrev: () => void;
-  setAutoplay: (val: boolean) => void;
-  getUpcoming: () => Song[];
-  getPast: () => Song[];
-  getCurrentSong: () => Song | null;
-
-  // Compatibility aliases for existing components.
   addLast: (song: Song) => void;
   remove: (index: number) => void;
   move: (from: number, to: number) => void;
   clear: () => void;
   shuffle: () => void;
   unshuffle: () => void;
-  next: (repeatMode?: "off" | "one" | "all") => Song | null;
+  next: (repeatMode: "off" | "one" | "all") => Song | null;
   prev: () => Song | null;
-}
-
-function playSong(song: Song | null) {
-  if (song) {
-    usePlayerStore.getState().playSong(song);
-  } else {
-    usePlayerStore.setState({
-      currentSong: null,
-      isPlaying: false,
-      currentTime: 0,
-    });
-  }
+  getCurrentSong: () => Song | null;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -55,174 +32,124 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled;
 }
 
-export const useQueueStore = create<QueueState & QueueActions>()(
-  persist(
-    (set, get) => ({
-      queue: [],
-      queueIndex: -1,
-      autoplay: true,
+export const useQueueStore = create<QueueState & QueueActions>((set, get) => ({
+  queue: [],
+  queueIndex: 0,
+  history: [],
+  originalQueue: [],
+  isShuffled: false,
 
-      setQueue: (songs, startIndex = 0) => {
-        if (!songs.length) {
-          set({ queue: [], queueIndex: -1 });
-          playSong(null);
-          return;
-        }
-
-        const safeIndex = Math.max(0, Math.min(startIndex, songs.length - 1));
-        set({ queue: songs, queueIndex: safeIndex });
-        playSong(songs[safeIndex] || null);
-      },
-
-      addToQueue: (song) =>
-        set((state) => {
-          if (!state.queue.length || state.queueIndex === -1) {
-            playSong(song);
-            return { queue: [song], queueIndex: 0 };
-          }
-
-          return { queue: [...state.queue, song] };
-        }),
-
-      addNext: (song) =>
-        set((state) => {
-          if (!state.queue.length || state.queueIndex === -1) {
-            playSong(song);
-            return { queue: [song], queueIndex: 0 };
-          }
-
-          const queue = [...state.queue];
-          queue.splice(state.queueIndex + 1, 0, song);
-          return { queue };
-        }),
-
-      removeFromQueue: (index) =>
-        set((state) => {
-          if (index < 0 || index >= state.queue.length) return {};
-
-          const queue = state.queue.filter((_, i) => i !== index);
-          if (!queue.length) {
-            playSong(null);
-            return { queue: [], queueIndex: -1 };
-          }
-
-          let queueIndex = state.queueIndex;
-          if (index < state.queueIndex) {
-            queueIndex = state.queueIndex - 1;
-          } else if (index === state.queueIndex) {
-            queueIndex = Math.min(index, queue.length - 1);
-            playSong(queue[queueIndex] || null);
-          }
-
-          return { queue, queueIndex };
-        }),
-
-      clearQueue: () => {
-        set({ queue: [], queueIndex: -1 });
-        playSong(null);
-      },
-
-      playAtIndex: (index) => {
-        const song = get().queue[index];
-        if (!song) return;
-        set({ queueIndex: index });
-        playSong(song);
-      },
-
-      playNext: () => {
-        const state = get();
-        if (!state.queue.length) return;
-
-        if (state.queueIndex < 0) {
-          get().playAtIndex(0);
-          return;
-        }
-
-        if (state.queueIndex < state.queue.length - 1) {
-          get().playAtIndex(state.queueIndex + 1);
-        }
-      },
-
-      playPrev: () => {
-        const state = get();
-        if (state.queueIndex > 0) {
-          get().playAtIndex(state.queueIndex - 1);
-        }
-      },
-
-      setAutoplay: (val) => set({ autoplay: val }),
-
-      getUpcoming: () => {
-        const state = get();
-        return state.queue.slice(state.queueIndex + 1);
-      },
-
-      getPast: () => {
-        const state = get();
-        if (state.queueIndex <= 0) return [];
-        return state.queue.slice(0, state.queueIndex);
-      },
-
-      getCurrentSong: () => {
-        const state = get();
-        return state.queue[state.queueIndex] || null;
-      },
-
-      addLast: (song) => get().addToQueue(song),
-      remove: (index) => get().removeFromQueue(index),
-      clear: () => get().clearQueue(),
-
-      move: (from, to) =>
-        set((state) => {
-          if (
-            from < 0 ||
-            to < 0 ||
-            from >= state.queue.length ||
-            to >= state.queue.length ||
-            from === to
-          ) {
-            return {};
-          }
-
-          const queue = [...state.queue];
-          const [moved] = queue.splice(from, 1);
-          queue.splice(to, 0, moved);
-
-          let queueIndex = state.queueIndex;
-          if (from === state.queueIndex) queueIndex = to;
-          else if (from < state.queueIndex && to >= state.queueIndex) {
-            queueIndex--;
-          } else if (from > state.queueIndex && to <= state.queueIndex) {
-            queueIndex++;
-          }
-
-          return { queue, queueIndex };
-        }),
-
-      shuffle: () =>
-        set((state) => {
-          if (state.queueIndex < 0) return {};
-          const pastAndCurrent = state.queue.slice(0, state.queueIndex + 1);
-          const upcoming = state.queue.slice(state.queueIndex + 1);
-          return { queue: [...pastAndCurrent, ...shuffleArray(upcoming)] };
-        }),
-
-      unshuffle: () => {},
-
-      next: (repeatMode) => {
-        if (repeatMode === "one") return get().getCurrentSong();
-        get().playNext();
-        return get().getCurrentSong();
-      },
-
-      prev: () => {
-        get().playPrev();
-        return get().getCurrentSong();
-      },
+  setQueue: (songs, startIndex = 0) =>
+    set({
+      queue: songs,
+      queueIndex: startIndex,
+      originalQueue: songs,
+      history: [],
+      isShuffled: false,
     }),
-    {
-      name: "soulsync-queue",
-      partialize: (state) => ({ autoplay: state.autoplay }),
-    },
-  ),
-);
+
+  addNext: (song) =>
+    set((s) => {
+      const newQueue = [...s.queue];
+      newQueue.splice(s.queueIndex + 1, 0, song);
+      return { queue: newQueue };
+    }),
+
+  addLast: (song) => set((s) => ({ queue: [...s.queue, song] })),
+
+  remove: (index) =>
+    set((s) => {
+      const newQueue = s.queue.filter((_, i) => i !== index);
+      const newIndex = index < s.queueIndex ? s.queueIndex - 1 : s.queueIndex;
+      return {
+        queue: newQueue,
+        queueIndex: Math.min(newIndex, newQueue.length - 1),
+      };
+    }),
+
+  move: (from, to) =>
+    set((s) => {
+      const newQueue = [...s.queue];
+      const [moved] = newQueue.splice(from, 1);
+      newQueue.splice(to, 0, moved);
+      let newIndex = s.queueIndex;
+      if (from === s.queueIndex) newIndex = to;
+      else if (from < s.queueIndex && to >= s.queueIndex) newIndex--;
+      else if (from > s.queueIndex && to <= s.queueIndex) newIndex++;
+      return { queue: newQueue, queueIndex: newIndex };
+    }),
+
+  clear: () => set({ queue: [], queueIndex: 0, history: [] }),
+
+  shuffle: () =>
+    set((s) => {
+      const current = s.queue[s.queueIndex];
+      const rest = s.queue.filter((_, i) => i !== s.queueIndex);
+      const shuffled = [current, ...shuffleArray(rest)].filter(Boolean);
+      return {
+        queue: shuffled,
+        queueIndex: 0,
+        originalQueue: s.queue,
+        isShuffled: true,
+      };
+    }),
+
+  unshuffle: () =>
+    set((s) => {
+      const current = s.queue[s.queueIndex];
+      const origIndex = s.originalQueue.findIndex(
+        (song) => song.id === current?.id,
+      );
+      return {
+        queue: s.originalQueue,
+        queueIndex: origIndex >= 0 ? origIndex : 0,
+        isShuffled: false,
+      };
+    }),
+
+  next: (repeatMode) => {
+    const s = get();
+    if (repeatMode === "one") return s.queue[s.queueIndex] || null;
+
+    const current = s.queue[s.queueIndex];
+    if (current) {
+      set((state) => ({ history: [current, ...state.history].slice(0, 50) }));
+    }
+
+    if (s.queueIndex < s.queue.length - 1) {
+      set({ queueIndex: s.queueIndex + 1 });
+      return s.queue[s.queueIndex + 1];
+    }
+
+    if (repeatMode === "all" && s.queue.length > 0) {
+      set({ queueIndex: 0 });
+      return s.queue[0];
+    }
+
+    return null;
+  },
+
+  prev: () => {
+    const s = get();
+    if (s.history.length > 0) {
+      const prev = s.history[0];
+      set((state) => ({
+        history: state.history.slice(1),
+        queueIndex: Math.max(0, state.queueIndex - 1),
+      }));
+      return prev;
+    }
+
+    if (s.queueIndex > 0) {
+      set({ queueIndex: s.queueIndex - 1 });
+      return s.queue[s.queueIndex - 1];
+    }
+
+    return null;
+  },
+
+  getCurrentSong: () => {
+    const s = get();
+    return s.queue[s.queueIndex] || null;
+  },
+}));

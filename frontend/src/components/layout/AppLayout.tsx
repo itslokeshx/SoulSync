@@ -62,17 +62,8 @@ export function AppLayout() {
     pause,
   } = usePlayerStore();
 
-  const {
-    queue,
-    queueIndex,
-    playNext,
-    playPrev,
-    playAtIndex,
-    move,
-    removeFromQueue,
-    shuffle,
-    setQueue,
-  } = useQueueStore();
+  const { queue, queueIndex, next, prev, move, remove, shuffle, setQueue } =
+    useQueueStore();
 
   const [likedSongs, toggleLike, setAllLiked] = useLikedSongs(isAuthenticated);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
@@ -140,27 +131,19 @@ export function AppLayout() {
     currentSong,
     isPlaying,
     playSong: (song: any, songs?: any[]) => {
-      if (songs?.length) {
-        const index = songs.findIndex((s) => s.id === song.id);
-        if (index >= 0) {
-          setQueue(songs, index);
-        } else {
-          setQueue(
-            [song, ...songs.filter((s) => s.id && s.id !== song.id)],
-            0,
-          );
-        }
-        return;
-      }
-
-      setQueue([song], 0);
+      if (songs)
+        setQueue(
+          songs,
+          songs.findIndex((s) => s.id === song.id),
+        );
+      playSong(song);
     },
     likedSongs,
     handleLike,
     setLikedSongs: setAllLiked,
     recentlyPlayed: [], // Could bridge to queueStore.history if needed
     handlePlayPause: togglePlay,
-    addToQueue: (song: any) => useQueueStore.getState().addToQueue(song),
+    addToQueue: (song: any) => useQueueStore.getState().addLast(song),
     playNext: (song: any) => useQueueStore.getState().addNext(song),
   };
 
@@ -284,9 +267,15 @@ export function AppLayout() {
             queueIndex={queueIndex}
             currentSong={currentSong}
             onClose={() => setQueueOpen(false)}
-            onJump={playAtIndex}
+            onJump={(idx) => {
+              const s = queue[idx];
+              if (s) {
+                setQueue(queue, idx);
+                playSong(s);
+              }
+            }}
             onMove={move}
-            onRemove={removeFromQueue}
+            onRemove={remove}
           />
         )}
 
@@ -304,15 +293,20 @@ export function AppLayout() {
           onSeekStart={() => {}}
           onSeekEnd={() => {}}
           onVolume={setVolume}
-          onPrev={playPrev}
-          onNext={playNext}
+          onPrev={() => {
+            const p = prev();
+            if (p) playSong(p);
+          }}
+          onNext={() => {
+            const n = next(repeatMode);
+            if (n) playSong(n);
+          }}
           onShuffle={toggleShuffle}
           onRepeat={cycleRepeat}
           onLike={handleLike}
           onOpenFullscreen={() => setNpOpen(true)}
           onToggleQueue={() => setQueueOpen(!queueOpen)}
           queueOpen={queueOpen}
-          canGoPrev={queueIndex > 0}
         />
 
         {npOpen && currentSong && (
@@ -331,19 +325,30 @@ export function AppLayout() {
             onSeekStart={() => {}}
             onSeekEnd={() => {}}
             onVolume={setVolume}
-            onPrev={playPrev}
-            onNext={playNext}
+            onPrev={() => {
+              const p = prev();
+              if (p) playSong(p);
+            }}
+            onNext={() => {
+              const n = next(repeatMode);
+              if (n) playSong(n);
+            }}
             onShuffle={toggleShuffle}
             onRepeat={cycleRepeat}
             onLike={handleLike}
-            onPlaySong={(song) => setQueue([song], 0)}
+            onPlaySong={(song) => playSong(song)}
             queue={queue}
             queueIndex={queueIndex}
-            onJump={playAtIndex}
+            onJump={(idx) => {
+              const s = queue[idx];
+              if (s) {
+                setQueue(queue, idx);
+                playSong(s);
+              }
+            }}
             onMove={move}
-            onRemove={removeFromQueue}
+            onRemove={remove}
             onShuffleQueue={shuffle}
-            canGoPrev={queueIndex > 0}
           />
         )}
 
