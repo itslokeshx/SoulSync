@@ -96,6 +96,14 @@ _Not a tutorial project — a product people have actually been using!_
 - Playlist links: `soul-sync-beta.vercel.app/p/:slug`
 - **Rich previews** — album art in WhatsApp, iMessage, Telegram via OG meta tags
 
+### 📢 Announcements & User Feedback
+
+- **Dynamic Updates Engine** — supports versioned and ad-hoc updates (What's New, features, maintenance) with delayed auto-popup modals.
+- **Persistent Global Badging** — unread indicators appear on the Profile tab and settings panel, persisting until the active announcement expires.
+- **Responsive Media Layouts** — popups automatically adapt to any image aspect ratios (e.g. square album covers) using custom centered flex grids.
+- **In-App Feedback submission** — quick feedback drawer for users to submit bug reports and feature recommendations.
+- **Triage Dashboard** — admin interface for viewing, status filtering, and deleting feedback, alongside announcement creation utilities.
+
 ### ✈️ Offline Mode
 
 | Scenario                |          Web           |          APK           |
@@ -294,8 +302,10 @@ SoulSync/
 │       │
 │       ├── routes/
 │       │   ├── ai.ts                     # AI playlist generation endpoints
+│       │   ├── announcements.ts          # Updates & announcements endpoints
 │       │   ├── auth.ts                   # Google OAuth authentication
 │       │   ├── dashboard.ts              # Personalized dashboard data
+│       │   ├── feedback.ts               # User feedback handling endpoints
 │       │   ├── import.ts                 # Playlist import from other platforms
 │       │   ├── playlist.ts               # Playlist CRUD operations
 │       │   ├── search.ts                 # 7-factor ranked search
@@ -438,6 +448,7 @@ SoulSync/
 │   │   │
 │   │   ├── pages/
 │   │   │   ├── index.ts                  # Page component exports
+│   │   │   ├── AdminPanel.tsx            # Admin management dashboard
 │   │   │   ├── AlbumPage.tsx             # Album detail page
 │   │   │   ├── ArtistPage.tsx            # Artist detail page
 │   │   │   ├── DownloadsPage.tsx         # Downloaded songs manager
@@ -644,7 +655,15 @@ cd android && ./gradlew assembleRelease
 | `POST` | `/api/session/create`                 | Create SoulLink room              |
 | `POST` | `/api/session/join`                   | Join SoulLink room                |
 | `GET`  | `/api/user/stats`                     | Get user Wrapped stats & timeline |
-
+| `POST` | `/api/feedback`                       | Submit user feedback              |
+| `GET`  | `/api/feedback/admin`                 | [Admin] Retrieve feedback list    |
+| `PATCH`| `/api/feedback/admin/:id`             | [Admin] Update feedback status    |
+| `DELETE`|`/api/feedback/admin/:id`             | [Admin] Delete feedback entry     |
+| `GET`  | `/api/announcements/active`           | Get active announcements (public) |
+| `GET`  | `/api/announcements/admin`            | [Admin] List all announcements    |
+| `POST` | `/api/announcements/admin`            | [Admin] Create announcement       |
+| `PATCH`| `/api/announcements/admin/:id`        | [Admin] Update announcement       |
+| `DELETE`|`/api/announcements/admin/:id`        | [Admin] Delete announcement       |
 ---
 
 ## 🐛 Troubleshooting
