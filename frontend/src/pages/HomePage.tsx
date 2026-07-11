@@ -29,7 +29,7 @@ export const HomePage = () => {
 
   const userId = user?._id;
   const langsKey = (user?.preferences?.languages || []).sort().join(",");
-  const cacheKey = `ss_dashboard_${langsKey || "guest"}`;
+  const cacheKey = `ss_dashboard_${userId || "guest"}_${langsKey || "default"}`;
 
   const fetchDashboard = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -275,14 +275,11 @@ export const HomePage = () => {
       {/* C. Suggestions / Made For You (3 Rows, Combined) */}
       {suggestionsSongs.length > 0 && (
         <div className="mb-12">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-5">
             <h2 className="text-lg font-bold text-white leading-tight">
               Made For You
             </h2>
           </div>
-          <p className="text-white/30 text-xs mb-5">
-            Your liked tracks, playlists, and personalized recommendations
-          </p>
           <div className="space-y-4">
             {row1.length > 0 && (
               <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
