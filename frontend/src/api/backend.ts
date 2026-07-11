@@ -467,3 +467,22 @@ export async function getSongDetails(id: string): Promise<any> {
   const { data } = await api.get("/api/search/song", { params: { id } });
   return data;
 }
+
+export async function getMoreRecommendations(
+  excludeIds: string[],
+  limit = 20,
+): Promise<{ songs: any[]; hasMore: boolean }> {
+  const { data } = await api.post("/api/recommendations/feed/more", {
+    excludeIds,
+    limit,
+  });
+  return data;
+}
+
+export async function startRadio(
+  seedSongId: string,
+): Promise<{ songs: any[] }> {
+  const { data } = await api.post("/api/radio/start", { seedSongId });
+  return data;
+}
+
