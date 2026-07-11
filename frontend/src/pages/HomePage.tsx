@@ -15,7 +15,7 @@ import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../auth/AuthContext";
 import { useUIStore } from "../store/uiStore";
-import { getDashboard, getGuestDashboard } from "../api/backend";
+import { getDashboard, getGuestDashboard, getHomeRecommendations } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSong, normalizeSongs } from "../utils/normalizeSong";
 
@@ -344,6 +344,7 @@ export const HomePage = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
   const fetched = useRef(false);
   // In-flight guard — persists across React StrictMode unmount/remount so the
   // second effect pass returns immediately instead of firing a duplicate request.
@@ -413,6 +414,13 @@ export const HomePage = () => {
     // new song play, visibilitychange busts it on tab-focus — no need to bust on
     // every mount, which would cause 429s if the user navigates rapidly).
     fetchDashboard();
+
+    // Fetch recommendations in parallel (authenticated users only)
+    if (user) {
+      getHomeRecommendations()
+        .then((data) => setRecommendations(data.songs || []))
+        .catch(() => {}); // Silent — recs are optional
+    }
   }, [fetchDashboard, cacheKey, authLoading]);
 
   // Re-fetch whenever the tab/app comes back into focus so "Continue Listening"
@@ -617,6 +625,29 @@ export const HomePage = () => {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* RECOMMENDED FOR YOU — taste-aware recommendations */}
+      {recommendations.length > 0 && (
+        <div className="mb-10">
+          <HSection
+            title="Recommended for You"
+            icon="✨"
+            songs={recommendations.filter(
+              (s: any) =>
+                !recentlyPlayed.some(
+                  (rp) => rp.id === s.id || rp.id === s.songId,
+                ),
+            )}
+            loading={false}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={(song: any, queue: any[]) =>
+              onPlay(song, queue.length ? queue : recommendations)
+            }
+            onAlbumClick={(al: any) => navigate(`/album/${al.id}`)}
+          />
         </div>
       )}
 

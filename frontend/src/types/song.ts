@@ -50,6 +50,7 @@ export interface Song {
   matchReason?: string;
   isTopResult?: boolean;
   _isOffline?: boolean;
+  reason?: string; // Recommendation explainability tag (e.g. "Because you like Artist X")
 }
 
 export interface Album {

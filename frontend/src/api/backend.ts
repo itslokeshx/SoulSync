@@ -208,6 +208,7 @@ export async function logHistory(entry: {
   songId: string;
   title: string;
   artist: string;
+  artistId?: string;
   albumArt: string;
   duration: number;
   source?: string;
@@ -386,6 +387,25 @@ export async function getDashboard(): Promise<any> {
 
 export async function getGuestDashboard(): Promise<any> {
   const { data } = await api.get("/api/dashboard/guest");
+  return data;
+}
+
+// ── Recommendations ─────────────────────────────────────────────────────────
+export async function getHomeRecommendations(): Promise<{
+  songs: any[];
+  total: number;
+  source: string;
+}> {
+  const { data } = await api.get("/api/recommendations/home");
+  return data;
+}
+
+export async function getNextRecommendations(
+  currentSongId: string,
+): Promise<{ songs: any[]; total: number; hasMore: boolean; source: string }> {
+  const { data } = await api.get("/api/recommendations/next", {
+    params: { currentSongId },
+  });
   return data;
 }
 

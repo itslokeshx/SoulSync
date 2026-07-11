@@ -4,6 +4,7 @@ import { ListeningHistory } from "../models/ListeningHistory.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { redisDel } from "../services/redis.js";
+import { maybeRecomputeTaste, recordCooccurrence } from "../services/recommendationEngine.js";
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.post(
         return;
       }
 
-      const { songId, title, artist, albumArt, duration, source, language } =
+      const { songId, title, artist, artistId, albumArt, duration, source, language } =
         req.body;
 
       await ListeningHistory.create({
@@ -80,6 +81,7 @@ router.post(
         songId,
         title,
         artist,
+        artistId: artistId || "",
         albumArt,
         duration,
         language: language || "",
@@ -95,6 +97,15 @@ router.post(
 
       // Invalidate the dashboard cache so "Continue Listening" stays fresh
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
+      // Fire-and-forget: update recommendation signals
+      // These run async — don't block the response
+      maybeRecomputeTaste(req.userId!).catch(() => {});
+      recordCooccurrence(req.userId!, {
+        songId, title, artist,
+        artistId: artistId || "",
+        albumArt, language: language || "",
+      }).catch(() => {});
 
       res.json({ success: true });
     } catch (err) {

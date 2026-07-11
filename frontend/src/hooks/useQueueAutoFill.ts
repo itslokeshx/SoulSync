@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { getRelatedSongs } from "../api/backend";
+import { getNextRecommendations, getRelatedSongs } from "../api/backend";
 
 const REFILL_THRESHOLD = 100; // trigger when fewer than N songs remain
 const PREFETCH_LIMIT = 100;
@@ -34,6 +34,8 @@ export function useQueueAutoFill({
   const addedIdsRef = useRef<Set<string>>(new Set());
   const lastFetchAtRef = useRef<number>(0);
   const emptyRoundsRef = useRef(0);
+  // Track whether we've already tried recommendations for this song
+  const triedRecsRef = useRef(false);
 
   // Reset all counters when the song changes
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useQueueAutoFill({
       emptyRoundsRef.current = 0;
       lastFetchAtRef.current = 0;
       fetchingRef.current = false;
+      triedRecsRef.current = false;
     }
   }, [currentSong?.id]);
 
@@ -60,11 +63,31 @@ export function useQueueAutoFill({
     lastFetchAtRef.current = now;
 
     try {
-      const { songs, hasMore } = await getRelatedSongs(
-        songId,
-        pageRef.current,
-        PREFETCH_LIMIT,
-      );
+      let songs: any[] = [];
+      let hasMore = false;
+
+      // First attempt: use the recommendation engine (taste-aware)
+      if (!triedRecsRef.current) {
+        triedRecsRef.current = true;
+        try {
+          const recResult = await getNextRecommendations(songId);
+          songs = recResult.songs || [];
+          hasMore = recResult.hasMore;
+        } catch {
+          // Recommendation endpoint failed — fall through to legacy
+        }
+      }
+
+      // Fallback: legacy related songs (raw JioSaavn suggestions)
+      if (songs.length === 0) {
+        const legacyResult = await getRelatedSongs(
+          songId,
+          pageRef.current,
+          PREFETCH_LIMIT,
+        );
+        songs = legacyResult.songs || [];
+        hasMore = legacyResult.hasMore;
+      }
 
       const existingIds = new Set(queueRef.current.map((s) => s.id));
       const newSongs = songs.filter(

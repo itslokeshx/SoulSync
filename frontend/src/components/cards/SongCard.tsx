@@ -115,6 +115,11 @@ export const SongCard = ({
       <p className="text-[11px] text-sp-sub/70 truncate mt-1">
         {getArtists(song)}
       </p>
+      {song.reason && (
+        <p className="text-[9px] text-sp-green/60 truncate mt-0.5 italic">
+          {song.reason}
+        </p>
+      )}
     </div>
   );
 };

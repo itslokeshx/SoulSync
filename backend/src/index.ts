@@ -15,6 +15,7 @@ import aiRoutes from "./routes/ai.js";
 import sessionRoutes from "./routes/session.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import importRoutes from "./routes/import.js";
+import recommendationRoutes from "./routes/recommendations.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { enhancedSearch } from "./services/searchEnhancer.js";
 
@@ -98,6 +99,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/session", sessionRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/import", importRoutes);
+app.use("/api/recommendations", recommendationRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {
