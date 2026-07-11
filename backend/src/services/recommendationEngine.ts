@@ -67,6 +67,47 @@ const BLACKLISTED_LABELS = [
   "karaoke hits", "piano dreams", "relaxing covers",
 ];
 
+const POPULAR_ARTISTS = [
+  // Hindi / Bollywood / Punjabi
+  "arijit singh", "arijit s", "pritam", "sachin-jigar", "sachin jigar", "badshah", 
+  "neha kakkar", "tony kakkar", "diljit dosanjh", "anirudh ravichander", "arrahman", "a.r. rahman",
+  "a. r. rahman", "shreya ghoshal", "sidhu moose wala", "ap dhillon", "vishal-shekhar", 
+  "vishal shekhar", "amit trivedi", "vishal dadlani", "jubin nautiyal", "darshan raval", 
+  "shekhar ravjiani", "atif aslam", "kk", "sunidhi chauhan", "sonu nigam", "alka yagnik",
+  "kumar sanu", "udit narayan", "lata mangeshkar", "kishore kumar", "rd burman", "r. d. burman",
+  "yoyo honey singh", "yo yo honey singh", "raftaar", "kr$na", "divine", "emiway bantai",
+  "jass manak", "guru randhawa", "ammy virk", "karan aujla", "sharry maan", "sidhu moosewala",
+  "harrdy sandhu", "b praak", "jaani", "mankirt aulakh", "jassie gill", "hardy sandhu",
+  "neha bhasin", "kavita krishnamurthy", "sukhwinder singh", "mohit chauhan",
+  "sachet-parampara", "sachet tandon", "parampara tandon", "tanishk bagchi", "mithoon",
+  "amaal mallik", "arman malik", "armaan malik", "siddharth mahadevan", "shankar mahadevan",
+  "shankar-ehsaan-loy", "ehsaan noorani", "loy mendonsa", "sanjay leela bhansali",
+  "javed ali", "alisha chinai", "kailash kher", "shaan", "adnan sami", "rahat fateh ali khan", 
+  "nusrat fateh ali khan", "sajid-wajid", "sajid khan", "wajid khan", "salim-sulaiman", 
+  "salim merchant", "sulaiman merchant", "meet bros", "anand-milind", "nadeem-shravan", 
+  "anu malik", "himesh reshammiya", "nehha sandhu", "sidhu", "karan aujla", "mankirt",
+  "pav dharia", "maninder buttar", "sharry", "parmish verma", "jass", "randhawa",
+  
+  // South Indian (Tamil / Telugu / Kannada / Malayalam)
+  "anirudh", "devi sri prasad", "dsp", "thaman", "s. thaman", "s thaman", "ilaiyaraaja",
+  "yuvan shankar raja", "g. v. prakash", "gv prakash", "harris jayaraj", "d. imman", "d imman",
+  "sid sriram", "spb", "s. p. balasubrahmanyam", "s p balasubrahmanyam", "ks chithra", "k. s. chithra",
+  "haricharan", "shweta mohan", "vijay yesudas", "karthik", "santhosh narayanan", "saNa",
+  "sushin shyam", "jakes bejoy", "gopi sundar", "deepak dev", "m. m. keeravani", "mm keeravani",
+  "keeravani", "hesaham abdul wahab", "hesham abdul wahab", "arjun janya", "harikrishna",
+  
+  // Western / Pop / Hip-hop / Electronic
+  "taylor swift", "drake", "the weeknd", "justin bieber", "ed sheeran", "ariana grande",
+  "billie eilish", "dua lipa", "post malone", "bruno mars", "eminem", "kanye west",
+  "travis scott", "kendrick lamar", "rihanna", "beyonce", "shakira", "coldplay",
+  "imagine dragons", "maroon 5", "one direction", "harry styles", "zayn", "shawn mendes",
+  "camila cabello", "selena gomez", "demi lovato", "miley cyrus", "lady gaga", "katy perry",
+  "adele", "sam smith", "charlie puth", "sia", "david guetta", "calvin harris",
+  "marshmello", "alan walker", "chainsmokers", "martin garrix", "avicii", "kygo",
+  "dj snake", "dualipa", "bts", "blackpink", "olivia rodrigo", "sabrina carpenter",
+  "tate mcrae", "billie", "swift", "weeknd", "bieber", "sheeran", "grande", "eilish",
+];
+
 // ════════════════════════════════════════════════════════════════
 // 1. BUILD TASTE PROFILE
 // Reads ListeningHistory, computes weighted distributions,
@@ -1277,6 +1318,27 @@ export async function getIndustryNewReleases(
     let score = 0;
     const title = (song.name || "").toLowerCase();
     score += popularityScore(song.playCount);
+
+    // Popular/Mainstream Artist Boost vs Indie Penalty
+    const artistStr = (song.primaryArtists || "").toLowerCase();
+    let hasTopArtist = false;
+    for (const topArt of POPULAR_ARTISTS) {
+      if (artistStr.includes(topArt)) {
+        hasTopArtist = true;
+        break;
+      }
+    }
+
+    if (hasTopArtist) {
+      score += 120; // Massive boost for top mainstream artists
+    } else {
+      // If it doesn't feature a mainstream artist:
+      if (song.playCount < 1_500_000) {
+        score -= 150; // Heavily penalize obscure indie/low-playcount releases
+      } else if (song.playCount < 5_000_000) {
+        score -= 60;  // Moderate penalty for lesser known mid-tier releases
+      }
+    }
     
     // Cover/karaoke penalty
     score += coverPenalty(title) * 0.5; // light penalty

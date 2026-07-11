@@ -13,6 +13,10 @@ import {
   Check,
   X,
   MessageSquare,
+  Sparkles,
+  ShieldAlert,
+  Megaphone,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
@@ -23,6 +27,8 @@ import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
 import { FeedbackModal } from "../components/ui/FeedbackModal";
+import { useAnnouncements } from "../hooks/useAnnouncements";
+import { useAnnouncementStore } from "../store/announcementStore";
 
 const ALL_LANGUAGES = [
   "hindi",
@@ -76,7 +82,8 @@ export default function ProfilePage() {
   const [editMoods, setEditMoods] = useState<string[]>(
     user?.preferences?.moods || [],
   );
-
+  // Announcements state
+  const { unreadCount, togglePanel } = useAnnouncements();
   const fetchStats = (showLoading = true) => {
     if (showLoading) setLoading(true);
     api
@@ -293,13 +300,28 @@ export default function ProfilePage() {
               </button>
             </>
           ) : (
-            <button
-              onClick={() => setEditing(true)}
-              className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95"
-              title="Edit profile"
-            >
-              <Pencil size={14} />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={togglePanel}
+                className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95 relative"
+                title="Updates & Announcements"
+              >
+                <Bell size={14} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 z-20 flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sp-green" />
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setEditing(true)}
+                className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95"
+                title="Edit profile"
+              >
+                <Pencil size={14} />
+              </button>
+            </div>
           )}
         </div>
       </div>

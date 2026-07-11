@@ -7,20 +7,17 @@ import {
   User,
   Download,
   PanelLeft,
-  Bell,
 } from "lucide-react";
 import { useUIStore } from "../../store/uiStore";
 import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
 import { SearchTrigger } from "../ui/SearchTrigger";
-import { useAnnouncements } from "../../hooks/useAnnouncements";
 
 export const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const { unreadCount, togglePanel } = useAnnouncements();
 
   const view =
     location.pathname === "/"
@@ -116,29 +113,6 @@ export const Sidebar = () => {
             )}
           </button>
         ))}
-
-        <button
-          onClick={togglePanel}
-          title={collapsed ? "Announcements" : undefined}
-          className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-all duration-300 relative overflow-hidden ${
-            collapsed ? "justify-center px-0 py-2" : "px-3.5 py-2"
-          } text-sp-sub hover:text-white hover:bg-white/[0.04]`}
-        >
-          <Bell
-            size={17}
-            className="relative z-10"
-            strokeWidth={2}
-          />
-          {!collapsed && (
-            <span className="flex-1 text-left relative z-10">Announcements</span>
-          )}
-          {unreadCount > 0 && (
-            <span className={`absolute ${collapsed ? "top-1 right-2" : "top-2.5 right-3.5"} z-20 flex h-2.5 w-2.5`}>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sp-green" />
-            </span>
-          )}
-        </button>
       </nav>
  
       {/* Duo + Collapse — always visible at bottom */}

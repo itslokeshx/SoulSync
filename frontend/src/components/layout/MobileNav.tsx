@@ -1,13 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Library, Download, UserCircle, Bell } from "lucide-react";
+import { Home, Library, Download, UserCircle } from "lucide-react";
 import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
-import { useAnnouncements } from "../../hooks/useAnnouncements";
 
 export const MobileNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { unreadCount, togglePanel, isPanelOpen } = useAnnouncements();
 
   const view =
     location.pathname === "/"
@@ -78,33 +76,6 @@ export const MobileNav = () => {
         </div>
         <span className={`text-[9px] font-medium ${view === "downloads" ? "text-sp-green" : ""}`}>
           Downloads
-        </span>
-      </button>
-
-      {/* Updates / Announcements */}
-      <button
-        onClick={togglePanel}
-        className={`flex flex-col items-center gap-0.5 py-2 px-2.5 transition-all duration-300 relative ${
-          isPanelOpen ? "text-sp-green" : "text-white/40 active:text-white"
-        }`}
-      >
-        {isPanelOpen && (
-          <span
-            className="absolute -top-0.5 w-5 h-0.5 rounded-full bg-sp-green"
-            style={{ boxShadow: "0 0 8px rgba(29,185,84,0.5)" }}
-          />
-        )}
-        <div className="relative">
-          <Bell size={19} strokeWidth={isPanelOpen ? 2.5 : 1.8} />
-          {unreadCount > 0 && (
-            <span className="absolute top-0.5 -right-0.5 z-20 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green" />
-            </span>
-          )}
-        </div>
-        <span className={`text-[9px] font-medium ${isPanelOpen ? "text-sp-green" : ""}`}>
-          Updates
         </span>
       </button>
 
