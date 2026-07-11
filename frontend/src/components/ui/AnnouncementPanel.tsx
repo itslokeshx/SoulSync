@@ -68,9 +68,9 @@ export function AnnouncementPanel() {
         </h3>
         <button
           onClick={() => setPanelOpen(false)}
-          className="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/[0.1] text-white/70 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 active:scale-95"
+          className="text-white/30 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10"
         >
-          <X size={12} strokeWidth={2.5} /> Close
+          <X size={16} />
         </button>
       </div>
 
@@ -84,10 +84,6 @@ export function AnnouncementPanel() {
         ) : (
           announcements.map((a) => {
             const isSeen = a.type === "whats_new" ? false : seenIds.includes(a._id);
-            // Note: whats_new matches localSeenVersion instead of seenIds,
-            // but we can check if it matches the current app version or not.
-            // If it's old version it shouldn't show as unread. Let's make whats_new seen state
-            // behave intuitively: if version matches, show unread if not seen.
             return (
               <button
                 key={a._id}
@@ -127,6 +123,16 @@ export function AnnouncementPanel() {
             );
           })
         )}
+      </div>
+
+      {/* Footer Close Button */}
+      <div className="p-4 border-t border-white/[0.04] bg-white/[0.01]">
+        <button
+          onClick={() => setPanelOpen(false)}
+          className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.1] text-white hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95"
+        >
+          <X size={12} strokeWidth={2.5} /> Close
+        </button>
       </div>
     </div>
   );
