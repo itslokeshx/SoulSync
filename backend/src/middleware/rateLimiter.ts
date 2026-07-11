@@ -5,17 +5,22 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-const store = new Map<string, RateLimitEntry>();
-
-// Cleanup every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of store) {
-    if (now > entry.resetAt) store.delete(key);
-  }
-}, 300000);
-
 export function rateLimiter(maxRequests = 60, windowMs = 60000) {
+  const store = new Map<string, RateLimitEntry>();
+
+  // Cleanup every 5 minutes
+  const intervalId = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of store) {
+      if (now > entry.resetAt) store.delete(key);
+    }
+  }, 300000);
+
+  // Prevent holding process open
+  if (intervalId.unref) {
+    intervalId.unref();
+  }
+
   return (req: Request, res: Response, next: NextFunction): void => {
     const key = req.ip || "unknown";
     const now = Date.now();
