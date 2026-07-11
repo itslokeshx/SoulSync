@@ -15,7 +15,7 @@ import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../auth/AuthContext";
 import { useUIStore } from "../store/uiStore";
-import { getDashboard, getGuestDashboard, getHomeRecommendations } from "../api/backend";
+import { getDashboard, getGuestDashboard } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSong, normalizeSongs } from "../utils/normalizeSong";
 
@@ -344,7 +344,6 @@ export const HomePage = () => {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
   const fetched = useRef(false);
   // In-flight guard — persists across React StrictMode unmount/remount so the
   // second effect pass returns immediately instead of firing a duplicate request.
@@ -414,13 +413,6 @@ export const HomePage = () => {
     // new song play, visibilitychange busts it on tab-focus — no need to bust on
     // every mount, which would cause 429s if the user navigates rapidly).
     fetchDashboard();
-
-    // Fetch recommendations in parallel (authenticated users only)
-    if (user) {
-      getHomeRecommendations()
-        .then((data) => setRecommendations(data.songs || []))
-        .catch(() => {}); // Silent — recs are optional
-    }
   }, [fetchDashboard, cacheKey, authLoading]);
 
   // Re-fetch whenever the tab/app comes back into focus so "Continue Listening"
@@ -628,28 +620,6 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* RECOMMENDED FOR YOU — taste-aware recommendations */}
-      {recommendations.length > 0 && (
-        <div className="mb-10">
-          <HSection
-            title="Recommended for You"
-            icon="✨"
-            songs={recommendations.filter(
-              (s: any) =>
-                !recentlyPlayed.some(
-                  (rp) => rp.id === s.id || rp.id === s.songId,
-                ),
-            )}
-            loading={false}
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlay={(song: any, queue: any[]) =>
-              onPlay(song, queue.length ? queue : recommendations)
-            }
-            onAlbumClick={(al: any) => navigate(`/album/${al.id}`)}
-          />
-        </div>
-      )}
 
       {/* MOBILE: Quick Picks from dashboard API first section */}
       {(dashboard?.sections?.[0]?.songs?.length ?? 0) > 0 && (
@@ -676,30 +646,7 @@ export const HomePage = () => {
 
         // ── Mood Grid ──
         if (section.type === "mood_grid" && section.meta?.moods) {
-          return (
-            <div key={section.id} className="mb-10">
-              <h2 className="text-lg font-bold text-white mb-1">
-                {section.title}
-              </h2>
-              {section.subtitle && (
-                <p className="text-white/30 text-xs mb-4">{section.subtitle}</p>
-              )}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {section.meta.moods.map((mood: string) => (
-                  <button
-                    key={mood}
-                    onClick={() => onMoodClick(mood)}
-                    className={`p-4 rounded-xl bg-gradient-to-br ${MOOD_COLORS[mood] || "from-white/[0.06] to-transparent"} border border-white/[0.06] hover:border-white/[0.12] text-left transition-all duration-200 hover:scale-[1.02]`}
-                  >
-                    <span className="text-lg">{mood.split(" ")[0]}</span>
-                    <p className="text-sm font-medium text-white mt-1">
-                      {mood.replace(/^[^\s]+\s/, "")}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
+          return null;
         }
 
         // ── Continue Listening ──
