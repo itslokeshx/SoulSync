@@ -8,7 +8,7 @@ import { getDashboard, getGuestDashboard, startRadio } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSongs } from "../utils/normalizeSong";
 
-const CACHE_TTL = 5 * 60_000; // 5 minutes
+const CACHE_TTL = import.meta.env.DEV ? 0 : 5 * 60_000; // 5 minutes (disabled in dev)
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -203,37 +203,92 @@ export const HomePage = () => {
   const normalizedPlaylistSongs = normalizeSongs(playlistSongsRaw);
 
   // Combine and deduplicate songs (avoid showing recently played or new releases in suggestions)
-  const seenIds = new Set<string>();
-  normalizedRecentlyPlayed.forEach((s) => seenIds.add(s.id));
-  normalizedNewReleases.forEach((s) => seenIds.add(s.id));
+  const baseExcludeIds = new Set<string>();
+  normalizedRecentlyPlayed.forEach((s) => baseExcludeIds.add(s.id));
+  normalizedNewReleases.forEach((s) => baseExcludeIds.add(s.id));
 
-  const combinedSuggestions: any[] = [];
-
-  // 1. Add Liked Songs
+  // 1. Gather Saved Songs (Liked + Custom Playlists)
+  const savedSongs: any[] = [];
+  const savedSeen = new Set<string>();
+  
   for (const s of normalizedLikedSongs) {
-    if (!seenIds.has(s.id)) {
-      seenIds.add(s.id);
-      combinedSuggestions.push(s);
+    if (!baseExcludeIds.has(s.id) && !savedSeen.has(s.id)) {
+      savedSeen.add(s.id);
+      savedSongs.push(s);
     }
   }
-
-  // 2. Add Playlist Songs
   for (const s of normalizedPlaylistSongs) {
-    if (!seenIds.has(s.id)) {
-      seenIds.add(s.id);
-      combinedSuggestions.push(s);
+    if (!baseExcludeIds.has(s.id) && !savedSeen.has(s.id)) {
+      savedSeen.add(s.id);
+      savedSongs.push(s);
     }
   }
 
-  // 3. Add Made For You Auto Suggestions
+  // 2. Gather Recommended Songs (Made For You auto suggestions)
+  const recommendedSongs: any[] = [];
+  const recSeen = new Set<string>();
   for (const s of normalizedMadeForYou) {
-    if (!seenIds.has(s.id)) {
-      seenIds.add(s.id);
-      combinedSuggestions.push(s);
+    if (!baseExcludeIds.has(s.id) && !recSeen.has(s.id) && !savedSeen.has(s.id)) {
+      recSeen.add(s.id);
+      recommendedSongs.push(s);
     }
   }
 
-  const suggestionsSongs = combinedSuggestions.slice(0, 30);
+  // 3. Select 40% (12 songs) from saved, 60% (18 songs) from recommended
+  const maxSavedCount = 12;
+  const maxRecCount = 18;
+
+  const selectedSaved = savedSongs.slice(0, maxSavedCount);
+  const selectedRec = recommendedSongs.slice(0, maxRecCount);
+
+  const extraSaved = savedSongs.slice(maxSavedCount);
+  const extraRec = recommendedSongs.slice(maxRecCount);
+
+  // 4. Interleave them proportionally (approx 3 recommended for every 2 saved songs)
+  const suggestionsSongs: any[] = [];
+  const finalSet = new Set<string>();
+  
+  const savedCopy = [...selectedSaved];
+  const recCopy = [...selectedRec];
+  const extraSavedCopy = [...extraSaved];
+  const extraRecCopy = [...extraRec];
+
+  while (suggestionsSongs.length < 30) {
+    // Add up to 3 recommended
+    let addedRec = 0;
+    while (addedRec < 3 && suggestionsSongs.length < 30) {
+      const nextRec = recCopy.shift() || extraRecCopy.shift();
+      if (!nextRec) break;
+      if (!finalSet.has(nextRec.id)) {
+        finalSet.add(nextRec.id);
+        suggestionsSongs.push(nextRec);
+        addedRec++;
+      }
+    }
+
+    // Add up to 2 saved
+    let addedSaved = 0;
+    while (addedSaved < 2 && suggestionsSongs.length < 30) {
+      const nextSaved = savedCopy.shift() || extraSavedCopy.shift();
+      if (!nextSaved) break;
+      if (!finalSet.has(nextSaved.id)) {
+        finalSet.add(nextSaved.id);
+        suggestionsSongs.push(nextSaved);
+        addedSaved++;
+      }
+    }
+
+    // Break if absolutely out of candidates to prevent infinite loop
+    if (
+      recCopy.length === 0 &&
+      extraRecCopy.length === 0 &&
+      savedCopy.length === 0 &&
+      extraSavedCopy.length === 0
+    ) {
+      break;
+    }
+  }
+
   const row1 = suggestionsSongs.slice(0, 10);
   const row2 = suggestionsSongs.slice(10, 20);
   const row3 = suggestionsSongs.slice(20, 30);

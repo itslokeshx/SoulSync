@@ -1136,15 +1136,26 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
     `new releases ${lang}`,
   ];
 
+  const candidates: Song[] = [];
+  const seen = new Set<string>();
+
+  const addSongs = (songs: Song[]) => {
+    for (const s of songs) {
+      if (s?.id && !seen.has(s.id)) {
+        seen.add(s.id);
+        candidates.push(s);
+      }
+    }
+  };
+
+  // 1. Fetch from the top 2 curated playlists
   for (const term of searchTerms) {
     try {
-      const playlists = await searchPlaylists(term, 3);
-      if (playlists.length > 0) {
-        // The first playlist from JioSaavn is usually the official curated one
-        const bestPlaylist = playlists[0];
-        const rawSongs = await getPlaylistSongs(bestPlaylist.id);
+      const playlists = await searchPlaylists(term, 2);
+      for (const playlist of playlists) {
+        const rawSongs = await getPlaylistSongs(playlist.id);
         if (rawSongs.length > 0) {
-          return normalizeSongsToCanonical(rawSongs);
+          addSongs(normalizeSongsToCanonical(rawSongs));
         }
       }
     } catch (err) {
@@ -1152,15 +1163,66 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
     }
   }
 
-  // Fallback to song search if no playlist was successfully fetched
-  const fallbackQuery = `new ${lang} songs ${currentYear}`;
-  try {
-    const rawSearch = await searchSongs(fallbackQuery, 30);
-    return normalizeSongsToCanonical(rawSearch);
-  } catch (err) {
-    console.error(`[NewReleases] Fallback search failed for: ${fallbackQuery}`, err);
-    return [];
+  // 2. Fetch from active search results for new releases to capture the latest individual tracks
+  const searchQueries = [
+    `new ${lang} songs ${currentYear}`,
+    `latest ${lang} songs ${currentYear}`,
+  ];
+
+  for (const query of searchQueries) {
+    try {
+      const rawSearch = await searchSongs(query, 35);
+      if (rawSearch.length > 0) {
+        addSongs(normalizeSongsToCanonical(rawSearch));
+      }
+    } catch (err) {
+      console.error(`[NewReleases] Search query failed: ${query}`, err);
+    }
   }
+
+  return candidates;
+}
+
+function isCompilationReRelease(song: Song): boolean {
+  const albumLower = (song.album || "").toLowerCase();
+  const nameLower = (song.name || "").toLowerCase();
+
+  // 1. Direct compilation keywords in album name
+  const compilationKeywords = [
+    "best of", "collection", "hits", "compilation", "romantic songs", 
+    "bollywood hits", "top 10", "top 20", "top 30", "top 50", "top 100", 
+    "most liked", "selection", "anthology", "mashup", "superhits", 
+    "greatest", "memories", "party hits", "lofi mix", "chill mix",
+    "sad songs", "love hits", "essential", "essentials", "playlist",
+    "music day", "day 2026", "hits 2026", "celebration", "festival",
+    "monsoon", "summer", "winter", "spring"
+  ];
+  for (const kw of compilationKeywords) {
+    if (albumLower.includes(kw)) return true;
+  }
+
+  // 2. Movie/Album mismatch heuristic
+  const fromMatch = nameLower.match(/\(from\s+["'“&quot;](.+?)["'”&quot;]\)/) || 
+                    nameLower.match(/from\s+["'“&quot;](.+?)["'”&quot;]/);
+  if (fromMatch && fromMatch[1]) {
+    const movieName = fromMatch[1].trim();
+    if (movieName && !albumLower.includes(movieName)) {
+      return true;
+    }
+  }
+
+  // 3. Mathematical playcount ceiling for new releases (40M plays in < 45 days is impossible on JioSaavn)
+  if (song.releaseDate) {
+    const rDate = new Date(song.releaseDate);
+    const today = new Date();
+    const diffTime = today.getTime() - rDate.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    if (diffDays >= 0 && diffDays <= 45 && song.playCount > 40000000) {
+      return true; // compilation re-release
+    }
+  }
+
+  return false;
 }
 
 export async function getIndustryNewReleases(
@@ -1206,9 +1268,12 @@ export async function getIndustryNewReleases(
     enrichedSongs = candidates;
   }
 
+  // Filter out compilation re-releases of older catalog items
+  const nonCompilationSongs = enrichedSongs.filter((song) => !isCompilationReRelease(song));
+
   const today = new Date();
 
-  const scored = enrichedSongs.map((song) => {
+  const scored = nonCompilationSongs.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
     score += popularityScore(song.playCount);
