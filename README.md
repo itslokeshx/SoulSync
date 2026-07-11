@@ -163,12 +163,33 @@ graph TD
 
 ### Data Flow
 
-```
-User Action → Zustand Store → API Call → Express Route → Service Layer → External API
-                                              │
-                                              ├── MongoDB (persist)
-                                              ├── Redis (cache)
-                                              └── Socket.io (real-time sync)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User Action
+    participant UI as Zustand Store / UI
+    participant API as Express Server
+    participant Cache as Upstash Redis
+    participant Service as Service Layer
+    participant DB as MongoDB Atlas
+    participant Socket as Socket.io (Duo)
+
+    User->>UI: Trigger Action (e.g. search, queue song)
+    UI->>API: Send REST Request / WebSocket Event
+    API->>Cache: Check for cached content
+    alt Cache Hit
+        Cache-->>API: Return cached JSON
+    else Cache Miss
+        API->>Service: Dispatch to Service Engine
+        Service->>DB: Fetch / persist database records
+        Service-->>API: Return processed result
+        API->>Cache: Write result to Cache (TTL)
+    end
+    opt Duo Session Active
+        API->>Socket: Emit real-time synchronization
+    end
+    API-->>UI: Respond with JSON payload
+    UI-->>User: Update state & refresh view
 ```
 
 ---
