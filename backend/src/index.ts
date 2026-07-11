@@ -16,6 +16,7 @@ import sessionRoutes from "./routes/session.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import importRoutes from "./routes/import.js";
 import recommendationRoutes from "./routes/recommendations.js";
+import announcementRoutes from "./routes/announcements.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { enhancedSearch } from "./services/searchEnhancer.js";
 
@@ -79,7 +80,7 @@ app.use(
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "x-admin-secret"],
   }),
 );
 app.use(express.json({ limit: "5mb" }));
@@ -100,6 +101,7 @@ app.use("/api/session", sessionRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/import", importRoutes);
 app.use("/api/recommendations", recommendationRoutes);
+app.use("/api/announcements", announcementRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {
