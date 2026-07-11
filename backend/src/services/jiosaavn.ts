@@ -287,6 +287,24 @@ export async function searchArtists(query: string, limit = 10): Promise<any[]> {
   }));
 }
 
+export async function searchPlaylists(query: string, limit = 10): Promise<any[]> {
+  const data = (await fetchSafe(
+    `${JIOSAAVN_BASE}/search/playlists?query=${encodeURIComponent(query)}&limit=${limit}`,
+  )) as any;
+  const results = data?.data?.results || data?.results || [];
+  return results.map((playlist: any) => ({
+    ...playlist,
+    name: decodeHtmlEntities(playlist.name || playlist.title),
+  }));
+}
+
+export async function getPlaylistSongs(playlistId: string): Promise<any[]> {
+  const data = (await fetchSafe(
+    `${JIOSAAVN_BASE}/playlists?id=${playlistId}`,
+  )) as any;
+  return data?.data?.songs || data?.songs || [];
+}
+
 // ── Entity Details ─────────────────────────────────────────────
 export async function getAlbumDetails(albumId: string): Promise<any> {
   const data = (await fetchSafe(

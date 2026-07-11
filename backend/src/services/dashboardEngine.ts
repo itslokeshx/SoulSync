@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { ListeningHistory } from "../models/ListeningHistory.js";
+import { Playlist } from "../models/Playlist.js";
 import { User } from "../models/User.js";
 import { fetchSongById, Song } from "./jiosaavn.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
@@ -8,6 +9,7 @@ import {
   generateSeedAnchoredBatch,
   getTasteProfileBatch,
   getLanguageAwareNewReleases,
+  getIndustryNewReleases,
 } from "./recommendationEngine.js";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
@@ -16,8 +18,9 @@ export interface DashboardResponse {
   subtitle: string;
   recentlyPlayed: Song[];
   newReleases: { title: string; songs: Song[] };
-  madeForYou: { title: string; songs: Song[]; hasMore: boolean };
-  becauseYouLiked: { seedSongId: string; seedSongTitle: string; songs: Song[] }[];
+  likedSongs: Song[];
+  playlists: any[];
+  madeForYou: { title: string; songs: Song[] };
   generatedAt: number;
 }
 
@@ -118,10 +121,20 @@ export async function buildDashboard(
   // Fetch taste profile
   const tasteProfile = isGuest ? null : await getTasteProfile(userId);
 
-  // B. New Releases For You (Language-aware, cap at 20)
+  // B. New Releases from Industry (generic for preferred languages, not personalized)
   let newReleasesSongs: Song[] = [];
+  let newReleasesTitle = "New Releases";
   try {
-    const rawNewReleases = await getLanguageAwareNewReleases(tasteProfile, 25);
+    let langs: string[] = ["hindi"];
+    if (!isGuest) {
+      const user = await User.findById(userId).select("preferences").lean();
+      if (user?.preferences?.languages && user.preferences.languages.length > 0) {
+        langs = user.preferences.languages;
+      }
+    }
+    newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
+
+    const rawNewReleases = await getIndustryNewReleases(langs, 25);
     newReleasesSongs = rawNewReleases
       .filter((s) => !globalExcludeIds.has(s.id))
       .slice(0, 20);
@@ -133,17 +146,17 @@ export async function buildDashboard(
     console.error("[Dashboard] New Releases fetch error:", err);
   }
 
-  // C. Made For You (Taste profile batch or global fallback, cap at 20)
+  // C. Made For You (Taste profile batch or global fallback, cap at 30)
   let madeForYouSongs: Song[] = [];
   try {
     const rawMadeForYou = await getTasteProfileBatch(
       tasteProfile,
       Array.from(globalExcludeIds),
-      25,
+      35,
     );
     madeForYouSongs = rawMadeForYou
       .filter((s) => !globalExcludeIds.has(s.id))
-      .slice(0, 20);
+      .slice(0, 30);
 
     for (const s of madeForYouSongs) {
       globalExcludeIds.add(s.id);
@@ -152,85 +165,36 @@ export async function buildDashboard(
     console.error("[Dashboard] Made For You fetch error:", err);
   }
 
-  // D. Because You Liked ___ (Multiple shelves, 3-5 rotated liked seeds)
-  let becauseYouLiked: { seedSongId: string; seedSongTitle: string; songs: Song[] }[] = [];
+  // Liked Songs and Playlists
+  let likedSongs: Song[] = [];
+  let playlists: any[] = [];
   if (!isGuest) {
     try {
       const user = await User.findById(userId).select("likedSongs").lean();
       const liked = user?.likedSongs || [];
-
-      if (liked.length >= 3) {
-        const rotationKey = `homefeed:seed-rotation:${userId}`;
-        let rotationHit = await redisGet(rotationKey);
-        let rotationState: { shuffledIds: string[]; lastIndex: number } | null = null;
-        if (rotationHit) {
-          try {
-            rotationState = JSON.parse(rotationHit);
-          } catch {}
-        }
-
-        const likedIds = liked.map((s) => s.songId);
-
-        // Validate rotation state
-        if (
-          !rotationState ||
-          !Array.isArray(rotationState.shuffledIds) ||
-          rotationState.shuffledIds.length === 0 ||
-          rotationState.shuffledIds.some((id) => !likedIds.includes(id))
-        ) {
-          const shuffled = [...likedIds].sort(() => Math.random() - 0.5);
-          rotationState = { shuffledIds: shuffled, lastIndex: 0 };
-        }
-
-        const seedCount = Math.min(rotationState.shuffledIds.length, 5);
-        const selectedIds: string[] = [];
-        let idx = rotationState.lastIndex;
-        for (let i = 0; i < seedCount; i++) {
-          selectedIds.push(rotationState.shuffledIds[idx]);
-          idx = (idx + 1) % rotationState.shuffledIds.length;
-        }
-
-        // Save updated rotation state
-        rotationState.lastIndex = idx;
-        await redisSet(rotationKey, JSON.stringify(rotationState), 30 * 24 * 3600).catch(() => {});
-
-        // Fetch canonical Song metadata for selected seeds
-        const seedSongsResults = await Promise.allSettled(
-          selectedIds.map((id) => fetchSongById(id))
-        );
-        const seeds = seedSongsResults
-          .filter((r) => r.status === "fulfilled" && r.value)
-          .map((r) => (r as any).value as Song);
-
-        const sectionExcludeIds = new Set<string>([...globalExcludeIds, ...likedIds]);
-
-        for (const seed of seeds) {
-          const seedRecommendations = await generateSeedAnchoredBatch(
-            seed,
-            tasteProfile,
-            Array.from(sectionExcludeIds),
-            8,
-          );
-
-          const filteredRecommendations = seedRecommendations
-            .filter((s) => !sectionExcludeIds.has(s.id))
-            .slice(0, 8);
-
-          if (filteredRecommendations.length >= 6) {
-            for (const s of filteredRecommendations) {
-              sectionExcludeIds.add(s.id);
-              globalExcludeIds.add(s.id);
-            }
-            becauseYouLiked.push({
-              seedSongId: seed.id,
-              seedSongTitle: seed.name,
-              songs: filteredRecommendations,
-            });
-          }
-        }
-      }
+      likedSongs = liked.map((s) => ({
+        id: s.songId,
+        name: s.title,
+        primaryArtists: s.artist,
+        image: s.albumArt,
+        album: "",
+        albumId: "",
+        duration: s.duration,
+        language: "",
+        year: "",
+        streamUrl: null,
+        downloadUrl: s.downloadUrl || [],
+        playCount: 0,
+        url: "",
+      }));
     } catch (err) {
-      console.error("[Dashboard] Because You Liked fetch error:", err);
+      console.error("[Dashboard] Liked songs fetch error:", err);
+    }
+
+    try {
+      playlists = await Playlist.find({ userId }).lean();
+    } catch (err) {
+      console.error("[Dashboard] Playlists fetch error:", err);
     }
   }
 
@@ -239,15 +203,15 @@ export async function buildDashboard(
     subtitle,
     recentlyPlayed,
     newReleases: {
-      title: "New Releases For You",
+      title: newReleasesTitle,
       songs: newReleasesSongs,
     },
+    likedSongs,
+    playlists,
     madeForYou: {
       title: isGuest || !tasteProfile || tasteProfile.artists.length === 0 ? "Popular Right Now" : "Made For You",
       songs: madeForYouSongs,
-      hasMore: true,
     },
-    becauseYouLiked,
     generatedAt: Date.now(),
   };
 

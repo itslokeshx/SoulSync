@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { HSection } from "../components/cards/HSection";
 import { SongCard } from "../components/cards/SongCard";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../auth/AuthContext";
-import { getDashboard, getGuestDashboard, getMoreRecommendations, startRadio } from "../api/backend";
+import { getDashboard, getGuestDashboard, startRadio } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSongs } from "../utils/normalizeSong";
 
 const CACHE_TTL = 5 * 60_000; // 5 minutes
 
 export const HomePage = () => {
+  const navigate = useNavigate();
   const {
     currentSong,
     isPlaying,
@@ -18,9 +20,6 @@ export const HomePage = () => {
   const { user, isLoading: authLoading } = useAuth();
 
   const [dashboard, setDashboard] = useState<any>(null);
-  const [madeForYouSongs, setMadeForYouSongs] = useState<any[]>([]);
-  const [hasMoreMadeForYou, setHasMoreMadeForYou] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const fetched = useRef(false);
@@ -28,7 +27,9 @@ export const HomePage = () => {
   const lastFetchedAt = useRef(0);
   const REFETCH_COOLDOWN = 2 * 60_000; // 2 minutes
 
-  const cacheKey = `ss_dashboard_${(user?.preferences?.languages || []).sort().join(",") || "guest"}`;
+  const userId = user?._id;
+  const langsKey = (user?.preferences?.languages || []).sort().join(",");
+  const cacheKey = `ss_dashboard_${langsKey || "guest"}`;
 
   const fetchDashboard = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -41,8 +42,6 @@ export const HomePage = () => {
           const parsed = JSON.parse(cached);
           if (Date.now() - parsed.generatedAt < CACHE_TTL) {
             setDashboard(parsed);
-            setMadeForYouSongs(parsed?.madeForYou?.songs || []);
-            setHasMoreMadeForYou(parsed?.madeForYou?.hasMore || false);
             setLoading(false);
             return;
           }
@@ -50,21 +49,17 @@ export const HomePage = () => {
       } catch {}
 
       try {
-        const data = user ? await getDashboard() : await getGuestDashboard();
+        const data = userId ? await getDashboard() : await getGuestDashboard();
         setDashboard(data);
-        setMadeForYouSongs(data?.madeForYou?.songs || []);
-        setHasMoreMadeForYou(data?.madeForYou?.hasMore || false);
         setError(false);
         lastFetchedAt.current = Date.now();
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
       } catch (err) {
         console.error("Dashboard load error:", err);
-        if (user) {
+        if (userId) {
           try {
             const guestData = await getGuestDashboard();
             setDashboard(guestData);
-            setMadeForYouSongs(guestData?.madeForYou?.songs || []);
-            setHasMoreMadeForYou(guestData?.madeForYou?.hasMore || false);
             setError(false);
             return;
           } catch {}
@@ -76,18 +71,18 @@ export const HomePage = () => {
     } finally {
       fetchingRef.current = false;
     }
-  }, [user, cacheKey]);
+  }, [userId, cacheKey]);
 
   useEffect(() => {
     fetched.current = false;
-  }, [user]);
+  }, [userId, langsKey]);
 
   useEffect(() => {
     if (authLoading) return;
     if (fetched.current) return;
     fetched.current = true;
     fetchDashboard();
-  }, [fetchDashboard, cacheKey, authLoading]);
+  }, [fetchDashboard, authLoading]);
 
   // Tab focus re-fetch
   useEffect(() => {
@@ -118,77 +113,20 @@ export const HomePage = () => {
   }, [cacheKey, fetchDashboard]);
 
   // Endless Autoplay on Click
-  const handleHomeSongClick = async (song: any) => {
+  const handleHomeSongClick = async (song: any, overrideQueue?: any[]) => {
     try {
       const res = await startRadio(song.id);
       if (res.songs && res.songs.length > 0) {
         const normalized = normalizeSongs(res.songs);
         onPlay(normalized[0], normalized);
       } else {
-        onPlay(song);
+        onPlay(song, overrideQueue || [song]);
       }
     } catch (err) {
       console.error("Failed to start radio:", err);
-      onPlay(song);
+      onPlay(song, overrideQueue || [song]);
     }
   };
-
-  // Infinite Scroll fetch logic
-  const fetchMoreMadeForYou = useCallback(async () => {
-    if (loadingMore || !hasMoreMadeForYou) return;
-    setLoadingMore(true);
-    try {
-      const excludeIds = new Set<string>();
-      if (dashboard?.recentlyPlayed) {
-        dashboard.recentlyPlayed.forEach((s: any) => excludeIds.add(s.id));
-      }
-      if (dashboard?.newReleases?.songs) {
-        dashboard.newReleases.songs.forEach((s: any) => excludeIds.add(s.id));
-      }
-      if (dashboard?.becauseYouLiked) {
-        dashboard.becauseYouLiked.forEach((shelf: any) => {
-          shelf.songs.forEach((s: any) => excludeIds.add(s.id));
-        });
-      }
-      madeForYouSongs.forEach((s: any) => excludeIds.add(s.id));
-
-      const res = await getMoreRecommendations(Array.from(excludeIds), 20);
-      if (res.songs && res.songs.length > 0) {
-        setMadeForYouSongs((prev) => {
-          const combined = [...prev, ...res.songs];
-          if (combined.length >= 500) {
-            setHasMoreMadeForYou(false);
-            return combined.slice(0, 500);
-          }
-          return combined;
-        });
-        setHasMoreMadeForYou(res.hasMore && madeForYouSongs.length + res.songs.length < 500);
-      } else {
-        setHasMoreMadeForYou(false);
-      }
-    } catch (err) {
-      console.error("Failed to fetch more recommendations:", err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [dashboard, madeForYouSongs, loadingMore, hasMoreMadeForYou]);
-
-  // Observer element Ref
-  const observerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!observerRef.current || !hasMoreMadeForYou || loadingMore) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          fetchMoreMadeForYou();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    obs.observe(observerRef.current);
-    return () => obs.disconnect();
-  }, [observerRef.current, hasMoreMadeForYou, loadingMore, fetchMoreMadeForYou]);
 
   // Localized Greetings
   const firstName = user?.name?.split(" ")[0] || "there";
@@ -226,15 +164,7 @@ export const HomePage = () => {
           <Skeleton className="h-8 w-64 rounded-lg mb-2" />
           <Skeleton className="h-4 w-48 rounded-md" />
         </div>
-        <div>
-          <Skeleton className="h-4 w-32 rounded-md mb-3" />
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-        {[1, 2].map((i) => (
+        {[1, 2, 3].map((i) => (
           <div key={i}>
             <Skeleton className="h-5 w-40 rounded-md mb-4" />
             <div className="flex gap-3 overflow-hidden">
@@ -257,7 +187,56 @@ export const HomePage = () => {
 
   const normalizedRecentlyPlayed = normalizeSongs(dashboard?.recentlyPlayed || []);
   const normalizedNewReleases = normalizeSongs(dashboard?.newReleases?.songs || []);
-  const normalizedMadeForYou = normalizeSongs(madeForYouSongs);
+  const normalizedLikedSongs = normalizeSongs(dashboard?.likedSongs || []);
+  const normalizedMadeForYou = normalizeSongs(dashboard?.madeForYou?.songs || []);
+
+  const playlistSongsRaw = (dashboard?.playlists || []).flatMap((p: any) =>
+    (p.songs || []).map((s: any) => ({
+      id: s.songId,
+      name: s.title,
+      primaryArtists: s.artist,
+      image: s.albumArt,
+      duration: s.duration,
+      downloadUrl: s.downloadUrl,
+    }))
+  );
+  const normalizedPlaylistSongs = normalizeSongs(playlistSongsRaw);
+
+  // Combine and deduplicate songs (avoid showing recently played or new releases in suggestions)
+  const seenIds = new Set<string>();
+  normalizedRecentlyPlayed.forEach((s) => seenIds.add(s.id));
+  normalizedNewReleases.forEach((s) => seenIds.add(s.id));
+
+  const combinedSuggestions: any[] = [];
+
+  // 1. Add Liked Songs
+  for (const s of normalizedLikedSongs) {
+    if (!seenIds.has(s.id)) {
+      seenIds.add(s.id);
+      combinedSuggestions.push(s);
+    }
+  }
+
+  // 2. Add Playlist Songs
+  for (const s of normalizedPlaylistSongs) {
+    if (!seenIds.has(s.id)) {
+      seenIds.add(s.id);
+      combinedSuggestions.push(s);
+    }
+  }
+
+  // 3. Add Made For You Auto Suggestions
+  for (const s of normalizedMadeForYou) {
+    if (!seenIds.has(s.id)) {
+      seenIds.add(s.id);
+      combinedSuggestions.push(s);
+    }
+  }
+
+  const suggestionsSongs = combinedSuggestions.slice(0, 30);
+  const row1 = suggestionsSongs.slice(0, 10);
+  const row2 = suggestionsSongs.slice(10, 20);
+  const row3 = suggestionsSongs.slice(20, 30);
 
   return (
     <div className="animate-fadeIn space-y-12">
@@ -269,7 +248,7 @@ export const HomePage = () => {
         <p className="text-white/30 text-sm mt-1">{localSubtitle}</p>
       </div>
 
-      {/* A. Recently Played */}
+      {/* A. Recently Played (First) */}
       {user && normalizedRecentlyPlayed.length > 0 && (
         <HSection
           title="Recently Played"
@@ -281,10 +260,10 @@ export const HomePage = () => {
         />
       )}
 
-      {/* B. New Releases For You */}
+      {/* B. New Releases (Second - generic industry releases, not personalized) */}
       {normalizedNewReleases.length > 0 && (
         <HSection
-          title={dashboard?.newReleases?.title || "New Releases For You"}
+          title={dashboard?.newReleases?.title || "New Releases"}
           songs={normalizedNewReleases}
           loading={false}
           currentSong={currentSong}
@@ -293,48 +272,60 @@ export const HomePage = () => {
         />
       )}
 
-      {/* C. Made For You */}
-      {normalizedMadeForYou.length > 0 && (
+      {/* C. Suggestions / Made For You (3 Rows, Combined) */}
+      {suggestionsSongs.length > 0 && (
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3 mb-1">
             <h2 className="text-lg font-bold text-white leading-tight">
-              {dashboard?.madeForYou?.title || "Made For You"}
+              Made For You
             </h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {normalizedMadeForYou.map((song) => (
-              <SongCard
-                key={song.id}
-                song={song}
-                isCurrent={currentSong?.id === song.id}
-                isPlaying={isPlaying}
-                onPlay={() => handleHomeSongClick(song)}
-              />
-            ))}
+          <p className="text-white/30 text-xs mb-5">
+            Your liked tracks, playlists, and personalized recommendations
+          </p>
+          <div className="space-y-4">
+            {row1.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                {row1.map((s) => (
+                  <SongCard
+                    key={s.id}
+                    song={s}
+                    isCurrent={currentSong?.id === s.id}
+                    isPlaying={isPlaying}
+                    onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
+                  />
+                ))}
+              </div>
+            )}
+            {row2.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                {row2.map((s) => (
+                  <SongCard
+                    key={s.id}
+                    song={s}
+                    isCurrent={currentSong?.id === s.id}
+                    isPlaying={isPlaying}
+                    onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
+                  />
+                ))}
+              </div>
+            )}
+            {row3.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                {row3.map((s) => (
+                  <SongCard
+                    key={s.id}
+                    song={s}
+                    isCurrent={currentSong?.id === s.id}
+                    isPlaying={isPlaying}
+                    onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          {hasMoreMadeForYou && (
-            <div ref={observerRef} className="h-20 w-full flex items-center justify-center mt-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sp-green" />
-            </div>
-          )}
         </div>
       )}
-
-      {/* D. Because You Liked ___ */}
-      {user && dashboard?.becauseYouLiked?.map((shelf: any) => {
-        const normalizedShelfSongs = normalizeSongs(shelf.songs);
-        return (
-          <HSection
-            key={shelf.seedSongId}
-            title={`Because you liked "${shelf.seedSongTitle}"`}
-            songs={normalizedShelfSongs}
-            loading={false}
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlay={(song) => handleHomeSongClick(song)}
-          />
-        );
-      })}
 
       {/* Error fallback */}
       {error && !dashboard && (

@@ -13,6 +13,8 @@ import {
   fetchArtistSongs,
   fetchSongById,
   searchSongs,
+  searchPlaylists,
+  getPlaylistSongs,
   normalizeSongsToCanonical,
   type Song,
 } from "./jiosaavn.js";
@@ -1111,4 +1113,104 @@ export async function getLanguageAwareNewReleases(
 
   return result;
 }
+
+const LANGUAGE_PLAYLIST_MAP: Record<string, string[]> = {
+  hindi: ["latest hindi", "taaza tunes", "new releases hindi"],
+  tamil: ["latest kollywood", "latest tamil", "new releases tamil"],
+  telugu: ["latest tollywood", "latest telugu", "new releases telugu"],
+  punjabi: ["latest punjabi", "new releases punjabi"],
+  english: ["latest english", "new releases english", "fresh latin hits"],
+  kannada: ["latest kannada", "latest sandalwood", "new releases kannada"],
+  malayalam: ["latest malayalam", "new releases malayalam"],
+  marathi: ["latest marathi", "new releases marathi"],
+  bengali: ["latest bengali", "new releases bengali"],
+  gujarati: ["latest gujarati", "new releases gujarati"],
+  bhojpuri: ["latest bhojpuri", "new releases bhojpuri"],
+};
+
+async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
+  const currentYear = new Date().getFullYear();
+  const searchTerms = LANGUAGE_PLAYLIST_MAP[lang.toLowerCase()] || [
+    `latest ${lang}`,
+    `new releases ${lang}`,
+  ];
+
+  for (const term of searchTerms) {
+    try {
+      const playlists = await searchPlaylists(term, 3);
+      if (playlists.length > 0) {
+        // The first playlist from JioSaavn is usually the official curated one
+        const bestPlaylist = playlists[0];
+        const rawSongs = await getPlaylistSongs(bestPlaylist.id);
+        if (rawSongs.length > 0) {
+          return normalizeSongsToCanonical(rawSongs);
+        }
+      }
+    } catch (err) {
+      console.warn(`[NewReleases] Failed to fetch playlist for term: ${term}`, err);
+    }
+  }
+
+  // Fallback to song search if no playlist was successfully fetched
+  const fallbackQuery = `new ${lang} songs ${currentYear}`;
+  try {
+    const rawSearch = await searchSongs(fallbackQuery, 30);
+    return normalizeSongsToCanonical(rawSearch);
+  } catch (err) {
+    console.error(`[NewReleases] Fallback search failed for: ${fallbackQuery}`, err);
+    return [];
+  }
+}
+
+export async function getIndustryNewReleases(
+  langs: string[],
+  limit: number = 20,
+): Promise<Song[]> {
+  const targetLangs = langs.length > 0 ? langs : ["hindi"];
+
+  const fetchResults = await Promise.allSettled(
+    targetLangs.map((l) => fetchCuratedNewReleases(l))
+  );
+
+  const candidates: Song[] = [];
+  const seen = new Set<string>();
+
+  for (const res of fetchResults) {
+    if (res.status !== "fulfilled") continue;
+    for (const s of res.value) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        candidates.push(s);
+      }
+    }
+  }
+
+  const scored = candidates.map((song) => {
+    let score = 0;
+    const title = (song.name || "").toLowerCase();
+    score += popularityScore(song.playCount);
+    score += coverPenalty(title) * 0.5; // light penalty
+    if (!song.streamUrl) score -= 30;
+
+    // Prioritize current/recent year to avoid outdated songs
+    const currentYear = new Date().getFullYear();
+    if (song.year === String(currentYear)) {
+      score += 20;
+    } else if (song.year === String(currentYear - 1)) {
+      score += 5;
+    } else {
+      score -= 50; // heavily penalize older catalog items
+    }
+
+    return { ...song, _recScore: score };
+  });
+
+  scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
+  return scored.slice(0, limit).map((s) => {
+    const clean = { ...s };
+    delete (clean as any)._recScore;
+    return clean;
+  });
+}
+
 
