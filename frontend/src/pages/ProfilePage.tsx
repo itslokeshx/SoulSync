@@ -279,50 +279,21 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Edit / Save / Cancel buttons */}
+        {/* Profile Announcements Action (Bell) */}
         <div className="flex gap-2 relative z-10 flex-shrink-0">
-          {editing ? (
-            <>
-              <button
-                onClick={handleCancel}
-                className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/50 hover:text-white transition-all active:scale-95"
-                title="Cancel"
-              >
-                <X size={14} />
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="p-2 sm:p-2.5 rounded-xl bg-sp-green/10 border border-sp-green/20 hover:bg-sp-green/20 text-sp-green transition-all active:scale-95 disabled:opacity-50"
-                title="Save"
-              >
-                <Check size={14} />
-              </button>
-            </>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={togglePanel}
-                className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95 relative"
-                title="Updates & Announcements"
-              >
-                <Bell size={14} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 z-20 flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sp-green" />
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setEditing(true)}
-                className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95"
-                title="Edit profile"
-              >
-                <Pencil size={14} />
-              </button>
-            </div>
-          )}
+          <button
+            onClick={togglePanel}
+            className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95 relative"
+            title="Updates & Announcements"
+          >
+            <Bell size={14} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 z-20 flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sp-green" />
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -444,9 +415,40 @@ export default function ProfilePage() {
 
       {/* Preferences Section */}
       <div className="mb-8">
-        <h3 className="text-sm font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Settings size={14} className="text-white/40" /> Preferences
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-black text-white/40 uppercase tracking-widest flex items-center gap-2">
+            <Settings size={14} className="text-white/40" /> Preferences
+          </h3>
+          <div className="flex gap-2">
+            {editing ? (
+              <>
+                <button
+                  onClick={handleCancel}
+                  className="px-3 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/50 hover:text-white text-[11px] font-bold transition-all active:scale-95 flex items-center gap-1"
+                  title="Cancel"
+                >
+                  <X size={12} /> Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-3 py-1 rounded-xl bg-sp-green/10 border border-sp-green/20 hover:bg-sp-green/20 text-sp-green text-[11px] font-bold transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                  title="Save"
+                >
+                  <Check size={12} /> Save
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditing(true)}
+                className="px-3 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white text-[11px] font-bold transition-all active:scale-95 flex items-center gap-1"
+                title="Edit preferences"
+              >
+                <Pencil size={12} /> Edit
+              </button>
+            )}
+          </div>
+        </div>
         <div className="p-6 rounded-[28px] bg-white/[0.01] border border-white/[0.04] space-y-6">
           {/* Languages */}
           <div>
