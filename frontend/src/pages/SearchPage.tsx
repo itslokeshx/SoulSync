@@ -38,82 +38,7 @@ import { bestImg, getArtists, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
 
-// ─── Browse categories — universal moods & vibes ────────────────────────────
-// NOTE: queries are carefully chosen to return good results from JioSaavn's
-// literal-match search. Avoid generic "sad songs" (matches "Sadhli" etc.).
-// Instead use specific well-known titles, playlist names, or descriptive terms.
-const BROWSE_CATEGORIES = [
-  {
-    label: "Trending",
-    icon: TrendingUp,
-    iconColor: "text-orange-400",
-    bg: "bg-orange-400/[0.07]",
-    query: "top hits 2026",
-  },
-  {
-    label: "Party",
-    icon: Zap,
-    iconColor: "text-violet-400",
-    bg: "bg-violet-400/[0.07]",
-    query: "dance party hits",
-  },
-  {
-    label: "Chill",
-    icon: Moon,
-    iconColor: "text-cyan-400",
-    bg: "bg-cyan-400/[0.07]",
-    query: "chill vibes lofi",
-  },
-  {
-    label: "Sad",
-    icon: CloudRain,
-    iconColor: "text-indigo-400",
-    bg: "bg-indigo-400/[0.07]",
-    query: "heartbreak emotional hits",
-  },
-  {
-    label: "Romantic",
-    icon: Heart,
-    iconColor: "text-rose-400",
-    bg: "bg-rose-400/[0.07]",
-    query: "love romantic hits",
-  },
-  {
-    label: "Workout",
-    icon: Activity,
-    iconColor: "text-red-400",
-    bg: "bg-red-400/[0.07]",
-    query: "high energy workout pump",
-  },
-  {
-    label: "New Releases",
-    icon: Flame,
-    iconColor: "text-amber-400",
-    bg: "bg-amber-400/[0.07]",
-    query: "latest new releases 2026",
-  },
-  {
-    label: "Focus",
-    icon: Coffee,
-    iconColor: "text-emerald-400",
-    bg: "bg-emerald-400/[0.07]",
-    query: "instrumental focus study",
-  },
-  {
-    label: "Podcasts",
-    icon: Radio,
-    iconColor: "text-blue-400",
-    bg: "bg-blue-400/[0.07]",
-    query: "popular podcasts",
-  },
-  {
-    label: "Acoustic",
-    icon: Headphones,
-    iconColor: "text-teal-400",
-    bg: "bg-teal-400/[0.07]",
-    query: "unplugged acoustic live",
-  },
-];
+
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -602,69 +527,15 @@ export function SearchPage() {
                       <Clock size={11} className="text-white/30" />
                       {r}
                       <X
-                        size={10}
-                        className="text-white/0 group-hover:text-white/40 ml-0.5 transition-colors"
-                        onClick={(e) => handleRemoveRecent(r, e)}
+                         size={10}
+                         className="text-white/0 group-hover:text-white/40 ml-0.5 transition-colors"
+                         onClick={(e) => handleRemoveRecent(r, e)}
                       />
                     </button>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Trending when no recents */}
-            {recentSearches.length === 0 && (
-              <div>
-                <h3 className="text-white/40 text-[11px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                  <TrendingUp size={12} /> Trending
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    "Top hits 2026",
-                    "Chill vibes",
-                    "Workout beats",
-                    "New releases",
-                    "Sad songs",
-                    "Party mix",
-                  ].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => handleChipClick(t)}
-                      className="px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.07] text-white/60 text-[12px] hover:bg-white/[0.09] hover:text-white transition-all"
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Browse */}
-            <div>
-              <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                <Sparkles size={11} /> Browse
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {BROWSE_CATEGORIES.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <button
-                      key={cat.label}
-                      onClick={() => handleChipClick(cat.query)}
-                      className={`flex items-center gap-2.5 h-[48px] rounded-xl px-3.5 ${cat.bg} border border-white/[0.05] hover:border-white/[0.12] active:scale-[0.97] transition-all group text-left`}
-                    >
-                      <Icon
-                        size={16}
-                        className={`flex-shrink-0 ${cat.iconColor} opacity-80 group-hover:opacity-100 transition-opacity`}
-                      />
-                      <span className="text-[13px] font-semibold text-white/70 group-hover:text-white transition-colors truncate">
-                        {cat.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         )}
 
