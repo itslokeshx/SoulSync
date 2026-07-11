@@ -7,7 +7,7 @@ import {
   getSeenAnnouncementIds,
   addSeenAnnouncementId as saveSeenId,
 } from "../utils/announcementStorage";
-import { getCurrentVersion } from "../utils/updateChecker";
+import { getCurrentVersion, compareVersions } from "../utils/updateChecker";
 import { isNative } from "../utils/platform";
 
 const API = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
@@ -65,12 +65,15 @@ export function useAnnouncements() {
     setLastSeenVersion(localSeenVersion);
     setSeenIds(localSeenIds);
 
-    // 1. Eligible Whats New (allow popup if version matches or in dev/web "1.0.0" fallback, and not seen by ID)
+    // 1. Eligible Whats New (allow popup if version matches, user is on older version, in dev/web "1.0.0" fallback, and not seen by ID)
     const eligibleWhatsNew = activeList.find(
       (a) =>
         a.type === "whats_new" &&
         !localSeenIds.includes(a._id) &&
-        (a.version === currentVersion || currentVersion === "1.0.0" || !a.version)
+        (a.version === currentVersion ||
+          currentVersion === "1.0.0" ||
+          !a.version ||
+          compareVersions(currentVersion, a.version))
     );
 
     // 2. Eligible Ad-hoc (Feature, General, Maintenance)

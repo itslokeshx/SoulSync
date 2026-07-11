@@ -1,6 +1,7 @@
 import { App } from "@capacitor/app";
 
-const VERSION_URL = "https://raw.githubusercontent.com/itslokeshx/SoulSync/main/version.json";
+const repo = import.meta.env.VITE_GITHUB_REPO || "itslokeshx/SoulSync";
+const VERSION_URL = `https://raw.githubusercontent.com/${repo}/main/version.json`;
 
 export const getCurrentVersion = async () => {
     try {
@@ -17,7 +18,7 @@ export const getLatestVersion = async () => {
     return await res.json();
 };
 
-const compareVersions = (v1: string, v2: string) => {
+export const compareVersions = (v1: string, v2: string) => {
     const a = v1.split(".").map(Number);
     const b = v2.split(".").map(Number);
 

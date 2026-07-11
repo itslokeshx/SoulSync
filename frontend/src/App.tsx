@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { OnboardingGate } from "./auth/ProtectedRoute";
@@ -7,7 +7,8 @@ import { getOfflineSongs } from "./utils/offlineDB";
 import { useOfflineStore } from "./store/offlineStore";
 import { isNative } from "./utils/platform";
 
-
+import { checkForUpdate } from "./utils/updateChecker";
+import { UpdatePopup, openUpdateLink } from "./components/UpdatePopup";
 
 import { AppLayout } from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
@@ -27,7 +28,7 @@ import AdminPanel from "./pages/AdminPanel";
 import { PlayerProvider } from "./providers/PlayerProvider";
 
 export default function App() {
-
+  const [update, setUpdate] = useState<any>(null);
 
   useEffect(() => {
     getOfflineSongs().then((songs) => {
@@ -52,12 +53,28 @@ export default function App() {
 
       store.updateDownloadsOrder(hydrated);
     });
+
+    // Check for APK updates on native platforms
+    if (isNative()) {
+      checkForUpdate().then((res) => {
+        if (res) setUpdate(res);
+      });
+    }
   }, []);
 
   return (
-    <PlayerProvider>
-      <AppRouter />
-    </PlayerProvider>
+    <>
+      {update && (
+        <UpdatePopup
+          data={update}
+          onUpdate={() => openUpdateLink(update.apk_url)}
+          onClose={() => setUpdate(null)}
+        />
+      )}
+      <PlayerProvider>
+        <AppRouter />
+      </PlayerProvider>
+    </>
   );
 }
 
