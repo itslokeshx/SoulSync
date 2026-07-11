@@ -33,7 +33,7 @@ _Not a tutorial project — a product people have actually been using!_
 |  Platform  |                                                  Link                                                  |   Requirement   |
 | :--------: | :----------------------------------------------------------------------------------------------------: | :-------------: |
 |   🌐 Web   |                    [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app/)                     |   No install    |
-| 📱 Android | [SoulSync_4.0.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.0.apk) |  Android 7.0+   |
+| 📱 Android | [SoulSync_4.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk) |  Android 7.0+   |
 
 ---
 
