@@ -13,6 +13,7 @@ import {
   Plus,
   Edit3,
   LogOut,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as api from "../api/backend";
@@ -261,6 +262,25 @@ export default function AdminPanel() {
     }
   };
 
+  const handleDeleteAnn = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this announcement?")) {
+      return;
+    }
+    try {
+      const res = await api.deleteAnnouncement(id);
+      if (res.success) {
+        setAnnouncementsList((prev) => prev.filter((item) => item._id !== id));
+        toast.success("Announcement deleted successfully!");
+        if (editingAnnId === id) {
+          resetAnnForm();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete announcement.");
+    }
+  };
+
   // Get count of 'new' feedback items
   const newFeedbackCount = feedbackList.filter((fb) => fb.status === "new").length;
 
@@ -272,50 +292,47 @@ export default function AdminPanel() {
     );
   }
 
-  // ─── LOGIN PANEL ───────────────────────────────────────────────────────────
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-sp-dark flex items-center justify-center p-4">
-        <form
-          onSubmit={handleLogin}
-          className="w-full max-w-sm bg-sp-card border border-white/10 rounded-[28px] p-8 shadow-2xl flex flex-col items-center gap-6"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-sp-green/10 flex items-center justify-center text-sp-green">
-            <Lock size={22} />
-          </div>
-          <div className="text-center">
-            <h2 className="text-xl font-black text-white">Admin Gate</h2>
-            <p className="text-xs text-white/40 mt-1">
-              Enter password to access admin console
-            </p>
-          </div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Secret Key"
-            className="w-full bg-white/[0.03] border border-white/5 focus:border-sp-green/50 rounded-xl p-3 text-center text-sm text-white placeholder-white/20 focus:outline-none transition-all duration-200"
-            autoFocus
-          />
-          <button
-            type="submit"
-            disabled={loggingIn || !password.trim()}
-            className="w-full py-3 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-100 transition-all duration-200 flex justify-center items-center"
-          >
-            {loggingIn ? (
-              <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-            ) : (
-              "Access Console"
-            )}
-          </button>
-        </form>
-      </div>
-    );
-  }
-
-  // ─── ADMIN DASHBOARD PANEL ──────────────────────────────────────────────────
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-sp-dark text-white p-4 sm:p-6 max-w-5xl mx-auto pb-32 overflow-x-hidden">
+    <div className="fixed inset-0 overflow-y-auto bg-sp-dark scrollbar-thin">
+      {!isAuthenticated ? (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <form
+            onSubmit={handleLogin}
+            className="w-full max-w-sm bg-sp-card border border-white/10 rounded-[28px] p-8 shadow-2xl flex flex-col items-center gap-6"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-sp-green/10 flex items-center justify-center text-sp-green">
+              <Lock size={22} />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl font-black text-white">Admin Gate</h2>
+              <p className="text-xs text-white/40 mt-1">
+                Enter password to access admin console
+              </p>
+            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Secret Key"
+              className="w-full bg-white/[0.03] border border-white/5 focus:border-sp-green/50 rounded-xl p-3 text-center text-sm text-white placeholder-white/20 focus:outline-none transition-all duration-200"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={loggingIn || !password.trim()}
+              className="w-full py-3 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-100 transition-all duration-200 flex justify-center items-center"
+            >
+              {loggingIn ? (
+                <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              ) : (
+                "Access Console"
+              )}
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="min-h-screen text-white p-4 sm:p-6 max-w-5xl mx-auto pb-32 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -563,19 +580,33 @@ export default function AdminPanel() {
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Type Dropdown */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Type</label>
-                <select
-                  value={annForm.type}
-                  onChange={(e) => setAnnForm({ ...annForm, type: e.target.value })}
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                >
-                  <option value="whats_new">What's New</option>
-                  <option value="feature">New Feature</option>
-                  <option value="general">General Notification</option>
-                  <option value="maintenance">Maintenance alert</option>
-                </select>
+              {/* Type Chip Selection */}
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Announcement Type</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "whats_new", label: "What's New" },
+                    { value: "feature", label: "New Feature" },
+                    { value: "general", label: "General Notification" },
+                    { value: "maintenance", label: "Maintenance Alert" },
+                  ].map((opt) => {
+                    const active = annForm.type === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAnnForm({ ...annForm, type: opt.value })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+                          active
+                            ? "bg-sp-green text-black shadow-lg shadow-sp-green/10"
+                            : "bg-white/[0.04] border border-white/5 text-white/60 hover:bg-white/[0.08] hover:text-white"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Version (Visible only if whats_new) */}
@@ -747,7 +778,7 @@ export default function AdminPanel() {
                       </div>
 
                       {/* Side Actions */}
-                      <div className="flex sm:flex-col gap-2 items-center sm:items-end w-fit shrink-0">
+                      <div className="flex sm:flex-col gap-2 items-center sm:items-end w-full sm:w-auto shrink-0 justify-end flex-wrap">
                         {/* Toggle Active Button */}
                         <button
                           onClick={() => handleToggleAnnActive(ann._id, ann.active)}
@@ -767,6 +798,14 @@ export default function AdminPanel() {
                         >
                           <Edit3 size={10} /> Edit
                         </button>
+
+                        {/* Delete Button */}
+                        <button
+                          onClick={() => handleDeleteAnn(ann._id)}
+                          className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all duration-200"
+                        >
+                          <Trash2 size={10} /> Delete
+                        </button>
                       </div>
                     </div>
                   );
@@ -775,6 +814,8 @@ export default function AdminPanel() {
             )}
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   );

@@ -559,3 +559,8 @@ export async function updateAnnouncement(id: string, updates: any): Promise<{ su
   return data;
 }
 
+export async function deleteAnnouncement(id: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.delete(`/api/announcements/admin/${id}`);
+  return data;
+}
+

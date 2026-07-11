@@ -117,4 +117,21 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: Request, res: Respon
   }
 });
 
+// DELETE /api/announcements/admin/:id
+// Delete an announcement permanently
+router.delete("/admin/:id", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const deleted = await Announcement.findByIdAndDelete(id);
+    if (!deleted) {
+      res.status(404).json({ error: "Announcement not found." });
+      return;
+    }
+    res.json({ success: true, message: "Announcement deleted successfully." });
+  } catch (err) {
+    console.error("[Announcements Admin] Delete error:", err);
+    res.status(500).json({ error: "Failed to delete announcement" });
+  }
+});
+
 export default router;
