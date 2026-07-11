@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { useAnnouncementStore } from "../store/announcementStore";
 import {
@@ -14,6 +14,8 @@ const API = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
 
 let lastFetchTime = 0;
 const CACHE_DURATION = 60000; // 60 seconds
+let consecutiveFailures = 0;
+const MAX_FAILURES_BEFORE_STOP = 3;
 
 export function useAnnouncements() {
   const {
@@ -34,6 +36,11 @@ export function useAnnouncements() {
     setLoading,
     setShownAutoPopupThisSession,
   } = useAnnouncementStore();
+
+  // Use a ref to avoid putting announcements in callback deps (which causes infinite re-render loops)
+  const announcementsRef = useRef(announcements);
+  announcementsRef.current = announcements;
+  const hasFetched = useRef(false);
 
   const markSeen = useCallback(async (id: string) => {
     await saveSeenId(id);
@@ -103,9 +110,15 @@ export function useAnnouncements() {
   }, [openModal, setShownAutoPopupThisSession, setLastSeenVersion, setSeenIds, markSeen]);
 
   const fetchActiveAnnouncements = useCallback(async (force = false) => {
+    // Stop retrying after consecutive failures (prevents console spam)
+    if (!force && consecutiveFailures >= MAX_FAILURES_BEFORE_STOP) {
+      return;
+    }
+
     // Avoid double fetching / spamming
-    if (!force && Date.now() - lastFetchTime < CACHE_DURATION && announcements.length > 0) {
-      await evaluateAutoPopup(announcements);
+    const cached = announcementsRef.current;
+    if (!force && Date.now() - lastFetchTime < CACHE_DURATION && cached.length > 0) {
+      await evaluateAutoPopup(cached);
       return;
     }
 
@@ -117,21 +130,27 @@ export function useAnnouncements() {
       const active = res.data?.announcements || [];
       setAnnouncements(active);
       lastFetchTime = Date.now();
+      consecutiveFailures = 0; // Reset on success
       await evaluateAutoPopup(active);
-    } catch (err) {
-      console.warn("[Announcements] Fetch failed silently (offline/network error):", err);
+    } catch {
+      consecutiveFailures++;
+      if (consecutiveFailures <= 1) {
+        console.warn("[Announcements] Fetch failed (offline/network error) — will not retry further.");
+      }
       // Fallback: evaluate auto-popup with already cached list if we have it
-      if (announcements.length > 0) {
-        await evaluateAutoPopup(announcements);
+      if (cached.length > 0) {
+        await evaluateAutoPopup(cached);
       }
     } finally {
       setLoading(false);
     }
-  }, [announcements, setAnnouncements, setLoading, evaluateAutoPopup]);
+  }, [setAnnouncements, setLoading, evaluateAutoPopup]);
 
-  // Hook initialization
+  // Hook initialization — fetch only once on mount
   useEffect(() => {
-    // Fetch on mount
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     fetchActiveAnnouncements();
 
     // Fetch on app resume (Capacitor native)
@@ -140,6 +159,7 @@ export function useAnnouncements() {
       if (isNative()) {
         const { App } = await import("@capacitor/app");
         listener = await App.addListener("resume", () => {
+          consecutiveFailures = 0; // Reset failures on resume
           fetchActiveAnnouncements(true);
         });
       }
@@ -151,7 +171,8 @@ export function useAnnouncements() {
         listener.remove();
       }
     };
-  }, [fetchActiveAnnouncements]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Calculate unread count (active ad-hoc announcements not in seenIds)
   const unreadCount = announcements.filter(
