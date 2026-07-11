@@ -304,6 +304,24 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Send Feedback Quick Action Card */}
+      <div className="mb-8 p-5 rounded-[24px] bg-gradient-to-r from-sp-green/10 to-transparent border border-sp-green/10 flex items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+            <MessageSquare size={15} className="text-sp-green" /> Have feedback?
+          </h4>
+          <p className="text-[11px] text-white/50 leading-normal max-w-[240px] sm:max-w-xs">
+            Report a bug, suggest features, or share thoughts directly with us.
+          </p>
+        </div>
+        <button
+          onClick={() => setIsFeedbackOpen(true)}
+          className="px-4 py-2 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider hover:scale-[1.03] active:scale-100 transition-all duration-200 shadow-lg shadow-sp-green/10 shrink-0"
+        >
+          Send Feedback
+        </button>
+      </div>
+
       {/* Stats Section */}
       <div className="mb-6">
         <h2 className="text-sm font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -493,14 +511,6 @@ export default function ProfilePage() {
       </div>
 
 
-
-      {/* Send Feedback Button */}
-      <button
-        onClick={() => setIsFeedbackOpen(true)}
-        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 mb-3.5 rounded-[20px] bg-white/[0.03] hover:bg-white/[0.06] text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-all duration-300 border border-white/[0.05] hover:border-white/10 active:scale-[0.99]"
-      >
-        <MessageSquare size={14} /> Send Feedback
-      </button>
 
       {/* Logout Button */}
       <button
