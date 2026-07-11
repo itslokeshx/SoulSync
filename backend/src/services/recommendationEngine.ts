@@ -508,21 +508,41 @@ export function rankCandidates(
     // ── Stream URL presence ─────────────────────────────────────
     if (!song.streamUrl) score -= 30;
 
+    // ── Age / Release Year Penalty ──────────────────────────────
+    const currentYear = new Date().getFullYear();
+    const songYear = parseInt(song.year, 10);
+    if (!isNaN(songYear)) {
+      const age = currentYear - songYear;
+      if (age > 4) {
+        // Penalize older catalog items progressively
+        score -= Math.min(100, age * 15);
+      } else if (age === 0) {
+        // Minor boost for current year releases
+        score += 20;
+      }
+    }
+
     return { ...song, _recScore: score };
   });
 
   // Sort by score descending
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  // ── Diversity cap: max N per artist ───────────────────────────
+  // ── Diversity cap: max N per artist & unique song titles ──────
   const artistCount = new Map<string, number>();
+  const seenSongNames = new Set<string>();
   const diversified: RecommendedSong[] = [];
 
   for (const song of scored) {
+    const cleanName = cleanSongNameForDeduplication(song.name);
+    if (cleanName && seenSongNames.has(cleanName)) continue;
+
     const firstArtist = (song.primaryArtists || "").split(",")[0].trim().toLowerCase();
     const count = artistCount.get(firstArtist) || 0;
     if (count >= W.MAX_PER_ARTIST) continue;
+
     artistCount.set(firstArtist, count + 1);
+    if (cleanName) seenSongNames.add(cleanName);
     diversified.push(song);
     if (diversified.length >= limit) break;
   }
@@ -559,7 +579,17 @@ export function rankCandidates(
   return diversified;
 }
 
-// ── Scoring helpers (adapted from searchRanker.ts) ──────────────
+function cleanSongNameForDeduplication(name: string): string {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace(/\(feat\..*?\)/g, "")
+    .replace(/\[feat\..*?\]/g, "")
+    .replace(/\(.*?\)/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
 
 function popularityScore(playCount: number): number {
   if (!playCount || playCount <= 0) return W.LOW_PLAYCOUNT_PENALTY;
@@ -993,11 +1023,15 @@ export async function getTasteProfileBatch(
   const ranked = rankCandidates(candidates, tasteProfile, limit * 2);
   const withReasons = attachReason(ranked, tasteProfile);
 
-  // Apply diversity limit of max 2 songs per artist in the final returned batch
+  // Apply diversity limit of max 2 songs per artist & unique song titles in the final returned batch
   const artistCount = new Map<string, number>();
+  const seenNames = new Set<string>();
   const diversified: Song[] = [];
 
   for (const song of withReasons) {
+    const cleanName = cleanSongNameForDeduplication(song.name);
+    if (cleanName && seenNames.has(cleanName)) continue;
+
     const firstArtist = (song.primaryArtists || "")
       .split(",")[0]
       .trim()
@@ -1005,6 +1039,7 @@ export async function getTasteProfileBatch(
     const count = artistCount.get(firstArtist) || 0;
     if (count >= 2) continue; // max 2 per artist
     artistCount.set(firstArtist, count + 1);
+    if (cleanName) seenNames.add(cleanName);
 
     const clean = { ...song };
     delete (clean as any)._recScore;
