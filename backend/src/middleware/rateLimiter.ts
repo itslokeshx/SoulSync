@@ -22,6 +22,10 @@ export function rateLimiter(maxRequests = 60, windowMs = 60000) {
   }
 
   return (req: Request, res: Response, next: NextFunction): void => {
+    if (process.env.NODE_ENV !== "production") {
+      next();
+      return;
+    }
     const key = req.ip || "unknown";
     const now = Date.now();
     const entry = store.get(key);
