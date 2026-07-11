@@ -283,14 +283,14 @@ export default function ProfilePage() {
         <div className="flex gap-2 relative z-10 flex-shrink-0">
           <button
             onClick={togglePanel}
-            className="p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white/50 hover:text-white transition-all active:scale-95 relative"
+            className="p-2.5 sm:p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white transition-all active:scale-95 relative group"
             title="Updates & Announcements"
           >
-            <Bell size={14} />
+            <Bell size={16} className="text-white group-hover:scale-105 transition-transform" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 z-20 flex h-1.5 w-1.5">
+              <span className="absolute top-1.5 right-1.5 z-20 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sp-green" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green shadow-[0_0_8px_#1db954]" />
               </span>
             )}
           </button>

@@ -64,13 +64,13 @@ export function AnnouncementPanel() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
         <h3 className="font-semibold text-white text-[13px] flex items-center gap-2">
-          <Bell size={14} className="text-sp-green" /> Updates & News
+          <Bell size={14} className="text-white" /> Updates & News
         </h3>
         <button
           onClick={() => setPanelOpen(false)}
-          className="text-white/30 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+          className="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/[0.1] text-white/70 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 active:scale-95"
         >
-          <X size={15} />
+          <X size={12} strokeWidth={2.5} /> Close
         </button>
       </div>
 

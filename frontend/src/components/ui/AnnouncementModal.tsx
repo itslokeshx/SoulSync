@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Bell, ShieldAlert, Sparkles, Megaphone } from "lucide-react";
+import { X, ShieldAlert, Sparkles, Megaphone } from "lucide-react";
 import { useAnnouncements } from "../../hooks/useAnnouncements";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
@@ -8,24 +9,55 @@ export function AnnouncementModal() {
   const { isModalOpen, activeModalAnnouncement, closeModal, markWhatsNewSeen } = useAnnouncements();
   const navigate = useNavigate();
 
-  if (!activeModalAnnouncement) return null;
-
   const handleClose = () => {
+    if (!activeModalAnnouncement) return;
     if (activeModalAnnouncement.type === "whats_new" && activeModalAnnouncement.version) {
       markWhatsNewSeen(activeModalAnnouncement.version);
     }
     closeModal();
+    if (window.history.state?.modal === "announcement") {
+      window.history.back();
+    }
   };
 
   const handleCTA = () => {
+    if (!activeModalAnnouncement) return;
     if (activeModalAnnouncement.type === "whats_new" && activeModalAnnouncement.version) {
       markWhatsNewSeen(activeModalAnnouncement.version);
     }
     closeModal();
-    if (activeModalAnnouncement.ctaRoute) {
-      navigate(activeModalAnnouncement.ctaRoute);
+    if (window.history.state?.modal === "announcement") {
+      window.history.back();
+    }
+    const route = activeModalAnnouncement.ctaRoute;
+    if (route) {
+      setTimeout(() => {
+        navigate(route);
+      }, 50);
     }
   };
+
+  useEffect(() => {
+    if (!isModalOpen || !activeModalAnnouncement) return;
+
+    // Push local state to handle hardware back button
+    window.history.pushState({ modal: "announcement" }, "");
+
+    const handlePopState = () => {
+      if (activeModalAnnouncement.type === "whats_new" && activeModalAnnouncement.version) {
+        markWhatsNewSeen(activeModalAnnouncement.version);
+      }
+      closeModal();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [isModalOpen, activeModalAnnouncement, closeModal, markWhatsNewSeen]);
+
+  if (!activeModalAnnouncement) return null;
 
   const getBadgeDetails = () => {
     switch (activeModalAnnouncement.type) {
@@ -70,7 +102,7 @@ export function AnnouncementModal() {
             onClick={handleClose}
             className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[10000]"
           />
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] animate-fadeIn">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -91,20 +123,21 @@ export function AnnouncementModal() {
 
               {/* Header */}
               <div className="flex items-start justify-between px-5 pt-5 pb-3">
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                   <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase w-fit ${badge.style}`}>
                     <BadgeIcon size={10} strokeWidth={2.5} />
                     {badge.label}
                   </div>
-                  <h3 className="text-[17px] font-extrabold text-white leading-snug">
+                  <h3 className="text-[17px] font-extrabold text-white leading-snug truncate">
                     {activeModalAnnouncement.title}
                   </h3>
                 </div>
                 <button
                   onClick={handleClose}
-                  className="p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                  className="p-2 rounded-full bg-white/[0.04] border border-white/10 hover:bg-white/[0.1] text-white/50 hover:text-white transition-all active:scale-90 ml-3 flex-shrink-0"
+                  aria-label="Close"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
 
@@ -116,17 +149,17 @@ export function AnnouncementModal() {
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-4 border-t border-white/[0.04] bg-white/[0.01] flex gap-2.5 justify-end">
+              <div className="px-5 py-4 border-t border-white/[0.04] bg-white/[0.01] flex gap-3">
                 <button
                   onClick={handleClose}
-                  className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
+                  className="flex-1 py-2.5 rounded-full bg-white/[0.06] border border-white/10 text-[13px] font-bold text-white/80 hover:text-white hover:bg-white/[0.1] transition-all duration-200 active:scale-95 text-center"
                 >
-                  Dismiss
+                  Close
                 </button>
                 {activeModalAnnouncement.ctaText && (
                   <button
                     onClick={handleCTA}
-                    className="px-5 py-2 rounded-full bg-sp-green text-black font-extrabold text-[13px] hover:scale-[1.03] active:scale-100 transition-all duration-200"
+                    className="flex-1 py-2.5 rounded-full bg-sp-green text-black font-extrabold text-[13px] hover:scale-[1.03] active:scale-95 transition-all duration-200 text-center"
                     style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.25)" }}
                   >
                     {activeModalAnnouncement.ctaText}
@@ -134,6 +167,14 @@ export function AnnouncementModal() {
                 )}
               </div>
             </motion.div>
+
+            {/* Floating close button for easy thumb reach on mobile */}
+            <button
+              onClick={handleClose}
+              className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-[#1a1a1a]/95 border border-white/10 hover:bg-[#222] text-white/80 hover:text-white px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-1.5 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] active:scale-95 transition-all z-[10001]"
+            >
+              <X size={14} strokeWidth={2.5} /> Close
+            </button>
           </div>
         </>
       )}

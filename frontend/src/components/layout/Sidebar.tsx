@@ -117,7 +117,7 @@ export const Sidebar = () => {
             {id === "profile" && unreadCount > 0 && (
               <span className="absolute top-1 right-1 z-20 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green shadow-[0_0_8px_#1db954]" />
               </span>
             )}
           </button>
