@@ -12,8 +12,6 @@ import {
   Pencil,
   Check,
   X,
-  Smartphone,
-  Download,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
@@ -22,7 +20,6 @@ import { UserStats } from "../types/user";
 import { onImgErr } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
-import { useApkDownloadUrl } from "../hooks/useApkDownloadUrl";
 import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
 
 const ALL_LANGUAGES = [
@@ -61,7 +58,6 @@ const ALL_MOODS = [
 export default function ProfilePage() {
   const { user, logout, updateUser, isAuthenticated } = useAuth();
   const { likedSongs } = useApp();
-  const apkDownloadUrl = useApkDownloadUrl();
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -493,47 +489,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Download APK Banner */}
-      {!isNative() && (
-        <a
-          href={apkDownloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block relative overflow-hidden rounded-[24px] p-[1px] mb-6"
-        >
-          {/* Animated border line */}
-          <div
-            className="absolute inset-0 rounded-[24px] opacity-30 group-hover:opacity-75 transition-opacity duration-500"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(29,185,84,0.4), rgba(16,185,129,0.1), rgba(29,185,84,0.2), rgba(52,211,153,0.3))",
-              backgroundSize: "300% 300%",
-              animation: "gradientShift 6s ease infinite",
-            }}
-          />
-          <div className="relative rounded-[24px] bg-[#070709]/95 backdrop-blur-xl px-5 py-4 flex items-center gap-4 border border-white/[0.04]">
-            <div
-              className="w-12 h-12 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 transition-all duration-300"
-            >
-              <Smartphone size={20} className="text-sp-green" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-white">Download APK</p>
-                <span className="px-2 py-0.5 rounded-full bg-sp-green/10 text-sp-green text-[9px] font-black uppercase tracking-wider border border-sp-green/25">
-                  Mobile
-                </span>
-              </div>
-              <p className="text-[11px] text-white/30 mt-0.5">
-                For a better experience · Free from GitHub
-              </p>
-            </div>
-            <div className="w-8.5 h-8.5 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-105 group-hover:shadow-[0_0_15px_rgba(29,185,84,0.3)] transition-all duration-300">
-              <Download size={14} className="text-black" strokeWidth={2.5} />
-            </div>
-          </div>
-        </a>
-      )}
+
 
       {/* Logout Button */}
       <button
