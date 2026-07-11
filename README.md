@@ -18,9 +18,9 @@ No ads. No subscription. Ever.
 
 ### ✦ Currently Used By!
 
-![Users](https://img.shields.io/badge/150%2B_Users-joined-1DB954?style=for-the-badge&logoColor=white)
-![Songs](https://img.shields.io/badge/4.4K%2B_Songs-streamed-1DB954?style=for-the-badge&logoColor=white)
-![Playlists](https://img.shields.io/badge/137%2B_Playlists-created_by_users-1DB954?style=for-the-badge&logoColor=white)
+![Users](https://img.shields.io/badge/180%2B_Users-joined-1DB954?style=for-the-badge&logoColor=white)
+![Songs](https://img.shields.io/badge/6K%2B_Songs-streamed-1DB954?style=for-the-badge&logoColor=white)
+![Playlists](https://img.shields.io/badge/150%2B_Playlists-created_by_users-1DB954?style=for-the-badge&logoColor=white)
 
 _Not a tutorial project — a product people have actually been using!_
 
@@ -33,9 +33,7 @@ _Not a tutorial project — a product people have actually been using!_
 |  Platform  |                                                  Link                                                  |   Requirement   |
 | :--------: | :----------------------------------------------------------------------------------------------------: | :-------------: |
 |   🌐 Web   |                    [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app/)                     |   No install    |
-| 💻 Windows | [SoulSync_3.0.0.exe](https://github.com/itslokeshx/SoulSync/releases/download/v3.0/SoulSync_3.0.0.exe) |   Windows 10+   |
-|  🐧 Linux  | [soulsync_3.0.0.deb](https://github.com/itslokeshx/SoulSync/releases/download/v3.0/soulsync_3.0.0.deb) | Debian / Ubuntu |
-| 📱 Android | [SoulSync_3.0.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v3.0/SoulSync_3.0.0.apk) |  Android 7.0+   |
+| 📱 Android | [SoulSync_4.0.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.0.apk) |  Android 7.0+   |
 
 ---
 
@@ -103,6 +101,11 @@ _Not a tutorial project — a product people have actually been using!_
 - **Responsive Media Layouts** — popups automatically adapt to any image aspect ratios (e.g. square album covers) using custom centered flex grids.
 - **In-App Feedback submission** — quick feedback drawer for users to submit bug reports and feature recommendations.
 - **Triage Dashboard** — admin interface for viewing, status filtering, and deleting feedback, alongside announcement creation utilities.
+
+### ♾️ Auto Song Suggestion (Infinite Playback)
+
+- **Continuous queue filling** — when the queue runs low, SoulSync automatically fetches more songs.
+- **Smart recommendation failover** — queries taste recommendation engines or JioSaavn-related tracks to ensure the next song is never `none`.
 
 ### ✈️ Offline Mode
 
@@ -502,10 +505,6 @@ SoulSync/
 │           │   ├── capacitor.plugins.json # Capacitor plugins manifest
 │           │   └── public/               # Built web assets
 │           └── AndroidManifest.xml       # Android app manifest
-│
-└── release/                              # Built desktop app releases
-    ├── win-unpacked/                     # Windows desktop build
-    └── linux-unpacked/                   # Linux desktop build
 ```
 
 ---
