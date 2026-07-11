@@ -12,6 +12,7 @@ import {
   Pencil,
   Check,
   X,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
@@ -21,6 +22,7 @@ import { onImgErr } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import toast from "react-hot-toast";
 import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
+import { FeedbackModal } from "../components/ui/FeedbackModal";
 
 const ALL_LANGUAGES = [
   "hindi",
@@ -64,6 +66,7 @@ export default function ProfilePage() {
   const [statsError, setStatsError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   // Editable fields
   const [editName, setEditName] = useState(user?.name || "");
@@ -491,6 +494,14 @@ export default function ProfilePage() {
 
 
 
+      {/* Send Feedback Button */}
+      <button
+        onClick={() => setIsFeedbackOpen(true)}
+        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 mb-3.5 rounded-[20px] bg-white/[0.03] hover:bg-white/[0.06] text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-all duration-300 border border-white/[0.05] hover:border-white/10 active:scale-[0.99]"
+      >
+        <MessageSquare size={14} /> Send Feedback
+      </button>
+
       {/* Logout Button */}
       <button
         onClick={handleLogout}
@@ -498,6 +509,8 @@ export default function ProfilePage() {
       >
         <LogOut size={14} /> Sign Out
       </button>
+
+      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </div>
   );
 }

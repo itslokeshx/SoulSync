@@ -22,6 +22,7 @@ import SoulLinkPage from "./pages/SoulLinkPage";
 import ImportPage from "./pages/ImportPage";
 import { SearchPage } from "./pages/SearchPage";
 import SongSharePage from "./pages/SongSharePage";
+import AdminPanel from "./pages/AdminPanel";
 
 import { PlayerProvider } from "./providers/PlayerProvider";
 
@@ -68,6 +69,7 @@ function AppRouter() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
+      <Route path="/panel-m8u3p9" element={<AdminPanel />} />
 
       <Route path="/" element={<OnboardingGate><AppLayout /></OnboardingGate>}>
         {/* These work ALWAYS — online or offline */}

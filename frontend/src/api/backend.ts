@@ -16,6 +16,7 @@ const api = axios.create({
 
 // ── Native and Web token management ──
 let _nativeToken: string | null = null;
+let _adminToken: string | null = null;
 
 export function setNativeToken(token: string | null) {
   _nativeToken = token;
@@ -71,7 +72,14 @@ export async function clearNativeToken(): Promise<void> {
 
 // Attach Bearer token for native requests (and web fallback)
 api.interceptors.request.use((config) => {
-  if (_nativeToken) {
+  const isAdminRequest = config.url?.includes("/admin") || config.url?.includes("/api/feedback/admin");
+  if (isAdminRequest && _adminToken) {
+    if (config.headers && typeof config.headers.set === 'function') {
+      config.headers.set("Authorization", `Bearer ${_adminToken}`);
+    } else {
+      config.headers.Authorization = `Bearer ${_adminToken}`;
+    }
+  } else if (_nativeToken) {
     if (config.headers && typeof config.headers.set === 'function') {
       config.headers.set("Authorization", `Bearer ${_nativeToken}`);
     } else {
@@ -483,6 +491,71 @@ export async function startRadio(
   seedSongId: string,
 ): Promise<{ songs: any[] }> {
   const { data } = await api.post("/api/radio/start", { seedSongId });
+  return data;
+}
+
+// ── Admin and Feedback API Client ──────────────────────────────────────────
+export function setAdminToken(token: string | null) {
+  _adminToken = token;
+}
+
+export function getAdminToken(): string | null {
+  return _adminToken;
+}
+
+export async function submitFeedback(
+  message: string,
+  category: "bug" | "suggestion" | "other",
+  appVersion: string,
+  platform: "web" | "android" | "desktop"
+): Promise<{ success: boolean; feedback: any }> {
+  const { data } = await api.post("/api/feedback", {
+    message,
+    category,
+    appVersion,
+    platform,
+  });
+  return data;
+}
+
+export async function adminLogin(password: string): Promise<{ success: boolean; token: string }> {
+  const { data } = await api.post("/api/admin/login", { password });
+  if (data.token) {
+    setAdminToken(data.token);
+  }
+  return data;
+}
+
+export async function adminLogout(): Promise<{ success: boolean }> {
+  const { data } = await api.post("/api/admin/logout");
+  setAdminToken(null);
+  return data;
+}
+
+export async function getFeedback(status?: string, category?: string): Promise<{ feedback: any[] }> {
+  const { data } = await api.get("/api/feedback/admin", {
+    params: { status, category },
+  });
+  return data;
+}
+
+export async function updateFeedbackStatus(id: string, status: string): Promise<{ success: boolean; feedback: any }> {
+  const { data } = await api.patch(`/api/feedback/admin/${id}`, { status });
+  return data;
+}
+
+export async function getAdminAnnouncements(): Promise<{ announcements: any[] }> {
+  const { data } = await api.get("/api/announcements/admin");
+  return data;
+}
+
+export async function createAnnouncement(announcementData: any): Promise<{ success: boolean; announcement: any }> {
+  const { data } = await api.post("/api/announcements/admin", announcementData);
+  return data;
+}
+
+export async function updateAnnouncement(id: string, updates: any): Promise<{ success: boolean; announcement: any }> {
+  const { data } = await api.patch(`/api/announcements/admin/${id}`, updates);
   return data;
 }
 
