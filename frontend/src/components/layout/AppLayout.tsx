@@ -11,6 +11,8 @@ import { PlayerBar, NowPlayingView, QueuePanel } from "../player";
 import { AuthGateModal } from "../ui/AuthGateModal";
 import { ContextMenu } from "../ui/ContextMenu";
 import { AIPlaylistModal } from "../ui/AIPlaylistModal";
+import { AnnouncementModal } from "../ui/AnnouncementModal";
+import { AnnouncementPanel } from "../ui/AnnouncementPanel";
 import { AppContext } from "../../context/AppContext";
 import { useAuthGate } from "../../hooks/useAuthGate";
 import { useLikedSongs } from "../../hooks";
@@ -23,11 +25,13 @@ import {
 } from "../../lib/helpers";
 import * as api from "../../api/backend";
 import toast from "react-hot-toast";
+import { useAnnouncements } from "../../hooks/useAnnouncements";
 
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { gate, isAuthenticated } = useAuthGate();
+  useAnnouncements();
 
   const { isOnline } = useNetwork();
   const isSearchPage = location.pathname === "/search";
@@ -355,6 +359,8 @@ export function AppLayout() {
         <MobileNav />
         <ContextMenu />
         <AIPlaylistModal />
+        <AnnouncementModal />
+        <AnnouncementPanel />
       </div>
     </AppContext.Provider>
   );

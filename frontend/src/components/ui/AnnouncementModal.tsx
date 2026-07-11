@@ -1,0 +1,146 @@
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Bell, ShieldAlert, Sparkles, Megaphone } from "lucide-react";
+import { useAnnouncements } from "../../hooks/useAnnouncements";
+import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+
+export function AnnouncementModal() {
+  const { isModalOpen, activeModalAnnouncement, closeModal, markWhatsNewSeen } = useAnnouncements();
+  const navigate = useNavigate();
+
+  if (!activeModalAnnouncement) return null;
+
+  const handleClose = () => {
+    if (activeModalAnnouncement.type === "whats_new" && activeModalAnnouncement.version) {
+      markWhatsNewSeen(activeModalAnnouncement.version);
+    }
+    closeModal();
+  };
+
+  const handleCTA = () => {
+    if (activeModalAnnouncement.type === "whats_new" && activeModalAnnouncement.version) {
+      markWhatsNewSeen(activeModalAnnouncement.version);
+    }
+    closeModal();
+    if (activeModalAnnouncement.ctaRoute) {
+      navigate(activeModalAnnouncement.ctaRoute);
+    }
+  };
+
+  const getBadgeDetails = () => {
+    switch (activeModalAnnouncement.type) {
+      case "whats_new":
+        return {
+          label: `What's New • v${activeModalAnnouncement.version || ""}`,
+          style: "bg-sp-green/10 text-sp-green",
+          icon: Sparkles,
+        };
+      case "maintenance":
+        return {
+          label: "Maintenance",
+          style: "bg-red-500/10 text-red-400",
+          icon: ShieldAlert,
+        };
+      case "feature":
+        return {
+          label: "New Feature",
+          style: "bg-blue-500/10 text-blue-400",
+          icon: Sparkles,
+        };
+      default:
+        return {
+          label: "Announcement",
+          style: "bg-white/[0.06] text-white/60",
+          icon: Megaphone,
+        };
+    }
+  };
+
+  const badge = getBadgeDetails();
+  const BadgeIcon = badge.icon;
+
+  const modalContent = (
+    <AnimatePresence>
+      {isModalOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleClose}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[10000]"
+          />
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
+            >
+              {/* Banner Image */}
+              {activeModalAnnouncement.imageUrl && (
+                <div className="relative w-full aspect-[16/8] overflow-hidden border-b border-white/[0.04]">
+                  <img
+                    src={activeModalAnnouncement.imageUrl}
+                    alt={activeModalAnnouncement.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
+              {/* Header */}
+              <div className="flex items-start justify-between px-5 pt-5 pb-3">
+                <div className="flex flex-col gap-1.5">
+                  <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase w-fit ${badge.style}`}>
+                    <BadgeIcon size={10} strokeWidth={2.5} />
+                    {badge.label}
+                  </div>
+                  <h3 className="text-[17px] font-extrabold text-white leading-snug">
+                    {activeModalAnnouncement.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={handleClose}
+                  className="p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="px-5 pb-6 flex-1 overflow-y-auto max-h-[250px] thin-scrollbar">
+                <p className="text-[13px] text-white/60 leading-relaxed white-space-pre-wrap select-text">
+                  {activeModalAnnouncement.body}
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-white/[0.04] bg-white/[0.01] flex gap-2.5 justify-end">
+                <button
+                  onClick={handleClose}
+                  className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
+                >
+                  Dismiss
+                </button>
+                {activeModalAnnouncement.ctaText && (
+                  <button
+                    onClick={handleCTA}
+                    className="px-5 py-2 rounded-full bg-sp-green text-black font-extrabold text-[13px] hover:scale-[1.03] active:scale-100 transition-all duration-200"
+                    style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.25)" }}
+                  >
+                    {activeModalAnnouncement.ctaText}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalContent, document.body)
+    : modalContent;
+}
