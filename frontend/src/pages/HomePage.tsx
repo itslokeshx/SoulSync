@@ -206,92 +206,80 @@ export const HomePage = () => {
   );
   const normalizedPlaylistSongs = normalizeSongs(playlistSongsRaw);
 
-  // Combine and deduplicate songs (avoid showing recently played or new releases in suggestions)
+  // Exclude new releases from Made For You (recently played are kept — they're the user's favorites)
   const baseExcludeIds = new Set<string>();
-  normalizedRecentlyPlayed.forEach((s) => baseExcludeIds.add(s.id));
   normalizedNewReleases.forEach((s) => baseExcludeIds.add(s.id));
 
-  // 1. Gather Saved Songs (Liked + Custom Playlists)
+  // ── Aggressive name-based deduplication helper ──
+  const cleanNameForDedup = (name: string) =>
+    (name || "").toLowerCase()
+      .replace(/\(.*?\)/g, "")
+      .replace(/\[.*?\]/g, "")
+      .replace(/\s*-\s*(from|feat|ft).*$/i, "")
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
+
+  // 1. Gather Saved Songs (Recently Played + Liked + Custom Playlists) — deduplicated by name
   const savedSongs: any[] = [];
-  const savedSeen = new Set<string>();
-  
-  for (const s of normalizedLikedSongs) {
-    if (!baseExcludeIds.has(s.id) && !savedSeen.has(s.id)) {
-      savedSeen.add(s.id);
-      savedSongs.push(s);
-    }
-  }
-  for (const s of normalizedPlaylistSongs) {
-    if (!baseExcludeIds.has(s.id) && !savedSeen.has(s.id)) {
-      savedSeen.add(s.id);
-      savedSongs.push(s);
-    }
-  }
+  const savedSeenIds = new Set<string>();
+  const savedSeenNames = new Set<string>();
 
-  // 2. Gather Recommended Songs (Made For You auto suggestions)
+  const addSaved = (s: any) => {
+    if (baseExcludeIds.has(s.id) || savedSeenIds.has(s.id)) return;
+    const cleanName = cleanNameForDedup(s.name);
+    if (cleanName && savedSeenNames.has(cleanName)) return;
+    savedSeenIds.add(s.id);
+    if (cleanName) savedSeenNames.add(cleanName);
+    savedSongs.push(s);
+  };
+
+  // Add recently played first (user's top songs)
+  for (const s of normalizedRecentlyPlayed) addSaved(s);
+  // Then liked songs
+  for (const s of normalizedLikedSongs) addSaved(s);
+  // Then playlist songs
+  for (const s of normalizedPlaylistSongs) addSaved(s);
+
+  // 2. Gather Recommended Songs — deduplicated by name AND against saved
   const recommendedSongs: any[] = [];
-  const recSeen = new Set<string>();
+  const recSeenIds = new Set<string>();
+
   for (const s of normalizedMadeForYou) {
-    if (!baseExcludeIds.has(s.id) && !recSeen.has(s.id) && !savedSeen.has(s.id)) {
-      recSeen.add(s.id);
-      recommendedSongs.push(s);
-    }
+    if (baseExcludeIds.has(s.id) || savedSeenIds.has(s.id) || recSeenIds.has(s.id)) continue;
+    const cleanName = cleanNameForDedup(s.name);
+    if (cleanName && savedSeenNames.has(cleanName)) continue;
+    recSeenIds.add(s.id);
+    if (cleanName) savedSeenNames.add(cleanName); // prevent future dupes too
+    recommendedSongs.push(s);
   }
 
-  // 3. Select 40% (12 songs) from saved, 60% (18 songs) from recommended
-  const maxSavedCount = 12;
-  const maxRecCount = 18;
+  // 3. Select 70% (21 songs) from saved, 30% (9 songs) from recommended
+  const maxSavedCount = 21;
+  const maxRecCount = 9;
 
   const selectedSaved = savedSongs.slice(0, maxSavedCount);
   const selectedRec = recommendedSongs.slice(0, maxRecCount);
 
+  // 4. Layout: Top row = saved (top songs), Middle row = recommendations, Bottom row = more saved
+  //    This puts user's favorites at the top and discovery in the middle
+  const topSaved = selectedSaved.slice(0, 10);    // Row 1: user's top saved songs
+  const middleRec = selectedRec.slice(0, 10);      // Row 2: recommendations
+  const bottomSaved = selectedSaved.slice(10, 21); // Row 3: more saved songs
+
+  // Fill gaps if any row is short
   const extraSaved = savedSongs.slice(maxSavedCount);
   const extraRec = recommendedSongs.slice(maxRecCount);
 
-  // 4. Interleave them proportionally (approx 3 recommended for every 2 saved songs)
-  const suggestionsSongs: any[] = [];
-  const finalSet = new Set<string>();
-  
-  const savedCopy = [...selectedSaved];
-  const recCopy = [...selectedRec];
-  const extraSavedCopy = [...extraSaved];
-  const extraRecCopy = [...extraRec];
-
-  while (suggestionsSongs.length < 30) {
-    // Add up to 3 recommended
-    let addedRec = 0;
-    while (addedRec < 3 && suggestionsSongs.length < 30) {
-      const nextRec = recCopy.shift() || extraRecCopy.shift();
-      if (!nextRec) break;
-      if (!finalSet.has(nextRec.id)) {
-        finalSet.add(nextRec.id);
-        suggestionsSongs.push(nextRec);
-        addedRec++;
-      }
-    }
-
-    // Add up to 2 saved
-    let addedSaved = 0;
-    while (addedSaved < 2 && suggestionsSongs.length < 30) {
-      const nextSaved = savedCopy.shift() || extraSavedCopy.shift();
-      if (!nextSaved) break;
-      if (!finalSet.has(nextSaved.id)) {
-        finalSet.add(nextSaved.id);
-        suggestionsSongs.push(nextSaved);
-        addedSaved++;
-      }
-    }
-
-    // Break if absolutely out of candidates to prevent infinite loop
-    if (
-      recCopy.length === 0 &&
-      extraRecCopy.length === 0 &&
-      savedCopy.length === 0 &&
-      extraSavedCopy.length === 0
-    ) {
-      break;
-    }
+  // If middle row (recs) is short, fill from extra saved
+  while (middleRec.length < 10 && extraSaved.length > 0) {
+    middleRec.push(extraSaved.shift()!);
   }
+  // If bottom row is short, fill from extra recs
+  while (bottomSaved.length < 10 && extraRec.length > 0) {
+    bottomSaved.push(extraRec.shift()!);
+  }
+
+  const suggestionsSongs = [...topSaved, ...middleRec, ...bottomSaved];
 
   const row1 = suggestionsSongs.slice(0, 10);
   const row2 = suggestionsSongs.slice(10, 20);
