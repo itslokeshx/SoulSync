@@ -2,10 +2,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Library, Download, UserCircle } from "lucide-react";
 import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
+import { useAnnouncements } from "../../hooks/useAnnouncements";
 
 export const MobileNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { unreadCount } = useAnnouncements();
 
   const view =
     location.pathname === "/"
@@ -92,7 +94,15 @@ export const MobileNav = () => {
             style={{ boxShadow: "0 0 8px rgba(29,185,84,0.5)" }}
           />
         )}
-        <UserCircle size={19} strokeWidth={view === "profile" ? 2.5 : 1.8} />
+        <div className="relative">
+          <UserCircle size={19} strokeWidth={view === "profile" ? 2.5 : 1.8} />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 -right-0.5 z-20 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green" />
+            </span>
+          )}
+        </div>
         <span className={`text-[9px] font-medium ${view === "profile" ? "text-sp-green" : ""}`}>
           Profile
         </span>

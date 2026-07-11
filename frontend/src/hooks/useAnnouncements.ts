@@ -65,12 +65,12 @@ export function useAnnouncements() {
     setLastSeenVersion(localSeenVersion);
     setSeenIds(localSeenIds);
 
-    // 1. Eligible Whats New
+    // 1. Eligible Whats New (allow popup if version matches or in dev/web "1.0.0" fallback, and not seen by ID)
     const eligibleWhatsNew = activeList.find(
       (a) =>
         a.type === "whats_new" &&
-        a.version === currentVersion &&
-        localSeenVersion !== currentVersion
+        !localSeenIds.includes(a._id) &&
+        (a.version === currentVersion || currentVersion === "1.0.0" || !a.version)
     );
 
     // 2. Eligible Ad-hoc (Feature, General, Maintenance)
@@ -101,13 +101,14 @@ export function useAnnouncements() {
       setTimeout(() => {
         openModal(winner);
         setShownAutoPopupThisSession(true);
-        // If it's ad-hoc, mark it as seen automatically since it's displayed
-        if (winner.type !== "whats_new") {
-          markSeen(winner._id);
+        // Mark it as seen by ID to prevent double popup
+        markSeen(winner._id);
+        if (winner.type === "whats_new" && winner.version) {
+          markWhatsNewSeen(winner.version);
         }
       }, 1500);
     }
-  }, [openModal, setShownAutoPopupThisSession, setLastSeenVersion, setSeenIds, markSeen]);
+  }, [openModal, setShownAutoPopupThisSession, setLastSeenVersion, setSeenIds, markSeen, markWhatsNewSeen]);
 
   const fetchActiveAnnouncements = useCallback(async (force = false) => {
     // Stop retrying after consecutive failures (prevents console spam)
@@ -174,12 +175,8 @@ export function useAnnouncements() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Calculate unread count (active ad-hoc announcements not in seenIds)
-  const unreadCount = announcements.filter(
-    (a) =>
-      ["feature", "general", "maintenance"].includes(a.type) &&
-      !seenIds.includes(a._id)
-  ).length;
+  // Calculate unread count (any active announcement shows the notification dot till expiry)
+  const unreadCount = announcements.length;
 
   return {
     announcements,

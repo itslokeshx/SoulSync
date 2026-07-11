@@ -80,11 +80,11 @@ export function AnnouncementModal() {
             >
               {/* Banner Image */}
               {activeModalAnnouncement.imageUrl && (
-                <div className="relative w-full aspect-[16/8] overflow-hidden border-b border-white/[0.04]">
+                <div className="relative w-full aspect-[16/8] overflow-hidden border-b border-white/[0.04] bg-black/40 flex items-center justify-center">
                   <img
                     src={activeModalAnnouncement.imageUrl}
                     alt={activeModalAnnouncement.title}
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-full object-contain"
                   />
                 </div>
               )}
