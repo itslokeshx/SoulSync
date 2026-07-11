@@ -189,6 +189,10 @@ export const HomePage = () => {
   const normalizedNewReleases = normalizeSongs(dashboard?.newReleases?.songs || []);
   const normalizedLikedSongs = normalizeSongs(dashboard?.likedSongs || []);
   const normalizedMadeForYou = normalizeSongs(dashboard?.madeForYou?.songs || []);
+  const guestNewReleases = (dashboard?.guestNewReleases || []).map((section: any) => ({
+    title: section.title,
+    songs: normalizeSongs(section.songs || []),
+  }));
 
   const playlistSongsRaw = (dashboard?.playlists || []).flatMap((p: any) =>
     (p.songs || []).map((s: any) => ({
@@ -316,19 +320,33 @@ export const HomePage = () => {
       )}
 
       {/* B. New Releases (Second - generic industry releases, not personalized) */}
-      {normalizedNewReleases.length > 0 && (
-        <HSection
-          title={dashboard?.newReleases?.title || "New Releases"}
-          songs={normalizedNewReleases}
-          loading={false}
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPlay={(song) => handleHomeSongClick(song)}
-        />
+      {!user && guestNewReleases.length > 0 ? (
+        guestNewReleases.map((section: any) => (
+          <HSection
+            key={section.title}
+            title={section.title}
+            songs={section.songs}
+            loading={false}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={(song) => handleHomeSongClick(song, section.songs)}
+          />
+        ))
+      ) : (
+        normalizedNewReleases.length > 0 && (
+          <HSection
+            title={dashboard?.newReleases?.title || "New Releases"}
+            songs={normalizedNewReleases}
+            loading={false}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={(song) => handleHomeSongClick(song)}
+          />
+        )
       )}
 
       {/* C. Suggestions / Made For You (3 Rows, Combined) */}
-      {suggestionsSongs.length > 0 && (
+      {user && suggestionsSongs.length > 0 && (
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-5">
             <h2 className="text-lg font-bold text-white leading-tight">

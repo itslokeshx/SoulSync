@@ -22,6 +22,7 @@ export interface DashboardResponse {
   playlists: any[];
   madeForYou: { title: string; songs: Song[] };
   generatedAt: number;
+  guestNewReleases?: { title: string; songs: Song[] }[];
 }
 
 // ─── TIME-AWARE GREETING ─────────────────────────────────────────────────────
@@ -124,23 +125,38 @@ export async function buildDashboard(
   // B. New Releases from Industry (generic for preferred languages, not personalized)
   let newReleasesSongs: Song[] = [];
   let newReleasesTitle = "New Releases";
+  let guestNewReleases: { title: string; songs: Song[] }[] | undefined;
+
   try {
-    let langs: string[] = ["hindi"];
-    if (!isGuest) {
+    if (isGuest) {
+      const [english, tamil, hindi, telugu] = await Promise.all([
+        getIndustryNewReleases(["english"], 20),
+        getIndustryNewReleases(["tamil"], 20),
+        getIndustryNewReleases(["hindi"], 20),
+        getIndustryNewReleases(["telugu"], 20),
+      ]);
+      guestNewReleases = [
+        { title: "New English Releases", songs: english },
+        { title: "New Tamil Releases", songs: tamil },
+        { title: "New Hindi Releases", songs: hindi },
+        { title: "New Telugu Releases", songs: telugu },
+      ];
+    } else {
+      let langs: string[] = ["hindi"];
       const user = await User.findById(userId).select("preferences").lean();
       if (user?.preferences?.languages && user.preferences.languages.length > 0) {
         langs = user.preferences.languages;
       }
-    }
-    newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
+      newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
 
-    const rawNewReleases = await getIndustryNewReleases(langs, 25);
-    newReleasesSongs = rawNewReleases
-      .filter((s) => !globalExcludeIds.has(s.id))
-      .slice(0, 20);
+      const rawNewReleases = await getIndustryNewReleases(langs, 25);
+      newReleasesSongs = rawNewReleases
+        .filter((s) => !globalExcludeIds.has(s.id))
+        .slice(0, 20);
 
-    for (const s of newReleasesSongs) {
-      globalExcludeIds.add(s.id);
+      for (const s of newReleasesSongs) {
+        globalExcludeIds.add(s.id);
+      }
     }
   } catch (err) {
     console.error("[Dashboard] New Releases fetch error:", err);
@@ -212,6 +228,7 @@ export async function buildDashboard(
       title: isGuest || !tasteProfile || tasteProfile.artists.length === 0 ? "Popular Right Now" : "Made For You",
       songs: madeForYouSongs,
     },
+    guestNewReleases,
     generatedAt: Date.now(),
   };
 
