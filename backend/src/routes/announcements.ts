@@ -2,25 +2,11 @@
 // ANNOUNCEMENT ROUTES
 // ════════════════════════════════════════════════════════════════
 
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response } from "express";
 import { Announcement } from "../models/Announcement.js";
+import { adminAuthMiddleware } from "../middleware/adminAuth.js";
 
 const router = Router();
-
-// Minimal admin auth check middleware
-function adminAuth(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) {
-    res.status(500).json({ error: "ADMIN_SECRET is not configured in environment variables." });
-    return;
-  }
-  const headerSecret = req.headers["x-admin-secret"] as string;
-  if (headerSecret !== secret) {
-    res.status(401).json({ error: "Unauthorized. Invalid admin secret." });
-    return;
-  }
-  next();
-}
 
 // GET /api/announcements/active
 // Returns active, non-expired announcements sorted by priority and creation date
@@ -45,7 +31,7 @@ router.get("/active", async (req: Request, res: Response): Promise<void> => {
 
 // GET /api/admin/announcements
 // Returns all announcements (active or inactive) for dashboard/management
-router.get("/admin", adminAuth, async (req: Request, res: Response): Promise<void> => {
+router.get("/admin", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const all = await Announcement.find({}).sort({ createdAt: -1 });
     res.json({ announcements: all });
@@ -57,7 +43,7 @@ router.get("/admin", adminAuth, async (req: Request, res: Response): Promise<voi
 
 // POST /api/admin/announcements
 // Create a new announcement
-router.post("/admin", adminAuth, async (req: Request, res: Response): Promise<void> => {
+router.post("/admin", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       type,
@@ -104,7 +90,7 @@ router.post("/admin", adminAuth, async (req: Request, res: Response): Promise<vo
 
 // PATCH /api/admin/announcements/:id
 // Update/deactivate an existing announcement
-router.patch("/admin/:id", adminAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch("/admin/:id", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const updates = req.body;
