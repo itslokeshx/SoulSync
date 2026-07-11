@@ -190,40 +190,6 @@ export default function ProfilePage() {
         >
           Sign In
         </button>
-
-        {/* Download APK — web only, even before sign in */}
-        {!isNative() && (
-          <a
-            href={apkDownloadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group mt-8 w-full max-w-xs block relative overflow-hidden rounded-2xl p-[1px]"
-          >
-            <div
-              className="absolute inset-0 rounded-2xl opacity-40 group-hover:opacity-80 transition-opacity duration-500"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(29,185,84,0.5), rgba(16,185,129,0.1), rgba(29,185,84,0.3), rgba(52,211,153,0.4))",
-                backgroundSize: "300% 300%",
-                animation: "gradientShift 6s ease infinite",
-              }}
-            />
-            <div className="relative rounded-2xl bg-[#0a0a0a]/90 backdrop-blur-xl px-4 py-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0 group-hover:bg-sp-green/15 transition-all">
-                <Smartphone size={18} className="text-sp-green" />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[13px] font-bold text-white">Download APK</p>
-                <p className="text-[10px] text-white/30">
-                  For a better experience
-                </p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-sp-green flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_16px_rgba(29,185,84,0.4)] transition-all duration-300">
-                <Download size={14} className="text-black" strokeWidth={2.5} />
-              </div>
-            </div>
-          </a>
-        )}
       </div>
     );
   }
