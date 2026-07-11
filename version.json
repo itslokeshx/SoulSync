@@ -1,11 +1,11 @@
 {
-    "version": "3.0.0",
-    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/latest",
+    "version": "4.0",
+    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk",
     "force": false,
     "changelog": [
-        "Live Wrapped analytics deck",
-        "Premium glassmorphic user profile theme",
-        "Interactive vinyl and ticket infographics",
-        "Bug fixes and performance optimization"
+        "Auto Song Suggestion (Infinite Playback)",
+        "Active Announcements Engine with Auto-Popup",
+        "Feedback Portal & Admin Panel",
+        "70/30 Balanced Recommendation Engine"
     ]
 }

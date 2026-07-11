@@ -1,7 +1,7 @@
 import { App } from "@capacitor/app";
 
-const repo = import.meta.env.VITE_GITHUB_REPO || "itslokeshx/SoulSync";
-const VERSION_URL = `https://raw.githubusercontent.com/${repo}/main/version.json`;
+const VERSION_URL = "https://raw.githubusercontent.com/itslokeshx/SoulSync/main/version.json";
+
 
 export const getCurrentVersion = async () => {
     try {
