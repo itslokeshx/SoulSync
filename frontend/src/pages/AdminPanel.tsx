@@ -315,7 +315,7 @@ export default function AdminPanel() {
 
   // ─── ADMIN DASHBOARD PANEL ──────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-sp-dark text-white p-6 max-w-5xl mx-auto pb-32">
+    <div className="min-h-screen bg-sp-dark text-white p-4 sm:p-6 max-w-5xl mx-auto pb-32 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -331,7 +331,7 @@ export default function AdminPanel() {
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex gap-2 mb-6 border-b border-white/[0.04] pb-px">
+      <div className="flex gap-2 mb-6 border-b border-white/[0.04] pb-px overflow-x-auto whitespace-nowrap scrollbar-thin max-w-full shrink-0">
         <button
           onClick={() => setActiveTab("feedback")}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 ${
@@ -365,33 +365,64 @@ export default function AdminPanel() {
       {activeTab === "feedback" && (
         <div className="space-y-6">
           {/* Filters Bar */}
-          <div className="flex flex-wrap gap-3 bg-white/[0.01] border border-white/[0.04] p-4 rounded-2xl">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono">Status</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-white/[0.04] border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sp-green/30"
-              >
-                <option value="all">All Statuses</option>
-                <option value="new">New</option>
-                <option value="seen">Seen</option>
-                <option value="resolved">Resolved</option>
-                <option value="wontfix">Wontfix</option>
-              </select>
+          <div className="flex flex-col gap-4 bg-white/[0.01] border border-white/[0.04] p-5 rounded-2xl">
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono block">Filter By Status</span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all", label: "All Statuses" },
+                  { value: "new", label: "New" },
+                  { value: "seen", label: "Seen" },
+                  { value: "resolved", label: "Resolved" },
+                  { value: "wontfix", label: "Wontfix" },
+                ].map((opt) => {
+                  const active = filterStatus === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFilterStatus(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                        active
+                          ? "bg-sp-green text-black shadow-lg shadow-sp-green/10"
+                          : "bg-white/[0.03] text-white/60 hover:bg-white/[0.06] hover:text-white"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono">Category</span>
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="bg-white/[0.04] border border-white/5 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sp-green/30"
-              >
-                <option value="all">All Categories</option>
-                <option value="bug">Bug</option>
-                <option value="suggestion">Suggestion</option>
-                <option value="other">Other</option>
-              </select>
+
+            {/* Category Filter */}
+            <div className="space-y-2">
+              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono block">Filter By Category</span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all", label: "All Categories" },
+                  { value: "bug", label: "Bugs" },
+                  { value: "suggestion", label: "Suggestions" },
+                  { value: "other", label: "Other" },
+                ].map((opt) => {
+                  const active = filterCategory === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFilterCategory(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                        active
+                          ? "bg-sp-green text-black shadow-lg shadow-sp-green/10"
+                          : "bg-white/[0.03] text-white/60 hover:bg-white/[0.06] hover:text-white"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -420,7 +451,7 @@ export default function AdminPanel() {
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Category Badge */}
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase ${
+                          className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-wider uppercase ${
                             fb.category === "bug"
                               ? "bg-sp-rose/10 text-sp-rose"
                               : fb.category === "suggestion"
@@ -429,21 +460,6 @@ export default function AdminPanel() {
                           }`}
                         >
                           {fb.category}
-                        </span>
-
-                        {/* Status Label */}
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-mono tracking-wider uppercase ${
-                            fb.status === "new"
-                              ? "bg-red-500/15 text-red-400 font-bold"
-                              : fb.status === "seen"
-                              ? "bg-sp-amber/15 text-sp-amber"
-                              : fb.status === "resolved"
-                              ? "bg-green-500/15 text-green-400"
-                              : "bg-white/10 text-white/40"
-                          }`}
-                        >
-                          {fb.status}
                         </span>
 
                         {/* Date */}
@@ -457,17 +473,32 @@ export default function AdminPanel() {
                         </span>
                       </div>
 
-                      {/* Dropdown status inline edit */}
-                      <select
-                        value={fb.status}
-                        onChange={(e) => handleUpdateStatus(fb._id, e.target.value)}
-                        className="bg-white/[0.03] border border-white/10 hover:border-white/20 rounded-lg px-2 py-1 text-[10px] text-white/70 focus:outline-none cursor-pointer"
-                      >
-                        <option value="new">New</option>
-                        <option value="seen">Seen</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="wontfix">Wontfix</option>
-                      </select>
+                      {/* Interactive Triage Buttons */}
+                      <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] p-1 rounded-xl max-w-full overflow-x-auto scrollbar-thin shrink-0">
+                        {(["new", "seen", "resolved", "wontfix"] as const).map((statusOption) => {
+                          const isCurrent = fb.status === statusOption;
+                          return (
+                            <button
+                              key={statusOption}
+                              type="button"
+                              onClick={() => handleUpdateStatus(fb._id, statusOption)}
+                              className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 ${
+                                isCurrent
+                                  ? statusOption === "new"
+                                    ? "bg-sp-rose text-white shadow-lg shadow-sp-rose/20"
+                                    : statusOption === "seen"
+                                    ? "bg-sp-amber text-black shadow-lg shadow-sp-amber/20"
+                                    : statusOption === "resolved"
+                                    ? "bg-sp-green text-black shadow-lg shadow-sp-green/20"
+                                    : "bg-white/30 text-white"
+                                  : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                              }`}
+                            >
+                              {statusOption}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Submitter details */}
