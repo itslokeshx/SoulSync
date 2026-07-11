@@ -958,12 +958,13 @@ export async function getTasteProfileBatch(
     candidates.push(song);
   };
 
-  // Source 1: User's top artists
+  // Source 1: User's top artists (randomize page offset for variety)
   const topArtists = tasteProfile.artists.slice(0, 10);
   const artistResults = await Promise.allSettled(
     topArtists.map((a) => {
       if (a.artistId && /^\d+$/.test(a.artistId)) {
-        return fetchArtistSongs(a.artistId, 0, 2);
+        const randomPage = Math.floor(Math.random() * 5); // pages 0-4 for variety
+        return fetchArtistSongs(a.artistId, randomPage, 2);
       }
       return searchSongs(`${a.artistName} hits`, 15);
     }),
@@ -1017,6 +1018,12 @@ export async function getTasteProfileBatch(
 
   if (candidates.length === 0) {
     return getColdStartBatch(excludeIds, limit);
+  }
+
+  // Shuffle candidates to introduce randomness before ranking
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
 
   // Rank using rankCandidates (which applies cover penalty + popularity)
