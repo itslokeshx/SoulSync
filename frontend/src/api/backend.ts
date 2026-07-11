@@ -544,6 +544,11 @@ export async function updateFeedbackStatus(id: string, status: string): Promise<
   return data;
 }
 
+export async function deleteFeedback(id: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.delete(`/api/feedback/admin/${id}`);
+  return data;
+}
+
 export async function getAdminAnnouncements(): Promise<{ announcements: any[] }> {
   const { data } = await api.get("/api/announcements/admin");
   return data;

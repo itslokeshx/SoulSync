@@ -160,6 +160,22 @@ export default function AdminPanel() {
     }
   };
 
+  const handleDeleteFeedback = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this feedback permanently?")) {
+      return;
+    }
+    try {
+      const res = await api.deleteFeedback(id);
+      if (res.success) {
+        setFeedbackList((prev) => prev.filter((item) => item._id !== id));
+        toast.success("Feedback deleted permanently");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete feedback.");
+    }
+  };
+
   const toggleExpandFeedback = (id: string) => {
     setExpandedFeedback((prev) => {
       const next = new Set(prev);
@@ -490,31 +506,42 @@ export default function AdminPanel() {
                         </span>
                       </div>
 
-                      {/* Interactive Triage Buttons */}
-                      <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] p-1 rounded-xl max-w-full overflow-x-auto scrollbar-thin shrink-0">
-                        {(["new", "seen", "resolved", "wontfix"] as const).map((statusOption) => {
-                          const isCurrent = fb.status === statusOption;
-                          return (
-                            <button
-                              key={statusOption}
-                              type="button"
-                              onClick={() => handleUpdateStatus(fb._id, statusOption)}
-                              className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 ${
-                                isCurrent
-                                  ? statusOption === "new"
-                                    ? "bg-sp-rose text-white shadow-lg shadow-sp-rose/20"
-                                    : statusOption === "seen"
-                                    ? "bg-sp-amber text-black shadow-lg shadow-sp-amber/20"
-                                    : statusOption === "resolved"
-                                    ? "bg-sp-green text-black shadow-lg shadow-sp-green/20"
-                                    : "bg-white/30 text-white"
-                                  : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                              }`}
-                            >
-                              {statusOption}
-                            </button>
-                          );
-                        })}
+                      {/* Interactive Triage & Actions */}
+                      <div className="flex items-center gap-2 max-w-full shrink-0">
+                        <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] p-1 rounded-xl max-w-full overflow-x-auto scrollbar-thin shrink-0">
+                          {(["new", "seen", "resolved", "wontfix"] as const).map((statusOption) => {
+                            const isCurrent = fb.status === statusOption;
+                            return (
+                              <button
+                                key={statusOption}
+                                type="button"
+                                onClick={() => handleUpdateStatus(fb._id, statusOption)}
+                                className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 ${
+                                  isCurrent
+                                    ? statusOption === "new"
+                                      ? "bg-sp-rose text-white shadow-lg shadow-sp-rose/20"
+                                      : statusOption === "seen"
+                                      ? "bg-sp-amber text-black shadow-lg shadow-sp-amber/20"
+                                      : statusOption === "resolved"
+                                      ? "bg-sp-green text-black shadow-lg shadow-sp-green/20"
+                                      : "bg-white/30 text-white"
+                                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                                }`}
+                              >
+                                {statusOption}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeedback(fb._id)}
+                          className="p-1.5 rounded-lg bg-sp-rose/10 hover:bg-sp-rose text-sp-rose hover:text-white border border-sp-rose/25 hover:border-transparent transition-all duration-200 active:scale-95 flex items-center justify-center shrink-0"
+                          title="Delete permanently"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
 
