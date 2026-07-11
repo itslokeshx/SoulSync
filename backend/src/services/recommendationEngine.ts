@@ -958,15 +958,28 @@ export async function getTasteProfileBatch(
     candidates.push(song);
   };
 
-  // Source 1: User's top artists (randomize page offset for variety)
+  // Rotating query modifiers for variety on every reload
+  const ARTIST_QUERY_VARIANTS = [
+    "best of", "top songs", "popular", "hits", "essentials",
+    "greatest", "playlist", "latest", "new", "trending",
+  ];
+  const LANG_QUERY_VARIANTS = [
+    "trending", "popular", "best", "top", "latest",
+    "new releases", "hot", "viral", "chartbusters", "hits",
+  ];
+
+  const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+  // Source 1: User's top artists (randomize page + search query variants)
   const topArtists = tasteProfile.artists.slice(0, 10);
   const artistResults = await Promise.allSettled(
     topArtists.map((a) => {
       if (a.artistId && /^\d+$/.test(a.artistId)) {
-        const randomPage = Math.floor(Math.random() * 5); // pages 0-4 for variety
+        const randomPage = Math.floor(Math.random() * 8); // pages 0-7 for wider variety
         return fetchArtistSongs(a.artistId, randomPage, 2);
       }
-      return searchSongs(`${a.artistName} hits`, 15);
+      const variant = pickRandom(ARTIST_QUERY_VARIANTS);
+      return searchSongs(`${variant} ${a.artistName}`, 20);
     }),
   );
 
@@ -981,11 +994,13 @@ export async function getTasteProfileBatch(
     }
   }
 
-  // Source 2: Co-occurrences for the user's recent songs
+  // Source 2: Co-occurrences for the user's recent songs (randomize which recent songs to use)
   const recentIds = tasteProfile.recentSongIds || [];
   if (recentIds.length > 0) {
+    // Shuffle recent IDs so we pick different co-occurrences each time
+    const shuffledRecent = [...recentIds].sort(() => Math.random() - 0.5);
     const cooccurrences = await SongCooccurrence.find({
-      songIdA: { $in: recentIds.slice(0, 15) },
+      songIdA: { $in: shuffledRecent.slice(0, 10) },
     })
       .sort({ decayedScore: -1 })
       .limit(30)
@@ -998,15 +1013,18 @@ export async function getTasteProfileBatch(
     }
   }
 
-  // Source 3: Language discovery
+  // Source 3: Language discovery (randomized query variants)
   const topLangs = tasteProfile.languages.slice(0, 3);
+  const currentYear = new Date().getFullYear();
   const langResults = await Promise.allSettled(
-    topLangs.map((l) =>
-      searchSongs(
-        `trending ${l.language} songs ${new Date().getFullYear()}`,
-        15,
-      ),
-    ),
+    topLangs.map((l) => {
+      const variant = pickRandom(LANG_QUERY_VARIANTS);
+      const yearVariant = Math.random() > 0.5 ? ` ${currentYear}` : "";
+      return searchSongs(
+        `${variant} ${l.language} songs${yearVariant}`,
+        20,
+      );
+    }),
   );
   for (const res of langResults) {
     if (res.status !== "fulfilled") continue;
@@ -1015,6 +1033,18 @@ export async function getTasteProfileBatch(
       addCandidate(s);
     }
   }
+
+  // Source 4: Genre/mood discovery for extra variety
+  const moodQueries = ["chill vibes", "upbeat energy", "romantic", "party", "soulful", "acoustic", "lo-fi"];
+  const randomMood = pickRandom(moodQueries);
+  const randomLang = topLangs.length > 0 ? pickRandom(topLangs).language : "hindi";
+  try {
+    const moodSongs = await searchSongs(`${randomMood} ${randomLang} songs`, 15);
+    const normalized = normalizeSongsToCanonical(moodSongs);
+    for (const s of normalized) {
+      addCandidate(s);
+    }
+  } catch {}
 
   if (candidates.length === 0) {
     return getColdStartBatch(excludeIds, limit);
@@ -1027,7 +1057,12 @@ export async function getTasteProfileBatch(
   }
 
   // Rank using rankCandidates (which applies cover penalty + popularity)
-  const ranked = rankCandidates(candidates, tasteProfile, limit * 2);
+  // Then add random noise to final scores so tied songs shuffle differently each time
+  const ranked = rankCandidates(candidates, tasteProfile, limit * 3);
+  for (const song of ranked) {
+    (song as any)._recScore = ((song as any)._recScore || 0) + Math.floor(Math.random() * 30) - 15;
+  }
+  ranked.sort((a, b) => ((b as any)._recScore ?? 0) - ((a as any)._recScore ?? 0));
   const withReasons = attachReason(ranked, tasteProfile);
 
   // Apply diversity limit of max 2 songs per artist & unique song titles in the final returned batch
