@@ -500,6 +500,13 @@ export async function getSongDetails(id: string): Promise<any> {
   return data?.data || data || null;
 }
 
+export async function getSongsDetailsBatch(ids: string[]): Promise<any[]> {
+  if (ids.length === 0) return [];
+  // JioSaavn API supports comma-separated list of IDs in /songs?ids=id1,id2
+  const data = (await fetchSafe(`${JIOSAAVN_BASE}/songs?ids=${encodeURIComponent(ids.join(","))}`)) as any;
+  return data?.data || data || [];
+}
+
 export async function getArtistSongs(id: string, page = 1): Promise<any[]> {
   // If page 1, fetch 5 pages in parallel to provide 50 songs (Premium Discovery)
   if (page === 1) {
@@ -540,6 +547,7 @@ export interface Song {
   duration: number;
   language: string;
   year: string;
+  releaseDate?: string;
   streamUrl: string | null;
   downloadUrl: Array<{ quality: string; url: string }> | null;
   playCount: number;
@@ -644,6 +652,7 @@ export function normalizeSongToCanonical(raw: any): Song | null {
     duration: Number(raw.duration) || 0,
     language: (raw.language || "").toLowerCase(),
     year: String(raw.year || ""),
+    releaseDate: raw.releaseDate ? String(raw.releaseDate) : undefined,
     streamUrl,
     downloadUrl:
       Array.isArray(raw.downloadUrl) && raw.downloadUrl.length > 0

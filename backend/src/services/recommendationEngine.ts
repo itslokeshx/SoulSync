@@ -16,6 +16,7 @@ import {
   searchPlaylists,
   getPlaylistSongs,
   normalizeSongsToCanonical,
+  getSongsDetailsBatch,
   type Song,
 } from "./jiosaavn.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
@@ -1185,30 +1186,110 @@ export async function getIndustryNewReleases(
     }
   }
 
-  const scored = candidates.map((song) => {
+  // Batch enrich all candidates with full details (carrying precise release dates)
+  let enrichedSongs: Song[] = [];
+  try {
+    const candidateIds = candidates.map((s) => s.id);
+    if (candidateIds.length > 0) {
+      const rawEnriched = await getSongsDetailsBatch(candidateIds);
+      const normalizedEnriched = normalizeSongsToCanonical(rawEnriched);
+      const enrichedMap = new Map<string, Song>();
+      for (const s of normalizedEnriched) {
+        if (s?.id) enrichedMap.set(s.id, s);
+      }
+      enrichedSongs = candidates.map((c) => enrichedMap.get(c.id) || c);
+    } else {
+      enrichedSongs = candidates;
+    }
+  } catch (err) {
+    console.error("[NewReleases] Failed to enrich candidates with precise release dates:", err);
+    enrichedSongs = candidates;
+  }
+
+  const today = new Date();
+
+  const scored = enrichedSongs.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
     score += popularityScore(song.playCount);
+    
+    // Cover/karaoke penalty
     score += coverPenalty(title) * 0.5; // light penalty
     if (!song.streamUrl) score -= 30;
 
-    // Prioritize current/recent year to avoid outdated songs
-    const currentYear = new Date().getFullYear();
+    // Precise 30-day filter boost/ranking
+    let isWithin30Days = false;
+    let isWithin90Days = false;
+
+    if (song.releaseDate) {
+      const rDate = new Date(song.releaseDate);
+      if (!isNaN(rDate.getTime())) {
+        const diffTime = today.getTime() - rDate.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+        
+        // We include a tiny negative limit (-1 day) to handle timezones / future releases
+        if (diffDays >= -1 && diffDays <= 30) {
+          isWithin30Days = true;
+          score += 150; // HUGE boost to place them at the absolute top
+        } else if (diffDays >= -1 && diffDays <= 90) {
+          isWithin90Days = true;
+          score += 60;  // Moderate boost for recent 3-month releases
+        }
+      }
+    }
+
+    // Year-based fallback (if releaseDate is missing/invalid)
+    const currentYear = today.getFullYear();
     if (song.year === String(currentYear)) {
       score += 20;
     } else if (song.year === String(currentYear - 1)) {
       score += 5;
     } else {
-      score -= 50; // heavily penalize older catalog items
+      score -= 80; // heavily penalize older catalog items
     }
 
-    return { ...song, _recScore: score };
+    return { 
+      ...song, 
+      _recScore: score, 
+      _isWithin30Days: isWithin30Days, 
+      _isWithin90Days: isWithin90Days 
+    };
   });
 
+  // Sort candidates by score
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
-  return scored.slice(0, limit).map((s) => {
+
+  // 1. Try to get candidates within the last 30 days
+  let finalSongs = scored.filter((s) => s._isWithin30Days);
+
+  // 2. If we don't have enough, expand to last 90 days
+  if (finalSongs.length < limit) {
+    const extra90 = scored.filter((s) => s._isWithin90Days && !finalSongs.some((f) => f.id === s.id));
+    finalSongs = [...finalSongs, ...extra90];
+  }
+
+  // 3. If still not enough, expand to current year
+  if (finalSongs.length < limit) {
+    const currentYearStr = String(today.getFullYear());
+    const extraCurrentYear = scored.filter((s) => s.year === currentYearStr && !finalSongs.some((f) => f.id === s.id));
+    finalSongs = [...finalSongs, ...extraCurrentYear];
+  }
+
+  // 4. If still not enough, fall back to everything else
+  if (finalSongs.length < limit) {
+    const remaining = scored.filter((s) => !finalSongs.some((f) => f.id === s.id));
+    finalSongs = [...finalSongs, ...remaining];
+  }
+
+  // Slice to limit
+  const selected = finalSongs.slice(0, limit);
+
+  // Return cleaned items
+  return selected.map((s) => {
     const clean = { ...s };
     delete (clean as any)._recScore;
+    delete (clean as any)._isWithin30Days;
+    delete (clean as any)._isWithin90Days;
     return clean;
   });
 }
