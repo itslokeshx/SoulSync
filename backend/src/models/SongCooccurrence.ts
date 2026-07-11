@@ -42,6 +42,7 @@ const SongCooccurrenceSchema = new Schema<ISongCooccurrence>(
 
 // Compound index: fast lookup of all co-occurrences for a given song
 SongCooccurrenceSchema.index({ songIdA: 1, decayedScore: -1 });
+SongCooccurrenceSchema.index({ songIdB: 1 });
 // Unique constraint: one document per (A, B) pair
 SongCooccurrenceSchema.index({ songIdA: 1, songIdB: 1 }, { unique: true });
 // TTL: auto-delete pairs not seen in 120 days
