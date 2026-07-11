@@ -102,4 +102,23 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: AdminAuthRequest, re
   }
 });
 
+// DELETE /api/feedback/admin/:id
+// Admin endpoint to delete feedback permanently
+router.delete("/admin/:id", adminAuthMiddleware, async (req: AdminAuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const deleted = await Feedback.findByIdAndDelete(id);
+
+    if (!deleted) {
+      res.status(404).json({ error: "Feedback item not found." });
+      return;
+    }
+
+    res.json({ success: true, message: "Feedback deleted successfully." });
+  } catch (err) {
+    console.error("[Feedback Admin] Delete error:", err);
+    res.status(500).json({ error: "Failed to delete feedback." });
+  }
+});
+
 export default router;
