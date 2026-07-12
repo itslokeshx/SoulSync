@@ -312,7 +312,7 @@ export const HomePage = () => {
             />
           </div>
 
-          {/* Mobile YouTube Music style Version */}
+          {/* Mobile 3x3 Grid Version */}
           <div className="block md:hidden mb-12">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -325,54 +325,59 @@ export const HomePage = () => {
               </div>
             </div>
             
-            {/* Horizontal scrolling grid: 4 rows high */}
-            <div className="grid grid-rows-4 grid-flow-col gap-x-4 gap-y-2 overflow-x-auto hide-scrollbar pb-3 snap-x snap-mandatory h-[270px] -mx-4 px-4">
-              {normalizedRecentlyPlayed.map((song) => {
+            {/* 3x3 Grid of square cards */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {normalizedRecentlyPlayed.slice(0, 9).map((song) => {
                 const isCurrent = currentSong?.id === song.id;
                 const img = bestImg(song.image) || "";
                 return (
                   <div
                     key={song.id}
                     onClick={() => handleHomeSongClick(song, normalizedRecentlyPlayed)}
-                    className={`flex items-center gap-3 p-1.5 pr-4 rounded-xl cursor-pointer snap-start w-[85vw] max-w-[320px] transition-all duration-200 active:bg-white/[0.06] ${
-                      isCurrent ? "bg-sp-green/[0.06]" : "hover:bg-white/[0.02]"
+                    className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer group border active:scale-95 transition-all duration-200 ${
+                      isCurrent
+                        ? "border-sp-green ring-1 ring-sp-green/30"
+                        : "border-white/[0.06] hover:border-white/[0.12]"
                     }`}
                   >
-                    {/* Song Cover with overlay */}
-                    <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/[0.02] border border-white/[0.04]">
-                      <img src={img} alt={song.name} className="w-full h-full object-cover" />
+                    {/* Background Album Art */}
+                    <img
+                      src={img}
+                      alt={song.name}
+                      className={`w-full h-full object-cover transition-transform duration-500 ${
+                        isCurrent && isPlaying ? "scale-105" : "group-hover:scale-105"
+                      }`}
+                    />
+                    
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-2">
+                      
+                      {/* Active Playing Equalizer or Icon overlay */}
                       {isCurrent && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-sp-green/20">
                           {isPlaying ? (
-                            <div className="flex gap-[2px] items-end h-3">
-                              <div className="w-[2px] bg-sp-green rounded-full animate-pulse h-3" />
-                              <div className="w-[2px] bg-sp-green rounded-full animate-pulse h-2" style={{ animationDelay: "150ms" }} />
-                              <div className="w-[2px] bg-sp-green rounded-full animate-pulse h-3" style={{ animationDelay: "300ms" }} />
+                            <div className="flex gap-[2px] items-end h-2.5 px-0.5">
+                              <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" />
+                              <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-1.5" style={{ animationDelay: "150ms" }} />
+                              <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" style={{ animationDelay: "300ms" }} />
                             </div>
                           ) : (
-                            <Pause size={12} className="text-sp-green fill-sp-green" />
+                            <Pause size={8} className="text-sp-green fill-sp-green" />
                           )}
                         </div>
                       )}
-                    </div>
 
-                    {/* Song Info */}
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-[14px] font-medium truncate ${isCurrent ? "text-sp-green" : "text-white"}`}>
-                        {song.name}
-                      </p>
-                      <p className="text-[12px] text-white/50 truncate mt-0.5">
-                        {getArtists(song)}
-                      </p>
-                    </div>
-
-                    {/* Play Button Icon on Right */}
-                    <div className="flex-shrink-0 ml-2">
-                      {isCurrent && isPlaying ? (
-                        <Pause size={14} className="text-sp-green" />
-                      ) : (
-                        <Play size={14} className="text-white/40" />
-                      )}
+                      {/* Song Title and Artist inside the card */}
+                      <div className="w-full text-center">
+                        <p className={`text-[10px] font-bold truncate tracking-tight leading-snug ${
+                          isCurrent ? "text-sp-green" : "text-white"
+                        }`}>
+                          {song.name}
+                        </p>
+                        <p className="text-[8px] text-white/50 truncate tracking-tight mt-0.5">
+                          {getArtists(song)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
