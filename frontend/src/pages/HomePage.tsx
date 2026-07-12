@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Play, Pause } from "lucide-react";
 import { HSection } from "../components/cards/HSection";
 import { SongCard } from "../components/cards/SongCard";
 import { useApp } from "../context/AppContext";
@@ -7,6 +8,7 @@ import { useAuth } from "../auth/AuthContext";
 import { getDashboard, getGuestDashboard, startRadio } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSongs } from "../utils/normalizeSong";
+import { bestImg, getArtists } from "../lib/helpers";
 
 const CACHE_TTL = import.meta.env.DEV ? 0 : 5 * 60_000; // 5 minutes (disabled in dev)
 
@@ -297,14 +299,87 @@ export const HomePage = () => {
 
       {/* A. Recently Played (First) */}
       {user && normalizedRecentlyPlayed.length > 0 && (
-        <HSection
-          title="Recently Played"
-          songs={normalizedRecentlyPlayed}
-          loading={false}
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPlay={(song) => handleHomeSongClick(song)}
-        />
+        <>
+          {/* Desktop Version */}
+          <div className="hidden md:block">
+            <HSection
+              title="Recently Played"
+              songs={normalizedRecentlyPlayed}
+              loading={false}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={(song) => handleHomeSongClick(song)}
+            />
+          </div>
+
+          {/* Mobile YouTube Music style Version */}
+          <div className="block md:hidden mb-12">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-lg w-8 h-8 flex items-center justify-center rounded-lg bg-white/[0.04]">
+                  🕒
+                </span>
+                <h2 className="text-lg font-bold text-white leading-tight">
+                  Recently Played
+                </h2>
+              </div>
+            </div>
+            
+            {/* Horizontal scrolling grid: 4 rows high */}
+            <div className="grid grid-rows-4 grid-flow-col gap-x-4 gap-y-2 overflow-x-auto hide-scrollbar pb-3 snap-x snap-mandatory h-[270px] -mx-4 px-4">
+              {normalizedRecentlyPlayed.map((song) => {
+                const isCurrent = currentSong?.id === song.id;
+                const img = bestImg(song.image) || "";
+                return (
+                  <div
+                    key={song.id}
+                    onClick={() => handleHomeSongClick(song, normalizedRecentlyPlayed)}
+                    className={`flex items-center gap-3 p-1.5 pr-4 rounded-xl cursor-pointer snap-start w-[85vw] max-w-[320px] transition-all duration-200 active:bg-white/[0.06] ${
+                      isCurrent ? "bg-sp-green/[0.06]" : "hover:bg-white/[0.02]"
+                    }`}
+                  >
+                    {/* Song Cover with overlay */}
+                    <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/[0.02] border border-white/[0.04]">
+                      <img src={img} alt={song.name} className="w-full h-full object-cover" />
+                      {isCurrent && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          {isPlaying ? (
+                            <div className="flex gap-[2px] items-end h-3">
+                              <div className="w-[2px] bg-sp-green rounded-full animate-pulse h-3" />
+                              <div className="w-[2px] bg-sp-green rounded-full animate-pulse h-2" style={{ animationDelay: "150ms" }} />
+                              <div className="w-[2px] bg-sp-green rounded-full animate-pulse h-3" style={{ animationDelay: "300ms" }} />
+                            </div>
+                          ) : (
+                            <Pause size={12} className="text-sp-green fill-sp-green" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Song Info */}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[14px] font-medium truncate ${isCurrent ? "text-sp-green" : "text-white"}`}>
+                        {song.name}
+                      </p>
+                      <p className="text-[12px] text-white/50 truncate mt-0.5">
+                        {getArtists(song)}
+                      </p>
+                    </div>
+
+                    {/* Play Button Icon on Right */}
+                    <div className="flex-shrink-0 ml-2">
+                      {isCurrent && isPlaying ? (
+                        <Pause size={14} className="text-sp-green" />
+                      ) : (
+                        <Play size={14} className="text-white/40" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       {/* B. New Releases (Second - generic industry releases, not personalized) */}
