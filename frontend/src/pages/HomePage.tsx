@@ -358,7 +358,7 @@ export const HomePage = () => {
               {mobileSavedPages.map((pageSongs, pageIdx) => (
                 <div 
                   key={pageIdx} 
-                  className="flex-shrink-0 w-[calc(100vw-32px)] snap-start grid grid-cols-3 gap-2.5"
+                  className="flex-shrink-0 w-[calc(100vw-32px)] snap-center grid grid-cols-3 gap-2.5"
                 >
                   {pageSongs.map((song) => {
                     const isCurrent = currentSong?.id === song.id;
