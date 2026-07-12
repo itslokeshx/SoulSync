@@ -28,6 +28,9 @@ export function useQueueAutoFill({
   queueRef.current = queue;
   onAddSongsRef.current = onAddSongs;
 
+  const queueIndexRef = useRef(queueIndex);
+  queueIndexRef.current = queueIndex;
+
   const fetchingRef = useRef(false);
   const lastSongIdRef = useRef<string | null>(null);
   const pageRef = useRef(1);
@@ -55,6 +58,13 @@ export function useQueueAutoFill({
     const songId = lastSongIdRef.current;
     if (!songId) return;
     if (fetchingRef.current) return;
+
+    // Critical fail-safe: if the queue is running critically dry, reset exhaustion
+    const remaining = queueRef.current.length - queueIndexRef.current - 1;
+    if (remaining < 5) {
+      emptyRoundsRef.current = 0;
+    }
+
     if (emptyRoundsRef.current >= MAX_EMPTY_ROUNDS) return;
     const now = Date.now();
     if (now - lastFetchAtRef.current < FETCH_COOLDOWN_MS) return;
@@ -70,7 +80,13 @@ export function useQueueAutoFill({
       if (!triedRecsRef.current) {
         triedRecsRef.current = true;
         try {
-          const recResult = await getNextRecommendations(songId);
+          const excludeIds = Array.from(
+            new Set([
+              ...queueRef.current.map((s) => s?.id).filter(Boolean),
+              ...Array.from(addedIdsRef.current),
+            ])
+          );
+          const recResult = await getNextRecommendations(songId, excludeIds);
           songs = recResult.songs || [];
           hasMore = recResult.hasMore;
         } catch {

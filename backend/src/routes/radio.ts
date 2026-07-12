@@ -28,8 +28,8 @@ router.post(
         return;
       }
 
-      // Fetch next recommendations
-      const recommendations = await getNextRecommendations(seedSongId, req.userId);
+      // Fetch next recommendations, excluding the seed song itself
+      const recommendations = await getNextRecommendations(seedSongId, req.userId, [seedSongId]);
 
       // Filter out seed song from recommendations if present
       const filteredRecommendations = recommendations.filter((s) => s.id !== seedSongId);

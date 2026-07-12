@@ -684,29 +684,50 @@ export async function getHomeRecommendations(
 export async function getNextRecommendations(
   currentSongId: string,
   userId?: string,
+  excludeIds: string[] = [],
 ): Promise<RecommendedSong[]> {
   const cacheKey = userId
     ? `rec:next:${userId}:${currentSongId}`
     : `rec:next:guest:${currentSongId}`;
 
-  try {
-    const cached = await redisGet(cacheKey);
-    if (cached) return JSON.parse(cached);
-  } catch {}
+  // Bypass Redis cache when dynamic exclusions are provided
+  if (excludeIds.length === 0) {
+    try {
+      const cached = await redisGet(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+  }
+
+  // Fetch seed song metadata first
+  const seedSong = await fetchSongById(currentSongId);
+  if (!seedSong) {
+    return [];
+  }
 
   const profile = userId ? await getTasteProfile(userId) : null;
-  const candidates = await getCandidates("next", {
-    currentSongId,
-    profile,
-    limit: 30,
-  });
-  const ranked = rankCandidates(candidates, profile, 20);
-  const withReasons = attachReason(ranked, profile);
-  const result = withReasons.map(({ _recScore, ...rest }) => rest);
 
-  await redisSet(cacheKey, JSON.stringify(result), W.RESULT_CACHE_TTL).catch(() => {});
+  // Generate seed-anchored, taste-aware recommendations
+  const recommendedSongs = await generateSeedAnchoredBatch(
+    seedSong,
+    profile,
+    excludeIds,
+    20,
+  );
+
+  // Map to RecommendedSong format with reasons
+  const result: RecommendedSong[] = recommendedSongs.map((song) => ({
+    ...song,
+    reason: (song as any).reason || `Similar to ${seedSong.name}`,
+  }));
+
+  // Only cache when there are no dynamic exclusions
+  if (excludeIds.length === 0) {
+    await redisSet(cacheKey, JSON.stringify(result), W.RESULT_CACHE_TTL).catch(() => {});
+  }
+
   return result;
 }
+
 
 // ════════════════════════════════════════════════════════════════
 // 7. TASTE PROFILE RECOMPUTE TRIGGER
@@ -760,12 +781,20 @@ export async function generateSeedAnchoredBatch(
     candidates.push(song);
   };
 
+  const debug = process.env.DEBUG_RECOMMENDATIONS === "true";
+  if (debug) {
+    console.log(`[RecEngine] Starting generateSeedAnchoredBatch for Seed: "${seed.name}" (${seedId}), Artist: "${seedArtist}", Lang: "${seedLang}"`);
+    console.log(`[RecEngine] Exclude list size: ${excludeIds.length}`);
+  }
+
   // Source 1: Co-occurrence
+  let cooccurCount = 0;
   try {
     const cooccurrences = await SongCooccurrence.find({ songIdA: seedId })
       .sort({ decayedScore: -1 })
       .limit(20)
       .lean();
+    cooccurCount = cooccurrences.length;
     for (const co of cooccurrences) {
       try {
         const song = await fetchSongById(co.songIdB);
@@ -775,8 +804,10 @@ export async function generateSeedAnchoredBatch(
   } catch {}
 
   // Source 2: JioSaavn suggestions
+  let suggestionsCount = 0;
   try {
     const raw = await getSuggestions(seedId, 30);
+    suggestionsCount = raw.length;
     const normalized = normalizeSongsToCanonical(raw);
     for (const s of normalized) {
       addCandidate(s);
@@ -784,14 +815,33 @@ export async function generateSeedAnchoredBatch(
   } catch {}
 
   // Source 3: Hits from primary artist of the seed
+  let artistHitsCount = 0;
   if (seedArtist) {
     try {
       const artistSongs = await searchSongs(`${seedArtist} hits`, 15);
+      artistHitsCount = artistSongs.length;
       const normalized = normalizeSongsToCanonical(artistSongs);
       for (const s of normalized) {
         addCandidate(s);
       }
     } catch {}
+  }
+
+  // Sanity check: if candidate pool is too small, supplement with cold start/popular songs
+  let fallbackCount = 0;
+  if (candidates.length < 10) {
+    try {
+      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize);
+      fallbackCount = fallbacks.length;
+      for (const s of fallbacks) {
+        addCandidate(s);
+      }
+    } catch {}
+  }
+
+  if (debug) {
+    console.log(`[RecEngine] Candidate counts - Cooccurrences: ${cooccurCount}, Suggestions: ${suggestionsCount}, Artist Hits: ${artistHitsCount}, Fallbacks: ${fallbackCount}`);
+    console.log(`[RecEngine] Total unique candidates gathered: ${candidates.length}`);
   }
 
   if (candidates.length === 0) return [];
@@ -867,6 +917,13 @@ export async function generateSeedAnchoredBatch(
   // Sort candidates
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
+  if (debug) {
+    console.log("[RecEngine] Top 5 scored candidates before diversification:");
+    scored.slice(0, 5).forEach((c) => {
+      console.log(`  - "${c.name}" by ${c.primaryArtists} (Score: ${c._recScore})`);
+    });
+  }
+
   // Diversity: max 2 songs per artist
   const artistCount = new Map<string, number>();
   const diversified: Song[] = [];
@@ -887,6 +944,13 @@ export async function generateSeedAnchoredBatch(
     diversified.push(cleanSong);
 
     if (diversified.length >= batchSize) break;
+  }
+
+  if (debug) {
+    console.log(`[RecEngine] Final recommendations generated (${diversified.length} songs):`);
+    diversified.forEach((d) => {
+      console.log(`  - "${d.name}" by ${d.primaryArtists} (Reason: ${(d as any).reason})`);
+    });
   }
 
   return diversified;

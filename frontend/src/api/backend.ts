@@ -410,9 +410,13 @@ export async function getHomeRecommendations(): Promise<{
 
 export async function getNextRecommendations(
   currentSongId: string,
+  excludeIds?: string[],
 ): Promise<{ songs: any[]; total: number; hasMore: boolean; source: string }> {
   const { data } = await api.get("/api/recommendations/next", {
-    params: { currentSongId },
+    params: {
+      currentSongId,
+      excludeIds: excludeIds?.join(","),
+    },
   });
   return data;
 }

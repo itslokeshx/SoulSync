@@ -50,9 +50,12 @@ router.get(
         return;
       }
 
+      const excludeIdsRaw = req.query.excludeIds as string;
+      const excludeIds = excludeIdsRaw ? excludeIdsRaw.split(",") : [];
+
       if (req.userId) {
         // Authenticated: full taste-aware recommendations
-        const songs = await getNextRecommendations(currentSongId, req.userId);
+        const songs = await getNextRecommendations(currentSongId, req.userId, excludeIds);
         res.json({
           songs,
           total: songs.length,
@@ -61,7 +64,7 @@ router.get(
         });
       } else {
         // Guest: JioSaavn suggestions with basic normalization (no taste data)
-        const songs = await getNextRecommendations(currentSongId);
+        const songs = await getNextRecommendations(currentSongId, undefined, excludeIds);
         res.json({
           songs,
           total: songs.length,
