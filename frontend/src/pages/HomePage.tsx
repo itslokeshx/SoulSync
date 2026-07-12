@@ -24,6 +24,8 @@ export const HomePage = () => {
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [activePage, setActivePage] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const fetched = useRef(false);
   const fetchingRef = useRef(false);
   const lastFetchedAt = useRef(0);
@@ -287,6 +289,33 @@ export const HomePage = () => {
   const row2 = suggestionsSongs.slice(10, 20);
   const row3 = suggestionsSongs.slice(20, 30);
 
+  // Compile list of songs for mobile 3x3 grids (Recently Played + Liked + Playlists + Made For You) to fill exactly 18 slots (2 pages)
+  const allHomeSongs: any[] = [];
+  const homeSeenIds = new Set<string>();
+  const homeSeenNames = new Set<string>();
+
+  const addHomeSong = (s: any) => {
+    if (homeSeenIds.has(s.id)) return;
+    const cleanName = cleanNameForDedup(s.name);
+    if (cleanName && homeSeenNames.has(cleanName)) return;
+    homeSeenIds.add(s.id);
+    if (cleanName) homeSeenNames.add(cleanName);
+    allHomeSongs.push(s);
+  };
+
+  for (const s of normalizedRecentlyPlayed) addHomeSong(s);
+  for (const s of normalizedLikedSongs) addHomeSong(s);
+  for (const s of normalizedPlaylistSongs) addHomeSong(s);
+  for (const s of normalizedMadeForYou) addHomeSong(s);
+
+  const totalSlotsNeeded = allHomeSongs.length >= 18 ? 18 : 9;
+  const mobileGridSongs = allHomeSongs.slice(0, totalSlotsNeeded);
+
+  const mobileSavedPages: any[][] = [];
+  for (let i = 0; i < mobileGridSongs.length; i += 9) {
+    mobileSavedPages.push(mobileGridSongs.slice(i, i + 9));
+  }
+
   return (
     <div className="animate-fadeIn space-y-12">
       {/* Greetings Header */}
@@ -314,75 +343,95 @@ export const HomePage = () => {
 
           {/* Mobile 3x3 Grid Version */}
           <div className="block md:hidden mb-12">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <span className="text-lg w-8 h-8 flex items-center justify-center rounded-lg bg-white/[0.04]">
-                  🕒
-                </span>
-                <h2 className="text-lg font-bold text-white leading-tight">
-                  Recently Played
-                </h2>
-              </div>
-            </div>
-            
-            {/* 3x3 Grid of square cards */}
-            <div className="grid grid-cols-3 gap-2.5">
-              {normalizedRecentlyPlayed.slice(0, 9).map((song) => {
-                const isCurrent = currentSong?.id === song.id;
-                const img = bestImg(song.image) || "";
-                return (
-                  <div
-                    key={song.id}
-                    onClick={() => handleHomeSongClick(song, normalizedRecentlyPlayed)}
-                    className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer group border active:scale-95 transition-all duration-200 ${
-                      isCurrent
-                        ? "border-sp-green ring-1 ring-sp-green/30"
-                        : "border-white/[0.06] hover:border-white/[0.12]"
-                    }`}
-                  >
-                    {/* Background Album Art */}
-                    <img
-                      src={img}
-                      alt={song.name}
-                      className={`w-full h-full object-cover transition-transform duration-500 ${
-                        isCurrent && isPlaying ? "scale-105" : "group-hover:scale-105"
-                      }`}
-                    />
-                    
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-2">
-                      
-                      {/* Active Playing Equalizer or Icon overlay */}
-                      {isCurrent && (
-                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-sp-green/20">
-                          {isPlaying ? (
-                            <div className="flex gap-[2px] items-end h-2.5 px-0.5">
-                              <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" />
-                              <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-1.5" style={{ animationDelay: "150ms" }} />
-                              <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" style={{ animationDelay: "300ms" }} />
+            {/* Swipable Grid Carousel Container */}
+            <div 
+              ref={scrollRef}
+              onScroll={() => {
+                if (scrollRef.current) {
+                  const { scrollLeft, clientWidth } = scrollRef.current;
+                  const pageIndex = Math.round(scrollLeft / clientWidth);
+                  setActivePage(pageIndex);
+                }
+              }}
+              className="flex overflow-x-auto hide-scrollbar snap-x snap-mandatory -mx-4 px-4 gap-4 pb-2"
+            >
+              {mobileSavedPages.map((pageSongs, pageIdx) => (
+                <div 
+                  key={pageIdx} 
+                  className="flex-shrink-0 w-[calc(100vw-32px)] snap-start grid grid-cols-3 gap-2.5"
+                >
+                  {pageSongs.map((song) => {
+                    const isCurrent = currentSong?.id === song.id;
+                    const img = bestImg(song.image) || "";
+                    return (
+                      <div
+                        key={song.id}
+                        onClick={() => handleHomeSongClick(song, mobileGridSongs)}
+                        className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer group border active:scale-95 transition-all duration-200 ${
+                          isCurrent
+                            ? "border-sp-green ring-1 ring-sp-green/30"
+                            : "border-white/[0.06] hover:border-white/[0.12]"
+                        }`}
+                      >
+                        {/* Background Album Art */}
+                        <img
+                          src={img}
+                          alt={song.name}
+                          className={`w-full h-full object-cover transition-transform duration-500 ${
+                            isCurrent && isPlaying ? "scale-105" : "group-hover:scale-105"
+                          }`}
+                        />
+                        
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent flex flex-col justify-end p-2">
+                          
+                          {/* Active Playing Equalizer or Icon overlay */}
+                          {isCurrent && (
+                            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-sp-green/20">
+                              {isPlaying ? (
+                                <div className="flex gap-[2px] items-end h-2.5 px-0.5">
+                                  <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" />
+                                  <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-1.5" style={{ animationDelay: "150ms" }} />
+                                  <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" style={{ animationDelay: "300ms" }} />
+                                </div>
+                              ) : (
+                                <Pause size={8} className="text-sp-green fill-sp-green" />
+                              )}
                             </div>
-                          ) : (
-                            <Pause size={8} className="text-sp-green fill-sp-green" />
                           )}
-                        </div>
-                      )}
 
-                      {/* Song Title and Artist inside the card */}
-                      <div className="w-full text-center">
-                        <p className={`text-[10px] font-bold truncate tracking-tight leading-snug ${
-                          isCurrent ? "text-sp-green" : "text-white"
-                        }`}>
-                          {song.name}
-                        </p>
-                        <p className="text-[8px] text-white/50 truncate tracking-tight mt-0.5">
-                          {getArtists(song)}
-                        </p>
+                          {/* Song Title and Artist inside the card */}
+                          <div className="w-full text-center">
+                            <p className={`text-[10px] font-bold truncate tracking-tight leading-snug ${
+                              isCurrent ? "text-sp-green" : "text-white"
+                            }`}>
+                              {song.name}
+                            </p>
+                            <p className="text-[8px] text-white/50 truncate tracking-tight mt-0.5">
+                              {getArtists(song)}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              ))}
             </div>
+
+            {/* Page indicator dots */}
+            {mobileSavedPages.length > 1 && (
+              <div className="flex justify-center gap-1.5 mt-3">
+                {mobileSavedPages.map((_, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                      activePage === idx ? "bg-sp-green w-3.5" : "bg-white/20"
+                    }`} 
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
