@@ -176,13 +176,31 @@ export default function AdminPanel() {
     }
   };
 
-  const toggleExpandFeedback = (id: string) => {
+  const toggleExpandFeedback = async (id: string) => {
+    const isExpanding = !expandedFeedback.has(id);
     setExpandedFeedback((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    if (isExpanding) {
+      const item = feedbackList.find((fb) => fb._id === id);
+      if (item && item.status === "new") {
+        try {
+          const res = await api.updateFeedbackStatus(id, "seen");
+          if (res.success) {
+            setFeedbackList((prevList) =>
+              prevList.map((f) => (f._id === id ? { ...f, status: "seen" } : f))
+            );
+            toast.success("Feedback marked as seen");
+          }
+        } catch (err) {
+          console.error("Failed to mark feedback seen on expand:", err);
+        }
+      }
+    }
   };
 
   // Announcement Form Handlers

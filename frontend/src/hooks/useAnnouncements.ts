@@ -65,11 +65,12 @@ export function useAnnouncements() {
     setLastSeenVersion(localSeenVersion);
     setSeenIds(localSeenIds);
 
-    // 1. Eligible Whats New (allow popup if version matches, user is on older version, in dev/web "1.0.0" fallback, and not seen by ID)
+    // 1. Eligible Whats New (allow popup if version matches, user is on older version, in dev/web "1.0.0" fallback, and not seen by ID or version)
     const eligibleWhatsNew = activeList.find(
       (a) =>
         a.type === "whats_new" &&
         !localSeenIds.includes(a._id) &&
+        (!a.version || !localSeenVersion || compareVersions(localSeenVersion, a.version)) &&
         (a.version === currentVersion ||
           currentVersion === "1.0.0" ||
           !a.version ||
@@ -178,8 +179,8 @@ export function useAnnouncements() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Calculate unread count (any active announcement shows the notification dot till expiry)
-  const unreadCount = announcements.length;
+  // Calculate unread count (any active announcement whose ID is NOT in seenIds shows the notification dot)
+  const unreadCount = announcements.filter((a) => !seenIds.includes(a._id)).length;
 
   return {
     announcements,

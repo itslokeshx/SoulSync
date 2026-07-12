@@ -6,8 +6,18 @@ import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 
 export function AnnouncementModal() {
-  const { isModalOpen, activeModalAnnouncement, closeModal, markWhatsNewSeen } = useAnnouncements();
+  const { isModalOpen, activeModalAnnouncement, closeModal, markSeen, markWhatsNewSeen } = useAnnouncements();
   const navigate = useNavigate();
+
+  // Mark immediately as seen on open to survive sudden app close/navigation
+  useEffect(() => {
+    if (isModalOpen && activeModalAnnouncement) {
+      markSeen(activeModalAnnouncement._id);
+      if (activeModalAnnouncement.type === "whats_new" && activeModalAnnouncement.version) {
+        markWhatsNewSeen(activeModalAnnouncement.version);
+      }
+    }
+  }, [isModalOpen, activeModalAnnouncement, markSeen, markWhatsNewSeen]);
 
   const handleClose = () => {
     if (!activeModalAnnouncement) return;

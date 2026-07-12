@@ -11,10 +11,9 @@ export function AnnouncementPanel() {
 
   const handleItemClick = (announcement: Announcement) => {
     openModal(announcement);
+    markSeen(announcement._id);
     if (announcement.type === "whats_new" && announcement.version) {
       markWhatsNewSeen(announcement.version);
-    } else {
-      markSeen(announcement._id);
     }
   };
 
@@ -83,7 +82,7 @@ export function AnnouncementPanel() {
           </div>
         ) : (
           announcements.map((a) => {
-            const isSeen = a.type === "whats_new" ? false : seenIds.includes(a._id);
+            const isSeen = seenIds.includes(a._id);
             return (
               <button
                 key={a._id}
