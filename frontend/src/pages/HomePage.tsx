@@ -5,6 +5,7 @@ import { HSection } from "../components/cards/HSection";
 import { SongCard } from "../components/cards/SongCard";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../auth/AuthContext";
+import { useMixes } from "../hooks/useMixes";
 import { getDashboard, getGuestDashboard, startRadio } from "../api/backend";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSongs } from "../utils/normalizeSong";
@@ -20,6 +21,7 @@ export const HomePage = () => {
     playSong: onPlay,
   } = useApp();
   const { user, isLoading: authLoading } = useAuth();
+  const { data: mixSet, isLoading: mixesLoading } = useMixes();
 
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -161,7 +163,7 @@ export const HomePage = () => {
   })();
 
   // Loading Skeletons
-  if (loading || authLoading) {
+  if (loading || authLoading || mixesLoading) {
     return (
       <div className="animate-fadeIn space-y-10">
         <div>
@@ -436,30 +438,31 @@ export const HomePage = () => {
         </>
       )}
 
-      {/* B. New Releases (Second - generic industry releases, not personalized) */}
-      {!user && guestNewReleases.length > 0 ? (
-        guestNewReleases.map((section: any) => (
-          <HSection
-            key={section.title}
-            title={section.title}
-            songs={section.songs}
-            loading={false}
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlay={(song) => handleHomeSongClick(song, section.songs)}
-          />
-        ))
-      ) : (
-        normalizedNewReleases.length > 0 && (
-          <HSection
-            title={dashboard?.newReleases?.title || "New Releases"}
-            songs={normalizedNewReleases}
-            loading={false}
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlay={(song) => handleHomeSongClick(song)}
-          />
-        )
+      {/* B. Your Weekly Mixes (Second) */}
+      {mixSet?.mixes && mixSet.mixes.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-xl font-black text-white tracking-tight">
+              Your Weekly Mixes
+            </h2>
+          </div>
+          {mixSet.mixes.map((mix: any) => {
+            const normalizedSongs = normalizeSongs(mix.songs || []);
+            if (normalizedSongs.length === 0) return null;
+            return (
+              <HSection
+                key={mix.key}
+                title={mix.title}
+                subtitle={mix.description}
+                songs={normalizedSongs}
+                loading={false}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={(song) => onPlay(song, normalizedSongs)}
+              />
+            );
+          })}
+        </div>
       )}
 
       {/* C. Suggestions / Made For You (3 Rows, Combined) */}
@@ -512,6 +515,32 @@ export const HomePage = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* D. New Releases (Fourth - generic industry releases, not personalized) */}
+      {!user && guestNewReleases.length > 0 ? (
+        guestNewReleases.map((section: any) => (
+          <HSection
+            key={section.title}
+            title={section.title}
+            songs={section.songs}
+            loading={false}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={(song) => handleHomeSongClick(song, section.songs)}
+          />
+        ))
+      ) : (
+        normalizedNewReleases.length > 0 && (
+          <HSection
+            title={dashboard?.newReleases?.title || "New Releases"}
+            songs={normalizedNewReleases}
+            loading={false}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={(song) => handleHomeSongClick(song)}
+          />
+        )
       )}
 
       {/* Error fallback */}

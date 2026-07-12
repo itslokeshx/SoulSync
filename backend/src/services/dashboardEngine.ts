@@ -78,6 +78,29 @@ export async function buildDashboard(
   const { greeting, subtitle } = getGreeting(userName);
   const globalExcludeIds = new Set<string>();
 
+  // Exclude Discovery Mix songs from dynamic Made For You to prevent duplicates
+  if (!isGuest) {
+    try {
+      const { UserMixSet } = await import("../models/UserMixSet.js");
+      const { getStartOfWeek } = await import("./mixEngine.js");
+      const startOfWeek = getStartOfWeek();
+      const mixSet = await UserMixSet.findOne({
+        userId: new mongoose.Types.ObjectId(userId),
+        weekOf: startOfWeek,
+      }).lean();
+      if (mixSet) {
+        const discoveryMix = mixSet.mixes.find((m) => m.key === "discovery");
+        if (discoveryMix) {
+          for (const sId of discoveryMix.songIds) {
+            globalExcludeIds.add(sId);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[Dashboard] Failed to fetch weekly mixes for exclusions:", err);
+    }
+  }
+
   // A. Recently Played (Distinct, latest 12 songs)
   let recentlyPlayed: Song[] = [];
   if (!isGuest) {

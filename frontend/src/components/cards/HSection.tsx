@@ -4,19 +4,23 @@ import { AlbumCard } from "./AlbumCard";
 
 interface HSectionProps {
   title: string;
+  subtitle?: string;
   icon?: string;
   songs?: any[];
   albums?: any[];
   loading?: boolean;
   currentSong: any;
   isPlaying: boolean;
+  // eslint-disable-next-line no-unused-vars
   onPlay: (song: any, queue: any[]) => void;
+  // eslint-disable-next-line no-unused-vars
   onAlbumClick?: (album: any) => void;
   onSeeAll?: () => void;
 }
 
 export const HSection = ({
   title,
+  subtitle,
   icon,
   songs = [],
   albums = [],
@@ -39,6 +43,11 @@ export const HSection = ({
           <h2 className="text-lg font-bold text-white leading-tight">
             {title}
           </h2>
+          {subtitle && (
+            <p className="text-xs text-white/40 mt-1 font-normal">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
       {onSeeAll && (

@@ -398,6 +398,16 @@ export async function getGuestDashboard(): Promise<any> {
   return data;
 }
 
+export async function getMixes(): Promise<any> {
+  const { data } = await api.get("/api/mixes");
+  return data;
+}
+
+export async function getGuestMixes(): Promise<any> {
+  const { data } = await api.get("/api/mixes/guest");
+  return data;
+}
+
 // ── Recommendations ─────────────────────────────────────────────────────────
 export async function getHomeRecommendations(): Promise<{
   songs: any[];

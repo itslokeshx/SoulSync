@@ -12,6 +12,7 @@ import {
   getSuggestions,
   fetchArtistSongs,
   fetchSongById,
+  fetchSongsByIds,
   searchSongs,
   searchPlaylists,
   getPlaylistSongs,
@@ -1558,6 +1559,230 @@ export async function getIndustryNewReleases(
     delete (clean as any)._recScore;
     delete (clean as any)._isWithin30Days;
     delete (clean as any)._isWithin90Days;
+    return clean;
+  });
+}
+
+// ─── APPLE MUSIC MIX GENERATORS ───────────────────────────────────
+
+export async function generateNewMusicMix(
+  tasteProfile: IUserTasteProfile | null,
+  excludeIds: string[],
+  limit: number = 25,
+): Promise<Song[]> {
+  if (!tasteProfile || tasteProfile.languages.length === 0) {
+    return getIndustryNewReleases(["hindi", "english"], limit);
+  }
+
+  const langs = tasteProfile.languages.map((l) => l.language);
+  const newReleases = await getIndustryNewReleases(langs, 100);
+
+  const excludeSet = new Set(excludeIds);
+  const artistNameSet = new Set(tasteProfile.artists.map((a) => a.artistName.toLowerCase()));
+
+  const scored = newReleases
+    .filter((song) => !excludeSet.has(song.id))
+    .map((song) => {
+      let score = 0;
+      const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
+      
+      for (const sa of songArtists) {
+        if (artistNameSet.has(sa)) {
+          score += 100;
+          break;
+        }
+      }
+      
+      const langWeightMap = new Map(tasteProfile.languages.map((l) => [l.language, l.weight]));
+      if (song.language && langWeightMap.has(song.language)) {
+        score += Math.round(30 * langWeightMap.get(song.language)!);
+      }
+      
+      score += popularityScore(song.playCount);
+      score += coverPenalty(song.name || "");
+      
+      return { ...song, _recScore: score };
+    });
+
+  scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
+  return scored.slice(0, limit).map((s) => {
+    const clean = { ...s };
+    delete (clean as any)._recScore;
+    return clean;
+  });
+}
+
+export async function generateFavoritesMix(
+  tasteProfile: IUserTasteProfile,
+  excludeIds: string[],
+  limit: number = 25,
+): Promise<Song[]> {
+  const excludeSet = new Set(excludeIds);
+  const candidates: Song[] = [];
+
+  const addCandidate = (song: Song) => {
+    if (excludeSet.has(song.id)) return;
+    excludeSet.add(song.id);
+    candidates.push(song);
+  };
+
+  const recentIds = tasteProfile.recentSongIds || [];
+  if (recentIds.length > 0) {
+    try {
+      const recentSongs = await fetchSongsByIds(recentIds.slice(0, 20));
+      for (const s of recentSongs) {
+        addCandidate(s);
+      }
+    } catch {}
+  }
+
+  const topArtists = tasteProfile.artists.slice(0, 5);
+  const fetchResults = await Promise.allSettled(
+    topArtists.map((a) => {
+      if (a.artistId && /^\d+$/.test(a.artistId)) {
+        return fetchArtistSongs(a.artistId, 0, 10);
+      }
+      return searchSongs(`${a.artistName} hits`, 15);
+    })
+  );
+
+  for (const res of fetchResults) {
+    if (res.status === "fulfilled") {
+      const normalized = normalizeSongsToCanonical(res.value);
+      for (const s of normalized) {
+        addCandidate(s);
+      }
+    }
+  }
+
+  const artistScoreMap = new Map(tasteProfile.artists.map((a) => [a.artistName.toLowerCase(), a.score]));
+  const langWeightMap = new Map(tasteProfile.languages.map((l) => [l.language, l.weight]));
+
+  const scored = candidates.map((song) => {
+    let score = 0;
+    const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
+    
+    for (const sa of songArtists) {
+      if (artistScoreMap.has(sa)) {
+        score += Math.min(100, artistScoreMap.get(sa)! * 10);
+        break;
+      }
+    }
+
+    if (song.language && langWeightMap.has(song.language)) {
+      score += Math.round(50 * langWeightMap.get(song.language)!);
+    }
+
+    score += popularityScore(song.playCount);
+    score += coverPenalty(song.name || "");
+
+    return { ...song, _recScore: score };
+  });
+
+  scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
+  return scored.slice(0, limit).map((s) => {
+    const clean = { ...s };
+    delete (clean as any)._recScore;
+    return clean;
+  });
+}
+
+export async function generateDiscoveryMix(
+  tasteProfile: IUserTasteProfile,
+  excludeIds: string[],
+  limit: number = 25,
+): Promise<Song[]> {
+  const excludeSet = new Set(excludeIds);
+  const top5Artists = new Set(tasteProfile.artists.slice(0, 5).map((a) => a.artistName.toLowerCase()));
+  const secondaryArtists = tasteProfile.artists.slice(5, 15);
+  
+  const candidates: Song[] = [];
+  const addCandidate = (song: Song) => {
+    if (excludeSet.has(song.id)) return;
+    const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
+    if (songArtists.some((sa) => top5Artists.has(sa))) return;
+    excludeSet.add(song.id);
+    candidates.push(song);
+  };
+
+  if (secondaryArtists.length > 0) {
+    const fetchResults = await Promise.allSettled(
+      secondaryArtists.map((a) => {
+        if (a.artistId && /^\d+$/.test(a.artistId)) {
+          return fetchArtistSongs(a.artistId, 0, 8);
+        }
+        return searchSongs(`${a.artistName} hits`, 10);
+      })
+    );
+    for (const res of fetchResults) {
+      if (res.status === "fulfilled") {
+        const normalized = normalizeSongsToCanonical(res.value);
+        for (const s of normalized) {
+          addCandidate(s);
+        }
+      }
+    }
+  }
+
+  const recentIds = tasteProfile.recentSongIds || [];
+  if (recentIds.length > 0) {
+    const seeds = recentIds.slice(0, 3);
+    const recResults = await Promise.allSettled(
+      seeds.map((id) => getSuggestions(id, 20))
+    );
+    for (const res of recResults) {
+      if (res.status === "fulfilled") {
+        const normalized = normalizeSongsToCanonical(res.value);
+        for (const s of normalized) {
+          addCandidate(s);
+        }
+      }
+    }
+  }
+
+  if (candidates.length < limit * 1.5) {
+    const secondaryLangs = tasteProfile.languages.slice(1, 3);
+    const langResults = await Promise.allSettled(
+      secondaryLangs.map((l) => searchSongs(`trending ${l.language} songs`, 20))
+    );
+    for (const res of langResults) {
+      if (res.status === "fulfilled") {
+        const normalized = normalizeSongsToCanonical(res.value);
+        for (const s of normalized) {
+          addCandidate(s);
+        }
+      }
+    }
+  }
+
+  const secondaryLangSet = new Set(tasteProfile.languages.slice(1, 3).map((l) => l.language));
+  const secondaryArtistSet = new Set(secondaryArtists.map((a) => a.artistName.toLowerCase()));
+
+  const scored = candidates.map((song) => {
+    let score = 0;
+    const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
+    
+    for (const sa of songArtists) {
+      if (secondaryArtistSet.has(sa)) {
+        score += 40;
+        break;
+      }
+    }
+
+    if (song.language && secondaryLangSet.has(song.language)) {
+      score += 30;
+    }
+
+    score += popularityScore(song.playCount);
+    score += coverPenalty(song.name || "");
+
+    return { ...song, _recScore: score };
+  });
+
+  scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
+  return scored.slice(0, limit).map((s) => {
+    const clean = { ...s };
+    delete (clean as any)._recScore;
     return clean;
   });
 }
