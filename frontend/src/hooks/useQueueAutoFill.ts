@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { getNextRecommendations, getRelatedSongs } from "../api/backend";
 
-const REFILL_THRESHOLD = 100; // trigger when fewer than N songs remain
+const PREFETCH_THRESHOLD = 2; // trigger when PREFETCH_THRESHOLD or fewer unplayed songs remain in queue
 const PREFETCH_LIMIT = 100;
 const MAX_QUEUE_SIZE = 300;
 const FETCH_COOLDOWN_MS = 5_000; // faster refill for large targets
@@ -57,6 +57,7 @@ export function useQueueAutoFill({
   const fetchRelated = useCallback(async () => {
     const songId = lastSongIdRef.current;
     if (!songId) return;
+    // Safeguard: Prevent parallel duplicate fetches when skipping rapidly
     if (fetchingRef.current) return;
 
     // Critical fail-safe: if the queue is running critically dry, reset exhaustion
@@ -130,8 +131,9 @@ export function useQueueAutoFill({
   useEffect(() => {
     if (!enabled || !currentSong) return;
     const remaining = queue.length - queueIndex - 1;
-    // Aggressively fill if under 300 songs OR approaching end
-    if (queue.length < MAX_QUEUE_SIZE || remaining < REFILL_THRESHOLD) {
+    // Trigger background prefetch when remaining unplayed songs drops to or below threshold.
+    // This fetch runs asynchronously and is completely non-blocking to song playback and UI.
+    if (remaining <= PREFETCH_THRESHOLD) {
       fetchRelated();
     }
   }, [enabled, queue.length, queueIndex, currentSong?.id]);

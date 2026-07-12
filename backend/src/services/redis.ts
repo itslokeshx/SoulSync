@@ -12,18 +12,26 @@ const useRedis = !!(REDIS_URL && REDIS_TOKEN);
 async function redisRequest(command: string[]): Promise<unknown> {
   if (!useRedis) throw new Error("Redis not configured");
 
-  const res = await fetch(`${REDIS_URL}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${REDIS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(command),
-  });
+  try {
+    const res = await fetch(`${REDIS_URL}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${REDIS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(command),
+    });
 
-  if (!res.ok) throw new Error(`Redis error: ${res.status}`);
-  const data = (await res.json()) as { result: unknown };
-  return data.result;
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Upstash Redis HTTP error ${res.status}: ${errText}`);
+    }
+    const data = (await res.json()) as { result: unknown };
+    return data.result;
+  } catch (error) {
+    console.error(`[Redis Request Failed] Command: ${JSON.stringify(command)}, Error:`, error);
+    throw error;
+  }
 }
 
 export async function redisGet(key: string): Promise<string | null> {
@@ -31,7 +39,8 @@ export async function redisGet(key: string): Promise<string | null> {
     try {
       const result = await redisRequest(["GET", key]);
       return result as string | null;
-    } catch {
+    } catch (err) {
+      console.error(`[Redis Error] GET failed for key "${key}":`, err);
       // Fallback to memory
     }
   }
@@ -57,7 +66,8 @@ export async function redisSet(
         : ["SET", key, value];
       await redisRequest(cmd);
       return;
-    } catch {
+    } catch (err) {
+      console.error(`[Redis Error] SET failed for key "${key}":`, err);
       // Fallback to memory
     }
   }
@@ -73,7 +83,8 @@ export async function redisDel(key: string): Promise<void> {
     try {
       await redisRequest(["DEL", key]);
       return;
-    } catch {
+    } catch (err) {
+      console.error(`[Redis Error] DEL failed for key "${key}":`, err);
       // Fallback
     }
   }
@@ -85,7 +96,8 @@ export async function redisIncr(key: string): Promise<number> {
     try {
       const result = await redisRequest(["INCR", key]);
       return result as number;
-    } catch {
+    } catch (err) {
+      console.error(`[Redis Error] INCR failed for key "${key}":`, err);
       // Fallback
     }
   }
