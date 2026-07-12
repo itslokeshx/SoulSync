@@ -62,7 +62,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsPlaying,
   } = usePlayerStore();
 
-  const { next, prev, queue, addLast } = useQueueStore();
+  const { next, prev, queue, queueIndex, addLast } = useQueueStore();
 
   // ── Refs & Synchronization Flags ──────────────────────────────────
   const isRemoteActionRef = useRef(false);
@@ -353,6 +353,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     initBackgroundAudio();
   }, []);
+
+  // Pre-fetch autoplay suggestions when approaching the end of the queue (before the last 2 songs played)
+  const lastAutoplayFetchedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoplay || !currentSong) return;
+    if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
+
+    const remaining = queue.length - queueIndex - 1;
+    if (remaining <= 1 && queue.length > 0) {
+      const lastSong = queue[queue.length - 1];
+      if (!lastSong || lastSong._isOffline || lastSong.id?.startsWith("local_")) return;
+
+      if (lastAutoplayFetchedRef.current === lastSong.id) return;
+      lastAutoplayFetchedRef.current = lastSong.id;
+
+      fetch(`/api/search/autoplay/${lastSong.id}`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((data) => {
+          const songs: any[] = data?.songs ?? [];
+          if (!songs.length) return;
+          // Filter out duplicates already in the queue
+          const queueIds = new Set(queue.map((s) => s.id));
+          const newSongs = songs.filter((s) => s.id && !queueIds.has(s.id));
+          newSongs.forEach((s) => addLast(s));
+        })
+        .catch((err) => {
+          console.warn("[Player] Autoplay pre-fetch failed:", err);
+        });
+    }
+  }, [autoplay, currentSong?.id, queue, queueIndex, addLast]);
 
   // ── Audio Element Handlers ──────────────────────────────────────
   const handleTimeUpdate = () => {
