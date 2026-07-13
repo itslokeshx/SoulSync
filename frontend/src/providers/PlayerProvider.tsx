@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
-import { logHistory } from "../api/backend";
+import { logHistory, getAutoplaySongs } from "../api/backend";
 import { bestImg, getArtists } from "../lib/helpers";
 import {
   registerMediaControls,
@@ -368,8 +368,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (lastAutoplayFetchedRef.current === lastSong.id) return;
       lastAutoplayFetchedRef.current = lastSong.id;
 
-      fetch(`/api/search/autoplay/${lastSong.id}`, { credentials: "include" })
-        .then((r) => r.json())
+      getAutoplaySongs(lastSong.id)
         .then((data) => {
           const songs: any[] = data?.songs ?? [];
           if (!songs.length) return;
@@ -417,8 +416,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const { autoplay: ap, currentSong: song } = usePlayerStore.getState();
         if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
           toast("Finding similar songs...");
-          fetch(`/api/search/autoplay/${song.id}`, { credentials: "include" })
-            .then((r) => r.json())
+          getAutoplaySongs(song.id)
             .then((data) => {
               const songs: any[] = data?.songs ?? [];
               if (!songs.length) { pause(); return; }

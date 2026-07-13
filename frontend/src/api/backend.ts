@@ -598,3 +598,8 @@ export async function markWhatsNewVersionSeen(version: string): Promise<{ succes
   return data;
 }
 
+export async function getAutoplaySongs(songId: string): Promise<{ songs: any[] }> {
+  const { data } = await api.get(`/api/search/autoplay/${songId}`);
+  return data;
+}
+

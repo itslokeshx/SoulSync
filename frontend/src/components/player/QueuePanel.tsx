@@ -5,6 +5,7 @@ import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import { usePlayerStore } from "../../store/playerStore";
 import { useQueueStore } from "../../store/queueStore";
+import { getAutoplaySongs } from "../../api/backend";
 
 interface QueuePanelProps {
   queue: any[];
@@ -54,8 +55,7 @@ export const QueuePanel = ({
     }
     let cancelled = false;
     setAutoplayLoading(true);
-    fetch(`/api/search/autoplay/${currentSong.id}`, { credentials: "include" })
-      .then((r) => r.json())
+    getAutoplaySongs(currentSong.id)
       .then((data) => {
         if (cancelled) return;
         const inQueue = new Set(queue.map((s: any) => s.id));
