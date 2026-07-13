@@ -1,5 +1,4 @@
 import { useEffect, useCallback, useRef } from "react";
-import axios from "axios";
 import { useAnnouncementStore } from "../store/announcementStore";
 import {
   getLastSeenWhatsNewVersion,
@@ -9,6 +8,12 @@ import {
 } from "../utils/announcementStorage";
 import { getCurrentVersion, compareVersions } from "../utils/updateChecker";
 import { isNative } from "../utils/platform";
+import { useAuth } from "../auth/AuthContext";
+import {
+  getActiveAnnouncements,
+  markAnnouncementSeen,
+  markWhatsNewVersionSeen,
+} from "../api/backend";
 
 const API = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
 
@@ -18,6 +23,7 @@ let consecutiveFailures = 0;
 const MAX_FAILURES_BEFORE_STOP = 3;
 
 export function useAnnouncements() {
+  const { isAuthenticated } = useAuth();
   const {
     announcements,
     seenIds,
@@ -46,12 +52,26 @@ export function useAnnouncements() {
     await saveSeenId(id);
     const updatedSeen = await getSeenAnnouncementIds();
     setSeenIds(updatedSeen);
-  }, [setSeenIds]);
+    if (isAuthenticated) {
+      try {
+        await markAnnouncementSeen(id);
+      } catch (err) {
+        console.error("Failed to mark announcement seen on server:", err);
+      }
+    }
+  }, [setSeenIds, isAuthenticated]);
 
   const markWhatsNewSeen = useCallback(async (version: string) => {
     await saveLastSeenVersion(version);
     setLastSeenVersion(version);
-  }, [setLastSeenVersion]);
+    if (isAuthenticated) {
+      try {
+        await markWhatsNewVersionSeen(version);
+      } catch (err) {
+        console.error("Failed to mark version seen on server:", err);
+      }
+    }
+  }, [setLastSeenVersion, isAuthenticated]);
 
   const evaluateAutoPopup = useCallback(async (activeList: any[]) => {
     if (useAnnouncementStore.getState().hasShownAutoPopupThisSession) {
@@ -129,18 +149,57 @@ export function useAnnouncements() {
 
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/api/announcements/active`, {
-        timeout: 5000,
-      });
-      const active = res.data?.announcements || [];
+      const res = await getActiveAnnouncements();
+      const active = res.announcements || [];
       setAnnouncements(active);
       lastFetchTime = Date.now();
       consecutiveFailures = 0; // Reset on success
+
+      if (isAuthenticated) {
+        const serverSeenIds = res.seenAnnouncements || [];
+        const serverVersion = res.lastSeenWhatsNewVersion || "";
+
+        const localSeenIds = await getSeenAnnouncementIds();
+        const localSeenVersion = await getLastSeenWhatsNewVersion();
+
+        const allSeenIds = Array.from(new Set([...localSeenIds, ...serverSeenIds]));
+
+        // Reconcile missing local seen IDs
+        const missingLocally = serverSeenIds.filter(id => !localSeenIds.includes(id));
+        for (const id of missingLocally) {
+          await saveSeenId(id);
+        }
+
+        // Reconcile missing server seen IDs
+        const missingOnServer = localSeenIds.filter(id => !serverSeenIds.includes(id));
+        for (const id of missingOnServer) {
+          try {
+            await markAnnouncementSeen(id);
+          } catch (err) {
+            console.error(`Failed to sync seen announcement ${id} to server:`, err);
+          }
+        }
+
+        // Reconcile version
+        if (serverVersion && (!localSeenVersion || compareVersions(localSeenVersion, serverVersion))) {
+          await saveLastSeenVersion(serverVersion);
+          setLastSeenVersion(serverVersion);
+        } else if (localSeenVersion && (!serverVersion || compareVersions(serverVersion, localSeenVersion))) {
+          try {
+            await markWhatsNewVersionSeen(localSeenVersion);
+          } catch (err) {
+            console.error("Failed to sync seen version to server:", err);
+          }
+        }
+
+        setSeenIds(allSeenIds);
+      }
+
       await evaluateAutoPopup(active);
-    } catch {
+    } catch (err) {
       consecutiveFailures++;
       if (consecutiveFailures <= 1) {
-        console.warn("[Announcements] Fetch failed (offline/network error) — will not retry further.");
+        console.warn("[Announcements] Fetch failed (offline/network error) — will not retry further.", err);
       }
       // Fallback: evaluate auto-popup with already cached list if we have it
       if (cached.length > 0) {
@@ -149,7 +208,7 @@ export function useAnnouncements() {
     } finally {
       setLoading(false);
     }
-  }, [setAnnouncements, setLoading, evaluateAutoPopup]);
+  }, [setAnnouncements, setLoading, evaluateAutoPopup, isAuthenticated]);
 
   // Hook initialization — fetch only once on mount
   useEffect(() => {

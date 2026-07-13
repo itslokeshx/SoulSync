@@ -45,6 +45,11 @@ export interface IUser extends Document {
   likedSongs: ISongEmbed[];
   totalListeningTime: number;
   onboardingComplete: boolean;
+  seenAnnouncements: {
+    announcementId: string;
+    seenAt: Date;
+  }[];
+  lastSeenWhatsNewVersion: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +93,16 @@ const UserSchema = new Schema<IUser>(
     likedSongs: { type: [SongEmbedSchema], default: [] },
     totalListeningTime: { type: Number, default: 0 },
     onboardingComplete: { type: Boolean, default: false },
+    seenAnnouncements: {
+      type: [
+        {
+          announcementId: { type: String, required: true },
+          seenAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+    lastSeenWhatsNewVersion: { type: String, default: "" },
   },
   { timestamps: true },
 );

@@ -6,43 +6,119 @@ import { Router, Request, Response } from "express";
 import { Announcement } from "../models/Announcement.js";
 import { adminAuthMiddleware } from "../middleware/adminAuth.js";
 import { redisGet, redisSet, redisDel } from "../services/redis.js";
+import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
+import { User } from "../models/User.js";
 
 const router = Router();
 
+// POST /api/announcements/version/seen
+// Update the user's last seen what's new version
+router.post("/version/seen", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { version } = req.body;
+    const userId = req.userId;
+
+    if (!version) {
+      res.status(400).json({ error: "version is required" });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    user.lastSeenWhatsNewVersion = version;
+    await user.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[Announcements] Version seen error:", err);
+    res.status(500).json({ error: "Failed to update seen version" });
+  }
+});
+
+// POST /api/announcements/:id/seen
+// Mark an announcement as seen for the logged-in user
+router.post("/:id/seen", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    // Check if already in array to avoid duplicate subdocuments
+    const alreadySeen = user.seenAnnouncements.some((s) => s.announcementId === id);
+    if (!alreadySeen) {
+      user.seenAnnouncements.push({ announcementId: id, seenAt: new Date() });
+      await user.save();
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[Announcements] Seen error:", err);
+    res.status(500).json({ error: "Failed to mark announcement as seen" });
+  }
+});
+
 // GET /api/announcements/active
 // Returns active, non-expired announcements sorted by priority and creation date
-router.get("/active", async (req: Request, res: Response): Promise<void> => {
+router.get("/active", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
     const cacheKey = "announcements:active";
+    let activeList: any[] = [];
+    let fromCache = false;
+
     try {
       const cached = await redisGet(cacheKey);
       if (cached) {
-        res.json(JSON.parse(cached));
-        return;
+        activeList = JSON.parse(cached).announcements;
+        fromCache = true;
       }
     } catch (err) {
       console.warn("[Announcements] Redis get error:", err);
     }
 
-    const now = new Date();
-    const activeList = await Announcement.find({
-      active: true,
-      $or: [
-        { expiresAt: { $exists: false } },
-        { expiresAt: null },
-        { expiresAt: { $gt: now } },
-      ],
-    }).sort({ priority: -1, createdAt: -1 });
+    if (!fromCache || !activeList.length) {
+      const now = new Date();
+      activeList = await Announcement.find({
+        active: true,
+        $or: [
+          { expiresAt: { $exists: false } },
+          { expiresAt: null },
+          { expiresAt: { $gt: now } },
+        ],
+      }).sort({ priority: -1, createdAt: -1 });
 
-    const responseData = { announcements: activeList };
+      const responseData = { announcements: activeList };
 
-    try {
-      await redisSet(cacheKey, JSON.stringify(responseData), 3600); // 1 hour cache
-    } catch (err) {
-      console.warn("[Announcements] Redis set error:", err);
+      try {
+        await redisSet(cacheKey, JSON.stringify(responseData), 3600); // 1 hour cache
+      } catch (err) {
+        console.warn("[Announcements] Redis set error:", err);
+      }
     }
 
-    res.json(responseData);
+    // If authenticated, fetch user's seen status
+    if (req.userId) {
+      const user = await User.findById(req.userId);
+      if (user) {
+        res.json({
+          announcements: activeList,
+          seenAnnouncements: user.seenAnnouncements.map((s) => s.announcementId),
+          lastSeenWhatsNewVersion: user.lastSeenWhatsNewVersion,
+        });
+        return;
+      }
+    }
+
+    res.json({ announcements: activeList });
   } catch (err) {
     console.error("[Announcements] Active fetch error:", err);
     res.status(500).json({ error: "Failed to fetch active announcements" });

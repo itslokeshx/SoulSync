@@ -583,3 +583,18 @@ export async function deleteAnnouncement(id: string): Promise<{ success: boolean
   return data;
 }
 
+export async function getActiveAnnouncements(): Promise<{ announcements: any[]; seenAnnouncements?: string[]; lastSeenWhatsNewVersion?: string }> {
+  const { data } = await api.get("/api/announcements/active");
+  return data;
+}
+
+export async function markAnnouncementSeen(id: string): Promise<{ success: boolean }> {
+  const { data } = await api.post(`/api/announcements/${id}/seen`);
+  return data;
+}
+
+export async function markWhatsNewVersionSeen(version: string): Promise<{ success: boolean }> {
+  const { data } = await api.post("/api/announcements/version/seen", { version });
+  return data;
+}
+
