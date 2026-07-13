@@ -37,6 +37,9 @@ import { useUIStore } from "../store/uiStore";
 import { bestImg, getArtists, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { useApp } from "../context/AppContext";
+import { startRadio } from "../api/backend";
+import { normalizeSongs } from "../utils/normalizeSong";
+
 
 
 
@@ -371,8 +374,19 @@ export function SearchPage() {
   }, [loadMore]);
 
   const handlePlay = useCallback(
-    (song: any) => {
-      playSong(song, result?.songs || []);
+    async (song: any) => {
+      try {
+        const res = await startRadio(song.id);
+        if (res.songs && res.songs.length > 0) {
+          const normalized = normalizeSongs(res.songs);
+          playSong(normalized[0], normalized);
+        } else {
+          playSong(song, [song]);
+        }
+      } catch (err) {
+        console.error("Failed to start radio from search:", err);
+        playSong(song, result?.songs || []);
+      }
       if (query.trim()) {
         saveRecentSearch(query.trim());
         setRecentSearches(getRecentSearches());

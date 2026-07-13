@@ -28,6 +28,8 @@ import {
   getKnownSongIds,
   type RankedSong,
 } from "../services/searchRanker.js";
+import { softAuth } from "../middleware/softAuth.js";
+import { getNextRecommendations } from "../services/recommendationEngine.js";
 
 const router = Router();
 
@@ -420,52 +422,19 @@ router.get("/album", async (req: any, res: Response) => {
 });
 
 // ── GET /autoplay/:songId ────────────────────────────────────────────────────
-// Returns up to 10 suggested songs for a given song ID, normalized and cached.
-router.get("/autoplay/:songId", async (req: any, res: Response): Promise<void> => {
+// Returns up to 10 suggested songs for a given song ID, using the taste-profile recommendation engine.
+router.get("/autoplay/:songId", softAuth, async (req: any, res: Response): Promise<void> => {
   const { songId } = req.params;
   if (!songId) {
     res.status(400).json({ error: "Song ID required" });
     return;
   }
 
-  const cacheKey = `autoplay:v1:${songId}`;
   try {
-    const hit = await redisGet(cacheKey);
-    if (hit) {
-      res.json(JSON.parse(hit));
-      return;
-    }
-  } catch {
-    /* cache miss — continue */
-  }
-
-  try {
-    const apiBase = (
-      process.env.JIOSAAVN_API || "https://jiosavan-api2.vercel.app/api"
-    ).replace(/\/+$/, "");
-
-    const resp = await fetch(
-      `${apiBase}/songs/${songId}/suggestions?limit=10`,
-    );
-    if (!resp.ok) {
-      res.status(resp.status).json({ error: "Failed to fetch suggestions" });
-      return;
-    }
-
-    const data = (await resp.json()) as any;
-    // Wrapper API returns data.data as the songs array
-    const raw: any[] = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.data)
-        ? data.data
-        : (data?.songs ?? []);
-
-    const songs = normalizeSongsToCanonical(raw);
-    const result = { songs };
-
-    // 10-minute cache
-    await redisSet(cacheKey, JSON.stringify(result), 600).catch(() => {});
-    res.json(result);
+    const recommendedSongs = await getNextRecommendations(songId, req.userId);
+    // Limit to 10 to match previous response size and fit preview UI
+    const songs = recommendedSongs.slice(0, 10);
+    res.json({ songs });
   } catch (err) {
     console.error("[Search] Autoplay error:", err);
     res.status(500).json({ error: "Failed to fetch autoplay suggestions", songs: [] });

@@ -603,13 +603,15 @@ export function normalizeSongToCanonical(raw: any): Song | null {
     }
   }
 
-  // ✅ FIX: Direct jiosaavn.com songs carry stream URL in more_info
+  // ✅ FIX: Direct jiosaavn.com songs carry stream URL in root or more_info
   // This fires when Tier 1 wins and no enrichment loop ran
-  if (!streamUrl && raw.more_info?.encrypted_media_url) {
-    streamUrl = decodeHtmlEntities(raw.more_info.encrypted_media_url);
+  const encUrl = raw.encrypted_media_url || raw.more_info?.encrypted_media_url;
+  if (!streamUrl && encUrl) {
+    streamUrl = decodeHtmlEntities(encUrl);
   }
-  if (!streamUrl && raw.more_info?.media_url) {
-    streamUrl = decodeHtmlEntities(raw.more_info.media_url);
+  const medUrl = raw.media_url || raw.more_info?.media_url;
+  if (!streamUrl && medUrl) {
+    streamUrl = decodeHtmlEntities(medUrl);
   }
 
   // ── Image: highest quality available ─────────────────────────

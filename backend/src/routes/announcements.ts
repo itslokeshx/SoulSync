@@ -5,6 +5,7 @@
 import { Router, Request, Response } from "express";
 import { Announcement } from "../models/Announcement.js";
 import { adminAuthMiddleware } from "../middleware/adminAuth.js";
+import { redisGet, redisSet, redisDel } from "../services/redis.js";
 
 const router = Router();
 
@@ -12,6 +13,17 @@ const router = Router();
 // Returns active, non-expired announcements sorted by priority and creation date
 router.get("/active", async (req: Request, res: Response): Promise<void> => {
   try {
+    const cacheKey = "announcements:active";
+    try {
+      const cached = await redisGet(cacheKey);
+      if (cached) {
+        res.json(JSON.parse(cached));
+        return;
+      }
+    } catch (err) {
+      console.warn("[Announcements] Redis get error:", err);
+    }
+
     const now = new Date();
     const activeList = await Announcement.find({
       active: true,
@@ -22,7 +34,15 @@ router.get("/active", async (req: Request, res: Response): Promise<void> => {
       ],
     }).sort({ priority: -1, createdAt: -1 });
 
-    res.json({ announcements: activeList });
+    const responseData = { announcements: activeList };
+
+    try {
+      await redisSet(cacheKey, JSON.stringify(responseData), 3600); // 1 hour cache
+    } catch (err) {
+      console.warn("[Announcements] Redis set error:", err);
+    }
+
+    res.json(responseData);
   } catch (err) {
     console.error("[Announcements] Active fetch error:", err);
     res.status(500).json({ error: "Failed to fetch active announcements" });
@@ -81,6 +101,12 @@ router.post("/admin", adminAuthMiddleware, async (req: Request, res: Response): 
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
     });
 
+    try {
+      await redisDel("announcements:active");
+    } catch (err) {
+      console.warn("[Announcements Admin] Redis del error:", err);
+    }
+
     res.status(201).json({ success: true, announcement: created });
   } catch (err) {
     console.error("[Announcements Admin] Create error:", err);
@@ -110,6 +136,12 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: Request, res: Respon
       return;
     }
 
+    try {
+      await redisDel("announcements:active");
+    } catch (err) {
+      console.warn("[Announcements Admin] Redis del error:", err);
+    }
+
     res.json({ success: true, announcement: updated });
   } catch (err) {
     console.error("[Announcements Admin] Patch error:", err);
@@ -127,6 +159,13 @@ router.delete("/admin/:id", adminAuthMiddleware, async (req: Request, res: Respo
       res.status(404).json({ error: "Announcement not found." });
       return;
     }
+
+    try {
+      await redisDel("announcements:active");
+    } catch (err) {
+      console.warn("[Announcements Admin] Redis del error:", err);
+    }
+
     res.json({ success: true, message: "Announcement deleted successfully." });
   } catch (err) {
     console.error("[Announcements Admin] Delete error:", err);
