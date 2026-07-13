@@ -91,7 +91,16 @@ api.interceptors.request.use((config) => {
 
 // Intercept responses to silently handle expected 401s for guest users
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const contentType = String(response.headers?.["content-type"] || "");
+    if (contentType.includes("text/html")) {
+      console.error(
+        `[API] Received non-JSON response from ${response.config.url || "unknown URL"} — possible wrong backend URL (hitting client/frontend domain instead).`
+      );
+      throw new Error(`[API] Expected JSON but received HTML from ${response.config.url || "unknown URL"}`);
+    }
+    return response;
+  },
   (error) => {
     // Specifically silence 401s from /api/auth/me and /api/playlists which are expected for guests
     if (error.response?.status === 401) {
@@ -599,7 +608,7 @@ export async function markWhatsNewVersionSeen(version: string): Promise<{ succes
 }
 
 export async function getAutoplaySongs(songId: string): Promise<{ songs: any[] }> {
-  const { data } = await api.get(`/api/search/autoplay/${songId}`);
+  const { data } = await api.get(`/api/search/autoplay/${songId}`, { timeout: 12000 });
   return data;
 }
 

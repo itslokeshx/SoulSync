@@ -368,18 +368,27 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (lastAutoplayFetchedRef.current === lastSong.id) return;
       lastAutoplayFetchedRef.current = lastSong.id;
 
-      getAutoplaySongs(lastSong.id)
-        .then((data) => {
-          const songs: any[] = data?.songs ?? [];
-          if (!songs.length) return;
-          // Filter out duplicates already in the queue
-          const queueIds = new Set(queue.map((s) => s.id));
-          const newSongs = songs.filter((s) => s.id && !queueIds.has(s.id));
-          newSongs.forEach((s) => addLast(s));
-        })
-        .catch((err) => {
-          console.warn("[Player] Autoplay pre-fetch failed:", err);
-        });
+      const fetchWithRetry = (retriesLeft = 1) => {
+        getAutoplaySongs(lastSong.id)
+          .then((data) => {
+            const songs: any[] = data?.songs ?? [];
+            if (!songs.length) return;
+            // Filter out duplicates already in the queue
+            const queueIds = new Set(queue.map((s) => s.id));
+            const newSongs = songs.filter((s) => s.id && !queueIds.has(s.id));
+            newSongs.forEach((s) => addLast(s));
+          })
+          .catch((err) => {
+            if (retriesLeft > 0) {
+              console.warn("[Player] Autoplay pre-fetch failed, retrying in 2.5s...", err);
+              setTimeout(() => fetchWithRetry(retriesLeft - 1), 2500);
+            } else {
+              console.warn("[Player] Autoplay pre-fetch failed after retry:", err);
+            }
+          });
+      };
+
+      fetchWithRetry();
     }
   }, [autoplay, currentSong?.id, queue, queueIndex, addLast]);
 
@@ -416,17 +425,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const { autoplay: ap, currentSong: song } = usePlayerStore.getState();
         if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
           toast("Finding similar songs...");
-          getAutoplaySongs(song.id)
-            .then((data) => {
-              const songs: any[] = data?.songs ?? [];
-              if (!songs.length) { pause(); return; }
-              songs.forEach((s) => addLast(s));
-              // Advance past the now-extended queue
-              const nextSong = useQueueStore.getState().next(repeatMode);
-              if (nextSong) playSong(nextSong);
-              else pause();
-            })
-            .catch(() => pause());
+          const fetchWithRetry = (retriesLeft = 1) => {
+            getAutoplaySongs(song.id)
+              .then((data) => {
+                const songs: any[] = data?.songs ?? [];
+                if (!songs.length) { pause(); return; }
+                songs.forEach((s) => addLast(s));
+                // Advance past the now-extended queue
+                const nextSong = useQueueStore.getState().next(repeatMode);
+                if (nextSong) playSong(nextSong);
+                else pause();
+              })
+              .catch((err) => {
+                if (retriesLeft > 0) {
+                  console.warn("[Player] Queue exhausted autoplay fetch failed, retrying in 2.5s...", err);
+                  setTimeout(() => fetchWithRetry(retriesLeft - 1), 2500);
+                } else {
+                  console.error("[Player] Queue exhausted autoplay fetch failed after retry:", err);
+                  toast.error("Couldn't load more songs — check your connection");
+                  pause();
+                }
+              });
+          };
+
+          fetchWithRetry();
         } else {
           pause();
         }
