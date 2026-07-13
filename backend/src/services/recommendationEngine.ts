@@ -782,9 +782,6 @@ export async function generateSeedAnchoredBatch(
     candidates.push(song);
   };
 
-  console.log('[RADIO DEBUG] seed resolved:', seed ? seed.id : 'NULL');
-  console.log('[RADIO DEBUG] taste profile loaded:', tasteProfile ? 'yes' : 'no/empty');
-
   // Source 1: Co-occurrence
   let cooccurCount = 0;
   const coOccurrenceCandidatesList: Song[] = [];
@@ -804,7 +801,6 @@ export async function generateSeedAnchoredBatch(
       } catch {}
     }
   } catch {}
-  console.log('[RADIO DEBUG] co-occurrence candidates:', coOccurrenceCandidatesList.length);
 
   // Source 2: JioSaavn suggestions
   let suggestionsCount = 0;
@@ -818,8 +814,6 @@ export async function generateSeedAnchoredBatch(
       addCandidate(s);
     }
   } catch {}
-  console.log('[RADIO DEBUG] jiosaavn similar-songs candidates:', jiosaavnCandidatesList.length);
-  console.log('[RADIO DEBUG] total candidates before filtering:', candidates.length);
 
   // Source 3: Hits from primary artist of the seed
   let artistHitsCount = 0;
@@ -848,14 +842,11 @@ export async function generateSeedAnchoredBatch(
 
   // Cover penalty filter
   const filtered = candidates.filter(song => coverPenalty((song.name || "").toLowerCase()) >= 0);
-  console.log('[RADIO DEBUG] candidates after cover-penalty filter:', filtered.length);
 
   // Anti-repeat filter (candidates not in excludeIds)
   const afterAntiRepeat = candidates.filter(song => !excludeIds.includes(song.id));
-  console.log('[RADIO DEBUG] candidates after anti-repeat filter:', afterAntiRepeat.length);
 
   if (candidates.length === 0) {
-    console.log('[RADIO DEBUG] final batch size: 0');
     return [];
   }
 
@@ -952,7 +943,6 @@ export async function generateSeedAnchoredBatch(
     if (diversified.length >= batchSize) break;
   }
 
-  console.log('[RADIO DEBUG] final batch size:', diversified.length);
   return diversified;
 }
 
