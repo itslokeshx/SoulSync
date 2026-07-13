@@ -782,14 +782,12 @@ export async function generateSeedAnchoredBatch(
     candidates.push(song);
   };
 
-  const debug = process.env.DEBUG_RECOMMENDATIONS === "true";
-  if (debug) {
-    console.log(`[RecEngine] Starting generateSeedAnchoredBatch for Seed: "${seed.name}" (${seedId}), Artist: "${seedArtist}", Lang: "${seedLang}"`);
-    console.log(`[RecEngine] Exclude list size: ${excludeIds.length}`);
-  }
+  console.log('[RADIO DEBUG] seed resolved:', seed ? seed.id : 'NULL');
+  console.log('[RADIO DEBUG] taste profile loaded:', tasteProfile ? 'yes' : 'no/empty');
 
   // Source 1: Co-occurrence
   let cooccurCount = 0;
+  const coOccurrenceCandidatesList: Song[] = [];
   try {
     const cooccurrences = await SongCooccurrence.find({ songIdA: seedId })
       .sort({ decayedScore: -1 })
@@ -799,21 +797,29 @@ export async function generateSeedAnchoredBatch(
     for (const co of cooccurrences) {
       try {
         const song = await fetchSongById(co.songIdB);
-        if (song) addCandidate(song);
+        if (song) {
+          coOccurrenceCandidatesList.push(song);
+          addCandidate(song);
+        }
       } catch {}
     }
   } catch {}
+  console.log('[RADIO DEBUG] co-occurrence candidates:', coOccurrenceCandidatesList.length);
 
   // Source 2: JioSaavn suggestions
   let suggestionsCount = 0;
+  const jiosaavnCandidatesList: Song[] = [];
   try {
     const raw = await getSuggestions(seedId, 30);
     suggestionsCount = raw.length;
     const normalized = normalizeSongsToCanonical(raw);
     for (const s of normalized) {
+      jiosaavnCandidatesList.push(s);
       addCandidate(s);
     }
   } catch {}
+  console.log('[RADIO DEBUG] jiosaavn similar-songs candidates:', jiosaavnCandidatesList.length);
+  console.log('[RADIO DEBUG] total candidates before filtering:', candidates.length);
 
   // Source 3: Hits from primary artist of the seed
   let artistHitsCount = 0;
@@ -840,12 +846,18 @@ export async function generateSeedAnchoredBatch(
     } catch {}
   }
 
-  if (debug) {
-    console.log(`[RecEngine] Candidate counts - Cooccurrences: ${cooccurCount}, Suggestions: ${suggestionsCount}, Artist Hits: ${artistHitsCount}, Fallbacks: ${fallbackCount}`);
-    console.log(`[RecEngine] Total unique candidates gathered: ${candidates.length}`);
-  }
+  // Cover penalty filter
+  const filtered = candidates.filter(song => coverPenalty((song.name || "").toLowerCase()) >= 0);
+  console.log('[RADIO DEBUG] candidates after cover-penalty filter:', filtered.length);
 
-  if (candidates.length === 0) return [];
+  // Anti-repeat filter (candidates not in excludeIds)
+  const afterAntiRepeat = candidates.filter(song => !excludeIds.includes(song.id));
+  console.log('[RADIO DEBUG] candidates after anti-repeat filter:', afterAntiRepeat.length);
+
+  if (candidates.length === 0) {
+    console.log('[RADIO DEBUG] final batch size: 0');
+    return [];
+  }
 
   // Score candidates with seed-weighted ranking (seed weight close to 1.0)
   const scored = candidates.map((song) => {
@@ -918,13 +930,6 @@ export async function generateSeedAnchoredBatch(
   // Sort candidates
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  if (debug) {
-    console.log("[RecEngine] Top 5 scored candidates before diversification:");
-    scored.slice(0, 5).forEach((c) => {
-      console.log(`  - "${c.name}" by ${c.primaryArtists} (Score: ${c._recScore})`);
-    });
-  }
-
   // Diversity: max 2 songs per artist
   const artistCount = new Map<string, number>();
   const diversified: Song[] = [];
@@ -947,13 +952,7 @@ export async function generateSeedAnchoredBatch(
     if (diversified.length >= batchSize) break;
   }
 
-  if (debug) {
-    console.log(`[RecEngine] Final recommendations generated (${diversified.length} songs):`);
-    diversified.forEach((d) => {
-      console.log(`  - "${d.name}" by ${d.primaryArtists} (Reason: ${(d as any).reason})`);
-    });
-  }
-
+  console.log('[RADIO DEBUG] final batch size:', diversified.length);
   return diversified;
 }
 
