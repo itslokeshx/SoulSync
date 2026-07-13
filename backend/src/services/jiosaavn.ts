@@ -137,8 +137,67 @@ async function fetchWithRetry(
   }
 }
 
-// Keep fetchSafe as a lightweight alias for non-critical calls
-const fetchSafe = (url: string) => fetchWithRetry(url, 2);
+// Shared fetchSafe wrapper that extracts the subpath and attempts all configured wrappers sequentially
+const fetchSafe = async (urlOrPath: string, attempts = 2): Promise<any> => {
+  let subpath = urlOrPath;
+  const knownBases = [
+    "https://jiosavan-api2.vercel.app/api",
+    "https://saavn.sumit.co/api",
+    JIOSAAVN_BASE
+  ];
+
+  for (const base of knownBases) {
+    if (subpath.startsWith(base)) {
+      subpath = subpath.slice(base.length);
+      break;
+    }
+  }
+
+  // Ensure subpath starts with a slash
+  if (!subpath.startsWith("/")) {
+    subpath = "/" + subpath;
+  }
+
+  // Define candidate wrappers in order of priority (filtering duplicates and falsy entries)
+  const wrappers = Array.from(
+    new Set(
+      [
+        process.env.JIOSAAVN_API,
+        process.env.JIOSAAVN_API_PRIMARY,
+        process.env.JIOSAAVN_API_FALLBACK,
+        "https://jiosavan-api2.vercel.app/api",
+        "https://saavn.sumit.co/api",
+      ]
+        .filter(Boolean)
+        .map((w) => w!.replace(/\/$/, ""))
+    )
+  );
+
+  // Attempt each wrapper until one yields a successful response
+  for (let w = 0; w < wrappers.length; w++) {
+    const wrapperBase = wrappers[w];
+    const fullUrl = `${wrapperBase}${subpath}`;
+
+    try {
+      const res = await fetchWithRetry(fullUrl, attempts);
+      if (res) {
+        if (res.success !== false) {
+          return res;
+        }
+        console.warn(
+          `[JioSaavn Wrapper] Wrapper ${wrapperBase} returned error payload for ${subpath}: ${res.message || "Unknown error"}`
+        );
+      }
+    } catch (err: any) {
+      console.error(
+        `[JioSaavn Wrapper] Error requesting ${subpath} from wrapper ${wrapperBase}: ${err.message}`
+      );
+    }
+  }
+
+  console.error(`[JioSaavn API Failure] All JioSaavn wrappers failed for subpath: ${subpath}`);
+  return null;
+};
 
 // ── Direct jiosaavn.com fetcher (needs Referer header) ─────────────────
 const JIOSAAVN_DIRECT = "https://www.jiosaavn.com/api.php";
