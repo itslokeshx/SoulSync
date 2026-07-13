@@ -44,7 +44,7 @@ router.post("/version/seen", authMiddleware, async (req: AuthRequest, res: Respo
 // Mark an announcement as seen for the logged-in user
 router.post("/:id/seen", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const userId = req.userId;
 
     const user = await User.findById(userId);
