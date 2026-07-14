@@ -1108,11 +1108,6 @@ export async function enhancedSearch(
   let albums: any[] = [];
   let artists: any[] = [];
 
-  console.log(
-    `[Search NLP Trace] Query: "${query}" -> Intent: ${parsed.intent}`,
-    parsed.expandedQueries,
-  );
-
   // ── Step 1: Fire primary queries + Albums + Artists + GLOBAL in parallel ──
   // Uses searchSongs (bg queue) so warmup never competes with live user
   let primaryQueries = [...parsed.expandedQueries.slice(0, 3)];

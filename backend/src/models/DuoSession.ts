@@ -19,11 +19,14 @@ export interface IDuoSession extends Document {
   currentTime: number;
   reactions: { emoji: string; from: string; at: Date }[];
   notes: { songId: string; text: string; from: string; at: Date }[];
+  messages: { text: string; from: string; fromName: string; at: Date }[];
   songHistory: Record<string, unknown>[];
   stats: {
     duration: number;
     reactionsCount: number;
     notesCount: number;
+    messagesCount: number;
+    songsPlayed: number;
   };
   expiresAt: Date;
   createdAt: Date;
@@ -63,11 +66,21 @@ const DuoSessionSchema = new Schema<IDuoSession>(
         at: { type: Date, default: Date.now },
       },
     ],
+    messages: [
+      {
+        text: String,
+        from: String,
+        fromName: String,
+        at: { type: Date, default: Date.now },
+      },
+    ],
     songHistory: [Schema.Types.Mixed],
     stats: {
       duration: { type: Number, default: 0 },
       reactionsCount: { type: Number, default: 0 },
       notesCount: { type: Number, default: 0 },
+      messagesCount: { type: Number, default: 0 },
+      songsPlayed: { type: Number, default: 0 },
     },
     expiresAt: {
       type: Date,

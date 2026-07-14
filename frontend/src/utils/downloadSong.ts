@@ -1,8 +1,7 @@
 import { Song } from "../types/song";
 import { getBestAudioUrl } from "./getBestAudioUrl";
-import { getArtists } from "./queryParser";
 import { isOfflineSaved, saveOfflineSong } from "./offlineDB";
-import { bestImg } from "../lib/helpers";
+import { bestImg, getArtists } from "../lib/helpers";
 import { useDownloadStore } from "../store/downloadStore";
 import { useOfflineStore } from "../store/offlineStore";
 import { isNative } from "./platform";

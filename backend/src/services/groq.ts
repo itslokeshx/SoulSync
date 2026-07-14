@@ -127,10 +127,6 @@ class GroqKeyManager {
         this.reportSuccess(ks.key);
         ks.uses++;
 
-        console.log(
-          `[Groq] Success on key #${ks.index + 1} (total uses: ${ks.uses})`,
-        );
-
         // Strip markdown fences
         const cleaned = content
           .replace(/```json\s*/g, "")

@@ -1,27 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import type { Toast } from "../components/ui/Toasts";
 import * as api from "../api/backend";
 
-let _tid = 0;
-
-export const useToasts = () => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const add = useCallback(
-    (message: string, type: Toast["type"] = "info", ms = 3000) => {
-      const id = ++_tid;
-      setToasts((p) => [...p, { id, message, type }]);
-      setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), ms);
-    },
-    [],
-  );
-
-  const dismiss = useCallback((id: number) => {
-    setToasts((p) => p.filter((t) => t.id !== id));
-  }, []);
-
-  return { toasts, add, dismiss };
-};
 
 export const useLikedSongs = (
   isAuthenticated = false,
@@ -120,22 +99,4 @@ export const useLikedSongs = (
   return [liked, toggle, setAll];
 };
 
-export const useRecentlyPlayed = (): [any[], (song: any) => void] => {
-  const [recent, setRecent] = useState<any[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("ss_recent") || "[]");
-    } catch {
-      return [];
-    }
-  });
 
-  const add = useCallback((song: any) => {
-    setRecent((prev) => {
-      const next = [song, ...prev.filter((s) => s.id !== song.id)].slice(0, 20);
-      localStorage.setItem("ss_recent", JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
-  return [recent, add];
-};
