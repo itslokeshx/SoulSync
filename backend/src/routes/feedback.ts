@@ -1,5 +1,5 @@
-import { Router, Request, Response } from "express";
-import { Feedback } from "../models/Feedback.js";
+import { Router, Response } from "express";
+import { FeedbackService } from "../services/feedbackService.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { adminAuthMiddleware, AdminAuthRequest } from "../middleware/adminAuth.js";
 
@@ -28,14 +28,13 @@ router.post("/", softAuth, async (req: SoftAuthRequest, res: Response): Promise<
 
     const isAnonymous = !req.userId;
 
-    const created = await Feedback.create({
+    const created = await FeedbackService.createFeedback({
       message,
       category,
       userId: req.userId || undefined,
       isAnonymous,
       appVersion,
       platform,
-      status: "new",
     });
 
     res.status(201).json({ success: true, feedback: created });
@@ -60,10 +59,7 @@ router.get("/admin", adminAuthMiddleware, async (req: AdminAuthRequest, res: Res
       filter.category = category;
     }
 
-    const feedbackList = await Feedback.find(filter)
-      .sort({ createdAt: -1 })
-      .populate("userId", "name email") // optional: populate submitter user details if logged in
-      .lean();
+    const feedbackList = await FeedbackService.getFeedbackList(filter);
 
     res.json({ feedback: feedbackList });
   } catch (err) {
@@ -76,7 +72,7 @@ router.get("/admin", adminAuthMiddleware, async (req: AdminAuthRequest, res: Res
 // Admin endpoint to update feedback status
 router.patch("/admin/:id", adminAuthMiddleware, async (req: AdminAuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body;
 
     if (!status || !["new", "seen", "resolved", "wontfix"].includes(status)) {
@@ -84,11 +80,7 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: AdminAuthRequest, re
       return;
     }
 
-    const updated = await Feedback.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
+    const updated = await FeedbackService.updateStatus(id, status);
 
     if (!updated) {
       res.status(404).json({ error: "Feedback item not found." });
@@ -106,8 +98,8 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: AdminAuthRequest, re
 // Admin endpoint to delete feedback permanently
 router.delete("/admin/:id", adminAuthMiddleware, async (req: AdminAuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const deleted = await Feedback.findByIdAndDelete(id);
+    const id = req.params.id as string;
+    const deleted = await FeedbackService.deleteFeedback(id);
 
     if (!deleted) {
       res.status(404).json({ error: "Feedback item not found." });

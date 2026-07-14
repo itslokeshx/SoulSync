@@ -3,12 +3,10 @@
 // ════════════════════════════════════════════════════════════════
 
 import { Router, Request, Response } from "express";
-import { Announcement } from "../models/Announcement.js";
+import { AnnouncementService } from "../services/announcementService.js";
 import { adminAuthMiddleware } from "../middleware/adminAuth.js";
-import { redisGet, redisSet, redisDel } from "../services/redis.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
-import { User } from "../models/User.js";
 
 const router = Router();
 
@@ -17,21 +15,18 @@ const router = Router();
 router.post("/version/seen", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { version } = req.body;
-    const userId = req.userId;
+    const userId = req.userId as string;
 
     if (!version) {
       res.status(400).json({ error: "version is required" });
       return;
     }
 
-    const user = await User.findById(userId);
-    if (!user) {
+    const success = await AnnouncementService.markWhatsNewSeen(userId, version);
+    if (!success) {
       res.status(404).json({ error: "User not found" });
       return;
     }
-
-    user.lastSeenWhatsNewVersion = version;
-    await user.save();
 
     res.json({ success: true });
   } catch (err) {
@@ -45,19 +40,12 @@ router.post("/version/seen", authMiddleware, async (req: AuthRequest, res: Respo
 router.post("/:id/seen", authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const userId = req.userId;
+    const userId = req.userId as string;
 
-    const user = await User.findById(userId);
-    if (!user) {
+    const success = await AnnouncementService.markAnnouncementSeen(userId, id);
+    if (!success) {
       res.status(404).json({ error: "User not found" });
       return;
-    }
-
-    // Check if already in array to avoid duplicate subdocuments
-    const alreadySeen = user.seenAnnouncements.some((s) => s.announcementId === id);
-    if (!alreadySeen) {
-      user.seenAnnouncements.push({ announcementId: id, seenAt: new Date() });
-      await user.save();
     }
 
     res.json({ success: true });
@@ -71,49 +59,13 @@ router.post("/:id/seen", authMiddleware, async (req: AuthRequest, res: Response)
 // Returns active, non-expired announcements sorted by priority and creation date
 router.get("/active", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   try {
-    const cacheKey = "announcements:active";
-    let activeList: any[] = [];
-    let fromCache = false;
-
-    try {
-      const cached = await redisGet(cacheKey);
-      if (cached) {
-        activeList = JSON.parse(cached).announcements;
-        fromCache = true;
-      }
-    } catch (err) {
-      console.warn("[Announcements] Redis get error:", err);
-    }
-
-    if (!fromCache || !activeList.length) {
-      const now = new Date();
-      activeList = await Announcement.find({
-        active: true,
-        $or: [
-          { expiresAt: { $exists: false } },
-          { expiresAt: null },
-          { expiresAt: { $gt: now } },
-        ],
-      }).sort({ priority: -1, createdAt: -1 });
-
-      const responseData = { announcements: activeList };
-
-      try {
-        await redisSet(cacheKey, JSON.stringify(responseData), 3600); // 1 hour cache
-      } catch (err) {
-        console.warn("[Announcements] Redis set error:", err);
-      }
-    }
+    const activeList = await AnnouncementService.getActiveAnnouncements();
 
     // If authenticated, fetch user's seen status
     if (req.userId) {
-      const user = await User.findById(req.userId);
-      if (user) {
-        res.json({
-          announcements: activeList,
-          seenAnnouncements: user.seenAnnouncements.map((s) => s.announcementId),
-          lastSeenWhatsNewVersion: user.lastSeenWhatsNewVersion,
-        });
+      const userState = await AnnouncementService.getAnnouncementStateForUser(req.userId, activeList);
+      if (userState) {
+        res.json(userState);
         return;
       }
     }
@@ -129,7 +81,7 @@ router.get("/active", softAuth, async (req: SoftAuthRequest, res: Response): Pro
 // Returns all announcements (active or inactive) for dashboard/management
 router.get("/admin", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const all = await Announcement.find({}).sort({ createdAt: -1 });
+    const all = await AnnouncementService.getAllAnnouncements();
     res.json({ announcements: all });
   } catch (err) {
     console.error("[Announcements Admin] Fetch all error:", err);
@@ -164,7 +116,7 @@ router.post("/admin", adminAuthMiddleware, async (req: Request, res: Response): 
       return;
     }
 
-    const created = await Announcement.create({
+    const created = await AnnouncementService.createAnnouncement({
       type,
       title,
       body,
@@ -177,12 +129,6 @@ router.post("/admin", adminAuthMiddleware, async (req: Request, res: Response): 
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
     });
 
-    try {
-      await redisDel("announcements:active");
-    } catch (err) {
-      console.warn("[Announcements Admin] Redis del error:", err);
-    }
-
     res.status(201).json({ success: true, announcement: created });
   } catch (err) {
     console.error("[Announcements Admin] Create error:", err);
@@ -194,7 +140,7 @@ router.post("/admin", adminAuthMiddleware, async (req: Request, res: Response): 
 // Update/deactivate an existing announcement
 router.patch("/admin/:id", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const updates = req.body;
 
     // Remove immutable fields if present in body
@@ -206,16 +152,10 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: Request, res: Respon
       updates.expiresAt = new Date(updates.expiresAt);
     }
 
-    const updated = await Announcement.findByIdAndUpdate(id, updates, { new: true });
+    const updated = await AnnouncementService.updateAnnouncement(id, updates);
     if (!updated) {
       res.status(404).json({ error: "Announcement not found." });
       return;
-    }
-
-    try {
-      await redisDel("announcements:active");
-    } catch (err) {
-      console.warn("[Announcements Admin] Redis del error:", err);
     }
 
     res.json({ success: true, announcement: updated });
@@ -229,17 +169,11 @@ router.patch("/admin/:id", adminAuthMiddleware, async (req: Request, res: Respon
 // Delete an announcement permanently
 router.delete("/admin/:id", adminAuthMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const deleted = await Announcement.findByIdAndDelete(id);
+    const id = req.params.id as string;
+    const deleted = await AnnouncementService.deleteAnnouncement(id);
     if (!deleted) {
       res.status(404).json({ error: "Announcement not found." });
       return;
-    }
-
-    try {
-      await redisDel("announcements:active");
-    } catch (err) {
-      console.warn("[Announcements Admin] Redis del error:", err);
     }
 
     res.json({ success: true, message: "Announcement deleted successfully." });

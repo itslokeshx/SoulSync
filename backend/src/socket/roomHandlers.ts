@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { DuoSession } from "../models/DuoSession.js";
+import { DuoSessionService } from "../services/duoSessionService.js";
 
 const debugLog = (..._args: any[]): void => {};
 
@@ -97,7 +97,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       let room = rooms.get(roomCode);
       if (!room) {
         try {
-          const dbSession = await DuoSession.findOne({ code: roomCode });
+          const dbSession = await DuoSessionService.getSessionByCode(roomCode);
           if (dbSession) {
             room = {
               host: {
@@ -164,16 +164,11 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       if (role === "host") {
         room.host = { name, socketId: socket.id, connected: true };
         try {
-          await DuoSession.updateOne(
-            { code: roomCode },
-            {
-              $set: {
-                "host.name": name,
-                "host.socketId": socket.id,
-                "host.connected": true,
-              },
-            }
-          );
+          await DuoSessionService.updateMemberConnection(roomCode, "host", {
+            name,
+            socketId: socket.id,
+            connected: true,
+          });
         } catch (dbErr) {
           console.error("[Duo] DB update error (host join):", dbErr);
         }
@@ -209,16 +204,11 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       } else {
         room.guest = { name, socketId: socket.id, connected: true };
         try {
-          await DuoSession.updateOne(
-            { code: roomCode },
-            {
-              $set: {
-                "guest.name": name,
-                "guest.socketId": socket.id,
-                "guest.connected": true,
-              },
-            }
-          );
+          await DuoSessionService.updateMemberConnection(roomCode, "guest", {
+            name,
+            socketId: socket.id,
+            connected: true,
+          });
         } catch (dbErr) {
           console.error("[Duo] DB update error (guest join):", dbErr);
         }
@@ -282,10 +272,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     socket.to(code).emit("duo:receive-play", { currentTime, songId });
 
     try {
-      await DuoSession.updateOne(
-        { code },
-        { $set: { isPlaying: true, currentTime } }
-      );
+      await DuoSessionService.updatePlayState(code, true, currentTime);
     } catch (err) {
       console.error("[Duo] DB error on sync-play:", err);
     }
@@ -307,10 +294,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     socket.to(code).emit("duo:receive-pause", { currentTime });
 
     try {
-      await DuoSession.updateOne(
-        { code },
-        { $set: { isPlaying: false, currentTime } }
-      );
+      await DuoSessionService.updatePlayState(code, false, currentTime);
     } catch (err) {
       console.error("[Duo] DB error on sync-pause:", err);
     }
@@ -331,10 +315,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     socket.to(code).emit("duo:receive-seek", { currentTime });
 
     try {
-      await DuoSession.updateOne(
-        { code },
-        { $set: { currentTime } }
-      );
+      await DuoSessionService.updateSession(code, { $set: { currentTime } });
     } catch (err) {
       console.error("[Duo] DB error on sync-seek:", err);
     }
@@ -362,14 +343,8 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
 
     try {
       if (room) {
-        const updates: any = {
-          $set: { currentSong: song, currentTime: 0 },
-          $inc: { "stats.songsPlayed": 1 },
-        };
-        if (room.songHistory.length > 0) {
-          updates.$push = { songHistory: room.songHistory[room.songHistory.length - 1] };
-        }
-        await DuoSession.updateOne({ code }, updates);
+        const historyEntry = room.songHistory.length > 0 ? room.songHistory[room.songHistory.length - 1] : null;
+        await DuoSessionService.changeSong(code, song, historyEntry);
       }
     } catch (err) {
       console.error("[Duo] DB error on sync-song-change:", err);
@@ -398,20 +373,12 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     socket.to(code).emit("duo:receive-message", msg);
 
     try {
-      await DuoSession.updateOne(
-        { code },
-        {
-          $push: {
-            messages: {
-              text,
-              from: fromRole,
-              fromName,
-              at: new Date(msg.at),
-            },
-          },
-          $inc: { "stats.messagesCount": 1 },
-        }
-      );
+      await DuoSessionService.addMessage(code, {
+        text,
+        from: fromRole,
+        fromName,
+        at: new Date(msg.at),
+      });
     } catch (err) {
       console.error("[Duo] DB error on message:", err);
     }
@@ -433,19 +400,16 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     socket.to(code).emit("duo:receive-reaction", { emoji, from: fromName });
 
     try {
-      await DuoSession.updateOne(
-        { code },
-        {
-          $push: {
-            reactions: {
-              emoji,
-              from: fromName,
-              at: new Date(),
-            },
+      await DuoSessionService.updateSession(code, {
+        $push: {
+          reactions: {
+            emoji,
+            from: fromName,
+            at: new Date(),
           },
-          $inc: { "stats.reactionsCount": 1 },
-        }
-      );
+        },
+        $inc: { "stats.reactionsCount": 1 },
+      });
     } catch (err) {
       console.error("[Duo] DB error on reaction:", err);
     }
@@ -497,21 +461,18 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
       });
 
       try {
-        await DuoSession.updateOne(
-          { code },
-          {
-            $set: {
-              stats: {
-                duration: room.stats.duration,
-                reactionsCount: room.stats.reactionsCount,
-                notesCount: 0,
-                messagesCount: room.stats.messagesCount,
-                songsPlayed: room.stats.songsPlayed,
-              },
-              isPlaying: false,
+        await DuoSessionService.updateSession(code, {
+          $set: {
+            stats: {
+              duration: room.stats.duration,
+              reactionsCount: room.stats.reactionsCount,
+              notesCount: 0,
+              messagesCount: room.stats.messagesCount,
+              songsPlayed: room.stats.songsPlayed,
             },
-          }
-        );
+            isPlaying: false,
+          },
+        });
       } catch (err) {
         console.error("[Duo] DB error on end-session:", err);
       }
@@ -566,7 +527,7 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
           if (guestDisconnected) {
             updateObj["guest.connected"] = false;
           }
-          await DuoSession.updateOne({ code }, { $set: updateObj });
+          await DuoSessionService.updateSession(code, { $set: updateObj });
         } catch (err) {
           console.error("[Duo] DB error on disconnect update:", err);
         }
