@@ -4,96 +4,44 @@
 // ════════════════════════════════════════════════════════════════
 
 // Major international artists (first name is often enough for matching)
-export const MAJOR_INTERNATIONAL_ARTISTS = new Set([
-  "ed sheeran",
-  "taylor swift",
-  "drake",
-  "the weeknd",
-  "billie eilish",
-  "ariana grande",
-  "post malone",
-  "eminem",
-  "rihanna",
-  "beyonce",
-  "justin bieber",
-  "dua lipa",
-  "bad bunny",
-  "harry styles",
-  "olivia rodrigo",
-  "weeknd",
-  "sheeran",
-  "swift",
-  "eilish",
-  "coldplay",
-  "adele",
-  "bruno mars",
-  "charlie puth",
-  "selena gomez",
-  "the chainsmokers",
-  "imagine dragons",
-  "maroon 5",
-  "sia",
-  "sam smith",
-  "lewis capaldi",
-]);
+export const MAJOR_INTERNATIONAL_ARTISTS = [
+  "ed sheeran", "taylor swift", "drake", "the weeknd", "billie eilish", "ariana grande",
+  "post malone", "eminem", "rihanna", "beyonce", "justin bieber", "dua lipa", "bad bunny",
+  "harry styles", "olivia rodrigo", "weeknd", "sheeran", "swift", "eilish", "coldplay",
+  "adele", "bruno mars", "charlie puth", "selena gomez", "the chainsmokers", "imagine dragons",
+  "maroon 5", "sia", "sam smith", "lewis capaldi", "sabrina carpenter", "tate mcrae", "billie",
+  "swift", "bieber", "grande"
+];
 
-// Major Indian / Tamil / Hindi / Telugu artists
-export const MAJOR_INDIAN_ARTISTS = new Set([
-  // Tamil
-  "anirudh",
-  "anirudh ravichander",
-  "ar rahman",
-  "a.r. rahman",
-  "a r rahman",
-  "harris jayaraj",
-  "d. imman",
-  "d imman",
-  "sid sriram",
-  "yuvan shankar raja",
-  "g.v. prakash",
-  "gv prakash",
-  "vijay antony",
-  "devi sri prasad",
-  "dsp",
-  "thaman",
-  "s thaman",
-  "sean roldan",
-  "santhosh narayanan",
-  "ilaiyaraaja",
-  "ilayaraja",
-  "hiphop tamizha",
-  // Hindi
-  "arijit singh",
-  "pritam",
-  "vishal-shekhar",
-  "shankar ehsaan loy",
-  "amit trivedi",
-  "sachet-parampara",
-  "tanishk bagchi",
-  "badshah",
-  "yo yo honey singh",
-  "nucleya",
-  "divine",
-  "jubin nautiyal",
-  "darshan raval",
-  "armaan malik",
-  "shreya ghoshal",
-  "neha kakkar",
-  "sonu nigam",
-  "lata mangeshkar",
-  "kishore kumar",
-  "kk",
-  // Telugu
-  "ss thaman",
-  "thaman s",
-  "mickey j meyer",
-  "mani sharma",
-  // Punjabi
-  "diljit dosanjh",
-  "ap dhillon",
-  "sidhu moosewala",
-  "karan aujla",
-]);
+// Major Indian / Tamil / Hindi / Telugu / Punjabi artists
+export const MAJOR_INDIAN_ARTISTS = [
+  // Tamil / Telugu / Kannada / Malayalam
+  "anirudh", "anirudh ravichander", "ar rahman", "a.r. rahman", "a r rahman", "arrahman", "a. r. rahman",
+  "harris jayaraj", "d. imman", "d imman", "sid sriram", "yuvan shankar raja", "g.v. prakash", "g. v. prakash",
+  "gv prakash", "vijay antony", "devi sri prasad", "dsp", "thaman", "s. thaman", "s thaman", "sean roldan",
+  "santhosh narayanan", "saNa", "ilaiyaraaja", "ilayaraja", "hiphop tamizha", "sushin shyam", "jakes bejoy",
+  "gopi sundar", "deepak dev", "m. m. keeravani", "mm keeravani", "keeravani", "hesaham abdul wahab",
+  "hesham abdul wahab", "arjun janya", "harikrishna", "spb", "s. p. balasubrahmanyam", "s p balasubrahmanyam",
+  "ks chithra", "k. s. chithra", "haricharan", "shweta mohan", "vijay yesudas", "karthik",
+  // Hindi / Bollywood / Punjabi
+  "arijit singh", "arijit s", "pritam", "vishal-shekhar", "vishal shekhar", "shankar ehsaan loy",
+  "shankar-ehsaan-loy", "amit trivedi", "vishal dadlani", "jubin nautiyal", "darshan raval",
+  "shekhar ravjiani", "atif aslam", "kk", "sunidhi chauhan", "sonu nigam", "alka yagnik",
+  "kumar sanu", "udit narayan", "lata mangeshkar", "kishore kumar", "rd burman", "r. d. burman",
+  "yoyo honey singh", "yo yo honey singh", "raftaar", "kr$na", "divine", "emiway bantai",
+  "jass manak", "guru randhawa", "ammy virk", "karan aujla", "sharry maan", "sidhu moosewala",
+  "sidhu moose wala", "harrdy sandhu", "hardy sandhu", "b praak", "jaani", "mankirt aulakh",
+  "jassie gill", "neha kakkar", "tony kakkar", "ap dhillon", "neha bhasin", "kavita krishnamurthy",
+  "sukhwinder singh", "mohit chauhan", "sachet-parampara", "sachet tandon", "parampara tandon",
+  "tanishk bagchi", "mithoon", "amaal mallik", "arman mallik", "armaan malik", "siddharth mahadevan",
+  "shankar mahadevan", "ehsaan noorani", "loy mendonsa", "sanjay leela bhansali", "javed ali",
+  "alisha chinai", "kailash kher", "shaan", "adnan sami", "rahat fateh ali khan", "nusrat fateh ali khan",
+  "sajid-wajid", "sajid khan", "wajid khan", "salim-sulaiman", "salim merchant", "sulaiman merchant",
+  "meet bros", "anand-milind", "nadeem-shravan", "anu malik", "himesh reshammiya", "nehha sandhu",
+  "sidhu", "mankirt", "pav dharia", "maninder buttar", "sharry", "parmish verma", "jass", "randhawa"
+];
+
+export const POPULAR_ARTISTS = [...MAJOR_INTERNATIONAL_ARTISTS, ...MAJOR_INDIAN_ARTISTS];
 
 export function popularityScore(playCount: number): number {
   if (!playCount || playCount <= 0) return 0;
@@ -195,3 +143,35 @@ export function originalIndicatorBonus(title: string): number {
 
   return 0;
 }
+
+// ── Blacklisted labels — known cover/tribute publishers ─────────
+// Shared by searchEnhancer.ts and recommendationEngine.ts.
+export const BLACKLISTED_LABELS = [
+  "magic records",
+  "soave records",
+  "vibe network",
+  "vibes network",
+  "luxebeats",
+  "17diamonds",
+  "cover kingdom",
+  "acoustic hits",
+  "tribute kingdom",
+  "fanmade",
+  "fan-made",
+  "unofficial",
+  "karaoke hits",
+  "piano dreams",
+  "relaxing covers",
+];
+
+// ── Original-release markers (title keywords) ──────────────────
+// Bonus-eligible keywords that indicate the song is a legitimate release.
+export const ORIGINAL_MARKERS = [
+  "official music video",
+  "official video",
+  "official audio",
+  "official",
+  "original",
+  "lyric video",
+  "full song",
+];

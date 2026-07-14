@@ -7,6 +7,7 @@ import {
   MAJOR_INTERNATIONAL_ARTISTS,
   MAJOR_INDIAN_ARTISTS,
 } from "./scoringUtils.js";
+import { PHONETIC_CORRECTIONS } from "../data/artistDictionary.js";
 
 export interface RankedSong {
   id: string;
@@ -188,10 +189,10 @@ function artistMatchScore(artist: string, query: string): number {
 function knownArtistBonus(songArtist: string, query: string): number {
   const a = songArtist.toLowerCase();
 
-  const isKnownInt = [...MAJOR_INTERNATIONAL_ARTISTS].some((ka) =>
+  const isKnownInt = MAJOR_INTERNATIONAL_ARTISTS.some((ka) =>
     a.includes(ka),
   );
-  const isKnownIndian = [...MAJOR_INDIAN_ARTISTS].some((ka) => a.includes(ka));
+  const isKnownIndian = MAJOR_INDIAN_ARTISTS.some((ka) => a.includes(ka));
 
   if (!isKnownInt && !isKnownIndian) return 0;
 
@@ -339,47 +340,7 @@ export function getKnownSongIds(query: string): string[] {
 // We fetch from multiple JioSaavn query strings and merge results.
 // More raw material → better recall → better ranking output.
 // ════════════════════════════════════════════════════════════════
-// ── PHONETIC CORRECTIONS ─────────────────────────────────────────────────────
-// Common misspellings / romanisation variants → canonical form
-const PHONETIC_CORRECTIONS: Record<string, string> = {
-  // Artists
-  arjit: "arijit",
-  arjith: "arijit",
-  "arjit singh": "arijit singh",
-  "arjith singh": "arijit singh",
-  anirudh: "anirudh ravichander",
-  "anirudha ravichandran": "anirudh ravichander",
-  "a r rahman": "ar rahman",
-  "ar rehman": "ar rahman",
-  "a.r rehman": "ar rahman",
-  "a.r. rehman": "ar rahman",
-  "ar rahman": "ar rahman",
-  "atif aslam": "atif aslam",
-  "atif islam": "atif aslam",
-  "shreya ghoshal": "shreya ghoshal",
-  shreyaghoshal: "shreya ghoshal",
-  "kumar shanu": "kumar sanu",
-  "diljit dosanjh": "diljit dosanjh",
-  "diljeet dosanjh": "diljit dosanjh",
-  "ap dhillon": "ap dhillon",
-  "a.p. dhillon": "ap dhillon",
-  badshah: "badshah",
-  badsha: "badshah",
-  // Song names
-  "shape of u": "shape of you",
-  "tum hi ho": "tum hi ho",
-  "tumhi ho": "tum hi ho",
-  "tujhe kitna chahne lage": "tujhe kitna chahne lage hum",
-  "pasoori nu": "pasoori",
-  "kesariya song": "kesariya",
-  "kya mujhe pyaar": "kya mujhe pyaar hai",
-  // Generic typos
-  songss: "songs",
-  hitz: "hits",
-  "lates songs": "latest songs",
-  "latets songs": "latest songs",
-  "latset songs": "latest songs",
-};
+// PHONETIC_CORRECTIONS imported from artistDictionary.ts
 
 export function correctTypos(query: string): string {
   const lower = query.trim().toLowerCase();

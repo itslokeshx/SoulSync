@@ -4,7 +4,6 @@ import { rateLimiter } from "../middleware/rateLimiter.js";
 
 const router = Router();
 
-// POST /api/admin/login
 // Password gate verification. Returns a signed JWT token on success.
 // Rate limited to 5 attempts per minute.
 router.post(
@@ -51,7 +50,6 @@ router.post(
   }
 );
 
-// POST /api/admin/logout
 // Clears the admin token cookie
 router.post("/logout", (req: Request, res: Response): void => {
   res.clearCookie("soulsync_admin_token", {
