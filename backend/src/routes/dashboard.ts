@@ -13,10 +13,7 @@ router.get(
   authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const user = await User.findById(req.userId).select("name").lean();
-      const userName = (user as any)?.name || "there";
-
-      const dashboard = await buildDashboard(req.userId!, userName);
+      const dashboard = await buildDashboard(req.userId!, "there");
       res.json(dashboard);
     } catch (err) {
       console.error("[Dashboard] Error:", err);

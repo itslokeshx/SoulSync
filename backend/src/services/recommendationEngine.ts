@@ -199,14 +199,20 @@ export async function getTasteProfile(
   }).lean() as IUserTasteProfile | null;
 
   if (existing) {
-    // Check if recomputation is needed
-    const currentCount = await ListeningHistory.countDocuments({
+    // Check if recomputation is needed asynchronously (fire-and-forget) to not block the request
+    ListeningHistory.countDocuments({
       userId: new mongoose.Types.ObjectId(userId),
+    }).then((currentCount) => {
+      const delta = currentCount - (existing.lastPlayCountAtCompute || 0);
+      if (delta >= W.RECOMPUTE_AFTER_N_PLAYS) {
+        buildTasteProfile(userId).catch((err) => {
+          console.error("[TasteProfile] Async recomputation error:", err);
+        });
+      }
+    }).catch((err) => {
+      console.warn("[TasteProfile] Failed to count history documents for async taste check:", err);
     });
-    const delta = currentCount - (existing.lastPlayCountAtCompute || 0);
-    if (delta >= W.RECOMPUTE_AFTER_N_PLAYS) {
-      return buildTasteProfile(userId);
-    }
+
     // Re-cache in Redis
     await redisSet(
       `taste:${userId}`,
@@ -1010,11 +1016,32 @@ export async function getTasteProfileBatch(
       .sort({ decayedScore: -1 })
       .limit(30)
       .lean();
-    for (const co of cooccurrences) {
-      try {
-        const song = await fetchSongById(co.songIdB);
-        if (song) addCandidate(song);
-      } catch {}
+
+    // Fetch songs concurrently in batches to respect rate limits (bounded concurrency pool of 8)
+    const cooccurIds = cooccurrences.map((co) => co.songIdB);
+    const results: (Song | null)[] = new Array(cooccurIds.length);
+    let idx = 0;
+    const CONCURRENCY_LIMIT = 8;
+
+    async function worker() {
+      while (idx < cooccurIds.length) {
+        const currentIdx = idx++;
+        try {
+          results[currentIdx] = await fetchSongById(cooccurIds[currentIdx]);
+        } catch {
+          results[currentIdx] = null;
+        }
+      }
+    }
+
+    const workers = Array.from(
+      { length: Math.min(CONCURRENCY_LIMIT, cooccurIds.length) },
+      worker
+    );
+    await Promise.all(workers);
+
+    for (const song of results) {
+      if (song) addCandidate(song);
     }
   }
 
@@ -1271,36 +1298,52 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
     }
   };
 
-  // 1. Fetch from the top 2 curated playlists
-  for (const term of searchTerms) {
-    try {
-      const playlists = await searchPlaylists(term, 2);
-      for (const playlist of playlists) {
-        const rawSongs = await getPlaylistSongs(playlist.id);
-        if (rawSongs.length > 0) {
-          addSongs(normalizeSongsToCanonical(rawSongs));
+  // 1. Fetch from the top 2 curated playlists in parallel
+  try {
+    const playlistsResults = await Promise.allSettled(
+      searchTerms.map((term) => searchPlaylists(term, 2))
+    );
+
+    const playlistIds: string[] = [];
+    for (const res of playlistsResults) {
+      if (res.status === "fulfilled" && Array.isArray(res.value)) {
+        for (const playlist of res.value) {
+          if (playlist?.id) playlistIds.push(playlist.id);
         }
       }
-    } catch (err) {
-      console.warn(`[NewReleases] Failed to fetch playlist for term: ${term}`, err);
     }
+
+    if (playlistIds.length > 0) {
+      const songsResults = await Promise.allSettled(
+        playlistIds.map((id) => getPlaylistSongs(id))
+      );
+      for (const res of songsResults) {
+        if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
+          addSongs(normalizeSongsToCanonical(res.value));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[NewReleases] Failed to fetch playlists for lang: ${lang}`, err);
   }
 
-  // 2. Fetch from active search results for new releases to capture the latest individual tracks
+  // 2. Fetch from active search results for new releases to capture the latest individual tracks in parallel
   const searchQueries = [
     `new ${lang} songs ${currentYear}`,
     `latest ${lang} songs ${currentYear}`,
   ];
 
-  for (const query of searchQueries) {
-    try {
-      const rawSearch = await searchSongs(query, 35);
-      if (rawSearch.length > 0) {
-        addSongs(normalizeSongsToCanonical(rawSearch));
+  try {
+    const searchResults = await Promise.allSettled(
+      searchQueries.map((query) => searchSongs(query, 35))
+    );
+    for (const res of searchResults) {
+      if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
+        addSongs(normalizeSongsToCanonical(res.value));
       }
-    } catch (err) {
-      console.error(`[NewReleases] Search query failed: ${query}`, err);
     }
+  } catch (err) {
+    console.error(`[NewReleases] Search queries failed for lang: ${lang}`, err);
   }
 
   return candidates;

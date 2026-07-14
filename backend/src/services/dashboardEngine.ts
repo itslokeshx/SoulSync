@@ -75,83 +75,97 @@ export async function buildDashboard(
     }
   }
 
-  const { greeting, subtitle } = getGreeting(userName);
-  const globalExcludeIds = new Set<string>();
+  // Run independent database queries in parallel
+  let userDoc: any = null;
+  let mixSet: any = null;
+  let recentHistory: any[] = [];
+  let tasteProfile: any = null;
+  let playlists: any[] = [];
 
-  // Exclude Discovery Mix songs from dynamic Made For You to prevent duplicates
   if (!isGuest) {
     try {
+      const userObjId = new mongoose.Types.ObjectId(userId);
       const { UserMixSet } = await import("../models/UserMixSet.js");
       const { getStartOfWeek } = await import("./mixEngine.js");
       const startOfWeek = getStartOfWeek();
-      const mixSet = await UserMixSet.findOne({
-        userId: new mongoose.Types.ObjectId(userId),
-        weekOf: startOfWeek,
-      }).lean();
-      if (mixSet) {
-        const discoveryMix = mixSet.mixes.find((m) => m.key === "discovery");
-        if (discoveryMix) {
-          for (const sId of discoveryMix.songIds) {
-            globalExcludeIds.add(sId);
-          }
-        }
-      }
+
+      // Parallelize all non-dependent MongoDB / Taste profile calls
+      const [userRes, mixRes, recentRes, tasteRes, playlistsRes] = await Promise.all([
+        User.findById(userId).select("name preferences likedSongs").lean(),
+        UserMixSet.findOne({ userId: userObjId, weekOf: startOfWeek }).lean(),
+        ListeningHistory.find({ userId: userObjId }).sort({ playedAt: -1 }).limit(50).lean(),
+        getTasteProfile(userId),
+        Playlist.find({ userId }).lean(),
+      ]);
+
+      userDoc = userRes;
+      mixSet = mixRes;
+      recentHistory = recentRes;
+      tasteProfile = tasteRes;
+      playlists = playlistsRes;
     } catch (err) {
-      console.warn("[Dashboard] Failed to fetch weekly mixes for exclusions:", err);
+      console.error("[Dashboard] Parallel database queries failed:", err);
+    }
+  }
+
+  // Time-aware greeting
+  const resolvedName = userDoc?.name || userName;
+  const { greeting, subtitle } = getGreeting(resolvedName);
+  const globalExcludeIds = new Set<string>();
+
+  // Exclude Discovery Mix songs from dynamic Made For You to prevent duplicates
+  if (!isGuest && mixSet) {
+    const discoveryMix = mixSet.mixes?.find((m: any) => m.key === "discovery");
+    if (discoveryMix) {
+      for (const sId of discoveryMix.songIds) {
+        globalExcludeIds.add(sId);
+      }
     }
   }
 
   // A. Recently Played (Distinct, latest 12 songs)
   let recentlyPlayed: Song[] = [];
-  if (!isGuest) {
-    try {
-      const userObjId = new mongoose.Types.ObjectId(userId);
-      const recent = await ListeningHistory.find({ userId: userObjId })
-        .sort({ playedAt: -1 })
-        .limit(50)
-        .lean();
-
-      const seen = new Set<string>();
-      const uniqueRecent: any[] = [];
-      for (const h of recent) {
-        if (!seen.has(h.songId)) {
-          seen.add(h.songId);
-          uniqueRecent.push(h);
-        }
+  if (!isGuest && recentHistory && recentHistory.length > 0) {
+    const seen = new Set<string>();
+    const uniqueRecent: any[] = [];
+    for (const h of recentHistory) {
+      if (!seen.has(h.songId)) {
+        seen.add(h.songId);
+        uniqueRecent.push(h);
       }
+    }
 
-      recentlyPlayed = uniqueRecent.slice(0, 12).map((h) => ({
-        id: h.songId,
-        name: h.title,
-        primaryArtists: h.artist || "Unknown",
-        image: h.albumArt || "",
-        album: "",
-        albumId: "",
-        duration: h.duration || 0,
-        language: h.language || "",
-        year: "",
-        streamUrl: null,
-        downloadUrl: [],
-        playCount: 0,
-        url: "",
-      }));
+    recentlyPlayed = uniqueRecent.slice(0, 12).map((h) => ({
+      id: h.songId,
+      name: h.title,
+      primaryArtists: h.artist || "Unknown",
+      image: h.albumArt || "",
+      album: "",
+      albumId: "",
+      duration: h.duration || 0,
+      language: h.language || "",
+      year: "",
+      streamUrl: null,
+      downloadUrl: [],
+      playCount: 0,
+      url: "",
+    }));
 
-      // Add to global exclusions
-      for (const s of recentlyPlayed) {
-        globalExcludeIds.add(s.id);
-      }
-    } catch (err) {
-      console.error("[Dashboard] Recently Played fetch error:", err);
+    // Add to global exclusions
+    for (const s of recentlyPlayed) {
+      globalExcludeIds.add(s.id);
     }
   }
-
-  // Fetch taste profile
-  const tasteProfile = isGuest ? null : await getTasteProfile(userId);
 
   // B. New Releases from Industry (generic for preferred languages, not personalized)
   let newReleasesSongs: Song[] = [];
   let newReleasesTitle = "New Releases";
   let guestNewReleases: { title: string; songs: Song[] }[] | undefined;
+
+  let langs: string[] = ["hindi"];
+  if (userDoc?.preferences?.languages && userDoc.preferences.languages.length > 0) {
+    langs = userDoc.preferences.languages;
+  }
 
   try {
     if (isGuest) {
@@ -168,14 +182,30 @@ export async function buildDashboard(
         { title: "New Telugu Releases", songs: telugu },
       ];
     } else {
-      let langs: string[] = ["hindi"];
-      const user = await User.findById(userId).select("preferences").lean();
-      if (user?.preferences?.languages && user.preferences.languages.length > 0) {
-        langs = user.preferences.languages;
-      }
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
+    }
+  } catch (err) {
+    console.error("[Dashboard] New Releases setup error:", err);
+  }
 
-      const rawNewReleases = await getIndustryNewReleases(langs, 25);
+  // C. Made For You & B. New Releases (if not guest) in parallel
+  let madeForYouSongs: Song[] = [];
+  try {
+    if (isGuest) {
+      const rawMadeForYou = await getTasteProfileBatch(
+        null,
+        Array.from(globalExcludeIds),
+        35,
+      );
+      madeForYouSongs = rawMadeForYou
+        .filter((s) => !globalExcludeIds.has(s.id))
+        .slice(0, 30);
+    } else {
+      const [rawNewReleases, rawMadeForYou] = await Promise.all([
+        getIndustryNewReleases(langs, 25),
+        getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 35),
+      ]);
+
       newReleasesSongs = rawNewReleases
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 20);
@@ -183,61 +213,38 @@ export async function buildDashboard(
       for (const s of newReleasesSongs) {
         globalExcludeIds.add(s.id);
       }
-    }
-  } catch (err) {
-    console.error("[Dashboard] New Releases fetch error:", err);
-  }
 
-  // C. Made For You (Taste profile batch or global fallback, cap at 30)
-  let madeForYouSongs: Song[] = [];
-  try {
-    const rawMadeForYou = await getTasteProfileBatch(
-      tasteProfile,
-      Array.from(globalExcludeIds),
-      35,
-    );
-    madeForYouSongs = rawMadeForYou
-      .filter((s) => !globalExcludeIds.has(s.id))
-      .slice(0, 30);
+      madeForYouSongs = rawMadeForYou
+        .filter((s) => !globalExcludeIds.has(s.id))
+        .slice(0, 30);
+    }
 
     for (const s of madeForYouSongs) {
       globalExcludeIds.add(s.id);
     }
   } catch (err) {
-    console.error("[Dashboard] Made For You fetch error:", err);
+    console.error("[Dashboard] Recommendations fetches error:", err);
   }
 
-  // Liked Songs and Playlists
+  // Liked Songs mapping (from pre-loaded userDoc)
   let likedSongs: Song[] = [];
-  let playlists: any[] = [];
-  if (!isGuest) {
-    try {
-      const user = await User.findById(userId).select("likedSongs").lean();
-      const liked = user?.likedSongs || [];
-      likedSongs = liked.map((s) => ({
-        id: s.songId,
-        name: s.title,
-        primaryArtists: s.artist,
-        image: s.albumArt,
-        album: "",
-        albumId: "",
-        duration: s.duration,
-        language: "",
-        year: "",
-        streamUrl: null,
-        downloadUrl: s.downloadUrl || [],
-        playCount: 0,
-        url: "",
-      }));
-    } catch (err) {
-      console.error("[Dashboard] Liked songs fetch error:", err);
-    }
-
-    try {
-      playlists = await Playlist.find({ userId }).lean();
-    } catch (err) {
-      console.error("[Dashboard] Playlists fetch error:", err);
-    }
+  if (!isGuest && userDoc) {
+    const liked = userDoc.likedSongs || [];
+    likedSongs = liked.map((s: any) => ({
+      id: s.songId,
+      name: s.title,
+      primaryArtists: s.artist,
+      image: s.albumArt,
+      album: "",
+      albumId: "",
+      duration: s.duration,
+      language: "",
+      year: "",
+      streamUrl: null,
+      downloadUrl: s.downloadUrl || [],
+      playCount: 0,
+      url: "",
+    }));
   }
 
   const response: DashboardResponse = {

@@ -70,7 +70,11 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   }, [userId, langsKey]);
 
   useEffect(() => {
-    if (authLoading) return;
+    // If a web token is stored, wait for auth check to finish to avoid double fetches.
+    // If no token exists, we fetch the guest dashboard immediately.
+    const hasWebToken = typeof window !== "undefined" && !!localStorage.getItem("auth_token_web");
+    if (authLoading && hasWebToken) return;
+
     if (fetched.current) return;
     fetched.current = true;
     fetchDashboard();
@@ -268,7 +272,9 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   }
 
   return {
-    loading: loading || authLoading || mixesLoading,
+    loading,
+    authLoading,
+    mixesLoading,
     error,
     dashboard,
     row1,
