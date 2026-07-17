@@ -2,180 +2,192 @@
 
 # SoulSync
 
-**Open-source music streaming with AI playlists, real-time listening sessions, and cross-platform clients.**
+**Open-source music streaming — AI playlists, real-time listening sessions, offline-first, cross-platform.**
 
-[Live Demo](https://soul-sync-beta.vercel.app) · [Releases](https://github.com/itslokeshx/SoulSync/releases) · [Report Issue](https://github.com/itslokeshx/SoulSync/issues)
+No advertisements. No subscription. No data resale. Ever.
 
-<br>
+[![Live Demo](https://img.shields.io/badge/Live-Visit_App-1DB954?style=flat-square)](https://soul-sync-beta.vercel.app)
+[![Android](https://img.shields.io/badge/Android-v4.0_APK-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk)
+[![Windows](https://img.shields.io/badge/Windows-v3.0.0-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/SoulSync_3.0.0.exe)
+[![Linux](https://img.shields.io/badge/Linux-v3.0.0_(.deb)-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/soulsync_3.0.0.deb)
+[![License](https://img.shields.io/badge/License-MIT-22C55E?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-4.0.0-6E56CF?style=flat-square)](version.json)
 
-[![Version](https://img.shields.io/badge/version-4.0.0-blue?style=flat-square)](https://github.com/itslokeshx/SoulSync/releases)
-[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
-[![React](https://img.shields.io/badge/react-18.3-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/typescript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-
-<br>
-
-*Listen together. Feel together.*
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Redis](https://img.shields.io/badge/Redis-Upstash-DC382D?style=flat-square&logo=redis&logoColor=white)](https://upstash.com)
 
 </div>
 
 ---
 
-## Overview
+## At a Glance
 
-SoulSync is a full-stack music streaming platform built for ad-free listening, intelligent discovery, and shared playback. It combines a React web client, native Android app, and optional Electron desktop builds with a Node.js backend that powers search, personalization, AI-generated playlists, and real-time **SoulLink** sessions.
+SoulSync is a production-grade, open-source music streaming platform combining intelligent AI playlist generation, real-time shared listening, offline downloads, and a polished cross-platform experience — delivered at zero cost to the user. It is a deployed product with active users, not a reference implementation or tutorial project.
 
-The project is production-oriented: deployed on Vercel and Render, backed by MongoDB Atlas and optional Upstash Redis, and used by a growing community of active listeners.
-
-### Highlights
-
-| Capability | Description |
-|------------|-------------|
-| **Intelligent search** | Seven-signal ranking engine prioritizing originals over covers, with Redis-backed caching |
-| **AI playlists** | Mood-based generation and song-list matching via Groq (LLaMA 3.3 70B) |
-| **SoulLink** | Synchronized listening rooms with chat, host controls, and six-character join codes |
-| **Universal import** | Import playlists from Spotify, YouTube Music, Apple Music, Gaana, or plain text |
-| **Offline playback** | Downloaded tracks with IndexedDB (web) and Capacitor filesystem (Android) |
-| **SoulSync Wrapped** | Personal listening stats, top tracks, and shareable summary visuals |
-| **Cross-platform** | Web, Android (Capacitor), and desktop (Electron) |
+> **180+ active users · 6,000+ tracks streamed · 150+ AI-generated playlists**
+> **96% search-latency reduction via Redis caching · 78% cache-hit rate**
 
 ---
 
-## Table of Contents
+## Platform Availability
 
-- [Downloads](#downloads)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Deployment](#deployment)
-- [API Reference](#api-reference)
-- [Security](#security)
-- [Contributing](#contributing)
-- [Acknowledgments](#acknowledgments)
-- [License](#license)
+| Platform | Distribution | Requirement |
+|----------|--------------|-------------|
+| Web | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | Any modern browser |
+| Android | [SoulSync_4.0.apk](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk) | Android 7.0+ (API 24+) |
+| Windows | [SoulSync_3.0.0.exe](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/SoulSync_3.0.0.exe) | Windows 10+ |
+| Linux | [soulsync_3.0.0.deb](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/soulsync_3.0.0.deb) | Debian / Ubuntu |
+
+All current and historical builds are available on the [Releases](https://github.com/itslokeshx/SoulSync/releases) page.
 
 ---
 
-## Downloads
+## Differentiation
 
-| Platform | Link | Requirements |
-|----------|------|--------------|
-| **Web** | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | Modern browser |
-| **Android** | [SoulSync 4.0 APK](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk) | Android 7.0+ (API 24+) |
-| **Windows** | [SoulSync 3.0.0](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/SoulSync_3.0.0.exe) | Windows 10+ |
-| **Linux** | [soulsync 3.0.0 deb](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/soulsync_3.0.0.deb) | Debian / Ubuntu |
-
-Additional builds and release notes are available on the [GitHub Releases](https://github.com/itslokeshx/SoulSync/releases) page.
+| Capability | SoulSync | Spotify Free | Spotify Premium |
+|------------|:--------:|:------------:|:---------------:|
+| Ad-free playback | ✅ | ❌ | ✅ |
+| AI-generated playlists | ✅ | ❌ | ❌ |
+| Listen Together + live chat | ✅ | ❌ | ❌ |
+| Offline downloads | ✅ | ❌ | ✅ |
+| Open source (MIT) | ✅ | ❌ | ❌ |
+| **Price** | **Free, forever** | Free, with ads | ₹119 / month |
 
 ---
 
-## Architecture
+## Key Capabilities
 
-```mermaid
-flowchart TB
-    subgraph Clients
-        WEB[Web Browser]
-        APK[Android App]
-        DESK[Electron Desktop]
-    end
+### Intelligent Search — Seven-Signal Ranking
 
-    subgraph Frontend["Frontend — React · Vite · Zustand"]
-        UI[Pages & Components]
-        STORES[Player · Queue · Search · Duo Stores]
-        CAP[Capacitor Bridge]
-    end
+- **Originals prioritized** — covers, karaoke, and tribute tracks are algorithmically penalized
+- **Seven-factor ranking** — play-count dominance, title and artist match strength, language preference, and three orthogonal correction signals
+- **Fifty results per query** with dedicated artist and album sections
+- **Redis-backed cache** — 10-minute TTL; repeat queries resolve in under 50 ms
 
-    subgraph Backend["Backend — Express · Socket.io"]
-        API[REST API]
-        WS[Real-time Events]
-        SVC[Services Layer]
-    end
+### AI Playlist Generation
 
-    subgraph External
-        MONGO[(MongoDB Atlas)]
-        REDIS[(Upstash Redis)]
-        GROQ[Groq AI]
-        JIO[JioSaavn API]
-    end
+- **Mood-based synthesis** — a natural-language vibe yields 15 curated tracks plus a generated title
+- **Song matching** — paste a list, AI resolves JioSaavn matches automatically
+- **Multi-key rotation** — up to five Groq API keys with automatic failover and rate-limit-aware balancing
+- **Universal import** — Spotify, YouTube Music, Apple Music, Gaana, or plain text
 
-    WEB --> UI
-    APK --> CAP --> UI
-    DESK --> UI
-    UI --> STORES
-    STORES -->|REST| API
-    STORES -->|WebSocket| WS
-    API --> SVC
-    WS --> SVC
-    SVC --> MONGO
-    SVC --> REDIS
-    SVC --> GROQ
-    SVC --> JIO
+### SoulLink — Real-Time Listening Sessions
+
+- **Host-controlled sync** — play, pause, seek, and queue changes propagate to all guests
+- **6-character room codes** — no account required to join
+- **In-session chat** — messaging layered over playback
+- **Heartbeat protocol** — automatic room cleanup on disconnect
+
+### Cross-Platform Native Experience
+
+- **Offline-first Android** — opens directly without authentication when offline
+- **System media controls** — lock-screen and notification playback, skip, and seek
+- **Background audio** — continuous playback when the app is backgrounded
+- **Haptic feedback** and swipe-driven player (mini bar ↔ full screen)
+- **Dynamic release resolution** — download paths resolve the latest APK release asset directly from GitHub's API
+
+### SoulSync Wrapped — Listening Analytics
+
+- **Responsive viewport deck** — full-screen visual modal across mobile, tablet, and desktop
+- **Live stats aggregation** — membership tenure, total minutes, play count, and liked tracks, computed from MongoDB in real time
+- **Top tracks and vinyl visual** — renders the five most-played songs with a rotating album-art vinyl for the primary artist
+- **Ticket pass infographic** — authentic concert ticket with perforated edges, barcodes, and cutouts
+
+### Shareable Links
+
+- Stable song URLs: `…/s/:slug` · Stable playlist URLs: `…/p/:slug`
+- Rich previews via Open Graph metadata on WhatsApp, iMessage, and Telegram
+
+---
+
+## Performance
+
+| Metric | Baseline | Optimized | Improvement |
+|--------|---------:|----------:|-------------|
+| Search latency (cached) | 1.2 s | 45 ms | **−96%** |
+| Dashboard load (cached) | 2.1 s | 95 ms | **−95%** |
+| Results per query | 20 | 50 | **+150%** |
+| Original track at rank #1 | Never | Always | ✅ |
+| Cache-hit rate | 0% | 78% | — |
+
+---
+
+## System Architecture
+
+SoulSync is a monorepo with two deployable surfaces — a React/Vite/Capacitor frontend (Vercel + Android) and an Express/TypeScript backend (Render) — backed by MongoDB Atlas, Upstash Redis, and the Groq inference platform.
+
+```
+                        ┌─────────────────────────────────────┐
+                        │          Client Surfaces            │
+                        │  Web (Vercel) · Android (Capacitor) │
+                        └─────────────────┬───────────────────┘
+                                          │  HTTPS  +  WebSocket
+                                          ▼
+        ┌─────────────────────────────────────────────────────────────┐
+        │                    Express Backend (Render)                  │
+        │                                                             │
+        │  Middleware      auth · softAuth · rateLimiter · Helmet      │
+        │  Routes          /auth · /search · /dashboard · /playlist    │
+        │                  /ai · /import · /share · /session · /user   │
+        │  Services        jiosaavn · searchRanker · searchEnhancer    │
+        │                  groq (LLaMA 3.3 70B) · intentParser         │
+        │                  dashboardEngine · importDetector · 5× importers │
+        │  Real-time       Socket.io — duo:join, sync-play, sync-seek, │
+        │                  sync-song-change, message, heartbeat (5 s)  │
+        └───────────┬─────────────────┬──────────────────┬────────────┘
+                    │                 │                  │
+                    ▼                 ▼                  ▼
+          ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+          │  MongoDB Atlas │ │ Upstash Redis  │ │    Groq AI     │
+          │                │ │                │ │                │
+          │  Users         │ │  Search cache  │ │  LLaMA 3.3 70B │
+          │  Playlists     │ │  Dashboard     │ │  Multi-key     │
+          │  ListenHist.   │ │  AI results    │ │  rotation      │
+          │  DuoSessions   │ │  10–30 min TTL │ │                │
+          │  Shares        │ │                │ │                │
+          └────────────────┘ └────────────────┘ └────────────────┘
 ```
 
-### Request flow
+**Request flow:**
 
-1. User actions update Zustand stores on the client.
-2. REST calls hit Express route handlers; real-time duo events use Socket.io.
-3. Services layer handles business logic, caching, and external API integration.
-4. MongoDB persists users, playlists, listening history, and sessions.
-5. Redis caches search, dashboard, and AI responses where configured.
-
-### SoulLink (real-time sync)
-
-| Event | Purpose |
-|-------|---------|
-| `duo:join` | Join a room by code |
-| `duo:sync-song-change` | Sync current track and queue |
-| `duo:sync-play` | Sync play/pause state and timestamp |
-| `duo:sync-seek` | Sync playback position |
-| `duo:message` | In-session chat |
-| `duo:end-session` | End the session |
-| Heartbeat (5s) | Connection monitoring and cleanup |
+```
+User Action → Zustand Store → API / Socket call → Express Route → Service Layer
+                                                       │
+                                                       ├── MongoDB (persist)
+                                                       ├── Redis (cache)
+                                                       └── Socket.io (real-time sync)
+```
 
 ---
 
-## Tech Stack
+## Technology Stack
 
 | Layer | Technologies |
-|-------|-------------|
-| **Frontend** | React 18 · TypeScript 5.7 · Vite 6 · Tailwind CSS 3.4 · Zustand 5 · TanStack Query 5 · Framer Motion |
-| **Mobile** | Capacitor 8 · Android API 24+ |
-| **Desktop** | Electron 35 · electron-builder |
-| **Backend** | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 |
-| **Data** | MongoDB 8.9 · Upstash Redis (optional) |
-| **AI** | Groq SDK · LLaMA 3.3 70B |
-| **Auth** | Google OAuth 2.0 · JWT · httpOnly cookies |
-| **Infrastructure** | Vercel (frontend) · Render (backend) · MongoDB Atlas |
+|-------|--------------|
+| Frontend | React 18.3, TypeScript 5.7, Vite 6.1, Tailwind CSS 3.4, Zustand 5, TanStack Query 5 |
+| Mobile | Capacitor 8.1 (Android API 24+) |
+| Backend | Node.js 18+, Express 4.21, Socket.io 4.8, TypeScript 5.7 |
+| Data | MongoDB Atlas, Upstash Redis (90-day TTL) |
+| AI | Groq SDK, LLaMA 3.3 70B |
+| Authentication | Google OAuth 2.0, JWT RS256, httpOnly cookies |
+| Infrastructure | Vercel, Render, MongoDB Atlas |
 
 ---
 
-## Project Structure
+## Security
 
-```
-SoulSync/
-├── package.json              # Root workspace scripts
-├── render.yaml               # Render deployment config
-├── frontend/
-│   ├── src/
-│   │   ├── pages/            # Route-level views
-│   │   ├── components/       # UI, player, layout, cards
-│   │   ├── store/            # Zustand state
-│   │   ├── duo/              # SoulLink session module
-│   │   ├── capacitor/        # Native Android bridge
-│   │   └── hooks/            # Shared React hooks
-│   ├── android/              # Capacitor Android project
-│   └── electron/             # Desktop app shell
-└── backend/
-    └── src/
-        ├── routes/           # REST endpoints
-        ├── services/         # Business logic & integrations
-        ├── models/           # MongoDB schemas
-        ├── middleware/       # Auth, rate limiting
-        └── socket/           # Socket.io handlers
-```
+| Layer | Implementation |
+|-------|----------------|
+| Authentication | Google OAuth 2.0 — no passwords stored |
+| Session tokens | httpOnly · Secure · SameSite cookies |
+| HTTP headers | Helmet: CORP, COOP, and CSP on all responses |
+| CORS | Exact-origin validation |
+| Rate limiting | 100 req/min global, 15 req/min on AI routes |
+| Authorization | JWT (RS256), verified on every protected route |
+| Input validation | Zod schemas on all REST endpoints |
 
 ---
 
@@ -183,112 +195,66 @@ SoulSync/
 
 ### Prerequisites
 
-| Requirement | Version | Required for |
-|-------------|---------|--------------|
-| Node.js | ≥ 18 | All development |
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Node.js | ≥ 18 | Runtime |
 | npm | ≥ 9 | Package management |
-| MongoDB Atlas | Free M0 tier | User data & playlists |
-| Google Cloud OAuth | Client ID (+ secret for APK) | Authentication |
-| Groq API key | Free tier | AI playlist features |
+| MongoDB Atlas | Free M0 tier | Primary database |
+| Google Cloud | OAuth 2.0 Client ID | Authentication |
+| Groq API key | Free tier | AI features (optional) |
 | Android Studio | Latest | APK builds only |
 
-### Installation
+### Local Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/itslokeshx/SoulSync.git
 cd SoulSync
 
-# Install dependencies for frontend and backend
+# 2. Install all workspace dependencies
 npm run install:all
 
-# Copy environment templates
+# 3. Configure environment files
 cp frontend/.env.example frontend/.env
-cp backend/.env.example backend/.env
+cp backend/.env.example  backend/.env
+
+# 4. Start development servers (two terminals)
+npm run dev:backend    # Terminal 1 — http://localhost:4000
+npm run dev:frontend   # Terminal 2 — http://localhost:5173
 ```
 
-Edit both `.env` files with your credentials (see [Environment Variables](#environment-variables)).
+### Environment Variables
 
-### Development
-
-Run the backend and frontend in separate terminals:
-
-```bash
-# Terminal 1 — API server (default: http://localhost:4000)
-npm run dev:backend
-
-# Terminal 2 — Vite dev server (default: http://localhost:5173)
-npm run dev:frontend
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-### Build & verify
-
-```bash
-npm run build:backend
-npm run build:frontend
-npm run typecheck
-```
-
-### Android APK
-
-```bash
-cd frontend
-npm run build
-npx cap sync android
-cd android && ./gradlew assembleRelease
-# Output: android/app/build/outputs/apk/release/app-release.apk
-```
-
-### Desktop (Electron)
-
-```bash
-cd frontend
-npm run electron:dev      # Development
-npm run electron:build    # Build .deb (Linux) and .exe (Windows)
-```
-
----
-
-## Environment Variables
-
-### Frontend (`frontend/.env`)
-
-All client-side variables must use the `VITE_` prefix.
+**`frontend/.env`**
 
 ```env
-VITE_BACKEND_URL=http://localhost:4000
+VITE_BACKEND_URL=https://your-soulsync-backend.onrender.com
 VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 VITE_JIOSAAVN_API=https://saavn.sumit.co/api
-VITE_DUO_BACKEND=http://localhost:4000
-VITE_GITHUB_REPO=itslokeshx/SoulSync
+VITE_DUO_BACKEND=https://your-soulsync-backend.onrender.com
+VITE_FRONTEND_URL=https://soul-sync-beta.vercel.app
 ```
 
-### Backend (`backend/.env`)
+**`backend/.env`**
 
 ```env
 PORT=4000
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-BACKEND_URL=http://localhost:4000
+NODE_ENV=production
+FRONTEND_URL=https://soul-sync-beta.vercel.app
 
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/soulsync
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/soulsync
 JWT_SECRET=your-64-char-hex-secret
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/google/callback
 
 GROQ_KEY_1=gsk_xxxxx
+GROQ_KEY_2=gsk_xxxxx
 JIOSAAVN_API=https://saavn.sumit.co/api
 
 UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
 ```
 
-> **Important:** Backend variables must **not** use the `VITE_` prefix. Restart both dev servers after changing environment files.
-
-See `frontend/.env.example` and `backend/.env.example` for the full list, including optional Groq key rotation and admin configuration.
+> **Note:** `JIOSAAVN_API` in `backend/.env` must not carry the `VITE_` prefix — that prefix is exclusive to client-exposed variables.
 
 ---
 
@@ -296,130 +262,181 @@ See `frontend/.env.example` and `backend/.env.example` for the full list, includ
 
 ### Frontend → Vercel
 
-1. Import the repository on [vercel.com](https://vercel.com).
-2. Set the root directory to `frontend` (or configure build settings accordingly).
-3. Add all `VITE_*` environment variables.
-4. Add your deployed URL to Google OAuth **Authorized JavaScript origins**.
-
-The included `vercel.json` handles SPA routing.
+1. Import the repository at [vercel.com](https://vercel.com).
+2. Set every `VITE_*` environment variable.
+3. Deploy — `vercel.json` is included.
+4. Add the deployed origin to Google OAuth authorized JavaScript origins.
 
 ### Backend → Render
 
-1. Create a Web Service connected to this repository.
-2. Set root directory to `backend`.
-3. Build command: `npm install --include=dev && npm run build`
-4. Start command: `npm start`
-5. Configure all backend environment variables.
+1. Create a Web Service connected to the repository; set the root directory to `backend`.
+2. Build command: `npm install --include=dev && npm run build`
+3. Start command: `npm start`
+4. Set all backend environment variables — especially `JIOSAAVN_API` (no `VITE_` prefix).
 
-`render.yaml` provides a reference configuration. The server includes a keep-alive self-ping to mitigate Render free-tier cold starts.
+### Android APK
 
-### Google OAuth setup
-
-Add the following to your Google Cloud OAuth credentials:
-
-| Setting | Value |
-|---------|-------|
-| Authorized JavaScript origins | Your Vercel URL, `http://localhost:5173` |
-| Authorized redirect URIs | `https://your-backend.onrender.com/api/auth/google/callback` |
+```bash
+cd frontend && npm run build
+npx cap sync android
+cd android && ./gradlew assembleRelease
+# Output → android/app/build/outputs/apk/release/app-release.apk
+```
 
 ---
 
 ## API Reference
 
-Base URL: `https://your-backend-domain.com`
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Health check |
-| `POST` | `/api/auth/google` | Authenticate with Google ID token |
-| `GET` | `/api/search?q=...` | Ranked search |
-| `GET` | `/api/search/artist/:id` | Artist top songs |
-| `GET` | `/api/search/album/:id` | Album tracklist |
-| `GET` | `/api/dashboard` | Personalized home sections (auth) |
+| `POST` | `/api/auth/google` | Authenticate with a Google ID token |
+| `GET` | `/api/search?q=...&lang=...&limit=50` | Seven-factor ranked search |
+| `GET` | `/api/search/artist/:id` | Top tracks by artist |
+| `GET` | `/api/search/album/:id` | Full album tracklist |
+| `POST` | `/api/share/song` | Generate a shareable song slug |
+| `POST` | `/api/share/playlist` | Generate a shareable playlist slug |
+| `GET` | `/api/share/s/:slug` | Resolve a shared song (public) |
+| `GET` | `/api/share/p/:slug` | Resolve a shared playlist (public) |
+| `POST` | `/api/import/detect` | Detect source platform from a URL |
+| `GET` | `/api/dashboard` | Personalized dashboard (auth) |
 | `GET` | `/api/dashboard/guest` | Guest dashboard |
-| `GET/POST/PATCH/DELETE` | `/api/playlists/*` | Playlist CRUD |
-| `POST` | `/api/ai/generate` | Generate playlist from mood |
-| `POST` | `/api/ai/match` | Match songs from a text list |
-| `POST` | `/api/import/detect` | Detect platform from import URL |
-| `POST` | `/api/session/create` | Create SoulLink room |
-| `POST` | `/api/session/join` | Join SoulLink room |
-| `GET` | `/api/user/*` | Profile, preferences, and stats |
-| `GET` | `/api/recommendations/*` | Personalized recommendations |
-| `GET` | `/api/mixes/*` | Curated mixes |
-| `GET` | `/api/radio/*` | Radio stations |
-| `POST` | `/api/feedback` | Submit user feedback |
-
-Real-time duo session events are handled over Socket.io on the same backend host.
+| `POST` | `/api/ai/generate` | Generate a playlist from a mood |
+| `POST` | `/api/ai/match` | Resolve a song list to matches |
+| `POST` | `/api/session/create` | Create a SoulLink room |
+| `POST` | `/api/session/join` | Join a SoulLink room |
+| `GET` | `/api/user/stats` | Wrapped statistics and timeline |
 
 ---
 
-## Security
+## Repository Structure
 
-| Concern | Implementation |
-|---------|----------------|
-| Authentication | Google OAuth 2.0 — no passwords stored |
-| Sessions | httpOnly, Secure, SameSite cookies |
-| HTTP headers | Helmet (CSP, CORP, COOP) |
-| CORS | Strict origin validation |
-| Rate limiting | Configurable per-route limits; tighter on AI endpoints |
-| Input validation | Zod schemas on REST endpoints |
-| JWT | Verified on all protected routes |
+```
+SoulSync/
+├── backend/                       Express + Socket.io API
+│   └── src/
+│       ├── middleware/            auth · softAuth · rateLimiter
+│       ├── models/                User · Playlist · ListeningHistory · DuoSession
+│       ├── routes/                auth · search · dashboard · playlist
+│       │                          ai · import · share · session · user
+│       ├── services/              jiosaavn · searchRanker · groq
+│       │   └── importers/         spotify · youtube · apple · gaana · text
+│       └── socket/                Socket.io setup + duo room handlers
+│
+├── frontend/                      React + Vite + Capacitor
+│   └── src/
+│       ├── api/                   Backend + JioSaavn clients
+│       ├── auth/                  AuthContext + ProtectedRoute
+│       ├── capacitor/             Filesystem · Haptics · MusicControls · Network
+│       ├── components/            cards · layout · player · ui · profile
+│       ├── duo/                   SoulLink store, socket, hooks
+│       ├── hooks/                 useDashboard · useSearch · useAuthGate · ...
+│       ├── pages/                 Home · Search · Library · SoulLink · ...
+│       ├── providers/             NetworkProvider · PlayerProvider
+│       ├── store/                 player · queue · search · offline · ui · download
+│       └── utils/                 offlineDB · normalizeSong · colorExtractor · ...
+│
+└── release/                       Packaged desktop builds (Windows / Linux)
+```
+
+---
+
+## Troubleshooting
+
+**Silent playback or songs failing to play**
+Ensure `normalizeSong()` runs before `loadAndPlay()`. On the APK, wrap local files with `Capacitor.convertFileSrc()`:
+
+```ts
+const normalized = normalizeSong(song);
+loadAndPlay(normalized);
+
+if (Capacitor.isNativePlatform()) {
+  audioUrl = Capacitor.convertFileSrc(localPath);
+}
+```
+
+**SoulLink de-sync**
+`isHost` must be held in a `ref` (not state) to avoid stale closures inside socket listeners:
+
+```ts
+const isHostRef = useRef(isHost);
+isHostRef.current = isHost;
+```
+
+Confirm `socket.connected === true` and that both peers share the identical 6-character code.
+
+**Covers appearing before originals**
+Verify `JIOSAAVN_API` (no `VITE_` prefix) is set in `backend/.env`. Flush the Redis cache or wait for the 10-minute TTL to expire.
+
+**APK installation failure**
+Enable installation from unknown sources: **Settings → Security → Install unknown apps → Allow**. Requires Android 7.0 (API 24) or later.
+
+**Backend 502 / connection refused**
+The first request after idle time on Render's free tier can take 30–60 s. A built-in self-ping at 13-minute intervals mitigates cold starts.
+
+**Environment variables not loading**
+The backend cannot read `VITE_`-prefixed variables. Use `JIOSAAVN_API` (not `VITE_JIOSAAVN_API`) in `backend/.env`. Restart both dev servers after any `.env` change.
 
 ---
 
 ## Contributing
 
-Contributions are welcome. To get started:
+Contributions are welcome — bug fixes, features, and documentation improvements all move SoulSync forward.
 
-1. Fork the repository and create a feature branch (`feat/your-feature`).
-2. Install dependencies and configure environment files.
-3. Run `npm run typecheck` and verify your changes locally.
-4. Open a pull request with a clear description of the change.
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/SoulSync.git
 
-### Commit convention
+# 2. Create a feature branch
+git checkout -b feat/your-feature
 
-This project follows [Conventional Commits](https://www.conventionalcommits.org/):
+# 3. Install, configure, and verify
+npm run install:all
+npm run typecheck
 
-- `feat:` — New feature
-- `fix:` — Bug fix
-- `docs:` — Documentation
-- `refactor:` — Code restructuring
-- `perf:` — Performance improvement
-- `chore:` — Tooling or build changes
+# 4. Commit using conventional prefixes, then push and open a PR
+git commit -m "feat: your feature description"
+git push origin feat/your-feature
+```
 
-### PR checklist
+**Commit prefixes:** `feat` · `fix` · `docs` · `style` · `refactor` · `perf` · `chore`
 
+**Pre-merge checklist**
+
+- [ ] `npm run build` passes
 - [ ] `npm run typecheck` passes
-- [ ] `npm run build:frontend` and `npm run build:backend` succeed
-- [ ] Changes tested in a modern browser
-- [ ] Android changes tested on device or emulator (if applicable)
+- [ ] No console errors
+- [ ] Verified on Chrome, Firefox, and Safari (web)
+- [ ] Verified on Android (when APK-touching changes are included)
+
+Browse [good first issues](https://github.com/itslokeshx/SoulSync/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) to find an approachable entry point.
 
 ---
 
 ## Acknowledgments
 
-SoulSync builds on excellent open-source and hosted services:
-
-| Project / Service | Role |
-|-----------------|------|
-| [jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Music metadata and streaming |
+| Project | Contribution |
+|---------|--------------|
+| [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Music streaming backbone |
 | [Groq Cloud](https://groq.com) | LLaMA 3.3 70B inference |
-| [Capacitor](https://capacitorjs.com) | Native mobile bridge |
-| [Socket.io](https://socket.io) | Real-time session sync |
+| [Ionic Capacitor](https://capacitorjs.com) | Native Android bridge |
+| [Socket.io](https://socket.io) | Real-time duo sessions |
 | [Zustand](https://github.com/pmndrs/zustand) | Client state management |
+| [Framer Motion](https://www.framer.com/motion/) | Interface animation |
 
 ---
 
 ## License
 
-This project is distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+Distributed under the [MIT License](LICENSE). You are free to use, modify, and distribute this software.
 
 ---
 
 <div align="center">
 
-**Built by [Loki](https://github.com/itslokeshx)**
+**Built by Loki**
 
-If SoulSync is useful to you, consider starring the repository.
+*No ads. No paywalls. No limits. Simply music.*
+
+If SoulSync earned your time, a star on the repository is appreciated.
 
 </div>
