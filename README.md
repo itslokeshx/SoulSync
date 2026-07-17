@@ -21,18 +21,20 @@ No ads. No subscription. Ever.</p>
 
 SoulSync is a **free, open-source music streaming platform** built for people who love music without the paywalls. It combines intelligent AI-powered playlist generation, real-time shared listening sessions, offline downloads, and a polished cross-platform experience — all at zero cost.
 
-> 🚀 **Already used by 140+ users** with 4,000+ songs streamed. This is not a tutorial project — it's a product people actually use.
+> 🚀 **Already used by 180+ active users** with over **6,000+ tracks streamed** and **150+ custom playlists** generated. This is not a tutorial project — it's a product people actually use.
 
 ---
 
 ## 📥 Downloads
 
-| Platform | Link | Requirement |
-|----------|------|-------------|
-| 🌐 **Web** | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | No install |
-| 💻 **Windows** | `SoulSync_3.0.0.exe` | Windows 10+ |
-| 🐧 **Linux** | `soulsync_3.0.0.deb` | Debian / Ubuntu |
-| 📱 **Android** | `SoulSync_3.0.0.apk` | Android 7.0+ |
+| Platform | Download Link | Requirement |
+|----------|--------------|-------------|
+| 🌐 **Web App** | [soul-sync-beta.vercel.app (Live)](https://soul-sync-beta.vercel.app) | No installation required |
+| 📱 **Android App** | [SoulSync_4.0.apk (Direct Download)](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk) | Android 7.0+ (API 24+) |
+| 💻 **Windows Client** | [SoulSync_3.0.0.exe (Direct Download)](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/SoulSync_3.0.0.exe) | Windows 10+ |
+| 🐧 **Linux Client** | [soulsync_3.0.0.deb (Direct Download)](https://github.com/itslokeshx/SoulSync/releases/download/v3.0.0/soulsync_3.0.0.deb) | Debian / Ubuntu |
+
+> 💡 All desktop builds and older releases can also be found directly on the [GitHub Releases](https://github.com/itslokeshx/SoulSync/releases) page.
 
 ---
 
