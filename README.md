@@ -1,193 +1,778 @@
-# SoulSync
+<div align="center">
 
-**A production-ready, ad-free music streaming platform featuring real-time group listening, offline playback, and AI-driven personalized recommendations.**
+<h1>🎧 SoulSync</h1>
 
-[![Live Web App](https://img.shields.io/badge/Web_App-Live-1DB954?style=flat-square&logoColor=white)](https://soul-sync-beta.vercel.app/)
-[![Android Release](https://img.shields.io/badge/Android_APK-v4.0.0-1DB954?style=flat-square)](https://github.com/itslokeshx/SoulSync/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-1DB954?style=flat-square)](LICENSE)
+<p><em>Listen together. Feel together.</em></p>
 
-SoulSync is a full-scale music streaming application currently used by **180+ active users**, with over **6,000+ tracks streamed** and **150+ custom playlists** generated. It consists of a containerized Express backend, a React SPA, and a Capacitor-based native Android client.
+<p>
+  <a href="https://github.com/itslokeshx/SoulSync/stargazers"><img src="https://img.shields.io/github/stars/itslokeshx/SoulSync?style=for-the-badge&color=1DB954" alt="Stars"></a>
+  <a href="https://github.com/itslokeshx/SoulSync/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License"></a>
+  <a href="https://soul-sync-beta.vercel.app"><img src="https://img.shields.io/badge/Live%20Demo-Click%20Here-blue?style=for-the-badge" alt="Live Demo"></a>
+</p>
+
+<p><strong>Free, open-source music streaming — AI playlists, real-time listening sessions, native apps.</strong><br>
+No ads. No subscription. Ever.</p>
+
+</div>
 
 ---
 
-## 📥 Download
+## ✨ What is SoulSync?
 
-| Platform | Download Link | Requirements |
-| :--- | :--- | :--- |
-| **📱 Android App** | [SoulSync_4.0.apk (Direct Download)](https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk) | Android 7.0+ (API 24+) |
+SoulSync is a **free, open-source music streaming platform** built for people who love music without the paywalls. It combines intelligent AI-powered playlist generation, real-time shared listening sessions, offline downloads, and a polished cross-platform experience — all at zero cost.
+
+> 🚀 **Already used by 140+ users** with 4,000+ songs streamed. This is not a tutorial project — it's a product people actually use.
 
 ---
 
-## Architecture Overview
+## 📥 Downloads
 
-SoulSync enforces strict separation of concerns, decoupling transport layers, business engines, and database access patterns.
+| Platform | Link | Requirement |
+|----------|------|-------------|
+| 🌐 **Web** | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | No install |
+| 💻 **Windows** | `SoulSync_3.0.0.exe` | Windows 10+ |
+| 🐧 **Linux** | `soulsync_3.0.0.deb` | Debian / Ubuntu |
+| 📱 **Android** | `SoulSync_3.0.0.apk` | Android 7.0+ |
 
-### System Topology
+---
 
-```mermaid
-graph TD
-    subgraph Client Layer ["Client Layer"]
-        A[React SPA / Web]
-        B[Capacitor Native APK / Android]
-    end
+## 🆚 Why SoulSync?
 
-    subgraph Backend Layer ["Backend Layer (Express + Socket.io)"]
-        C[REST API Controllers]
-        D[Real-time WebSocket Gateway]
-        E[Recommendation & AI Services]
-        F[JioSaavn External API Wrapper]
-    end
+| Feature | SoulSync | Spotify Free | Spotify Premium |
+|---------|----------|------------|-----------------|
+| Ad-free | ✅ | ❌ | ✅ |
+| AI Playlists | ✅ | ❌ | ❌ |
+| Listen Together + Chat | ✅ | ❌ | ❌ |
+| Offline Downloads | ✅ | ❌ | ✅ |
+| Open Source | ✅ MIT | ❌ | ❌ |
+| **Price** | **₹0 forever** | ₹0 w/ ads | ₹119/month |
 
-    subgraph Data & Analytics ["Data & Infrastructure Layer"]
-        G[(MongoDB Atlas)]
-        H[(Upstash Redis Cache)]
-        I[Groq LLaMA 3.3 Inference]
-    end
+---
 
-    A & B -->|HTTPS REST| C
-    A & B -->|WS Socket.IO| D
-    C & D --> E
-    E --> F
-    E --> G
-    E --> H
-    E --> I
+## 🎯 Core Features
+
+### 🔍 Intelligent Search — 7 Ranking Signals
+- **Originals first** — covers, karaokes, and tributes are automatically penalized
+- **7-factor ranking** — play count (dominant), title/artist match, language preference
+- **50 results** per query including artist and album sections
+- **Redis cache** — 10-min TTL, repeat searches return in under 50ms
+
+### 🤖 AI Playlist Generator
+- **Mood-based** — describe a vibe, get 15 curated songs with a creative name
+- **Song matching** — paste a list, AI finds JioSaavn matches automatically
+- **Multi-key rotation** — up to 5 Groq API keys with auto-fallback
+- **Universal import** — Spotify, YouTube Music, Apple Music, Gaana, or plain text
+
+### 🎧 SoulLink — Listen Together
+- **Real-time sync** — host controls (play, pause, seek, queue) sync to all guests
+- **6-character room codes** — no account needed to join
+- **Built-in chat** — message within the session
+- **Heartbeat protocol** — auto-cleanup on disconnect
+
+### 📱 Native Android App
+- **Offline without login** — opens directly when offline
+- **Lock screen controls** — play / pause / skip from notification
+- **Background audio** — keeps playing when minimized
+- **Haptic feedback** + swipe player (mini bar ↔ full screen)
+- **Dynamic release resolution** — download paths resolve the latest APK release asset directly from GitHub's live API
+
+### 📊 SoulSync Wrapped — Live Listening Story
+- **Responsive Viewport Deck**: A gorgeous full-screen visual modal covering the entire viewport, responsive across mobile, tablet, and desktop screens.
+- **Dynamic Stats Aggregation**: Real-time calculations of joined date milestones, total minutes listened, total play count, and liked songs directly from MongoDB.
+- **Top Songs & Vinyl Disc**: Shows the top 5 most-played songs and rotates a custom album-art styled vinyl record for the primary artist.
+- **Ticket Infographic Pass**: Renders an authentic concert ticket pass, featuring perforated edges, barcodes, cutouts, and shareable summaries.
+
+### 🔗 Shareable Links
+- Song links: `soul-sync-beta.vercel.app/s/:slug`
+- Playlist links: `soul-sync-beta.vercel.app/p/:slug`
+- **Rich previews** — album art in WhatsApp, iMessage, Telegram via OG meta tags
+
+### ✈️ Offline Mode
+
+| Scenario | Web | APK |
+|----------|-----|-----|
+| Offline + logged in | ✅ Downloads available | ✅ Downloads available |
+| Offline + not logged in | ❌ Login required | ✅ Opens directly |
+
+---
+
+## ⚡ Performance
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Search latency (cached) | 1.2s | 45ms | **−96%** |
+| Dashboard load (cached) | 2.1s | 95ms | **−95%** |
+| Results per query | 20 | 50 | **+150%** |
+| Original song at rank #1 | Never | Always | ✅ |
+| Cache hit rate | 0% | 78% | — |
+
+---
+
+## 🏗️ Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────┐     ┌──────────────────────────────────────────────────┐
+│                    WEB BROWSER                       │     │                  ANDROID APK                      │
+│                                                      │     │                                                  │
+│  ┌────────────────────────────────────────────────┐  │     │  ┌────────────────────────────────────────────┐  │
+│  │              AUTHENTICATION LAYER               │  │     │  │              AUTHENTICATION LAYER           │  │
+│  │  Google OAuth 2.0 → JWT RS256 → httpOnly Cookie │  │     │  │  Google OAuth → JWT → Capacitor Preferences │  │
+│  └────────────────────────┬───────────────────────┘  │     │  └──────────────────────┬─────────────────────┘  │
+│                           │                          │     │                         │                        │
+│  ┌────────────────────────▼───────────────────────┐  │     │  ┌──────────────────────▼─────────────────────┐  │
+│  │              STATE MANAGEMENT                   │  │     │  │              STATE MANAGEMENT               │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌────────────────┐  │  │     │  │  ┌──────────┐ ┌──────────┐ ┌────────────┐  │  │
+│  │  │ player   │ │  queue   │ │    search      │  │  │     │  │  │ player   │ │  queue   │ │   search   │  │  │
+│  │  │ Store    │ │  Store   │ │    Store       │  │  │     │  │  │ Store    │ │  Store   │ │   Store    │  │  │
+│  │  └──────────┘ └──────────┘ └────────────────┘  │  │     │  │  └──────────┘ └──────────┘ └────────────┘  │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌────────────────┐  │  │     │  │  ┌──────────┐ ┌──────────┐ ┌────────────┐  │  │
+│  │  │  duo     │ │ offline  │ │      ui        │  │  │     │  │  │  duo     │ │ offline  │ │     ui     │  │  │
+│  │  │ Store    │ │  Store   │ │    Store       │  │  │     │  │  │ Store    │ │  Store   │ │   Store    │  │  │
+│  │  └──────────┘ └──────────┘ └────────────────┘  │  │     │  │  └──────────┘ └──────────┘ └────────────┘  │  │
+│  └────────────────────────┬───────────────────────┘  │     │  └──────────────────────┬─────────────────────┘  │
+│                           │                          │     │                         │                        │
+│  ┌────────────────────────▼───────────────────────┐  │     │  ┌──────────────────────▼─────────────────────┐  │
+│  │              ROUTING & PAGES                   │  │     │  │              ROUTING & PAGES                │  │
+│  │  HomePage · SearchPage · ArtistPage · AlbumPage│  │     │  │  HomePage · SearchPage · ArtistPage       │  │
+│  │  PlaylistPage · LibraryPage · LikedPage        │  │     │  │  AlbumPage · PlaylistPage · LibraryPage   │  │
+│  │  DownloadsPage · ProfilePage · LoginPage       │  │     │  │  LikedPage · DownloadsPage · ProfilePage  │  │
+│  │  ImportPage · OnboardingPage · OfflinePage     │  │     │  │  ImportPage · OnboardingPage · OfflinePage│  │
+│  │  SongSharePage · SoulLinkPage                  │  │     │  │  SongSharePage · SoulLinkPage             │  │
+│  └────────────────────────┬───────────────────────┘  │     │  └──────────────────────┬─────────────────────┘  │
+│                           │                          │     │                         │                        │
+│  ┌────────────────────────▼───────────────────────┐  │     │  ┌──────────────────────▼─────────────────────┐  │
+│  │              LAYOUT COMPONENTS                 │  │     │  │              MOBILE LAYOUT                  │  │
+│  │  ┌──────────────────────────────────────────┐  │  │     │  │  ┌────────────────────────────────────┐   │  │
+│  │  │  Sidebar  ·  Pages  ·  PlayerBar  · Duo │  │  │     │  │  │  BottomNav  ·  MiniPlayer  · DuoBar│   │  │
+│  │  └──────────────────────────────────────────┘  │  │     │  │  └────────────────────────────────────┘   │  │
+│  │  ┌──────────────────────────────────────────┐  │  │     │  │  ┌────────────────────────────────────┐   │  │
+│  │  │  NowPlayingView  ·  QueuePanel           │  │  │     │  │  │  FullScreenPlayer  ·  QueuePanel   │   │  │
+│  │  └──────────────────────────────────────────┘  │  │     │  │  └────────────────────────────────────┘   │  │
+│  └────────────────────────┬───────────────────────┘  │     │  └──────────────────────┬─────────────────────┘  │
+│                           │                          │     │                         │                        │
+│  ┌────────────────────────▼───────────────────────┐  │     │  ┌──────────────────────▼─────────────────────┐  │
+│  │              PROVIDERS                         │  │     │  │              CAPACITOR BRIDGE               │  │
+│  │  NetworkProvider · PlayerProvider              │  │     │  │  Filesystem · Haptics · Lifecycle          │  │
+│  │  IndexedDB (offline cache)                     │  │     │  │  MusicControls · Network · Notifications   │  │
+│  └────────────────────────┬───────────────────────┘  │     │  └──────────────────────┬─────────────────────┘  │
+│                           │                          │     │                         │                        │
+└───────────────────────────┼──────────────────────────┘     └─────────────────────────┼────────────────────────┘
+                            │         REST API  +  WebSocket  (Socket.io)              │
+                            └────────────────────────┬─────────────────────────────────┘
+                                                     │
+                    ┌────────────────────────────────▼────────────────────────────────┐
+                    │                        RENDER BACKEND                          │
+                    │                     Express 4.21 + Socket.io                    │
+                    │                                                                 │
+                    │  ┌─────────────────────────────────────────────────────────┐   │
+                    │  │                    MIDDLEWARE LAYER                      │   │
+                    │  │  auth.ts  ·  softAuth.ts  ·  rateLimiter.ts  ·  Helmet  │   │
+                    │  └─────────────────────────────────────────────────────────┘   │
+                    │                                                                 │
+                    │  ┌─────────────────────── ROUTES ───────────────────────┐      │
+                    │  │                                                       │      │
+                    │  │  /api/auth/google          → Google OAuth 2.0         │      │
+                    │  │  /api/search?q=...         → 7-factor ranked search   │      │
+                    │  │  /api/search/artist/:id    → Artist top songs         │      │
+                    │  │  /api/search/album/:id     → Album tracklist          │      │
+                    │  │  /api/dashboard            → Personalized sections    │      │
+                    │  │  /api/dashboard/guest      → Guest sections           │      │
+                    │  │  /api/playlist/*           → CRUD operations          │      │
+                    │  │  /api/ai/generate          → Mood-based playlist      │      │
+                    │  │  /api/ai/match             → Song list matching       │      │
+                    │  │  /api/import/detect        → Platform detection       │      │
+                    │  │  /api/share/song           → Generate share slug      │      │
+                    │  │  /api/share/playlist       → Generate share slug      │      │
+                    │  │  /api/share/s/:slug        → Retrieve share (public)  │      │
+                    │  │  /api/share/p/:slug        → Retrieve share (public)  │      │
+                    │  │  /api/session/create       → Create duo room          │      │
+                    │  │  /api/session/join         → Join duo room            │      │
+                    │  │  /api/user/*               → User profile & prefs     │      │
+                    │  │                                                       │      │
+                    │  └───────────────────────────────────────────────────────┘      │
+                    │                                                                 │
+                    │  ┌─────────────────────── SERVICES ─────────────────────┐      │
+                    │  │                                                       │      │
+                    │  │  jiosaavn.ts        → Music API wrapper              │      │
+                    │  │  searchRanker.ts    → 7-factor ranking engine        │      │
+                    │  │  searchEnhancer.ts  → Result enhancement             │      │
+                    │  │  groq.ts            → LLaMA 3.3 70B AI              │      │
+                    │  │  intentParser.ts    → NLP intent extraction         │      │
+                    │  │  redis.ts           → Caching layer (Upstash)        │      │
+                    │  │  mongodb.ts         → Database connection            │      │
+                    │  │  dashboardEngine.ts → Section generation             │      │
+                    │  │  importDetector.ts  → Platform detection             │      │
+                    │  │                                                       │      │
+                    │  │  ┌───────────────── IMPORTERS ──────────────────┐   │      │
+                    │  │  │  spotify · youtube · apple · gaana · text    │   │      │
+                    │  │  └──────────────────────────────────────────────┘   │      │
+                    │  └─────────────────────────────────────────────────────┘      │
+                    │                                                                 │
+                    │  ┌─────────────────────── SOCKET.IO ────────────────────┐      │
+                    │  │                                                       │      │
+                    │  │  duo:join         → Join room with code              │      │
+                    │  │  duo:sync-song-change  → Sync current song + queue   │      │
+                    │  │  duo:sync-play    → Sync play/pause + timestamp      │      │
+                    │  │  duo:sync-seek    → Sync seek position               │      │
+                    │  │  duo:message      → In-session chat                  │      │
+                    │  │  duo:end-session  → End session                      │      │
+                    │  │  heartbeat (5s)   → Connection monitoring            │      │
+                    │  │                                                       │      │
+                    │  └───────────────────────────────────────────────────────┘      │
+                    │                                                                 │
+                    └────────────────────────────┬────────────────────────────────────┘
+                                                 │
+              ┌──────────────────────────────────┼──────────────────────────────────┐
+              │                                  │                                  │
+              ▼                                  ▼                                  ▼
+     ┌─────────────────┐              ┌─────────────────┐              ┌─────────────────┐
+     │  MongoDB Atlas   │              │  Upstash Redis  │              │     Groq AI     │
+     │                  │              │                 │              │                 │
+     │  Users           │              │  Search cache   │              │  LLaMA 3.3 70B  │
+     │  Playlists       │              │  Dashboard cache│              │  Multi-key rot. │
+     │  ListeningHist.  │              │  AI cache       │              │  30-min cache   │
+     │  DuoSessions     │              │  10-30 min TTL  │              │                 │
+     │  Shares          │              │                 │              │                 │
+     └─────────────────┘              └─────────────────┘              └─────────────────┘
 ```
 
-### Codebase Organization
+### Data Flow
+
+```
+User Action → Zustand Store → API Call → Express Route → Service Layer → External API
+                                              │
+                                              ├── MongoDB (persist)
+                                              ├── Redis (cache)
+                                              └── Socket.io (real-time sync)
+```
+
+---
+
+## 📁 Project Structure
 
 ```
 SoulSync/
-├── backend/                       # Express + TS backend
-│   ├── src/
-│   │   ├── middleware/            # Rate limiting, auth gates, CORS configurations
-│   │   ├── models/                # MongoDB schema definitions (Mongoose)
-│   │   ├── routes/                # Route definitions & REST controllers
-│   │   ├── services/              # Recommendation engines, Groq, caching, JioSaavn
-│   │   └── socket/                # Socket.io connection rooms & heartbeat gateway
-│   └── tsconfig.json
 │
-├── frontend/                      # React SPA + Capacitor project
+├── package.json                          # Root workspace scripts
+├── package-lock.json
+├── render.yaml                           # Render deployment config
+├── vercel.json                           # Vercel deployment config
+├── version.json                          # Version tracking
+├── README.md                             # Project documentation
+│
+├── backend/
+│   ├── package.json                      # Backend dependencies
+│   ├── package-lock.json
+│   ├── tsconfig.json                     # TypeScript config
+│   ├── .env.example                      # Environment template
+│   ├── .env                              # Environment variables (gitignored)
+│   │
+│   └── src/
+│       ├── index.ts                      # Express server entry point
+│       │
+│       ├── middleware/
+│       │   ├── auth.ts                   # JWT authentication middleware
+│       │   ├── rateLimiter.ts            # Rate limiting middleware
+│       │   └── softAuth.ts               # Optional auth for public routes
+│       │
+│       ├── models/
+│       │   ├── DuoSession.ts             # Real-time listening session model
+│       │   ├── ListeningHistory.ts       # User listening history (90-day TTL)
+│       │   ├── Playlist.ts               # Playlist model (AI + manual)
+│       │   └── User.ts                   # User model with preferences
+│       │
+│       ├── routes/
+│       │   ├── ai.ts                     # AI playlist generation endpoints
+│       │   ├── auth.ts                   # Google OAuth authentication
+│       │   ├── dashboard.ts              # Personalized dashboard data
+│       │   ├── import.ts                 # Playlist import from other platforms
+│       │   ├── playlist.ts               # Playlist CRUD operations
+│       │   ├── search.ts                 # 7-factor ranked search
+│       │   ├── session.ts                # SoulLink session management
+│       │   └── user.ts                   # User profile & preferences
+│       │
+│       ├── services/
+│       │   ├── dashboardEngine.ts        # Dashboard section generation
+│       │   ├── groq.ts                   # Groq LLaMA 3.3 70B integration
+│       │   ├── importDetector.ts         # Platform detection for imports
+│       │   ├── intentParser.ts           # Natural language intent parsing
+│       │   ├── jiosaavn.ts               # JioSaavn API wrapper
+│       │   ├── mongodb.ts                # MongoDB connection & utilities
+│       │   ├── redis.ts                  # Redis caching layer
+│       │   ├── searchEnhancer.ts         # Search result enhancement
+│       │   ├── searchRanker.ts           # 7-factor ranking algorithm
+│       │   │
+│       │   └── importers/
+│       │       ├── types.ts              # Importer interface & types
+│       │       ├── spotifyImporter.ts    # Spotify playlist importer
+│       │       ├── youtubeMusicImporter.ts # YouTube Music importer
+│       │       ├── appleMusicImporter.ts # Apple Music importer
+│       │       ├── gaanaImporter.ts      # Gaana importer
+│       │       └── textImporter.ts       # Plain text song list importer
+│       │
+│       └── socket/
+│           ├── index.ts                  # Socket.io server setup
+│           └── roomHandlers.ts           # Duo session room event handlers
+│
+├── frontend/
+│   ├── package.json                      # Frontend dependencies
+│   ├── package-lock.json
+│   ├── tsconfig.json                     # TypeScript config
+│   ├── tsconfig.node.json                # Node TypeScript config
+│   ├── vite.config.ts                    # Vite build configuration
+│   ├── vite-env.d.ts                     # Vite environment types
+│   ├── tailwind.config.ts                # Tailwind CSS configuration
+│   ├── postcss.config.js                 # PostCSS configuration
+│   ├── vercel.json                       # Vercel SPA routing
+│   ├── index.html                        # HTML entry point
+│   ├── capacitor.config.ts               # Capacitor mobile config
+│   ├── preview-offline.ts                # Offline preview script
+│   ├── .env.example                      # Environment template
+│   ├── .env.production                   # Production environment
+│   ├── .env.electron                     # Electron environment
+│   ├── .env                              # Environment variables (gitignored)
+│   │
 │   ├── src/
-│   │   ├── api/                   # Axios HTTP client requests
-│   │   ├── capacitor/              # Native platform bindings (Haptics, Media Controls)
-│   │   ├── components/            # UI components (player, queue, custom wrappers)
-│   │   ├── duo/                   # Real-time listening room hooks
-│   │   ├── hooks/                 # Custom React hooks (useDashboard, useMixes)
-│   │   ├── pages/                 # Full-screen viewports (Home, Library, Wrapped)
-│   │   └── store/                 # Zustand state slices (player, queue, UI state)
-│   └── capacitor.config.ts
+│   │   ├── main.tsx                      # React entry point
+│   │   ├── App.tsx                       # Root component with routing
+│   │   ├── index.css                     # Global styles
+│   │   │
+│   │   ├── api/
+│   │   │   ├── backend.ts                # Backend API client
+│   │   │   └── jiosaavn.ts               # JioSaavn API client
+│   │   │
+│   │   ├── auth/
+│   │   │   ├── AuthContext.tsx           # Authentication context provider
+│   │   │   └── ProtectedRoute.tsx        # Route guard for auth
+│   │   │
+│   │   ├── capacitor/
+│   │   │   ├── index.ts                  # Capacitor exports
+│   │   │   ├── filesystem.ts             # File system operations
+│   │   │   ├── haptics.ts                # Haptic feedback
+│   │   │   ├── lifecycle.ts              # App lifecycle events
+│   │   │   ├── musicControls.ts          # Lock screen media controls
+│   │   │   ├── network.ts                # Network status monitoring
+│   │   │   └── notifications.ts          # Push notifications
+│   │   │
+│   │   ├── components/
+│   │   │   ├── cards/
+│   │   │   │   ├── index.ts              # Card component exports
+│   │   │   │   ├── AlbumCard.tsx         # Album display card
+│   │   │   │   ├── ArtistCard.tsx        # Artist display card
+│   │   │   │   ├── HSection.tsx          # Horizontal scroll section
+│   │   │   │   ├── SongCard.tsx          # Song display card
+│   │   │   │   └── SongRow.tsx           # Horizontal song row
+│   │   │   │
+│   │   │   ├── layout/
+│   │   │   │   ├── index.ts              # Layout component exports
+│   │   │   │   ├── AppLayout.tsx         # Desktop app layout
+│   │   │   │   ├── DuoMobileBar.tsx      # Mobile duo session bar
+│   │   │   │   ├── MobileNav.tsx         # Mobile bottom navigation
+│   │   │   │   └── Sidebar.tsx           # Desktop sidebar navigation
+│   │   │   │
+│   │   │   ├── mobile/
+│   │   │   │   ├── OfflineBanner.tsx     # Offline status banner
+│   │   │   │   └── OfflineToggle.tsx     # Offline mode toggle
+│   │   │   │
+│   │   │   ├── player/
+│   │   │   │   ├── index.ts              # Player component exports
+│   │   │   │   ├── NowPlayingView.tsx    # Full-screen now playing
+│   │   │   │   ├── PlayerBar.tsx         # Bottom player bar
+│   │   │   │   └── QueuePanel.tsx        # Song queue panel
+│   │   │   │
+│   │   │   ├── profile/
+│   │   │   │   └── SoulSyncWrapped.tsx   # Premium wrapped analytics story
+│   │   │   │
+│   │   │   ├── ui/
+│   │   │   │   ├── index.ts              # UI component exports
+│   │   │   │   ├── AIPlaylistModal.tsx   # AI playlist generation modal
+│   │   │   │   ├── AuthGateModal.tsx     # Authentication gate modal
+│   │   │   │   ├── ConfirmModal.tsx      # Confirmation dialog
+│   │   │   │   ├── ContextMenu.tsx       # Right-click context menu
+│   │   │   │   ├── EqBars.tsx            # Equalizer animation bars
+│   │   │   │   ├── GreenButton.tsx       # Primary action button
+│   │   │   │   ├── SearchOverlay.tsx     # Full-screen search overlay
+│   │   │   │   ├── SearchTrigger.tsx     # Search input trigger
+│   │   │   │   ├── Skeleton.tsx          # Loading skeleton loader
+│   │   │   │   └── Toasts.tsx            # Toast notification system
+│   │   │   │
+│   │   │   └── UpdatePopup.tsx           # App update notification
+│   │   │
+│   │   ├── context/
+│   │   │   └── AppContext.tsx            # Global app context
+│   │   │
+│   │   ├── duo/
+│   │   │   ├── index.ts                  # Duo module exports
+│   │   │   ├── DuoButton.tsx             # Duo session action button
+│   │   │   ├── DuoEndCard.tsx            # Session end recap card
+│   │   │   ├── DuoHeartbeat.tsx          # Connection heartbeat monitor
+│   │   │   ├── DuoModal.tsx              # Duo session modal
+│   │   │   ├── DuoPanel.tsx              # Duo session panel
+│   │   │   ├── duoStore.ts               # Duo session Zustand store
+│   │   │   ├── socket.ts                 # Socket.io client setup
+│   │   │   └── useDuo.ts                 # Duo session hook
+│   │   │
+│   │   ├── hooks/
+│   │   │   ├── index.ts                  # Hook exports
+│   │   │   ├── useApkDownloadUrl.ts      # Dynamic GitHub release asset fetch
+│   │   │   ├── useAuthGate.ts            # Authentication gate hook
+│   │   │   ├── useDashboard.ts           # Dashboard data fetching hook
+│   │   │   ├── useNetwork.ts             # Network status hook
+│   │   │   ├── useQueueAutoFill.ts       # Queue auto-fill hook
+│   │   │   └── useSearch.ts              # Search debouncing hook
+│   │   │
+│   │   ├── lib/
+│   │   │   ├── constants.ts              # App-wide constants
+│   │   │   └── helpers.ts                # Utility helper functions
+│   │   │
+│   │   ├── pages/
+│   │   │   ├── index.ts                  # Page component exports
+│   │   │   ├── AlbumPage.tsx             # Album detail page
+│   │   │   ├── ArtistPage.tsx            # Artist detail page
+│   │   │   ├── DownloadsPage.tsx         # Downloaded songs manager
+│   │   │   ├── HomePage.tsx              # Home dashboard
+│   │   │   ├── ImportPage.tsx            # Playlist import page
+│   │   │   ├── LibraryPage.tsx           # User library page
+│   │   │   ├── LikedPage.tsx             # Liked songs page
+│   │   │   ├── LoginPage.tsx             # Login/authentication page
+│   │   │   ├── OfflinePage.tsx           # Offline mode page
+│   │   │   ├── OnboardingPage.tsx        # First-time user onboarding
+│   │   │   ├── PlaylistPage.tsx          # Playlist detail page
+│   │   │   ├── ProfilePage.tsx           # User profile page
+│   │   │   ├── SearchPage.tsx            # Search results page
+│   │   │   ├── SongSharePage.tsx         # Shared song player page
+│   │   │   └── SoulLinkPage.tsx          # Duo listening session page
+│   │   │
+│   │   ├── providers/
+│   │   │   ├── NetworkProvider.tsx       # Network state provider
+│   │   │   └── PlayerProvider.tsx        # Audio player provider
+│   │   │
+│   │   ├── store/
+│   │   │   ├── downloadStore.ts          # Download management store
+│   │   │   ├── offlineStore.ts           # Offline mode state store
+│   │   │   ├── playerStore.ts            # Audio player state store
+│   │   │   ├── queueStore.ts             # Song queue state store
+│   │   │   ├── searchStore.ts            # Search state store
+│   │   │   └── uiStore.ts                # UI state store
+│   │   │
+│   │   ├── types/
+│   │   │   ├── duo.ts                    # Duo session TypeScript types
+│   │   │   ├── playlist.ts               # Playlist TypeScript types
+│   │   │   ├── song.ts                   # Song TypeScript types
+│   │   │   └── user.ts                   # User TypeScript types
+│   │   │
+│   │   └── utils/
+│   │       ├── colorExtractor.ts         # Album art color extraction
+│   │       ├── downloadSong.ts           # Song download utility
+│   │       ├── formatTime.ts             # Time formatting utility
+│   │       ├── getBestAudioUrl.ts        # Best audio URL selector
+│   │       ├── normalizeSong.ts          # Song data normalizer
+│   │       ├── offlineDB.ts              # IndexedDB offline storage
+│   │       ├── platform.ts               # Platform detection utility
+│   │       ├── queryParser.ts            # Search query parser
+│   │       ├── share.ts                  # Share link generator
+│   │       └── updateChecker.ts          # App update checker
+│   │
+│   └── android/                          # Capacitor Android project
+│       └── app/src/main/
+│           ├── assets/
+│           │   ├── capacitor.config.json # Capacitor config for Android
+│           │   ├── capacitor.plugins.json # Capacitor plugins manifest
+│           │   └── public/               # Built web assets
+│           └── AndroidManifest.xml       # Android app manifest
+│
+└── release/                              # Built desktop app releases
+    ├── win-unpacked/                     # Windows desktop build
+    └── linux-unpacked/                   # Linux desktop build
 ```
 
 ---
 
-## Technical Decisions & Performance Engineering
+## 🛠️ Tech Stack
 
-### 1. Eliminating HTTP waterfalls in dashboard aggregation (6.2s → 300ms)
-- **Problem**: The initial homepage dashboard load was bottlenecked (taking 5–10s) due to deep sequential requests. The recommendation engine performed sequential HTTP queries to JioSaavn's API for co-occurring tracks (up to 30 sequential loops), alongside serialized MongoDB queries.
-- **Solution**:
-  - Consolidated separate database lookups for user stats, liked tracks, and language preferences into a single `User.findById(userId).select("name preferences likedSongs").lean()` call.
-  - Wrapped independent collection fetches (weekly mixes, listening history, playlists) in a concurrent `Promise.all` block.
-  - Replaced sequential co-occurrence API calls with a bounded concurrency pool to avoid overwhelming the JioSaavn wrapper, using `Promise.allSettled` so a single failed fetch doesn't fail the whole batch.
-- **Result**: Average initial dashboard API response time dropped from **~6 seconds to ~300ms**.
-
-### 2. Autoplay queue: cursor architecture, not a mutating array
-- **Decision**: Rather than removing tracks from the queue as they're played, SoulSync uses a non-destructive queue with an index pointer (cursor).
-- **Trade-off**: Slightly more client-side state to track, but it lets users step backward and forward through history naturally, preserves state for offline restoration, and keeps a continuous playback history without synchronization issues between the queue and the player.
-
-### 3. Asynchronous taste-profile recomputation (fire-and-forget)
-- **Decision**: The dashboard periodically checks whether a user's recommendation taste profile is stale (recalculated every N plays). Instead of blocking the dashboard response while recalculating, the check and rebuild run asynchronously as a background task.
-- **Trade-off**: The client gets served the cached profile immediately, and the taste profile updates out-of-band — no blocking computation sits in the request/response path.
-
-### 4. Isolated cache layer
-- **Decision**: Redis reads and writes are isolated behind dedicated wrappers rather than called directly from business logic.
-- **Trade-off**: Redis connectivity issues or missing local setup don't crash the app — it falls back to MongoDB reads and an in-memory cache in dev, keeping application stability decoupled from caching infrastructure health.
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | React 18.3 · TypeScript 5.7 · Vite 6.1 · Tailwind CSS 3.4 · Zustand 5 · TanStack Query 5 |
+| **Mobile** | Capacitor 8.1 · Android API 24+ |
+| **Backend** | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 |
+| **Data** | MongoDB 8.9 · Upstash Redis (90-day TTL) |
+| **AI** | Groq SDK · LLaMA 3.3 70B |
+| **Auth** | Google OAuth 2.0 · JWT RS256 · httpOnly cookies |
+| **Infra** | Vercel · Render · MongoDB Atlas |
 
 ---
 
-## Core Features
+## 🔒 Security
 
-- **Search ranking**: A multi-factor ranking formula that prioritizes original recordings over covers/tributes, with cached weights for high-frequency queries.
-- **Groq-powered mood playlists**: Uses LLaMA-3.3-70B on Groq to parse natural-language moods and generate playlists, with automatic fallback across multiple API keys.
-- **Real-time group listening**: Synchronized playback rooms via Socket.IO — play/pause, queue position, and seek all stay in sync across participants, with a heartbeat protocol to clear idle connections.
-- **Progressive UI rendering**: The homepage streams in static content and weekly mixes immediately, filling in personalized recommendations as the remaining API calls resolve.
-- **Offline playback**: Caches audio to the native filesystem on Android via Capacitor, enabling offline startup without requiring authentication.
-
----
-
-## Technology Stack
-
-| Layer | Technology | Key Libraries / Frameworks |
-| :--- | :--- | :--- |
-| **Frontend** | React 18.3, TypeScript 5.7 | Vite 6.1 · Zustand 5 · TanStack Query 5 · Tailwind CSS 3.4 |
-| **Mobile Bridge** | Ionic Capacitor 8.1 | `@capacitor/filesystem` · `@capacitor/preferences` |
-| **Backend** | Node.js, Express 4.21 | Socket.IO 4.8 · Winston 3.17 · Zod 3.25 · JWT |
-| **Data Layer** | MongoDB, Redis | Mongoose 8.9 · Upstash Redis |
-| **AI Inference** | Groq Cloud | `groq-sdk` (LLaMA 3.3 70B) |
+| Layer | Implementation |
+|-------|---------------|
+| Authentication | Google OAuth 2.0 — no passwords stored |
+| Sessions | httpOnly · Secure · SameSite cookies |
+| Headers | Helmet: CORP, COOP, CSP on all responses |
+| CORS | Exact origin validation |
+| Rate limiting | 100 req/min global · 15 req/min AI |
+| JWT | RS256, verified on every protected route |
+| Validation | Zod schemas on all REST endpoints |
 
 ---
 
-## Setup & Local Execution
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js ≥ 18
-- MongoDB instance (local or Atlas)
-- Redis instance (Upstash or local)
 
-### Installation
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Node.js | ≥ 18 | Required |
+| npm | ≥ 9 | Required |
+| MongoDB Atlas | Free M0 | Required |
+| Google Cloud | OAuth 2.0 Client ID | Required |
+| Groq API | Free key | AI features only |
+| Android Studio | Latest | APK builds only |
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/itslokeshx/SoulSync.git
-   cd SoulSync
-   ```
+### Setup
 
-2. **Install all workspace dependencies**
-   ```bash
-   npm run install:all
-   ```
+```bash
+# Clone the repo
+git clone https://github.com/itslokeshx/SoulSync.git
+cd SoulSync
 
-3. **Configure environment variables**
+# Install all dependencies
+npm run install:all
 
-   Create `backend/.env`:
-   ```env
-   PORT=4000
-   NODE_ENV=development
-   FRONTEND_URL=http://localhost:5173
-   MONGODB_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret
-   JIOSAAVN_API=https://saavn.sumit.co/api
-   UPSTASH_REDIS_REST_URL=your_redis_url
-   UPSTASH_REDIS_REST_TOKEN=your_redis_token
-   ```
+# Configure environment
+cp frontend/.env.example frontend/.env
+cp backend/.env.example backend/.env
 
-   Create `frontend/.env`:
-   ```env
-   VITE_BACKEND_URL=http://localhost:4000
-   VITE_JIOSAAVN_API=https://saavn.sumit.co/api
-   VITE_DUO_BACKEND=http://localhost:4000
-   ```
+# Start dev servers (two terminals)
+npm run dev:backend   # Terminal 1
+npm run dev:frontend  # Terminal 2
 
-4. **Start the development servers**
+# Open http://localhost:5173
+```
 
-   Terminal 1 (backend):
-   ```bash
-   npm run dev:backend
-   ```
+### Environment Variables
 
-   Terminal 2 (frontend):
-   ```bash
-   npm run dev:frontend
-   ```
+**`frontend/.env`**
 
-5. **Build the native Android APK**
-   ```bash
-   cd frontend
-   npm run apk
-   # Output: frontend/android/app/build/outputs/apk/debug/app-debug.apk
-   ```
+```env
+VITE_BACKEND_URL=https://your-soulsync-backend.onrender.com
+VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+VITE_JIOSAAVN_API=https://saavn.sumit.co/api
+VITE_DUO_BACKEND=https://your-soulsync-backend.onrender.com
+VITE_FRONTEND_URL=https://soul-sync-beta.vercel.app
+```
+
+**`backend/.env`**
+
+```env
+PORT=4000
+NODE_ENV=production
+FRONTEND_URL=https://soul-sync-beta.vercel.app
+
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/soulsync
+JWT_SECRET=your-64-char-hex-secret
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+
+GROQ_KEY_1=gsk_xxxxx
+GROQ_KEY_2=gsk_xxxxx
+JIOSAAVN_API=https://saavn.sumit.co/api
+
+UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
+UPSTASH_REDIS_REST_TOKEN=AXxxxxxxxxxx
+```
+
+> ⚠️ `JIOSAAVN_API` must be in `backend/.env` **without** the `VITE_` prefix.
 
 ---
 
-## License
+## 🌍 Deployment
 
-MIT
+### Frontend → Vercel
+
+1. Push to GitHub and import on [vercel.com](https://vercel.com)
+2. Set all `VITE_*` environment variables
+3. Deploy — `vercel.json` is already included
+4. Add your deployed URL to Google OAuth authorized origins
+
+### Backend → Render
+
+1. Create a Web Service and connect your GitHub repo
+2. Root directory: `backend`
+3. Build command: `npm install --include=dev && npm run build`
+4. Start command: `npm start`
+5. Set all env vars — especially `JIOSAAVN_API` (no `VITE_` prefix)
+
+### Android APK
+
+```bash
+cd frontend && npm run build
+npx cap sync android
+cd android && ./gradlew assembleRelease
+# → android/app/build/outputs/apk/release/app-release.apk
+```
+
+---
+
+## 📡 API Reference
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/google` | Authenticate with Google ID token |
+| `GET` | `/api/search?q=...&lang=...&limit=50` | 7-factor ranked search |
+| `GET` | `/api/search/artist/:id` | Top songs by artist |
+| `GET` | `/api/search/album/:id` | Full album tracklist |
+| `POST` | `/api/share/song` | Generate shareable song slug |
+| `POST` | `/api/share/playlist` | Generate shareable playlist slug |
+| `GET` | `/api/share/s/:slug` | Get shared song (no auth) |
+| `GET` | `/api/share/p/:slug` | Get shared playlist (no auth) |
+| `POST` | `/api/import/detect` | Detect platform from URL |
+| `GET` | `/api/dashboard` | Personalized dashboard (auth) |
+| `GET` | `/api/dashboard/guest` | Guest dashboard |
+| `POST` | `/api/ai/generate` | Generate playlist from mood |
+| `POST` | `/api/ai/match` | Match songs from list |
+| `POST` | `/api/session/create` | Create SoulLink room |
+| `POST` | `/api/session/join` | Join SoulLink room |
+| `GET` | `/api/user/stats` | Get user Wrapped stats & timeline |
+
+---
+
+## 🐛 Troubleshooting
+
+**Songs won't play / silent playback**
+
+Always call `normalizeSong()` before `loadAndPlay()`:
+
+```ts
+const normalized = normalizeSong(song);
+loadAndPlay(normalized);
+```
+
+On APK, use `Capacitor.convertFileSrc()` for downloaded files:
+
+```ts
+if (Capacitor.isNativePlatform()) {
+  audioUrl = Capacitor.convertFileSrc(localPath);
+}
+```
+
+**SoulLink desync**
+
+`isHost` must be a `ref`, not state, to prevent stale closures in socket listeners:
+
+```ts
+const isHostRef = useRef(isHost);
+isHostRef.current = isHost;
+```
+
+Also verify `socket.connected === true` and both users share the same 6-character code.
+
+**Search returns covers before originals**
+
+Verify `JIOSAAVN_API` (no `VITE_` prefix) is set in `backend/.env`. Clear Redis cache or wait for the 10-minute TTL.
+
+**APK won't install**
+
+Enable unknown sources: **Settings → Security → Install unknown apps → Allow**. Requires Android 7.0 (API 24)+.
+
+**Backend 502 / connection refused**
+
+First request after inactivity on Render's free tier takes 30–60s. The built-in self-ping at 13-min intervals mitigates cold starts.
+
+**Environment variables not loading**
+
+```bash
+# ❌ Wrong — backend cannot read VITE_ prefix
+VITE_JIOSAAVN_API=https://saavn.sumit.co/api
+
+# ✅ Correct in backend/.env
+JIOSAAVN_API=https://saavn.sumit.co/api
+```
+
+Always restart both dev servers after editing `.env` files.
+
+---
+
+## 🤝 Contributing
+
+We love contributors! Whether you're fixing a bug, adding a feature, or improving documentation, your help makes SoulSync better for everyone.
+
+### Getting Started
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/SoulSync.git
+
+# 2. Create a branch
+git checkout -b feat/your-feature
+
+# 3. Install and configure
+npm run install:all
+cp frontend/.env.example frontend/.env
+cp backend/.env.example backend/.env
+
+# 4. Develop and verify
+npm run typecheck
+npm run dev:backend   # Terminal 1
+npm run dev:frontend  # Terminal 2
+
+# 5. Commit and push
+git commit -m "feat: your feature description"
+git push origin feat/your-feature
+
+# 6. Open a pull request
+```
+
+### Commit Convention
+
+We follow conventional commits:
+
+- `feat` — New feature
+- `fix` — Bug fix
+- `docs` — Documentation changes
+- `style` — Code style (formatting, semicolons, etc.)
+- `refactor` — Code refactoring
+- `perf` — Performance improvements
+- `chore` — Build process or auxiliary tool changes
+
+### PR Checklist
+
+- [ ] `npm run build` passes
+- [ ] `npm run typecheck` passes
+- [ ] No console errors
+- [ ] Tested on Chrome, Firefox, Safari (web)
+- [ ] Tested on Android (if APK changes)
+
+> 🔍 Browse [good first issues](https://github.com/itslokeshx/SoulSync/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) to get started!
+
+---
+
+## 🙏 Acknowledgments
+
+| Project | Role |
+|---------|------|
+| [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Music streaming backbone |
+| [Groq Cloud](https://groq.com) | LLaMA 3.3 70B inference |
+| [Ionic Capacitor](https://capacitorjs.com) | Native Android bridge |
+| [Socket.io](https://socket.io) | Real-time duo sessions |
+| [Zustand](https://github.com/pmndrs/zustand) | State management |
+| [Framer Motion](https://www.framer.com/motion/) | Animations |
+
+---
+
+## 📄 License
+
+Distributed under the [MIT License](https://github.com/itslokeshx/SoulSync/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**Built with ❤️ by Loki**
+
+*No ads. No paywalls. No limits. Simply pure music.*
+
+*If SoulSync saved you ₹119/month — drop a ⭐*
+
+</div>
