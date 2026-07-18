@@ -249,6 +249,39 @@ export async function searchPlaylists(query: string, limit = 10): Promise<any[]>
   }
 }
 
+export async function searchPodcasts(query: string, limit = 12): Promise<any[]> {
+  try {
+    const data = await callMusicProvider("/search", { q: query, filter: "podcasts", limit });
+    return (data.results || []).map((podcast: any) => {
+      let image = "/placeholder.png";
+      const thumbContents = podcast.thumbnails || [];
+      if (thumbContents.length > 0) {
+        image = thumbContents[0].url || image;
+      }
+      return {
+        id: podcast.browseId,
+        name: podcast.title || "",
+        title: podcast.title || "",
+        image,
+        publisher: podcast.publisher || podcast.author || "",
+      };
+    });
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchPodcasts failed for "${query}":`, err.message || err);
+    return [];
+  }
+}
+
+export async function searchEpisodes(query: string, limit = 50): Promise<any[]> {
+  try {
+    const data = await callMusicProvider("/search", { q: query, filter: "episodes", limit });
+    return data.results || [];
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchEpisodes failed for "${query}":`, err.message || err);
+    return [];
+  }
+}
+
 export async function getPlaylistSongs(playlistId: string): Promise<any[]> {
   try {
     const data = await callMusicProvider(`/playlist/${playlistId}`);
@@ -401,16 +434,22 @@ export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promi
   return ids.map(id => songMap.get(id)).filter((s): s is Song => !!s);
 }
 
-export async function searchAll(query: string, reqBaseUrl?: string): Promise<{ songs: Song[]; artists: any[]; albums: any[] }> {
-  const [songs, artists, albums] = await Promise.all([
-    searchSongs(query, 10),
+export async function searchAll(query: string, reqBaseUrl?: string): Promise<{ songs: Song[]; artists: any[]; albums: any[]; podcasts: any[] }> {
+  const [songs, artists, albums, podcasts, episodes] = await Promise.all([
+    searchSongs(query, 15),
     searchArtists(query, 5),
-    searchAlbums(query, 5)
+    searchAlbums(query, 5),
+    searchPodcasts(query, 6),
+    searchEpisodes(query, 10)
   ]);
+  const normalizedSongs = normalizeSongsToCanonical(songs, reqBaseUrl);
+  const normalizedEpisodes = normalizeSongsToCanonical(episodes, reqBaseUrl);
+  
   return {
-    songs: normalizeSongsToCanonical(songs, reqBaseUrl),
+    songs: [...normalizedSongs, ...normalizedEpisodes],
     artists,
-    albums
+    albums,
+    podcasts
   };
 }
 
@@ -460,12 +499,50 @@ export async function getArtistDetails(id: string): Promise<any> {
     if (thumbContents.length > 0) {
       image = thumbContents[0].url || image;
     }
+    
+    let rawSongs = data.songs?.results || [];
+    const songsPlaylistId = data.songs?.browseId;
+    if (songsPlaylistId) {
+      try {
+        const playlistData = await callMusicProvider(`/playlist/${songsPlaylistId}`);
+        if (playlistData && Array.isArray(playlistData.tracks)) {
+          rawSongs = playlistData.tracks;
+        }
+      } catch (err: any) {
+        console.error(`[youtubeMusicService] Failed to load full artist songs playlist ${songsPlaylistId}:`, err.message || err);
+      }
+    }
+
+    const normalizeAlbums = (items: any[]) => {
+      if (!Array.isArray(items)) return [];
+      return items.map((album: any) => {
+        let albumImage = "/placeholder.png";
+        const thumbContents = album.thumbnails || [];
+        if (thumbContents.length > 0) {
+          albumImage = thumbContents[0].url || albumImage;
+        }
+        return {
+          id: album.browseId,
+          name: album.title || "",
+          title: album.title || "",
+          image: albumImage,
+          year: album.year || "",
+          artist: data.name || ""
+        };
+      });
+    };
+
+    const albums = normalizeAlbums(data.albums?.results || []);
+    const singles = normalizeAlbums(data.singles?.results || []);
+
     return {
       id,
       name: data.name || "",
       image,
       description: data.description || "",
-      songs: normalizeSongsToCanonical(data.songs?.results || [])
+      songs: normalizeSongsToCanonical(rawSongs),
+      albums,
+      singles
     };
   } catch (err: any) {
     console.error(`[youtubeMusicService] getArtistDetails failed for ${id}:`, err.message || err);

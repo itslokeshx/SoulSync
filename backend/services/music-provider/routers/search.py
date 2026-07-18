@@ -43,6 +43,10 @@ def search(
             results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "album"]
         elif filter == "playlists":
             results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "playlist"]
+        elif filter == "podcasts":
+            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "podcast"]
+        elif filter == "episodes":
+            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "episode"]
 
     elapsed = time.perf_counter() - start
     logger.info(f"[search] q='{q}' filter={filter} → {len(results)} results in {elapsed:.2f}s")

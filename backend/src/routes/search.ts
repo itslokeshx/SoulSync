@@ -10,6 +10,7 @@ import {
   searchAll,
   searchAlbums,
   searchArtists,
+  searchPodcasts,
   fetchArtistSongs,
   fetchAlbumSongs,
   fetchSongById,
@@ -110,7 +111,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     } else if (filter === "artists") {
       artistRes = { status: "fulfilled", value: await searchArtists(q, limit) };
     } else if (filter === "albums") {
-      allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: await searchAlbums(q, limit) } };
+      allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: await searchAlbums(q, limit), podcasts: [] } };
+    } else if (filter === "podcasts") {
+      allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: [], podcasts: await searchPodcasts(q, limit) } };
     }
 
     const rawSongs: any[] = [];
@@ -141,9 +144,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     // Merge artists from /search + /search/artists, dedup by ID
     const artistMap = new Map<string, any>();
     const allResArtists =
-      allRes.status === "fulfilled" ? allRes.value.artists : [];
+      allRes && allRes.status === "fulfilled" ? allRes.value.artists : [];
     const directArtists: any[] =
-      artistRes.status === "fulfilled" ? artistRes.value : [];
+      artistRes && artistRes.status === "fulfilled" ? artistRes.value : [];
     for (const a of [...allResArtists, ...directArtists]) {
       const id = String(a.id || "");
       if (id && !artistMap.has(id)) artistMap.set(id, a);
@@ -170,9 +173,14 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     }
 
     const albums =
-      allRes.status === "fulfilled"
+      allRes && allRes.status === "fulfilled"
         ? allRes.value.albums
-        : await searchAlbums(q, 5).catch(() => []);
+        : filter === "albums" ? [] : await searchAlbums(q, 5).catch(() => []);
+
+    const podcasts =
+      allRes && allRes.status === "fulfilled"
+        ? allRes.value.podcasts
+        : filter === "podcasts" ? [] : await searchPodcasts(q, 5).catch(() => []);
 
     const normalized = normalizeSongsToCanonical(rawSongs, reqBaseUrl);
     const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
@@ -193,6 +201,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       songs: allSongs, // cache full pool
       artists,
       albums,
+      podcasts,
       topResult: allSongs[0] ?? null,
       total: allSongs.length,
       parsedIntent: { displayContext: `Results for "${q}"` },

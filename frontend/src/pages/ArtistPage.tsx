@@ -33,13 +33,14 @@ export const ArtistPage = () => {
     setLoading(true);
     setArtist(null);
     setSongs([]);
+
     Promise.all([
       fetchArtist(artistId).catch(() => null),
       fetchArtistSongs(artistId).catch(() => []),
     ])
       .then(([data, songList]) => {
         setArtist(data);
-        setSongs(songList?.length ? songList : (data as any)?.top_songs || []);
+        setSongs((data as any)?.songs?.length ? (data as any).songs : (songList?.length ? songList : (data as any)?.top_songs || []));
         if (data) {
           const img = bestImg(data.image);
           if (img) extractColor(img).then((c) => c && setBgColor(c));
@@ -140,6 +141,86 @@ export const ArtistPage = () => {
           ))}
         </div>
       </div>
+
+      {/* Albums */}
+      {artist.albums && artist.albums.length > 0 && (
+        <div className="px-6 mt-8">
+          <h2 className="text-lg font-bold text-white mb-3">Albums</h2>
+          <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
+            {artist.albums.map((a: any) => (
+              <button
+                key={a.id || a.name}
+                onClick={() => a.id && navigate(`/album/${a.id}`)}
+                className="flex flex-col gap-2 w-32 sm:w-36 flex-shrink-0 group cursor-pointer text-left"
+              >
+                <div className="relative overflow-hidden rounded-xl">
+                  <img
+                    src={bestImg(a.image) || FALLBACK_IMG}
+                    alt={a.name}
+                    className="w-32 h-32 sm:w-36 sm:h-36 object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <div className="w-10 h-10 rounded-full bg-sp-green flex items-center justify-center shadow-xl">
+                      <Play size={16} className="text-black fill-black ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-white/80 text-[12px] font-medium truncate group-hover:text-white transition-colors">
+                    {a.name}
+                  </p>
+                  <p className="text-white/35 text-[11px] truncate">
+                    {a.year || "Album"}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Singles */}
+      {artist.singles && artist.singles.length > 0 && (
+        <div className="px-6 mt-8 pb-10">
+          <h2 className="text-lg font-bold text-white mb-3">Singles & EPs</h2>
+          <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
+            {artist.singles.map((s: any) => (
+              <button
+                key={s.id || s.name}
+                onClick={() => s.id && navigate(`/album/${s.id}`)}
+                className="flex flex-col gap-2 w-32 sm:w-36 flex-shrink-0 group cursor-pointer text-left"
+              >
+                <div className="relative overflow-hidden rounded-xl">
+                  <img
+                    src={bestImg(s.image) || FALLBACK_IMG}
+                    alt={s.name}
+                    className="w-32 h-32 sm:w-36 sm:h-36 object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <div className="w-10 h-10 rounded-full bg-sp-green flex items-center justify-center shadow-xl">
+                      <Play size={16} className="text-black fill-black ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-white/80 text-[12px] font-medium truncate group-hover:text-white transition-colors">
+                    {s.name}
+                  </p>
+                  <p className="text-white/35 text-[11px] truncate">
+                    {s.year || "Single"}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

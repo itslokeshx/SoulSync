@@ -12,6 +12,7 @@ export interface SmartSearchResult {
   artists: any[];
   topResult: any | null;
   total: number;
+  podcasts?: any[];
   intent: {
     intent: string;
     entities: any;
@@ -261,12 +262,14 @@ export function useSearch() {
         songs: data.songs || [],
         albums: data.albums || [],
         artists: data.artists || [],
+        podcasts: data.podcasts || [],
       };
       setResult(safeData);
       const hasResults =
         safeData.songs.length > 0 ||
         safeData.albums.length > 0 ||
-        safeData.artists.length > 0;
+        safeData.artists.length > 0 ||
+        safeData.podcasts.length > 0;
       setState(hasResults ? "results" : "no-results");
     } catch (err: any) {
       if (err.name === "CanceledError" || err.code === "ERR_CANCELED") return;

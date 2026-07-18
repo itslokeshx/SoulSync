@@ -296,6 +296,41 @@ function AlbumCard({ album }: { album: any }) {
   );
 }
 
+function PodcastCard({ podcast }: { podcast: any }) {
+  const navigate = useNavigate();
+  const img = bestImg(podcast.image) || FALLBACK_IMG;
+  return (
+    <button
+      onClick={() => podcast.id && navigate(`/playlist/${podcast.id}`)}
+      className="flex flex-col gap-2 w-32 sm:w-36 flex-shrink-0 group cursor-pointer text-left"
+    >
+      <div className="relative overflow-hidden rounded-xl">
+        <img
+          src={img}
+          alt={podcast.name}
+          className="w-32 h-32 sm:w-36 sm:h-36 object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+          }}
+        />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+          <div className="w-10 h-10 rounded-full bg-sp-green flex items-center justify-center shadow-xl">
+            <Play size={16} className="text-black fill-black ml-0.5" />
+          </div>
+        </div>
+      </div>
+      <div>
+        <p className="text-white/80 text-[12px] font-medium truncate group-hover:text-white transition-colors">
+          {podcast.name}
+        </p>
+        <p className="text-white/35 text-[11px] truncate">
+          {podcast.publisher || "Podcast Series"}
+        </p>
+      </div>
+    </button>
+  );
+}
+
 function SkeletonRow() {
   return (
     <div className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
@@ -661,6 +696,20 @@ export function SearchPage() {
                 <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
                   {result.albums.slice(0, 10).map((a: any) => (
                     <AlbumCard key={a.id || a.name} album={a} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Podcasts */}
+            {result.podcasts && result.podcasts.length > 0 && (
+              <div>
+                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                  <Radio size={11} className="text-sp-green" /> Podcasts & Shows
+                </h3>
+                <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
+                  {result.podcasts.slice(0, 10).map((p: any) => (
+                    <PodcastCard key={p.id || p.name} podcast={p} />
                   ))}
                 </div>
               </div>
