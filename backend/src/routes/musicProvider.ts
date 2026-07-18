@@ -5,7 +5,7 @@ import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 const router = Router();
 
 // Base URL for the Python Music Provider microservice
-const MUSIC_PROVIDER_URL = process.env.MUSIC_PROVIDER_URL || "http://localhost:4002";
+const MUSIC_PROVIDER_URL = process.env.MUSIC_PROVIDER_URL || "http://127.0.0.1:4002";
 const SERVICE_TOKEN = process.env.SERVICE_TOKEN || "";
 
 /**
@@ -48,7 +48,7 @@ async function proxyToMusicProvider(req: Request, res: Response, targetPath: str
 
 // Route all music discovery and ytmusicapi requests to the Python microservice
 router.all("/*", softAuth, async (req: SoftAuthRequest, res: Response) => {
-  const targetPath = req.originalUrl.replace(/^\/api/, ""); // Convert /api/music/... to /music/...
+  const targetPath = req.originalUrl.split("?")[0]; // e.g. /api/music/search
   await proxyToMusicProvider(req, res, targetPath);
 });
 
