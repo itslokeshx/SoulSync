@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { Playlist } from "../models/Playlist.js";
 import { User } from "../models/User.js";
-import { fetchSongById, Song } from "./jiosaavn.js";
+import { fetchSongById, Song } from "./youtubeMusicService.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
 import {
   getTasteProfile,

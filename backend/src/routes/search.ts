@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import axios from "axios";
 import { enhancedSearch } from "../services/searchEnhancer.js";
 import {
   Song,
@@ -19,7 +20,9 @@ import {
   getAlbumDetails,
   markUserQueryStart,
   markUserQueryEnd,
-} from "../services/jiosaavn.js";
+  resolveRealStreamUrl,
+  getStreamProxyUrl,
+} from "../services/youtubeMusicService.js";
 import { redisGet, redisSet } from "../services/redis.js";
 import {
   rankSongs,
@@ -63,6 +66,8 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
   const { queries, knownArtist } = buildSearchQueries(q);
   const [primaryQuery, ...fallbackQueries] = queries;
 
+  const reqBaseUrl = `${req.protocol}://${req.get("host")}`;
+
   markUserQueryStart();
   try {
     // Phase 0: Inject pinned songs for known queries ───────────────
@@ -71,7 +76,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     // Fetched directly by ID — always in the pool before ranking.
     const pinnedIds = getKnownSongIds(q);
     const pinnedSongs = pinnedIds.length
-      ? await fetchSongsByIds(pinnedIds)
+      ? await fetchSongsByIds(pinnedIds, reqBaseUrl)
       : [];
     // Phase 1: all in parallel ─────────────────────────────────────
     // hybridRes  → direct jiosaavn.com (popularity-ranked, Ed Sheeran, Ranjini etc.)
@@ -84,7 +89,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
         Promise.allSettled(
           fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
         ),
-        searchAll(q),
+        searchAll(q, reqBaseUrl),
         searchArtists(q, 5),
       ]);
 
@@ -147,7 +152,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
         ? allRes.value.albums
         : await searchAlbums(q, 5).catch(() => []);
 
-    const normalized = normalizeSongsToCanonical(rawSongs);
+    const normalized = normalizeSongsToCanonical(rawSongs, reqBaseUrl);
     const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
     const ranked = rankSongs(
       deduped as RankedSong[],
@@ -329,11 +334,35 @@ router.get("/suggestions", async (req: any, res: Response): Promise<void> => {
   }
 });
 
+router.get("/stream", async (req: any, res: Response): Promise<void> => {
+  const { id } = req.query;
+  if (!id) {
+    res.status(400).json({ error: "ID required" });
+    return;
+  }
+  try {
+    const realUrl = await resolveRealStreamUrl(id as string);
+    if (!realUrl) {
+      res.status(404).json({ error: "Stream not found" });
+      return;
+    }
+    // Perform 302 redirection to the deciphered YouTube stream URL.
+    // The browser will follow this redirect and stream it directly from Google Video.
+    res.redirect(302, realUrl);
+  } catch (err: any) {
+    console.error("[Stream] Error redirecting to stream:", err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to resolve stream redirect" });
+    }
+  }
+});
+
 router.get("/stream-url", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
   try {
-    const song = await fetchSongById(id as string);
+    const reqBaseUrl = `${req.protocol}://${req.get("host")}`;
+    const song = await fetchSongById(id as string, reqBaseUrl);
     if (!song) return res.status(404).json({ error: "Song not found" });
     res.json({
       streamUrl: song.streamUrl,
@@ -349,7 +378,8 @@ router.get("/song", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
   try {
-    res.json(await fetchSongById(id as string));
+    const reqBaseUrl = `${req.protocol}://${req.get("host")}`;
+    res.json(await fetchSongById(id as string, reqBaseUrl));
   } catch {
     res.status(500).json({ error: "Failed to fetch song" });
   }

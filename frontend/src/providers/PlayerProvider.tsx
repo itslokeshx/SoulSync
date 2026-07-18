@@ -246,7 +246,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           targetSrc.startsWith("blob:") ||
           targetSrc.startsWith("file:") ||
           targetSrc.startsWith("ms-appdata:") ||
-          targetSrc.includes("_capacitor_file_")
+          targetSrc.includes("_capacitor_file_") ||
+          targetSrc.includes("googlevideo.com") ||
+          targetSrc.includes("/api/search/stream")
         ) {
           audioRef.current!.removeAttribute("crossOrigin");
         } else {

@@ -6,7 +6,7 @@ import {
   normalizeSongsToCanonical,
   normalizeSongToCanonical,
   fetchSongsByIds,
-} from "../services/jiosaavn.js";
+} from "../services/youtubeMusicService.js";
 import { parseQuery } from "../services/searchEnhancer.js";
 import {
   rankSearchResults,

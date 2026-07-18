@@ -5,7 +5,7 @@
 
 import { Router, Response } from "express";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
-import { fetchSongById } from "../services/jiosaavn.js";
+import { fetchSongById } from "../services/youtubeMusicService.js";
 import { getNextRecommendations } from "../services/recommendationEngine.js";
 
 const router = Router();

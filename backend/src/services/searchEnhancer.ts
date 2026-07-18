@@ -3,7 +3,7 @@ import {
   searchAlbums,
   searchArtists,
   JioSaavnSong,
-} from "./jiosaavn.js";
+} from "./youtubeMusicService.js";
 import { redisGet, redisSet } from "./redis.js";
 import { ARTIST_DICT } from "../data/artistDictionary.js";
 import { BLACKLISTED_LABELS } from "./scoringUtils.js";

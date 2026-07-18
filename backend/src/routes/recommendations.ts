@@ -13,7 +13,7 @@ import {
   getTasteProfile,
   getTasteProfileBatch,
 } from "../services/recommendationEngine.js";
-import { getSuggestions, normalizeSongsToCanonical } from "../services/jiosaavn.js";
+import { getSuggestions, normalizeSongsToCanonical } from "../services/youtubeMusicService.js";
 
 const router = Router();
 

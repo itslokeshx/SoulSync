@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { UserMixSet, IUserMixSet, IMix } from "../models/UserMixSet.js";
 import { getTasteProfile, generateNewMusicMix, generateFavoritesMix, generateDiscoveryMix, generateSeedAnchoredBatch } from "./recommendationEngine.js";
-import { fetchSongsByIds, getSongsDetailsBatch, normalizeSongsToCanonical, searchSongs, type Song } from "./jiosaavn.js";
+import { fetchSongsByIds, getSongsDetailsBatch, normalizeSongsToCanonical, searchSongs, type Song } from "./youtubeMusicService.js";
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { User } from "../models/User.js";
 

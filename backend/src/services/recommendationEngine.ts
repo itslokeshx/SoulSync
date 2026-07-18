@@ -19,7 +19,7 @@ import {
   normalizeSongsToCanonical,
   getSongsDetailsBatch,
   type Song,
-} from "./jiosaavn.js";
+} from "./youtubeMusicService.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
 import {
   BLACKLISTED_LABELS,
