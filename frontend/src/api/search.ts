@@ -1,12 +1,9 @@
 import axios from "axios";
 import { Song, Album, Artist } from "../types/song";
 
-// Use backend proxy for details to avoid 404s/500s from external API
 const BACKEND_URL = (
   import.meta.env.VITE_BACKEND_URL || "http://localhost:4000"
 ).replace(/\/$/, "");
-const JIOSAAVN_EXTERNAL =
-  import.meta.env.VITE_JIOSAAVN_API || "https://saavn.sumit.co/api";
 
 const client = axios.create({
   baseURL: `${BACKEND_URL}/api/search`,
@@ -20,7 +17,6 @@ export async function searchSongs(
   page = 1,
   signal?: AbortSignal,
 ): Promise<{ results: Song[]; total: number }> {
-  // Use the smart endpoint for best results
   const { data } = await client.get("/smart", {
     params: { q: query },
     signal,
@@ -50,12 +46,8 @@ export async function searchArtists(
 
 export const getSongById = async (id: string): Promise<Song | null> => {
   try {
-    // Songs can still hit external or we can proxy them.
-    // For now, external is usually fine for direct ID lookup if it's stable.
-    const res = await axios.get(`${JIOSAAVN_EXTERNAL}/songs`, {
-      params: { ids: id },
-    });
-    return res.data?.data?.[0] || null;
+    const { data } = await client.get("/song", { params: { id } });
+    return data || null;
   } catch (error) {
     console.error("Error fetching song by ID:", error);
     return null;

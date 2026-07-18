@@ -39,9 +39,6 @@ import { usePlayerStore } from "../../store/playerStore";
 import { downloadSong } from "../../utils/downloadSong";
 import { EqBars } from "../ui/EqBars";
 
-const API =
-  import.meta.env.VITE_JIOSAAVN_API || "https://jiosaavn.rajputhemant.dev";
-
 interface NowPlayingViewProps {
   currentSong: any;
   isPlaying: boolean;

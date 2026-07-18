@@ -168,11 +168,6 @@ async function start() {
     console.log(`\n🚀 SoulSync Backend running on port ${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health`);
     console.log(`   Frontend: ${FRONTEND_URL}`);
-    console.log(`   JioSaavn API Config:`);
-    console.log(`     - JIOSAAVN_API: ${process.env.JIOSAAVN_API || "Not Set (using default/fallback)"}`);
-    console.log(`     - JIOSAAVN_API_PRIMARY: ${process.env.JIOSAAVN_API_PRIMARY || "Not Set"}`);
-    console.log(`     - JIOSAAVN_API_FALLBACK: ${process.env.JIOSAAVN_API_FALLBACK || "Not Set"}\n`);
-
     // Start keep-alive after server boots
     startKeepAlive();
 

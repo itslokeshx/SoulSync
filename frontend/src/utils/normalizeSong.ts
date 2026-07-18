@@ -1,7 +1,7 @@
 /**
- * Normalizes any JioSaavn song shape into a consistent format.
- * Handles both saavn.sumit.co wrapper format (downloadUrl[i].url)
- * and the older raw JioSaavn API format (downloadUrl[i].link).
+ * Normalizes any raw song shape into a consistent format.
+ * Handles both wrapper format (downloadUrl[i].url)
+ * and the older raw API format (downloadUrl[i].link).
  *
  * Call this on EVERY song before passing it to playSong() when
  * the source is external (liked songs from DB, playlists, etc.)

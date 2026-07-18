@@ -70,7 +70,7 @@ export async function getUserMixSet(userId: string): Promise<UserMixSetResponse>
   return hydrateMixSet(userId, newMixSet);
 }
 
-// Hydrates string songIds from MongoDB into full Song details from JioSaavn
+// Hydrates string songIds from MongoDB into full Song details
 async function hydrateMixSet(userId: string, mixSet: IUserMixSet | any): Promise<UserMixSetResponse> {
   // Collect all unique song IDs across mixes
   const allSongIds = new Set<string>();

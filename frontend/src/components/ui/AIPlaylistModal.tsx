@@ -199,7 +199,7 @@ export function AIPlaylistModal() {
     gate(async () => {
       setSaving(true);
       try {
-        // Map JioSaavn objects → PlaylistSong schema { songId, title, artist, albumArt, duration, downloadUrl }
+        // Map song objects → PlaylistSong schema { songId, title, artist, albumArt, duration, downloadUrl }
         const songs = allSongs
           .filter((s: any) => s?.id && selected.has(s.id))
           .map((s: any) => ({

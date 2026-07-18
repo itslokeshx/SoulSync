@@ -1120,17 +1120,13 @@ export async function enhancedSearch(
     }
   }
 
-  const [songSettled, albumSettled, artistSettled, globalSettled] =
+  const [songSettled, albumSettled, artistSettled] =
     await Promise.allSettled([
       Promise.allSettled(
         primaryQueries.map((q) => searchSongs(q, Math.min(limit, 30))),
       ),
       searchAlbums(query, 12),
       searchArtists(query, 10),
-      fetch(
-        (process.env.JIOSAAVN_API || "https://jiosavan-api2.vercel.app/api") +
-          `/search?query=${encodeURIComponent(query)}`,
-      ).then((r) => r.json()),
     ]);
 
   // Process songs
@@ -1139,20 +1135,6 @@ export async function enhancedSearch(
       if (res.status === "fulfilled") {
         allResults.push(...(res.value as any));
       }
-    }
-  }
-
-  // Process global top result (crucial for English hits)
-  if (globalSettled.status === "fulfilled") {
-    const resValue = globalSettled.value as any;
-    if (resValue?.data) {
-      const data = resValue.data;
-      const topSongs = data?.songs?.results || [];
-      const topQuery = data?.topQuery?.results || [];
-      allResults.push(
-        ...topSongs,
-        ...topQuery.filter((r: any) => r.type === "song"),
-      );
     }
   }
 

@@ -6,7 +6,7 @@ import { GreenButton } from "../components/ui/GreenButton";
 import { SongRow } from "../components/cards/SongRow";
 import { bestImg, fmt, onImgErr, extractColor } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
-import { getAlbum as fetchAlbum } from "../api/jiosaavn";
+import { getAlbum as fetchAlbum } from "../api/search";
 import { useApp } from "../context/AppContext";
 
 export const AlbumPage = () => {

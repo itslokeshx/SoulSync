@@ -160,7 +160,7 @@ export default function ImportPage() {
       } else {
         setMatchResult(res);
         setError(
-          "No songs could be matched on JioSaavn. Try pasting names manually.",
+          "No songs could be matched. Try pasting names manually.",
         );
       }
     } catch (err: any) {
@@ -248,7 +248,7 @@ export default function ImportPage() {
 
             {matchResult.stats?.notFound > 0 && (
               <p className="text-white/30 text-xs mb-4">
-                {matchResult.stats.notFound} songs couldn't be found on JioSaavn
+                {matchResult.stats.notFound} songs couldn't be found
               </p>
             )}
 
@@ -412,7 +412,7 @@ export default function ImportPage() {
               {[
                 "Paste any public playlist URL or song names",
                 "We extract all song names (no login needed)",
-                "AI finds each song on JioSaavn",
+                "AI finds each song on YouTube Music",
                 "Playlist saved to your SoulSync library",
               ].map((step, i) => (
                 <div key={i} className="flex items-start gap-3">

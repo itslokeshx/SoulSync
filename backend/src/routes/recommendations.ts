@@ -38,7 +38,7 @@ router.get(
 
 // GET /api/recommendations/next?currentSongId=...
 // Soft auth: authenticated users get taste-aware recs,
-// guests get popularity-filtered JioSaavn suggestions.
+// guests get YT Music suggestions.
 router.get(
   "/next",
   softAuth,
@@ -63,7 +63,7 @@ router.get(
           source: "personalized",
         });
       } else {
-        // Guest: JioSaavn suggestions with basic normalization (no taste data)
+        // Guest: YT Music suggestions with basic normalization (no taste data)
         const songs = await getNextRecommendations(currentSongId, undefined, excludeIds);
         res.json({
           songs,
@@ -74,7 +74,7 @@ router.get(
       }
     } catch (err) {
       console.error("[Recommendations] Next error:", err);
-      // Fallback: raw JioSaavn suggestions
+      // Fallback: raw suggestions
       try {
         const raw = await getSuggestions(req.query.currentSongId as string, 20);
         const songs = normalizeSongsToCanonical(raw);

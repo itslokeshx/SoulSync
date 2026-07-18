@@ -1,5 +1,4 @@
 import axios from "axios";
-import { fetchJioSaavnSongById, fetchJioSaavnSongsByIds, resolveJioSaavnStreamUrl } from "./jiosaavnService.js";
 import { pLimit } from "../utils/concurrency.js";
 
 export function isYouTubeId(id: string): boolean {
@@ -90,7 +89,7 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
 
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
   if (!isYouTubeId(id)) {
-    return resolveJioSaavnStreamUrl(id);
+    return null;
   }
   try {
     const data = await callMusicProvider(`/song/${id}/stream`);
@@ -379,7 +378,7 @@ export async function getAlbumSongs(albumId: string): Promise<any[]> {
 
 export async function fetchSongById(id: string, reqBaseUrl?: string): Promise<Song | null> {
   if (!isYouTubeId(id)) {
-    return fetchJioSaavnSongById(id);
+    return null;
   }
   try {
     const data = await callMusicProvider(`/song/${id}`);
@@ -471,15 +470,10 @@ export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promi
   if (!ids || ids.length === 0) return [];
 
   const ytIds = ids.filter(isYouTubeId);
-  const saavnIds = ids.filter(id => !isYouTubeId(id));
-
-  const [ytSongs, saavnSongs] = await Promise.all([
-    fetchYouTubeSongsByIds(ytIds, reqBaseUrl),
-    fetchJioSaavnSongsByIds(saavnIds)
-  ]);
+  const ytSongs = await fetchYouTubeSongsByIds(ytIds, reqBaseUrl);
 
   const songMap = new Map<string, Song>();
-  for (const s of [...ytSongs, ...saavnSongs]) {
+  for (const s of ytSongs) {
     songMap.set(s.id, s);
   }
 

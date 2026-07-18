@@ -9,7 +9,7 @@ import { FALLBACK_IMG } from "../lib/constants";
 import {
   getArtist as fetchArtist,
   getArtistSongs as fetchArtistSongs,
-} from "../api/jiosaavn";
+} from "../api/search";
 import { useApp } from "../context/AppContext";
 
 export const ArtistPage = () => {

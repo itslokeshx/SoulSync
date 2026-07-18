@@ -48,9 +48,15 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     return;
   }
 
+  const t0 = performance.now();
+  const timings: any = {};
+
   const cacheKey = `search:v8:${q.toLowerCase()}:${lang}:${filter || "all"}`;
   try {
+    const tCache = performance.now();
     const hit = await redisGet(cacheKey);
+    timings.redisCacheCheck = performance.now() - tCache;
+    
     if (hit) {
       const cached = JSON.parse(hit);
       // Re-apply limit so a low-limit prefetch never poisons a high-limit request
@@ -58,6 +64,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
         cached.songs = cached.songs.slice(0, limit);
         cached.total = cached.songs.length;
       }
+      cached._timings = timings;
       res.json(cached);
       return;
     }
@@ -83,8 +90,8 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     // Phase 1: all in parallel ─────────────────────────────────────
     // hybridRes  → direct jiosaavn.com (popularity-ranked, Ed Sheeran, Ranjini etc.)
     // fallbackRes→ wrapper /search/songs (covers, regional)
-    // allRes     → wrapper /search (artists + albums + top query songs)
-    // artistRes  → wrapper /search/artists (accurate artist IDs for enrichment)
+    // Phase 1: all in parallel ─────────────────────────────────────
+    const tParallel = performance.now();
     let hybridRes: any = null;
     let fallbackRes: any = null;
     let allRes: any = null;
@@ -115,6 +122,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     } else if (filter === "podcasts") {
       allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: [], podcasts: await searchPodcasts(q, limit) } };
     }
+    timings.parallelSearchFetch = performance.now() - tParallel;
 
     const rawSongs: any[] = [];
     const seenIds = new Set<string>();
@@ -162,6 +170,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       /songs?|hits?|latest|recent|best|top|tracks?|music/i.test(q);
     const isArtistQuery = wordCount <= 3 || hasArtistTrigger;
 
+    const tEnrich = performance.now();
     if (artists.length > 0 && isArtistQuery) {
       const topArtists = artists.slice(0, 2);
       const artistSongsRes = await Promise.allSettled(
@@ -171,6 +180,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
         if (r.status === "fulfilled") addSongs(r.value);
       }
     }
+    timings.artistEnrichment = performance.now() - tEnrich;
 
     const albums =
       allRes && allRes.status === "fulfilled"
@@ -208,10 +218,16 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       relatedSearches,
     };
 
+    timings.totalTime = performance.now() - t0;
+    
     // Smart TTL: short queries cached longer (popular), long tail shorter
     const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
+    
+    const tCacheWrite = performance.now();
     await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
-    res.json({ ...result, songs, total: songs.length });
+    timings.cacheWrite = performance.now() - tCacheWrite;
+    
+    res.json({ ...result, songs, total: songs.length, _timings: timings });
   } finally {
     markUserQueryEnd();
   }

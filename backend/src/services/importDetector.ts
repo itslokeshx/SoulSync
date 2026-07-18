@@ -3,7 +3,6 @@ export type Platform =
     | "youtube_music"
     | "apple_music"
     | "gaana"
-    | "jiosaavn"
     | "text"
     | "csv"
     | "unknown";
@@ -42,11 +41,6 @@ export function detectPlatform(input: string): DetectedInput {
     // ── Gaana ──────────────────────────────────────────────────
     if (trimmed.includes("gaana.com")) {
         return { platform: "gaana", url: trimmed };
-    }
-
-    // ── JioSaavn ──────────────────────────────────────────────
-    if (trimmed.includes("jiosaavn.com")) {
-        return { platform: "jiosaavn", url: trimmed };
     }
 
     // ── CSV / TXT file content ─────────────────────────────────

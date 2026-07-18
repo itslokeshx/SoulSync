@@ -338,7 +338,7 @@ export async function getCandidates(
       } catch {}
     }
 
-    // ── Source 2: JioSaavn suggestions (their built-in recs) ────
+    // ── Source 2: YT Music suggestions ────
     try {
       const raw = await getSuggestions(currentSongId, 30);
       const normalized = normalizeSongsToCanonical(raw);
@@ -356,8 +356,8 @@ export async function getCandidates(
 
     const artistResults = await Promise.allSettled(
       shuffled.map((a) => {
-        // If we have a JioSaavn artist ID, fetch by ID; else search by name
-        if (a.artistId && /^\d+$/.test(a.artistId)) {
+        // If we have an artist ID, fetch by ID; else search by name
+        if (a.artistId && a.artistId.length > 3) {
           return fetchArtistSongs(a.artistId, 0, 1);
         }
         return searchSongs(`${a.artistName} hits`, 15);
@@ -767,15 +767,15 @@ export async function generateSeedAnchoredBatch(
     }
   } catch {}
 
-  // Source 2: JioSaavn suggestions
+  // Source 2: YT Music suggestions
   let suggestionsCount = 0;
-  const jiosaavnCandidatesList: Song[] = [];
+  const suggestionsCandidatesList: Song[] = [];
   try {
     const raw = await getSuggestions(seedId, 30);
     suggestionsCount = raw.length;
     const normalized = normalizeSongsToCanonical(raw);
     for (const s of normalized) {
-      jiosaavnCandidatesList.push(s);
+      suggestionsCandidatesList.push(s);
       addCandidate(s);
     }
   } catch {}
