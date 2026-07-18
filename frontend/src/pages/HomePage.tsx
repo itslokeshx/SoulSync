@@ -114,12 +114,12 @@ export const HomePage = () => {
                     key={pageIdx} 
                     className="flex-shrink-0 w-[calc(100vw-32px)] snap-center grid grid-cols-3 gap-2.5"
                   >
-                    {pageSongs.map((song) => {
+                    {pageSongs.map((song, songIdx) => {
                       const isCurrent = currentSong?.id === song.id;
                       const img = bestImg(song.image) || "";
                       return (
                         <div
-                          key={song.id}
+                          key={`${song.id}-${pageIdx}-${songIdx}`}
                           onClick={() => handleHomeSongClick(song, mobileGridSongs)}
                           className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer group border active:scale-95 transition-all duration-200 ${
                             isCurrent
@@ -258,9 +258,9 @@ export const HomePage = () => {
             <div className="space-y-4">
               {row1.length > 0 && (
                 <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
-                  {row1.map((s) => (
+                  {row1.map((s, idx) => (
                     <SongCard
-                      key={s.id}
+                      key={`${s.id}-row1-${idx}`}
                       song={s}
                       isCurrent={currentSong?.id === s.id}
                       isPlaying={isPlaying}
@@ -271,9 +271,9 @@ export const HomePage = () => {
               )}
               {row2.length > 0 && (
                 <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
-                  {row2.map((s) => (
+                  {row2.map((s, idx) => (
                     <SongCard
-                      key={s.id}
+                      key={`${s.id}-row2-${idx}`}
                       song={s}
                       isCurrent={currentSong?.id === s.id}
                       isPlaying={isPlaying}
@@ -284,9 +284,9 @@ export const HomePage = () => {
               )}
               {row3.length > 0 && (
                 <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
-                  {row3.map((s) => (
+                  {row3.map((s, idx) => (
                     <SongCard
-                      key={s.id}
+                      key={`${s.id}-row3-${idx}`}
                       song={s}
                       isCurrent={currentSong?.id === s.id}
                       isPlaying={isPlaying}
