@@ -129,7 +129,7 @@ export const ArtistPage = () => {
         <div className="space-y-1">
           {songs.slice(0, 60).map((s, i) => (
             <SongRow
-              key={s.id}
+              key={`${s.id || s.songId || s.title}-${i}`}
               song={s}
               index={i}
               isCurrent={currentSong?.id === s.id}

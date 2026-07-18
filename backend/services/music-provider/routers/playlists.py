@@ -29,7 +29,40 @@ def get_playlist(
         logger.info(f"[playlist] id={playlist_id} is marked as DEAD, returning empty stub")
         return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
 
+    # Check if this is a podcast series
+    is_podcast_id = playlist_id.startswith("MPSPPL") or "podcast" in playlist_id.lower()
+    
     yt = get_client()
+
+    if is_podcast_id:
+        try:
+            podcast = yt.get_podcast(playlist_id)
+            tracks = []
+            author = podcast.get("author") or {}
+            author_name = author.get("name") if isinstance(author, dict) else str(author)
+            for ep in podcast.get("episodes", []):
+                tracks.append({
+                    "videoId": ep.get("videoId"),
+                    "title": ep.get("title"),
+                    "artists": [{"name": author_name or "Unknown Author"}],
+                    "album": {"name": podcast.get("title")},
+                    "duration": ep.get("duration"),
+                    "thumbnails": ep.get("thumbnails"),
+                    "videoType": ep.get("videoType")
+                })
+            elapsed = time.perf_counter() - start
+            logger.info(f"[playlist] podcast series id={playlist_id} → {len(tracks)} episodes in {elapsed:.2f}s")
+            return {
+                "id": playlist_id,
+                "browseId": playlist_id,
+                "title": podcast.get("title"),
+                "description": podcast.get("description"),
+                "thumbnails": podcast.get("thumbnails"),
+                "tracks": tracks
+            }
+        except Exception as e:
+            logger.error(f"[playlist] Failed to fetch podcast series {playlist_id}: {e}")
+
     kwargs: dict = {"playlistId": playlist_id}
     if limit:
         kwargs["limit"] = limit
@@ -45,6 +78,34 @@ def get_playlist(
     except KeyError as e:
         is_structural = any(k in str(e) for k in ("contents", "secondSubtitle", "tabs"))
         if is_structural:
+            # Fallback to get_podcast on structural error (just in case the prefix check missed it)
+            try:
+                logger.info(f"[playlist] Structural error on standard playlist, attempting podcast fallback for {playlist_id}...")
+                podcast = yt.get_podcast(playlist_id)
+                tracks = []
+                author = podcast.get("author") or {}
+                author_name = author.get("name") if isinstance(author, dict) else str(author)
+                for ep in podcast.get("episodes", []):
+                    tracks.append({
+                        "videoId": ep.get("videoId"),
+                        "title": ep.get("title"),
+                        "artists": [{"name": author_name or "Unknown Author"}],
+                        "album": {"name": podcast.get("title")},
+                        "duration": ep.get("duration"),
+                        "thumbnails": ep.get("thumbnails"),
+                        "videoType": ep.get("videoType")
+                    })
+                return {
+                    "id": playlist_id,
+                    "browseId": playlist_id,
+                    "title": podcast.get("title"),
+                    "description": podcast.get("description"),
+                    "thumbnails": podcast.get("thumbnails"),
+                    "tracks": tracks
+                }
+            except Exception as pe:
+                logger.warning(f"[playlist] Podcast fallback also failed: {pe}")
+            
             logger.warning(f"[playlist] id={playlist_id} got structural KeyError: {e}. Marking as DEAD.")
             set_cached(dead_key, True, ttl_seconds=86400)
             return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}

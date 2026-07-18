@@ -292,6 +292,15 @@ export async function getPlaylistSongs(playlistId: string): Promise<any[]> {
   }
 }
 
+export async function getPlaylistDetails(playlistId: string): Promise<any> {
+  try {
+    return await callMusicProvider(`/playlist/${playlistId}`);
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] getPlaylistDetails failed for ${playlistId}:`, err.message || err);
+    return null;
+  }
+}
+
 export async function getAlbumDetails(albumId: string): Promise<any> {
   try {
     const data = await callMusicProvider(`/album/${albumId}`);
@@ -300,6 +309,12 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
     if (thumbContents.length > 0) {
       image = thumbContents[0].url || image;
     }
+    const songs = normalizeSongsToCanonical(data.tracks || []);
+    songs.forEach((s: any) => {
+      if (!s.image || s.image === "/placeholder.png" || (Array.isArray(s.image) && s.image.length === 0)) {
+        s.image = image;
+      }
+    });
     return {
       id: albumId,
       name: data.title || "",
@@ -307,7 +322,7 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
       image,
       year: data.year || "",
       artists: data.artists || [],
-      songs: data.tracks || []
+      songs
     };
   } catch (err: any) {
     console.error(`[youtubeMusicService] getAlbumDetails failed for ${albumId}:`, err.message || err);
@@ -318,7 +333,7 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
 export async function getAlbumSongs(albumId: string): Promise<any[]> {
   try {
     const data = await callMusicProvider(`/album/${albumId}`);
-    return data.tracks || [];
+    return normalizeSongsToCanonical(data.tracks || []);
   } catch (err: any) {
     console.error(`[youtubeMusicService] getAlbumSongs failed for ${albumId}:`, err.message || err);
     return [];

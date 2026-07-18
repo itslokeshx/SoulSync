@@ -52,8 +52,59 @@ router.post("/", authMiddleware, async (req: AuthRequest, res: Response): Promis
 
 // GET /api/playlists/:id — Single playlist with all songs
 router.get("/:id", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
+  const id = req.params.id as string;
+  const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
+
+  if (!isMongoId) {
+    try {
+      const { getPlaylistDetails, normalizeSongsToCanonical } = await import("../services/youtubeMusicService.js");
+      const plData = await getPlaylistDetails(id);
+      
+      if (!plData) {
+        res.status(404).json({ error: "Playlist not found" });
+        return;
+      }
+
+      const rawTracks = plData.tracks || [];
+      const normalizedTracks = normalizeSongsToCanonical(rawTracks);
+      
+      let coverImage = "";
+      const thumbContents = plData.thumbnails || [];
+      if (thumbContents.length > 0) {
+        coverImage = thumbContents[0].url || coverImage;
+      } else if (normalizedTracks.length > 0) {
+        // Fallback to first track's image
+        const firstImg = normalizedTracks[0].image;
+        coverImage = Array.isArray(firstImg) && firstImg.length > 0 ? (firstImg[0].url || firstImg[0]) : (firstImg || "");
+      }
+
+      const playlist = {
+        _id: id,
+        name: plData.title || "YouTube Playlist",
+        description: plData.description || "YouTube Music Playlist",
+        coverImage,
+        isPublic: true,
+        isAIGenerated: false,
+        songs: normalizedTracks.map((t: any) => ({
+          songId: t.id,
+          title: t.name,
+          artist: t.primaryArtists || "Unknown Artist",
+          album: t.album || "",
+          albumArt: Array.isArray(t.image) && t.image.length > 0 ? (t.image[0].url || t.image[0]) : (t.image || ""),
+          duration: t.duration || 0,
+        }))
+      };
+
+      res.json({ playlist });
+    } catch (err) {
+      console.error("[Playlist] Failed to fetch external playlist:", err);
+      res.status(500).json({ error: "Failed to fetch external playlist" });
+    }
+    return;
+  }
+
   try {
-    const playlist = await Playlist.findById(req.params.id);
+    const playlist = await Playlist.findById(id);
     if (!playlist) {
       res.status(404).json({ error: "Playlist not found" });
       return;

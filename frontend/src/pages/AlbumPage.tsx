@@ -133,7 +133,7 @@ export const AlbumPage = () => {
         <div className="space-y-0.5 pb-10">
           {songs.map((s: any, i: number) => (
             <SongRow
-              key={s.id}
+              key={`${s.id || s.songId || s.title}-${i}`}
               song={s}
               index={i}
               isCurrent={currentSong?.id === s.id}
