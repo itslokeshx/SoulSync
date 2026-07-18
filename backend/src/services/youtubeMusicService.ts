@@ -1,5 +1,6 @@
 import axios from "axios";
 import { fetchJioSaavnSongById, fetchJioSaavnSongsByIds, resolveJioSaavnStreamUrl } from "./jiosaavnService.js";
+import { pLimit } from "../utils/concurrency.js";
 
 export function isYouTubeId(id: string): boolean {
   return /^[a-zA-Z0-9_-]{11}$/.test(id);
@@ -374,8 +375,9 @@ async function fetchYouTubeSongsByIds(ids: string[], reqBaseUrl?: string): Promi
     console.warn(`[youtubeMusicService] Batch fetch failed: ${err.message || err}, falling back to individual fetching...`);
   }
 
+  const limit = pLimit(3);
   const songs = await Promise.all(
-    ids.map(id => fetchSongById(id, reqBaseUrl).catch(() => null))
+    ids.map(id => limit(() => fetchSongById(id, reqBaseUrl).catch(() => null)))
   );
   return songs.filter((s): s is Song => s !== null);
 }

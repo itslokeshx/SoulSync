@@ -21,6 +21,7 @@ import {
   type Song,
 } from "./youtubeMusicService.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
+import { pLimit } from "../utils/concurrency.js";
 import {
   BLACKLISTED_LABELS,
   ORIGINAL_MARKERS,
@@ -1314,9 +1315,23 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
     }
 
     if (playlistIds.length > 0) {
-      const songsResults = await Promise.allSettled(
-        playlistIds.map((id) => getPlaylistSongs(id))
-      );
+      const playlistLimit = pLimit(3);
+      const chunkSize = 3;
+      const chunks: string[][] = [];
+      for (let i = 0; i < playlistIds.length; i += chunkSize) {
+        chunks.push(playlistIds.slice(i, i + chunkSize));
+      }
+
+      const songsResults: PromiseSettledResult<any[]>[] = [];
+      for (const batch of chunks) {
+        const batchResults = await Promise.allSettled(
+          batch.map((id) => playlistLimit(() => getPlaylistSongs(id)))
+        );
+        songsResults.push(...batchResults);
+        // Short pause between batches to prevent hammering
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
       for (const res of songsResults) {
         if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
           addSongs(normalizeSongsToCanonical(res.value));
@@ -1334,8 +1349,9 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
   ];
 
   try {
+    const searchLimit = pLimit(2);
     const searchResults = await Promise.allSettled(
-      searchQueries.map((query) => searchSongs(query, 35))
+      searchQueries.map((query) => searchLimit(() => searchSongs(query, 35)))
     );
     for (const res of searchResults) {
       if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
@@ -1397,8 +1413,9 @@ export async function getIndustryNewReleases(
 ): Promise<Song[]> {
   const targetLangs = langs.length > 0 ? langs : ["hindi"];
 
+  const langLimit = pLimit(2);
   const fetchResults = await Promise.allSettled(
-    targetLangs.map((l) => fetchCuratedNewReleases(l))
+    targetLangs.map((l) => langLimit(() => fetchCuratedNewReleases(l)))
   );
 
   const candidates: Song[] = [];

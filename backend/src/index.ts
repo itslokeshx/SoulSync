@@ -176,7 +176,7 @@ async function start() {
     // Start keep-alive after server boots
     startKeepAlive();
 
-    // Warm the top 20 search queries 10s after boot so first real users
+    // Warm the top 10 search queries 15s after boot so first real users
     // get instant cached results instead of a cold-start wait.
     const WARM_QUERIES = [
       "arijit singh",
@@ -184,34 +184,25 @@ async function start() {
       "anirudh ravichander",
       "shreya ghoshal",
       "diljit dosanjh",
-      "ap dhillon",
-      "atif aslam",
-      "badshah",
-      "trending songs 2024",
+      "trending songs",
       "bollywood hits",
       "punjabi songs",
-      "sad songs",
-      "party songs",
-      "chill lofi songs",
-      "romantic songs",
       "tamil hits",
       "telugu songs",
-      "english hits 2024",
-      "gym workout songs",
-      "devotional songs",
+      "english hits",
     ];
     setTimeout(async () => {
       logger.info("[CacheWarm] Starting background search cache warm-up…");
       for (const q of WARM_QUERIES) {
         try {
           await enhancedSearch(q, "all", 20);
-          await new Promise((r) => setTimeout(r, 400)); // gentle pacing
+          await new Promise((r) => setTimeout(r, 1500)); // gentle pacing (1.5s delay)
         } catch {
           // Non-fatal – silently skip
         }
       }
       logger.info("[CacheWarm] Done warming search cache.");
-    }, 10_000);
+    }, 15_000);
   });
 }
 
