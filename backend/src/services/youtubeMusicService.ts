@@ -59,6 +59,22 @@ export function decodeHtmlEntities(text: string): string {
     .replace(/&#039;/g, "'");
 }
 
+export function upgradeYTImageQuality(url: string): string {
+  if (!url) return url;
+  if (url.includes("googleusercontent.com") || url.includes("ggpht.com")) {
+    return url.replace(/=w\d+-h\d+-[a-z0-9-]+$/, "=w500-h500-l90-rj")
+              .replace(/=w\d+-h\d+$/, "=w500-h500")
+              .replace(/=s\d+-c$/, "=s500-c")
+              .replace(/=s\d+$/, "=s500");
+  }
+  if (url.includes("ytimg.com")) {
+    if (url.includes("default.jpg")) {
+      return url.replace("default.jpg", "maxresdefault.jpg");
+    }
+  }
+  return url;
+}
+
 export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
   let base = reqBaseUrl;
   if (!base) {
@@ -114,12 +130,15 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
   let image = "/placeholder.png";
   const thumbContents = raw.thumbnail?.contents || raw.thumbnails || raw.thumbnail || [];
   if (Array.isArray(thumbContents) && thumbContents.length > 0) {
-    image = thumbContents[0].url || thumbContents[0].link || image;
+    const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+    image = sorted[0].url || sorted[0].link || image;
   } else if (typeof thumbContents === "string") {
     image = thumbContents;
   } else if (raw.image && typeof raw.image === "string") {
     image = raw.image;
   }
+  image = upgradeYTImageQuality(image);
+
   let album = "";
   let albumId = "";
   if (raw.album) {
@@ -130,15 +149,29 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
       album = raw.album;
     }
   }
+
   let duration = 0;
-  if (raw.duration) {
+  if (raw.duration_seconds) {
+    duration = Number(raw.duration_seconds);
+  } else if (raw.duration) {
     if (typeof raw.duration === "object") {
       duration = Number(raw.duration.seconds || 0);
-    } else {
-      duration = Number(raw.duration) || 0;
+    } else if (typeof raw.duration === "number") {
+      duration = raw.duration;
+    } else if (typeof raw.duration === "string") {
+      if (raw.duration.includes(":")) {
+        const parts = raw.duration.split(":").map(Number);
+        if (parts.every((p: number) => !isNaN(p))) {
+          if (parts.length === 2) {
+            duration = parts[0] * 60 + parts[1];
+          } else if (parts.length === 3) {
+            duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+          }
+        }
+      } else {
+        duration = Number(raw.duration) || 0;
+      }
     }
-  } else if (raw.duration_seconds) {
-    duration = Number(raw.duration_seconds);
   }
   return {
     id,
@@ -186,8 +219,10 @@ export async function searchAlbums(query: string, limit = 12): Promise<any[]> {
       let image = "/placeholder.png";
       const thumbContents = album.thumbnails || [];
       if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
+        const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+        image = sorted[0].url || image;
       }
+      image = upgradeYTImageQuality(image);
       return {
         id: album.browseId,
         name: album.title || "",
@@ -307,8 +342,10 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
     let image = "/placeholder.png";
     const thumbContents = data.thumbnails || [];
     if (thumbContents.length > 0) {
-      image = thumbContents[0].url || image;
+      const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+      image = sorted[0].url || image;
     }
+    image = upgradeYTImageQuality(image);
     const songs = normalizeSongsToCanonical(data.tracks || []);
     songs.forEach((s: any) => {
       if (!s.image || s.image === "/placeholder.png" || (Array.isArray(s.image) && s.image.length === 0)) {
