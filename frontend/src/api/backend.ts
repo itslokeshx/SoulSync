@@ -4,7 +4,7 @@ import { User, UserStats } from "../types/user";
 import { isNative } from "../utils/platform";
 import { bestImg, getArtists } from "../lib/helpers";
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: (
     import.meta.env.VITE_BACKEND_URL ||
     "https://soulsync-backend-a5fs.onrender.com"

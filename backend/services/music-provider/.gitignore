@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+oauth.json
+report.json
+.pytest_cache/
+.json-report.json
