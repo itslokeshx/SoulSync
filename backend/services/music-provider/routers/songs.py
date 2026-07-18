@@ -109,30 +109,75 @@ def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
     return {"results": results}
 
 
+_working_cookie_browser = None
+
+
 @router.get("/song/{video_id}/stream")
 @cache_response(ttl_seconds=3600, prefix="stream")
 def get_song_stream(video_id: str) -> dict:
-    """Get direct streaming audio URL for a song using yt-dlp."""
+    """Get direct streaming audio URL for a song using yt-dlp with cookie extraction fallback."""
+    global _working_cookie_browser
     start = time.perf_counter()
     import yt_dlp
+    import shutil
+    
     url = f"https://www.youtube.com/watch?v={video_id}"
+    
+    node_path = shutil.which("node")
+    js_runtimes = {}
+    if node_path:
+        js_runtimes['node'] = {'path': node_path}
+        
+    browsers = ['chrome', 'firefox', 'brave', 'chromium', 'opera', 'vivaldi', 'edge']
+    if _working_cookie_browser and _working_cookie_browser in browsers:
+        browsers.remove(_working_cookie_browser)
+        browsers.insert(0, _working_cookie_browser)
+        
+    last_err = None
+    
+    # 1. Try resolving using cookies from common browsers
+    for browser in browsers:
+        ydl_opts = {
+            'format': 'bestaudio',
+            'quiet': True,
+            'cookiesfrombrowser': (browser,),
+        }
+        if js_runtimes:
+            ydl_opts['js_runtimes'] = js_runtimes
+            
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                stream_url = info.get('url')
+                if stream_url:
+                    _working_cookie_browser = browser
+                    elapsed = time.perf_counter() - start
+                    logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies from browser '{browser}'")
+                    return {"url": stream_url}
+        except Exception as e:
+            last_err = e
+            continue
+
+    # 2. Try guest mode fallback if all browser cookie extractions failed
     ydl_opts = {
         'format': 'bestaudio',
         'quiet': True,
-        'js_runtimes': {
-            'node': {}
-        }
     }
+    if js_runtimes:
+        ydl_opts['js_runtimes'] = js_runtimes
+        
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             stream_url = info.get('url')
-            if not stream_url:
-                raise HTTPException(status_code=404, detail="Stream URL not found")
-            elapsed = time.perf_counter() - start
-            logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s")
-            return {"url": stream_url}
+            if stream_url:
+                elapsed = time.perf_counter() - start
+                logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s via guest fallback")
+                return {"url": stream_url}
     except Exception as e:
-        logger.error(f"[song_stream] Failed to resolve {video_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        last_err = e
+
+    logger.error(f"[song_stream] Failed to resolve {video_id}: {last_err}")
+    raise HTTPException(status_code=500, detail=str(last_err))
+
 

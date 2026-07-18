@@ -127,6 +127,13 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
   } else if (raw.author) {
     primaryArtists = typeof raw.author === "string" ? raw.author : raw.author.name || "";
   }
+  if (!primaryArtists && raw.podcast?.name) {
+    primaryArtists = raw.podcast.name;
+  }
+  if (!primaryArtists && raw.publisher) {
+    primaryArtists = raw.publisher;
+  }
+
   let image = "/placeholder.png";
   const thumbContents = raw.thumbnail?.contents || raw.thumbnails || raw.thumbnail || [];
   if (Array.isArray(thumbContents) && thumbContents.length > 0) {
@@ -148,6 +155,10 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
     } else if (typeof raw.album === "string") {
       album = raw.album;
     }
+  }
+  if (!album && raw.podcast) {
+    album = raw.podcast.name || "";
+    albumId = raw.podcast.id || "";
   }
 
   let duration = 0;
@@ -175,7 +186,7 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
   }
   const artistsList = Array.isArray(raw.artists)
     ? raw.artists.map((a: any) => ({ name: a.name || "", id: a.id || a.browseId || "" }))
-    : [{ name: primaryArtists.split(", ")[0], id: String(raw.author?.id || raw.author?.browseId || raw.artistId || "") }];
+    : [{ name: primaryArtists.split(", ")[0] || "Unknown Show", id: String(raw.author?.id || raw.author?.browseId || raw.artistId || raw.podcast?.id || "") }];
 
   return {
     id,
