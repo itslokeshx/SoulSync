@@ -18,7 +18,7 @@ logger = logging.getLogger("music-provider.search")
 @with_retry()
 def search(
     q: str = Query(..., min_length=1, description="Search query"),
-    filter: Optional[str] = Query(default=None, description="Filter: songs, videos, albums, artists, playlists, podcasts"),
+    filter: Optional[str] = Query(default="songs", description="Filter: songs, videos, albums, artists, playlists, podcasts"),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> dict:
     """Search YouTube Music across all content types or filtered by type."""
@@ -32,6 +32,18 @@ def search(
         kwargs["limit"] = limit
 
     results = yt.search(**kwargs)
+
+    # Defensive filtering based on requested filter type
+    if isinstance(results, list):
+        if filter == "songs":
+            results = [r for r in results if isinstance(r, dict) and r.get("resultType") in ("song", "video")]
+        elif filter == "artists":
+            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "artist"]
+        elif filter == "albums":
+            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "album"]
+        elif filter == "playlists":
+            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "playlist"]
+
     elapsed = time.perf_counter() - start
     logger.info(f"[search] q='{q}' filter={filter} → {len(results)} results in {elapsed:.2f}s")
     return {"results": results, "total": len(results), "query": q, "filter": filter}

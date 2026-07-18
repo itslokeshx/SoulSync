@@ -39,6 +39,7 @@ const router = Router();
 router.get("/", async (req: any, res: Response): Promise<void> => {
   const q = String(req.query.q || "").trim();
   const lang = String(req.query.lang || "").toLowerCase();
+  const filter = req.query.filter ? String(req.query.filter).toLowerCase() : undefined;
   const limit = Math.min(Number(req.query.limit || 60), 100);
 
   if (!q) {
@@ -46,7 +47,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     return;
   }
 
-  const cacheKey = `search:v8:${q.toLowerCase()}:${lang}`;
+  const cacheKey = `search:v8:${q.toLowerCase()}:${lang}:${filter || "all"}`;
   try {
     const hit = await redisGet(cacheKey);
     if (hit) {
@@ -83,15 +84,34 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     // fallbackRes→ wrapper /search/songs (covers, regional)
     // allRes     → wrapper /search (artists + albums + top query songs)
     // artistRes  → wrapper /search/artists (accurate artist IDs for enrichment)
-    const [hybridRes, fallbackRes, allRes, artistRes] =
-      await Promise.allSettled([
+    let hybridRes: any = null;
+    let fallbackRes: any = null;
+    let allRes: any = null;
+    let artistRes: any = null;
+
+    if (!filter || filter === "songs") {
+      const results = await Promise.allSettled([
         searchSongsHybrid(primaryQuery, 50, knownArtist),
         Promise.allSettled(
           fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
         ),
+      ]);
+      hybridRes = results[0];
+      fallbackRes = results[1];
+    }
+
+    if (!filter) {
+      const results = await Promise.allSettled([
         searchAll(q, reqBaseUrl),
         searchArtists(q, 5),
       ]);
+      allRes = results[0];
+      artistRes = results[1];
+    } else if (filter === "artists") {
+      artistRes = { status: "fulfilled", value: await searchArtists(q, limit) };
+    } else if (filter === "albums") {
+      allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: await searchAlbums(q, limit) } };
+    }
 
     const rawSongs: any[] = [];
     const seenIds = new Set<string>();
@@ -106,15 +126,17 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     };
 
     // Always add pinned songs first so they're guaranteed in the pool
-    addSongs(pinnedSongs);
+    if (!filter || filter === "songs") {
+      addSongs(pinnedSongs);
+    }
 
-    if (hybridRes.status === "fulfilled") addSongs(hybridRes.value);
-    if (fallbackRes.status === "fulfilled") {
+    if (hybridRes && hybridRes.status === "fulfilled") addSongs(hybridRes.value);
+    if (fallbackRes && fallbackRes.status === "fulfilled") {
       for (const r of fallbackRes.value) {
         if (r.status === "fulfilled") addSongs(r.value);
       }
     }
-    if (allRes.status === "fulfilled") addSongs(allRes.value.songs);
+    if (allRes && allRes.status === "fulfilled") addSongs(allRes.value.songs);
 
     // Merge artists from /search + /search/artists, dedup by ID
     const artistMap = new Map<string, any>();
