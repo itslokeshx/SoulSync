@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from services.ytmusic_client import get_client, with_retry
-from services.cache import cache_response
+from services.cache import get_cached, set_cached, cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.playlists")
@@ -22,17 +22,43 @@ def get_playlist(
 ) -> dict:
     """Get playlist details and tracks by playlistId or browseId."""
     start = time.perf_counter()
+    dead_key = f"dead_playlist:{playlist_id}"
+    
+    # Check dead playlist cache
+    if get_cached(dead_key):
+        logger.info(f"[playlist] id={playlist_id} is marked as DEAD, returning empty stub")
+        return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
+
     yt = get_client()
     kwargs: dict = {"playlistId": playlist_id}
     if limit:
         kwargs["limit"] = limit
-    result = yt.get_playlist(**kwargs)
-    if result is None:
-        raise HTTPException(status_code=404, detail=f"Playlist not found: {playlist_id}")
-    elapsed = time.perf_counter() - start
-    track_count = len(result.get("tracks", []))
-    logger.info(f"[playlist] id={playlist_id} → {track_count} tracks in {elapsed:.2f}s")
-    return result
+
+    try:
+        result = yt.get_playlist(**kwargs)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"Playlist not found: {playlist_id}")
+        elapsed = time.perf_counter() - start
+        track_count = len(result.get("tracks", []))
+        logger.info(f"[playlist] id={playlist_id} → {track_count} tracks in {elapsed:.2f}s")
+        return result
+    except KeyError as e:
+        is_structural = any(k in str(e) for k in ("contents", "secondSubtitle", "tabs"))
+        if is_structural:
+            logger.warning(f"[playlist] id={playlist_id} got structural KeyError: {e}. Marking as DEAD.")
+            set_cached(dead_key, True, ttl_seconds=86400)
+            return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
+        raise
+    except Exception as e:
+        # Increment failure count for other transient exceptions
+        fail_key = f"playlist_fails:{playlist_id}"
+        fails = (get_cached(fail_key) or 0) + 1
+        set_cached(fail_key, fails, ttl_seconds=3600)
+        if fails >= 3:
+            logger.warning(f"[playlist] id={playlist_id} failed {fails} times. Marking as DEAD.")
+            set_cached(dead_key, True, ttl_seconds=86400)
+            return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
+        raise
 
 
 @router.get("/playlist/{playlist_id}/suggestions")
