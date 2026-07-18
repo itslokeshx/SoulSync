@@ -57,21 +57,19 @@ export async function buildDashboard(
 ): Promise<DashboardResponse> {
   const isGuest = userId === "guest";
 
-  // Check cache (skip in development for fresh Made For You on every reload)
+  // Check cache (with 30-second TTL in development, and 2-minute TTL in production for authenticated users)
   const cacheKey = `dashboard:${userId}`;
   const isDev = process.env.NODE_ENV !== "production";
-  if (!isDev) {
-    const cached = await redisGet(cacheKey);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        const ttl = isGuest ? 30 * 60 * 1000 : 2 * 60 * 1000;
-        if (Date.now() - parsed.generatedAt < ttl) {
-          return parsed;
-        }
-      } catch {
-        /* ignore */
+  const cached = await redisGet(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      const ttl = isGuest ? 30 * 60 * 1000 : (isDev ? 30 * 1000 : 2 * 60 * 1000);
+      if (Date.now() - parsed.generatedAt < ttl) {
+        return parsed;
       }
+    } catch {
+      /* ignore */
     }
   }
 
@@ -265,11 +263,9 @@ export async function buildDashboard(
     generatedAt: Date.now(),
   };
 
-  // Cache response (2 min for auth, 30 min for guest) — skip in dev
-  if (!isDev) {
-    const ttl = isGuest ? 1800 : 120;
-    await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
-  }
+  // Cache response (30 sec in dev, 2 min in prod for auth; 30 min for guest)
+  const ttl = isGuest ? 1800 : (isDev ? 30 : 120);
+  await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
 
   return response;
 }
