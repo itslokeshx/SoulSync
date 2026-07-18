@@ -426,6 +426,53 @@ export async function fetchSongById(id: string, reqBaseUrl?: string): Promise<So
 }
 
 export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promise<Song[]> {
+  if (!ids || ids.length === 0) return [];
+  
+  try {
+    const response = await axios.post(`${MUSIC_PROVIDER_URL}/api/music/songs/batch`, {
+      video_ids: ids
+    }, {
+      headers: SERVICE_TOKEN ? { "X-Service-Token": SERVICE_TOKEN } : {},
+      timeout: 20000
+    });
+
+    const results = response.data?.results || [];
+    const songs: Song[] = [];
+
+    for (const res of results) {
+      if (!res.success || !res.data) continue;
+      const details = res.data.videoDetails || {};
+      let image = "/placeholder.png";
+      const thumbContents = details.thumbnail?.thumbnails || [];
+      if (thumbContents.length > 0) {
+        const sortedThumbs = [...thumbContents].sort((a, b) => (b.width || 0) - (a.width || 0));
+        image = sortedThumbs[0].url || image;
+      }
+      const proxyUrl = getStreamProxyUrl(res.video_id, reqBaseUrl);
+      songs.push({
+        id: res.video_id,
+        name: decodeHtmlEntities(details.title || "Unknown"),
+        primaryArtists: decodeHtmlEntities(details.author || "").replace(/\s*-\s*Topic$/i, ""),
+        image,
+        album: decodeHtmlEntities(details.title || ""),
+        albumId: "",
+        duration: Number(details.lengthSeconds) || 0,
+        language: "english",
+        year: "",
+        streamUrl: proxyUrl,
+        downloadUrl: [{ quality: "320kbps", url: proxyUrl }],
+        playCount: 0,
+        url: `https://music.youtube.com/watch?v=${res.video_id}`
+      });
+    }
+
+    if (songs.length > 0) {
+      return songs;
+    }
+  } catch (err: any) {
+    console.warn(`[youtubeMusicService] Batch fetch failed: ${err.message || err}, falling back to individual fetching...`);
+  }
+
   const songs = await Promise.all(
     ids.map(id => fetchSongById(id, reqBaseUrl).catch(() => null))
   );

@@ -4,7 +4,8 @@ Songs, lyrics, watch queue, and related content router.
 import time
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Body
+from concurrent.futures import ThreadPoolExecutor
 
 from services.ytmusic_client import get_client, with_retry
 
@@ -75,3 +76,29 @@ def get_song_related(browse_id: str) -> dict:
     elapsed = time.perf_counter() - start
     logger.info(f"[related] browseId={browse_id} → {len(result)} sections in {elapsed:.2f}s")
     return {"sections": result, "count": len(result)}
+
+
+@router.post("/songs/batch")
+def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
+    """Get metadata for multiple songs in parallel using a thread pool."""
+    if not video_ids:
+        return {"results": []}
+
+    # Limit batch size to 30 to prevent rate-limiting or uvicorn starvation
+    vids = video_ids[:30]
+
+    def fetch_one(vid: str):
+        try:
+            yt = get_client()
+            return {"video_id": vid, "data": yt.get_song(vid), "success": True}
+        except Exception as e:
+            logger.warning(f"Batch fetch failed for {vid}: {e}")
+            return {"video_id": vid, "error": str(e), "success": False}
+
+    start = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=min(len(vids), 15)) as executor:
+        results = list(executor.map(fetch_one, vids))
+
+    elapsed = time.perf_counter() - start
+    logger.info(f"[songs/batch] Fetched {len(vids)} songs in {elapsed:.2f}s")
+    return {"results": results}
