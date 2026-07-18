@@ -7,12 +7,14 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from services.ytmusic_client import get_client, with_retry
+from services.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.podcasts")
 
 
 @router.get("/podcast/{playlist_id}")
+@cache_response(ttl_seconds=3600, prefix="podcast")
 @with_retry()
 def get_podcast(playlist_id: str) -> dict:
     """Get podcast details and episodes."""
@@ -28,6 +30,7 @@ def get_podcast(playlist_id: str) -> dict:
 
 
 @router.get("/episode/{video_id}")
+@cache_response(ttl_seconds=3600, prefix="episode")
 @with_retry()
 def get_episode(video_id: str) -> dict:
     """Get episode details by videoId."""
@@ -43,6 +46,7 @@ def get_episode(video_id: str) -> dict:
 
 
 @router.get("/channel/{channel_id}")
+@cache_response(ttl_seconds=3600, prefix="channel")
 @with_retry()
 def get_channel(channel_id: str) -> dict:
     """Get podcast channel details."""
@@ -58,6 +62,7 @@ def get_channel(channel_id: str) -> dict:
 
 
 @router.get("/channel/{channel_id}/episodes")
+@cache_response(ttl_seconds=3600, prefix="channel_episodes")
 @with_retry()
 def get_channel_episodes(
     channel_id: str,

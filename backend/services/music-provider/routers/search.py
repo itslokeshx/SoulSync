@@ -7,12 +7,14 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from services.ytmusic_client import get_client, with_retry
+from services.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.search")
 
 
 @router.get("/search")
+@cache_response(ttl_seconds=900, prefix="search")
 @with_retry()
 def search(
     q: str = Query(..., min_length=1, description="Search query"),
@@ -36,6 +38,7 @@ def search(
 
 
 @router.get("/suggestions")
+@cache_response(ttl_seconds=900, prefix="suggestions")
 @with_retry()
 def get_suggestions(q: str = Query(..., min_length=1)) -> dict:
     """Get search suggestions/autocomplete for a query."""

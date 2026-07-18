@@ -6,12 +6,14 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from services.ytmusic_client import get_client, with_retry
+from services.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.albums")
 
 
 @router.get("/album/{browse_id}")
+@cache_response(ttl_seconds=3600, prefix="album")
 @with_retry()
 def get_album(browse_id: str) -> dict:
     """Get album details and tracks by browseId."""
@@ -26,6 +28,7 @@ def get_album(browse_id: str) -> dict:
 
 
 @router.get("/album/browse/{audio_playlist_id}")
+@cache_response(ttl_seconds=3600, prefix="album_browse")
 @with_retry()
 def get_album_browse_id(audio_playlist_id: str) -> dict:
     """Convert an audioPlaylistId to a browseId."""

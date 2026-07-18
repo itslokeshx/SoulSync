@@ -8,12 +8,14 @@ from fastapi import APIRouter, HTTPException, Query, Body
 from concurrent.futures import ThreadPoolExecutor
 
 from services.ytmusic_client import get_client, with_retry
+from services.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.songs")
 
 
 @router.get("/song/{video_id}")
+@cache_response(ttl_seconds=86400, prefix="song")
 @with_retry()
 def get_song(video_id: str) -> dict:
     """Get full song metadata by videoId."""
@@ -28,6 +30,7 @@ def get_song(video_id: str) -> dict:
 
 
 @router.get("/lyrics/{browse_id}")
+@cache_response(ttl_seconds=86400, prefix="lyrics")
 @with_retry()
 def get_lyrics(browse_id: str) -> dict:
     """Get song lyrics by lyrics browseId."""
@@ -42,6 +45,7 @@ def get_lyrics(browse_id: str) -> dict:
 
 
 @router.get("/watch/{video_id}")
+@cache_response(ttl_seconds=900, prefix="watch")
 @with_retry()
 def get_watch_playlist(
     video_id: str,
@@ -65,6 +69,7 @@ def get_watch_playlist(
 
 
 @router.get("/related/{browse_id}")
+@cache_response(ttl_seconds=3600, prefix="related")
 @with_retry()
 def get_song_related(browse_id: str) -> dict:
     """Get related content for a song by its related browseId."""
@@ -89,8 +94,8 @@ def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
 
     def fetch_one(vid: str):
         try:
-            yt = get_client()
-            return {"video_id": vid, "data": yt.get_song(vid), "success": True}
+            # Call the cached get_song handler directly to benefit from caching!
+            return {"video_id": vid, "data": get_song(vid), "success": True}
         except Exception as e:
             logger.warning(f"Batch fetch failed for {vid}: {e}")
             return {"video_id": vid, "error": str(e), "success": False}
@@ -105,6 +110,7 @@ def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
 
 
 @router.get("/song/{video_id}/stream")
+@cache_response(ttl_seconds=3600, prefix="stream")
 def get_song_stream(video_id: str) -> dict:
     """Get direct streaming audio URL for a song using yt-dlp."""
     start = time.perf_counter()

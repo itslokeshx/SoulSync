@@ -7,12 +7,14 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from services.ytmusic_client import get_client, with_retry
+from services.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.playlists")
 
 
 @router.get("/playlist/{playlist_id}")
+@cache_response(ttl_seconds=1800, prefix="playlist")
 @with_retry()
 def get_playlist(
     playlist_id: str,
@@ -34,6 +36,7 @@ def get_playlist(
 
 
 @router.get("/playlist/{playlist_id}/suggestions")
+@cache_response(ttl_seconds=1800, prefix="playlist_suggestions")
 @with_retry()
 def get_playlist_suggestions(playlist_id: str) -> dict:
     """Get track suggestions for a playlist. Requires authentication."""
