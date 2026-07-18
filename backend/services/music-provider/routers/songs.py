@@ -102,3 +102,31 @@ def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
     elapsed = time.perf_counter() - start
     logger.info(f"[songs/batch] Fetched {len(vids)} songs in {elapsed:.2f}s")
     return {"results": results}
+
+
+@router.get("/song/{video_id}/stream")
+def get_song_stream(video_id: str) -> dict:
+    """Get direct streaming audio URL for a song using yt-dlp."""
+    start = time.perf_counter()
+    import yt_dlp
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    ydl_opts = {
+        'format': 'bestaudio',
+        'quiet': True,
+        'js_runtimes': {
+            'node': {}
+        }
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            stream_url = info.get('url')
+            if not stream_url:
+                raise HTTPException(status_code=404, detail="Stream URL not found")
+            elapsed = time.perf_counter() - start
+            logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s")
+            return {"url": stream_url}
+    except Exception as e:
+        logger.error(f"[song_stream] Failed to resolve {video_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+

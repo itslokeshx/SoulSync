@@ -1,13 +1,8 @@
-import { Innertube } from "youtubei.js";
 import axios from "axios";
+import { fetchJioSaavnSongById, fetchJioSaavnSongsByIds, resolveJioSaavnStreamUrl } from "./jiosaavnService.js";
 
-let yt: Innertube | null = null;
-
-async function getYt(): Promise<Innertube> {
-  if (!yt) {
-    yt = await Innertube.create();
-  }
-  return yt;
+export function isYouTubeId(id: string): boolean {
+  return /^[a-zA-Z0-9_-]{11}$/.test(id);
 }
 
 export interface Song {
@@ -77,17 +72,16 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
 }
 
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
-  const yt = await getYt();
-  try {
-    const video = await yt.getInfo(id, { client: "IOS" });
-    const format = video.chooseFormat({ type: "audio", quality: "best" });
-    if (format) {
-      return await format.decipher(yt.session.player);
-    }
-  } catch (e) {
-    console.error(`[resolveRealStreamUrl] Error resolving for ${id}:`, e);
+  if (!isYouTubeId(id)) {
+    return resolveJioSaavnStreamUrl(id);
   }
-  return null;
+  try {
+    const data = await callMusicProvider(`/song/${id}/stream`);
+    return data.url || null;
+  } catch (e: any) {
+    console.error(`[resolveRealStreamUrl] Error resolving stream via Python provider for ${id}:`, e.message || e);
+    return null;
+  }
 }
 
 export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | null {
@@ -174,11 +168,9 @@ export async function searchSongs(query: string, limit = 50, page = 1): Promise<
   try {
     const data = await callMusicProvider("/search", { q: query, filter: "songs", limit });
     return data.results || [];
-  } catch {
-    // Monolith fallback
-    const yt = await getYt();
-    const searchResults = await yt.music.search(query, { type: "song" });
-    return searchResults.songs?.contents?.slice(0, limit) || [];
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchSongs failed for "${query}":`, err.message || err);
+    return [];
   }
 }
 
@@ -204,26 +196,9 @@ export async function searchAlbums(query: string, limit = 12): Promise<any[]> {
         artist: album.artists?.map((a: any) => a.name).join(", ") || album.author || ""
       };
     });
-  } catch {
-    // Monolith fallback
-    const yt = await getYt();
-    const searchResults = await yt.music.search(query, { type: "album" });
-    const contents = searchResults.albums?.contents || [];
-    return contents.slice(0, limit).map((album: any) => {
-      let image = "/placeholder.png";
-      const thumbContents = album.thumbnail?.contents || album.thumbnails || [];
-      if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
-      }
-      return {
-        id: album.id,
-        name: album.title || album.name || "",
-        title: album.title || album.name || "",
-        image,
-        year: album.year || "",
-        artist: album.artists?.map((a: any) => a.name).join(", ") || album.author || ""
-      };
-    });
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchAlbums failed for "${query}":`, err.message || err);
+    return [];
   }
 }
 
@@ -244,25 +219,9 @@ export async function searchArtists(query: string, limit = 10): Promise<any[]> {
         subscribers: artist.subscribers || ""
       };
     });
-  } catch {
-    // Monolith fallback
-    const yt = await getYt();
-    const searchResults = await yt.music.search(query, { type: "artist" });
-    const contents = searchResults.artists?.contents || [];
-    return contents.slice(0, limit).map((artist: any) => {
-      let image = "/placeholder.png";
-      const thumbContents = artist.thumbnail?.contents || artist.thumbnails || [];
-      if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
-      }
-      return {
-        id: artist.id,
-        name: artist.name || artist.title || "",
-        title: artist.name || artist.title || "",
-        image,
-        subscribers: artist.subscribers || ""
-      };
-    });
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchArtists failed for "${query}":`, err.message || err);
+    return [];
   }
 }
 
@@ -283,25 +242,9 @@ export async function searchPlaylists(query: string, limit = 10): Promise<any[]>
         songCount: p.songCount || ""
       };
     });
-  } catch {
-    // Monolith fallback
-    const yt = await getYt();
-    const searchResults = await yt.music.search(query, { type: "playlist" });
-    const contents = searchResults.playlists?.contents || [];
-    return contents.slice(0, limit).map((p: any) => {
-      let image = "/placeholder.png";
-      const thumbContents = p.thumbnail?.contents || p.thumbnails || [];
-      if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
-      }
-      return {
-        id: p.id,
-        name: p.title || p.name || "",
-        title: p.title || p.name || "",
-        image,
-        songCount: p.song_count || ""
-      };
-    });
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchPlaylists failed for "${query}":`, err.message || err);
+    return [];
   }
 }
 
@@ -309,10 +252,9 @@ export async function getPlaylistSongs(playlistId: string): Promise<any[]> {
   try {
     const data = await callMusicProvider(`/playlist/${playlistId}`);
     return data.tracks || [];
-  } catch {
-    const yt = await getYt();
-    const playlist = await yt.music.getPlaylist(playlistId);
-    return playlist.items || [];
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] getPlaylistSongs failed for ${playlistId}:`, err.message || err);
+    return [];
   }
 }
 
@@ -333,23 +275,9 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
       artists: data.artists || [],
       songs: data.tracks || []
     };
-  } catch {
-    const yt = await getYt();
-    const album = await yt.music.getAlbum(albumId) as any;
-    let image = "/placeholder.png";
-    const thumbContents = album.header?.thumbnail?.contents || album.header?.thumbnails || [];
-    if (thumbContents.length > 0) {
-      image = thumbContents[0].url || image;
-    }
-    return {
-      id: albumId,
-      name: album.header?.title?.text || album.title || "",
-      title: album.header?.title?.text || album.title || "",
-      image,
-      year: album.header?.year?.text || "",
-      artists: album.header?.artists?.map((a: any) => ({ name: a.name, id: a.id })) || [],
-      songs: album.items || []
-    };
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] getAlbumDetails failed for ${albumId}:`, err.message || err);
+    return null;
   }
 }
 
@@ -357,14 +285,16 @@ export async function getAlbumSongs(albumId: string): Promise<any[]> {
   try {
     const data = await callMusicProvider(`/album/${albumId}`);
     return data.tracks || [];
-  } catch {
-    const yt = await getYt();
-    const album = await yt.music.getAlbum(albumId) as any;
-    return album.items || [];
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] getAlbumSongs failed for ${albumId}:`, err.message || err);
+    return [];
   }
 }
 
 export async function fetchSongById(id: string, reqBaseUrl?: string): Promise<Song | null> {
+  if (!isYouTubeId(id)) {
+    return fetchJioSaavnSongById(id);
+  }
   try {
     const data = await callMusicProvider(`/song/${id}`);
     const details = data.videoDetails || {};
@@ -390,42 +320,13 @@ export async function fetchSongById(id: string, reqBaseUrl?: string): Promise<So
       playCount: 0,
       url: `https://music.youtube.com/watch?v=${id}`
     };
-  } catch {
-    // Fallback to youtubei.js
-    const yt = await getYt();
-    try {
-      const video = await yt.getInfo(id, { client: "IOS" });
-      const info = video.basic_info || {};
-      let image = "/placeholder.png";
-      if (Array.isArray(info.thumbnail) && info.thumbnail.length > 0) {
-        const sortedThumbs = [...info.thumbnail].sort((a, b) => (b.width || 0) - (a.width || 0));
-        image = sortedThumbs[0].url || image;
-      }
-      const primaryArtists = (info.author || "").replace(/\s*-\s*Topic$/i, "");
-      const proxyUrl = getStreamProxyUrl(id, reqBaseUrl);
-      return {
-        id: id,
-        name: decodeHtmlEntities(info.title || "Unknown"),
-        primaryArtists: decodeHtmlEntities(primaryArtists),
-        image,
-        album: decodeHtmlEntities(info.title || ""),
-        albumId: "",
-        duration: Number(info.duration) || 0,
-        language: "english",
-        year: "",
-        streamUrl: proxyUrl,
-        downloadUrl: [{ quality: "320kbps", url: proxyUrl }],
-        playCount: 0,
-        url: `https://music.youtube.com/watch?v=${id}`
-      };
-    } catch (e: any) {
-      console.warn(`[youtubeMusicService] fetchSongById failed for ${id}: ${e.message || e}`);
-      return null;
-    }
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] fetchSongById failed for ${id}:`, err.message || err);
+    return null;
   }
 }
 
-export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promise<Song[]> {
+async function fetchYouTubeSongsByIds(ids: string[], reqBaseUrl?: string): Promise<Song[]> {
   if (!ids || ids.length === 0) return [];
   
   try {
@@ -479,6 +380,25 @@ export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promi
   return songs.filter((s): s is Song => s !== null);
 }
 
+export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promise<Song[]> {
+  if (!ids || ids.length === 0) return [];
+
+  const ytIds = ids.filter(isYouTubeId);
+  const saavnIds = ids.filter(id => !isYouTubeId(id));
+
+  const [ytSongs, saavnSongs] = await Promise.all([
+    fetchYouTubeSongsByIds(ytIds, reqBaseUrl),
+    fetchJioSaavnSongsByIds(saavnIds)
+  ]);
+
+  const songMap = new Map<string, Song>();
+  for (const s of [...ytSongs, ...saavnSongs]) {
+    songMap.set(s.id, s);
+  }
+
+  return ids.map(id => songMap.get(id)).filter((s): s is Song => !!s);
+}
+
 export async function searchAll(query: string, reqBaseUrl?: string): Promise<{ songs: Song[]; artists: any[]; albums: any[] }> {
   const [songs, artists, albums] = await Promise.all([
     searchSongs(query, 10),
@@ -497,15 +417,9 @@ export async function fetchArtistSongs(id: string, page = 0, pages = 1): Promise
     const data = await callMusicProvider(`/artist/${id}`);
     const contents = data.songs?.results || [];
     return normalizeSongsToCanonical(contents);
-  } catch {
-    const yt = await getYt();
-    const artist = await yt.music.getArtist(id);
-    const songsSection = artist.sections?.find((sec: any) => {
-      const titleText = sec.title?.text || sec.title || "";
-      return typeof titleText === "string" && titleText.toLowerCase().includes("song");
-    });
-    const contents = songsSection?.contents || artist.sections?.[0]?.contents || [];
-    return normalizeSongsToCanonical(contents);
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] fetchArtistSongs failed for ${id}:`, err.message || err);
+    return [];
   }
 }
 
@@ -520,12 +434,9 @@ export async function getSuggestions(songId: string, limit = 20): Promise<any[]>
     const songs = data.tracks || [];
     const filtered = songs.filter((s: any) => s.videoId && s.videoId !== songId);
     return normalizeSongsToCanonical(filtered).slice(0, limit);
-  } catch {
-    const yt = await getYt();
-    const upNext = await yt.music.getUpNext(songId);
-    const songs = upNext?.contents || [];
-    const filtered = songs.filter((s: any) => s.video_id && s.video_id !== songId);
-    return normalizeSongsToCanonical(filtered).slice(0, limit);
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] getSuggestions failed for ${songId}:`, err.message || err);
+    return [];
   }
 }
 
@@ -554,20 +465,9 @@ export async function getArtistDetails(id: string): Promise<any> {
       description: data.description || "",
       songs: normalizeSongsToCanonical(data.songs?.results || [])
     };
-  } catch {
-    const yt = await getYt();
-    const artist = await yt.music.getArtist(id) as any;
-    let image = "/placeholder.png";
-    if (artist.header?.thumbnail?.contents?.[0]?.url) {
-      image = artist.header.thumbnail.contents[0].url;
-    }
-    return {
-      id,
-      name: artist.header?.title?.text || artist.name || "",
-      image,
-      description: artist.header?.description?.text || "",
-      songs: await fetchArtistSongs(id)
-    };
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] getArtistDetails failed for ${id}:`, err.message || err);
+    return null;
   }
 }
 
