@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { UserTasteProfile, IUserTasteProfile, IArtistAffinity } from "../models/UserTasteProfile.js";
 import { SongCooccurrence } from "../models/SongCooccurrence.js";
+import { User } from "../models/User.js";
 import {
   getSuggestions,
   fetchArtistSongs,
@@ -86,13 +87,29 @@ export async function buildTasteProfile(
     .lean();
 
   if (history.length === 0) {
-    // No history — return empty profile
+    const languages: any[] = [];
+    try {
+      const userDoc = await User.findById(userId).lean();
+      const prefLangs = userDoc?.preferences?.languages || [];
+      if (prefLangs.length > 0) {
+        prefLangs.forEach((lang: string, idx: number) => {
+          languages.push({
+            language: lang.toLowerCase().trim(),
+            weight: idx === 0 ? 0.7 : 0.3,
+            playCount: 0,
+          });
+        });
+      }
+    } catch (e) {
+      console.warn("[TasteProfile] Failed to fetch user preferences:", e);
+    }
+
     const empty = await UserTasteProfile.findOneAndUpdate(
       { userId: userObjId },
       {
         $set: {
           artists: [],
-          languages: [],
+          languages,
           recentSongIds: [],
           totalPlays: 0,
           lastComputedAt: new Date(),
@@ -151,6 +168,24 @@ export async function buildTasteProfile(
       playCount: count,
     }))
     .sort((a, b) => b.weight - a.weight);
+
+  if (languages.length === 0) {
+    try {
+      const userDoc = await User.findById(userId).lean();
+      const prefLangs = userDoc?.preferences?.languages || [];
+      if (prefLangs.length > 0) {
+        prefLangs.forEach((lang: string, idx: number) => {
+          languages.push({
+            language: lang.toLowerCase().trim(),
+            weight: idx === 0 ? 0.7 : 0.3,
+            playCount: 0,
+          });
+        });
+      }
+    } catch (e) {
+      console.warn("[TasteProfile] Failed to fetch user preferences:", e);
+    }
+  }
 
   // ── Recent song IDs (for dedup) ───────────────────────────────
   const recentSongIds = [...new Set(history.slice(0, 100).map((h) => h.songId))];
@@ -797,7 +832,8 @@ export async function generateSeedAnchoredBatch(
   let fallbackCount = 0;
   if (candidates.length < 10) {
     try {
-      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize);
+      const prefLangs = tasteProfile?.languages.map((l: any) => l.language) || [];
+      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize, prefLangs);
       fallbackCount = fallbacks.length;
       for (const s of fallbacks) {
         addCandidate(s);
@@ -907,14 +943,14 @@ export async function generateSeedAnchoredBatch(
 export async function getColdStartBatch(
   excludeIds: string[],
   limit: number = 20,
+  preferredLangs?: string[],
 ): Promise<Song[]> {
   const excludeSet = new Set(excludeIds);
-  const fallbacks = [
-    "best hindi songs",
-    "best tamil songs",
-    "best telugu songs",
-    "best english songs",
-  ];
+  const langs = (preferredLangs && preferredLangs.length > 0)
+    ? preferredLangs.map((l: any) => l.toLowerCase().trim())
+    : ["english", "hindi", "tamil", "punjabi"];
+
+  const fallbacks = langs.map((l: string) => `best ${l} songs`);
   
   const searchResults = await Promise.allSettled(
     fallbacks.map((q) => searchSongs(q, 15)),
@@ -958,7 +994,8 @@ export async function getTasteProfileBatch(
   limit: number = 20,
 ): Promise<Song[]> {
   if (!tasteProfile || tasteProfile.artists.length === 0) {
-    return getColdStartBatch(excludeIds, limit);
+    const prefLangs = tasteProfile?.languages.map(l => l.language) || [];
+    return getColdStartBatch(excludeIds, limit, prefLangs);
   }
 
   const excludeSet = new Set(excludeIds);
@@ -1080,7 +1117,8 @@ export async function getTasteProfileBatch(
   } catch {}
 
   if (candidates.length === 0) {
-    return getColdStartBatch(excludeIds, limit);
+    const prefLangs = tasteProfile?.languages.map(l => l.language) || [];
+    return getColdStartBatch(excludeIds, limit, prefLangs);
   }
 
   // Shuffle candidates to introduce randomness before ranking
@@ -1134,7 +1172,16 @@ export async function getLanguageAwareNewReleases(
 
   // Cold start / Guest
   if (!tasteProfile || tasteProfile.languages.length === 0) {
-    const fallbackLangs = ["hindi", "english", "tamil", "punjabi"];
+    let fallbackLangs = ["hindi", "english", "tamil", "punjabi"];
+    if (tasteProfile?.userId) {
+      try {
+        const userDoc = await User.findById(tasteProfile.userId).lean();
+        const prefLangs = userDoc?.preferences?.languages || [];
+        if (prefLangs.length > 0) {
+          fallbackLangs = prefLangs.map((l: string) => l.toLowerCase().trim());
+        }
+      } catch {}
+    }
     const results = await Promise.allSettled(
       fallbackLangs.map((l) => searchSongs(`new ${l} songs ${currentYear}`, 15)),
     );

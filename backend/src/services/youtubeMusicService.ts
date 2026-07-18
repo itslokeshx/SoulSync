@@ -20,6 +20,7 @@ export interface Song {
   downloadUrl: Array<{ quality: string; url: string }> | null;
   playCount: number;
   url: string;
+  artists?: Array<{ name: string; id: string }>;
 }
 
 export type JioSaavnSong = any;
@@ -172,10 +173,15 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
       }
     }
   }
+  const artistsList = Array.isArray(raw.artists)
+    ? raw.artists.map((a: any) => ({ name: a.name || "", id: a.id || a.browseId || "" }))
+    : [{ name: primaryArtists.split(", ")[0], id: String(raw.author?.id || raw.author?.browseId || raw.artistId || "") }];
+
   return {
     id,
     name: decodeHtmlEntities(name),
     primaryArtists: decodeHtmlEntities(primaryArtists.replace(/\s*-\s*Topic$/i, "")),
+    artists: artistsList.filter((a: any) => a.name),
     image,
     album: decodeHtmlEntities(album || name),
     albumId,
@@ -578,8 +584,25 @@ export async function getArtistDetails(id: string): Promise<any> {
       });
     };
 
+    const normalizeRelated = (items: any[]) => {
+      if (!Array.isArray(items)) return [];
+      return items.map((art: any) => {
+        let artImage = "/placeholder.png";
+        const thumbContents = art.thumbnails || [];
+        if (thumbContents.length > 0) {
+          artImage = thumbContents[0].url || artImage;
+        }
+        return {
+          id: art.browseId || "",
+          name: art.title || art.name || "",
+          image: artImage
+        };
+      });
+    };
+
     const albums = normalizeAlbums(data.albums?.results || []);
     const singles = normalizeAlbums(data.singles?.results || []);
+    const related = normalizeRelated(data.related?.results || []);
 
     return {
       id,
@@ -588,7 +611,8 @@ export async function getArtistDetails(id: string): Promise<any> {
       description: data.description || "",
       songs: normalizeSongsToCanonical(rawSongs),
       albums,
-      singles
+      singles,
+      related
     };
   } catch (err: any) {
     console.error(`[youtubeMusicService] getArtistDetails failed for ${id}:`, err.message || err);

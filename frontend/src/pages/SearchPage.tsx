@@ -36,6 +36,7 @@ import { useSearchStore } from "../store/searchStore";
 import { useUIStore } from "../store/uiStore";
 import { bestImg, getArtists, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
+import { ArtistLinks } from "../components/ui/ArtistLinks";
 import { useApp } from "../context/AppContext";
 import { startRadio } from "../api/backend";
 import { normalizeSongs } from "../utils/normalizeSong";
@@ -112,7 +113,9 @@ function SongRow({
         >
           {song.name}
         </p>
-        <p className="text-white/45 text-[12px] truncate">{artist}</p>
+        <p className="text-white/45 text-[12px] truncate">
+          <ArtistLinks song={song} />
+        </p>
       </div>
       {duration && (
         <span className="text-white/30 text-[11px] flex-shrink-0">
@@ -197,7 +200,7 @@ function TopResultHero({
               Top Result
             </span>
             <span className="text-[12px] text-white/50 truncate">
-              {subtitle}
+              {isArtist || isAlbum ? subtitle : <ArtistLinks song={item} />}
             </span>
           </div>
         </div>

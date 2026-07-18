@@ -8,6 +8,7 @@ import { useDashboard } from "../hooks/useDashboard";
 import { Skeleton } from "../components/ui/Skeleton";
 import { normalizeSongs } from "../utils/normalizeSong";
 import { bestImg, getArtists } from "../lib/helpers";
+import { ArtistLinks } from "../components/ui/ArtistLinks";
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -157,7 +158,7 @@ export const HomePage = () => {
                                 {song.name}
                               </p>
                               <p className="text-[8px] text-white/50 truncate tracking-tight mt-0.5">
-                                {getArtists(song)}
+                                <ArtistLinks song={song} />
                               </p>
                             </div>
                           </div>

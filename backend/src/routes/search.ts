@@ -461,7 +461,16 @@ router.get("/artist", async (req: any, res: Response) => {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "ID required" });
   try {
-    res.json(await getArtistDetails(id as string));
+    const cacheKey = `artist:v1:${id}`;
+    const hit = await redisGet(cacheKey);
+    if (hit) {
+      return res.json(JSON.parse(hit));
+    }
+    const details = await getArtistDetails(id as string);
+    if (details) {
+      await redisSet(cacheKey, JSON.stringify(details), 86400).catch(() => {});
+    }
+    res.json(details);
   } catch {
     res.status(500).json({ error: "Failed to fetch artist" });
   }

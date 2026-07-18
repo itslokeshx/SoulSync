@@ -6,6 +6,7 @@ import { FALLBACK_IMG } from "../../lib/constants";
 import { usePlayerStore } from "../../store/playerStore";
 import { useQueueStore } from "../../store/queueStore";
 import { getAutoplaySongs } from "../../api/backend";
+import { ArtistLinks } from "../ui/ArtistLinks";
 
 interface QueuePanelProps {
   queue: any[];
@@ -156,7 +157,7 @@ export const QueuePanel = ({
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-white/70 truncate">{s.name}</p>
                   <p className="text-[11px] text-white/30 truncate">
-                    {getArtists(s)}
+                    <ArtistLinks song={s} />
                   </p>
                 </div>
                 <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
@@ -184,7 +185,7 @@ export const QueuePanel = ({
                   {currentSong.name}
                 </p>
                 <p className="text-[11px] text-sp-sub/60 truncate">
-                  {getArtists(currentSong)}
+                  <ArtistLinks song={currentSong} />
                 </p>
               </div>
               <EqBars />
@@ -238,7 +239,7 @@ export const QueuePanel = ({
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-white truncate">{s.name}</p>
                   <p className="text-[11px] text-sp-sub/50 truncate">
-                    {getArtists(s)}
+                    <ArtistLinks song={s} />
                   </p>
                 </div>
               </button>
@@ -287,7 +288,7 @@ export const QueuePanel = ({
                     {s.name}
                   </p>
                   <p className="text-[11px] text-sp-sub/40 truncate">
-                    {getArtists(s)}
+                    <ArtistLinks song={s} />
                   </p>
                 </div>
                 <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">

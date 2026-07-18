@@ -30,7 +30,7 @@ export interface Song {
     primary: SongArtist[];
     featured?: SongArtist[];
     all?: SongArtist[];
-  };
+  } | Array<{ name: string; id: string }>;
   artist_map?: {
     primary_artists: SongArtist[];
   };

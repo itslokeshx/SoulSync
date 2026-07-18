@@ -124,6 +124,14 @@ export const ArtistPage = () => {
         </button>
       </div>
 
+      {artist.description && (
+        <div className="px-6 pb-2 -mt-2 mb-4">
+          <p className="text-white/50 text-[13px] max-w-3xl leading-relaxed">
+            {artist.description}
+          </p>
+        </div>
+      )}
+
       <div className="px-6">
         <h2 className="text-lg font-bold text-white mb-3">Popular</h2>
         <div className="space-y-1">
@@ -184,7 +192,7 @@ export const ArtistPage = () => {
 
       {/* Singles */}
       {artist.singles && artist.singles.length > 0 && (
-        <div className="px-6 mt-8 pb-10">
+        <div className="px-6 mt-8">
           <h2 className="text-lg font-bold text-white mb-3">Singles & EPs</h2>
           <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
             {artist.singles.map((s: any) => (
@@ -215,6 +223,44 @@ export const ArtistPage = () => {
                   <p className="text-white/35 text-[11px] truncate">
                     {s.year || "Single"}
                   </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Related Artists */}
+      {artist.related && artist.related.length > 0 && (
+        <div className="px-6 mt-8 pb-16">
+          <h2 className="text-lg font-bold text-white mb-3">Fans Also Like</h2>
+          <div className="flex gap-4 overflow-x-auto pb-1 thin-scrollbar">
+            {artist.related.map((r: any) => (
+              <button
+                key={r.id || r.name}
+                onClick={() => r.id && navigate(`/artist/${r.id}`)}
+                className="flex flex-col items-center gap-2 w-28 sm:w-32 flex-shrink-0 group cursor-pointer text-center"
+              >
+                <div className="relative overflow-hidden rounded-full w-28 h-28 sm:w-32 sm:h-32 shadow-lg">
+                  <img
+                    src={bestImg(r.image) || FALLBACK_IMG}
+                    alt={r.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <div className="w-10 h-10 rounded-full bg-sp-green flex items-center justify-center shadow-xl">
+                      <Play size={16} className="text-black fill-black ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+                <div className="w-full">
+                  <p className="text-white/80 text-[12px] font-semibold truncate group-hover:text-white transition-colors">
+                    {r.name}
+                  </p>
+                  <p className="text-white/35 text-[11px]">Artist</p>
                 </div>
               </button>
             ))}

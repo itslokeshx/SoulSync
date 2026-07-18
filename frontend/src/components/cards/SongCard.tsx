@@ -4,6 +4,7 @@ import { EqBars } from "../ui/EqBars";
 import { bestImg, getArtists, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
+import { ArtistLinks } from "../ui/ArtistLinks";
 import { useApp } from "../../context/AppContext";
 
 interface SongCardProps {
@@ -113,7 +114,7 @@ export const SongCard = ({
         {song.name}
       </p>
       <p className="text-[11px] text-sp-sub/70 truncate mt-1">
-        {getArtists(song)}
+        <ArtistLinks song={song} />
       </p>
       {song.reason && (
         <p className="text-[9px] text-sp-green/60 truncate mt-0.5 italic">

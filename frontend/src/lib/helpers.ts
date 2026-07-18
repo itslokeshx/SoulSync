@@ -66,6 +66,45 @@ export const getArtists = (song: any): string => {
   return decodeHtml(artistStr);
 };
 
+export interface ArtistItem {
+  name: string;
+  id: string;
+}
+
+export const getArtistsList = (song: any): ArtistItem[] => {
+  if (!song) return [];
+  
+  if (Array.isArray(song.artists)) {
+    return song.artists.map((a: any) => ({
+      name: a.name || "",
+      id: a.id || a.browseId || ""
+    })).filter((a: any) => a.name);
+  }
+  
+  if (Array.isArray(song.artist_map?.primary_artists)) {
+    return song.artist_map.primary_artists.map((a: any) => ({
+      name: a.name || "",
+      id: a.id || a.browseId || ""
+    })).filter((a: any) => a.name);
+  }
+  
+  if (Array.isArray(song.artists?.primary)) {
+    return song.artists.primary.map((a: any) => ({
+      name: a.name || "",
+      id: a.id || a.browseId || ""
+    })).filter((a: any) => a.name);
+  }
+
+  const primary = song.primaryArtists || song.primary_artists || song.music || song.subtitle || "";
+  if (primary && primary !== "—") {
+    return String(primary).split(", ").map((name: string) => ({
+      name: name.trim(),
+      id: ""
+    }));
+  }
+  return [];
+};
+
 export const getGreeting = (): string => {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
