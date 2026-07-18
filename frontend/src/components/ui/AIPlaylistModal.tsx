@@ -277,7 +277,7 @@ export function AIPlaylistModal() {
                   <p className="text-white font-bold text-[15px]">
                     AI Playlist Builder
                   </p>
-                  <p className="text-white/35 text-[11px]">Powered by Groq</p>
+                  <p className="text-white/35 text-[11px]">Powered by GPT</p>
                 </div>
               </div>
               <button
