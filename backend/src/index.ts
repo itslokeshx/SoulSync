@@ -164,7 +164,7 @@ async function start() {
 
   httpServer.once("error", handleListenError);
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`\n🚀 SoulSync Backend running on port ${PORT}`);
     console.log(`   Health: http://localhost:${PORT}/health`);
     console.log(`   Frontend: ${FRONTEND_URL}`);
