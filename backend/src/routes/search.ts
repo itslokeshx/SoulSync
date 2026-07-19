@@ -54,7 +54,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
   const t0 = performance.now();
   const timings: any = {};
 
-  const cacheKey = `search:v10:${q.toLowerCase()}:${lang}:${filter || "all"}`;
+  const cacheKey = `search:v11:${q.toLowerCase()}:${lang}:${filter || "all"}`;
   try {
     const tCache = performance.now();
     const hit = await redisGet(cacheKey);

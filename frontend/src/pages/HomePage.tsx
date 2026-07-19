@@ -672,12 +672,14 @@ export const HomePage = () => {
     mixesLoading,
     error,
     dashboard,
+    row1,
+    row2,
+    row3,
     suggestionsSongs,
     mobileGridSongs,
     normalizedRecentlyPlayed,
     guestNewReleases,
     normalizedNewReleases,
-    podcasts,
     localGreeting,
     localSubtitle,
     handleHomeSongClick,
@@ -691,7 +693,6 @@ export const HomePage = () => {
     ? normalizedRecentlyPlayed.slice(0, 12)
     : suggestionsSongs.slice(0, 12);
 
-  const madeForYou = suggestionsSongs.slice(0, 12);
   const newReleasesList = normalizedNewReleases.slice(0, 8);
 
   const isLoading = authLoading || dashboardLoading;
@@ -794,63 +795,71 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* ── MADE FOR YOU ── */}
-      {user && madeForYou.length > 0 && (
-        <div className="mb-10">
+      {/* ── REMIX OF THE WEEK ── */}
+      {user && suggestionsSongs.length > 0 && (
+        <div className="mb-10 animate-fadeIn">
           <SectionHeader
-            title={dashboard?.madeForYou?.title || "Made for you"}
+            title="Remix of the Week"
             subtitle="Tuned to your taste"
             onSeeAll={() => navigate("/search")}
           />
           {isLoading ? (
-            <div className="flex gap-4 overflow-hidden">
-              {Array.from({ length: 6 }).map((_, j) => (
-                <div key={j} className="flex-shrink-0 w-44">
-                  <Skeleton className="w-full aspect-square rounded-xl mb-3" />
-                  <Skeleton className="h-3 w-3/4 rounded-md mb-1.5" />
-                  <Skeleton className="h-2.5 w-1/2 rounded-md" />
-                </div>
-              ))}
+            <div className="space-y-4">
+              <div className="flex gap-3 overflow-hidden">
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <div
+                    key={j}
+                    className="flex-shrink-0 w-44 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04]"
+                  >
+                    <Skeleton className="w-full aspect-square mb-3 rounded-xl" />
+                    <Skeleton className="h-3 w-4/5 mb-2 rounded-md" />
+                    <Skeleton className="h-2.5 w-1/2 rounded-md" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
-            <HSectionInline
-              title=""
-              songs={madeForYou}
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              onPlay={(song, queue) => handleHomeSongClick(song, queue)}
-              hideHeader
-            />
-          )}
-        </div>
-      )}
-
-      {/* ── PODCASTS & SHOWS ── */}
-      {podcasts && podcasts.length > 0 && (
-        <div className="mb-10 animate-fadeIn">
-          <SectionHeader
-            title="Podcasts & Shows"
-            subtitle="Popular podcasts to listen to"
-          />
-          {isLoading ? (
-            <div className="flex gap-4 overflow-hidden">
-              {Array.from({ length: 6 }).map((_, j) => (
-                <div key={j} className="flex-shrink-0 w-44">
-                  <Skeleton className="w-full aspect-square rounded-xl mb-3" />
-                  <Skeleton className="h-3 w-3/4 rounded-md mb-1.5" />
-                  <Skeleton className="h-2.5 w-1/2 rounded-md" />
+            <div className="space-y-4">
+              {row1 && row1.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                  {row1.map((s, idx) => (
+                    <SongCardInline
+                      key={`${s.id}-row1-${idx}`}
+                      song={s}
+                      isCurrent={currentSong?.id === s.id}
+                      isPlaying={isPlaying}
+                      onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
+                    />
+                  ))}
                 </div>
-              ))}
+              )}
+              {row2 && row2.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                  {row2.map((s, idx) => (
+                    <SongCardInline
+                      key={`${s.id}-row2-${idx}`}
+                      song={s}
+                      isCurrent={currentSong?.id === s.id}
+                      isPlaying={isPlaying}
+                      onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
+                    />
+                  ))}
+                </div>
+              )}
+              {row3 && row3.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                  {row3.map((s, idx) => (
+                    <SongCardInline
+                      key={`${s.id}-row3-${idx}`}
+                      song={s}
+                      isCurrent={currentSong?.id === s.id}
+                      isPlaying={isPlaying}
+                      onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <HSectionInline
-              title=""
-              albums={podcasts}
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              onPlay={() => {}}
-              hideHeader
-            />
           )}
         </div>
       )}

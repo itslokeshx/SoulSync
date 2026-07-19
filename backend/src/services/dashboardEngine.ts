@@ -182,7 +182,7 @@ export async function buildDashboard(
   try {
     const tExternalStart = performance.now();
     if (isGuest) {
-      const [guestReleaseResults, rawMadeForYou, rawPodcasts] = await Promise.all([
+      const [guestReleaseResults, rawMadeForYou] = await Promise.all([
         Promise.all([
           getIndustryNewReleases(["english"], 20),
           getIndustryNewReleases(["tamil"], 20),
@@ -190,7 +190,6 @@ export async function buildDashboard(
           getIndustryNewReleases(["telugu"], 20),
         ]),
         getTasteProfileBatch(null, Array.from(globalExcludeIds), 35),
-        getPodcastRecommendations(10),
       ]);
 
       const [english, tamil, hindi, telugu] = guestReleaseResults;
@@ -204,14 +203,13 @@ export async function buildDashboard(
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 30);
-      recommendedPodcasts = rawPodcasts;
+      recommendedPodcasts = [];
     } else {
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
 
-      const [rawNewReleases, rawMadeForYou, rawPodcasts] = await Promise.all([
+      const [rawNewReleases, rawMadeForYou] = await Promise.all([
         getIndustryNewReleases(langs, 25),
         getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 35),
-        getPodcastRecommendations(10),
       ]);
 
       newReleasesSongs = rawNewReleases
@@ -225,7 +223,7 @@ export async function buildDashboard(
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 30);
-      recommendedPodcasts = rawPodcasts;
+      recommendedPodcasts = [];
     }
 
     for (const s of madeForYouSongs) {
