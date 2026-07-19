@@ -132,6 +132,21 @@ def get_song_stream(video_id: str) -> dict:
         
     last_err = None
     
+    # Helper to construct ydl options cleanly
+    def build_ydl_opts(cookies_path: str = None, browser: str = None) -> dict:
+        opts = {
+            'format': 'bestaudio',
+            'quiet': True,
+            'remote_components': ['ejs:github'],
+        }
+        if js_runtimes:
+            opts['js_runtimes'] = js_runtimes
+        if cookies_path:
+            opts['cookiefile'] = cookies_path
+        if browser:
+            opts['cookiesfrombrowser'] = (browser,)
+        return opts
+    
     # ── COOKIE FILE RESOLUTION ──────────────────────────────────────────────
     cookie_file_path = None
     yt_cookies_env = os.getenv("YT_COOKIES")
@@ -154,14 +169,7 @@ def get_song_stream(video_id: str) -> dict:
 
     # 1. Try resolving using cookies file if available
     if cookie_file_path:
-        ydl_opts = {
-            'format': 'bestaudio',
-            'quiet': True,
-            'cookiefile': cookie_file_path,
-        }
-        if js_runtimes:
-            ydl_opts['js_runtimes'] = js_runtimes
-            
+        ydl_opts = build_ydl_opts(cookies_path=cookie_file_path)
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -183,14 +191,7 @@ def get_song_stream(video_id: str) -> dict:
             browsers.insert(0, _working_cookie_browser)
             
         for browser in browsers:
-            ydl_opts = {
-                'format': 'bestaudio',
-                'quiet': True,
-                'cookiesfrombrowser': (browser,),
-            }
-            if js_runtimes:
-                ydl_opts['js_runtimes'] = js_runtimes
-                
+            ydl_opts = build_ydl_opts(browser=browser)
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
@@ -205,13 +206,7 @@ def get_song_stream(video_id: str) -> dict:
                 continue
 
     # 3. Try guest mode fallback if all else failed
-    ydl_opts = {
-        'format': 'bestaudio',
-        'quiet': True,
-    }
-    if js_runtimes:
-        ydl_opts['js_runtimes'] = js_runtimes
-        
+    ydl_opts = build_ydl_opts()
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
