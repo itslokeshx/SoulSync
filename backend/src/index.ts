@@ -189,9 +189,14 @@ async function start() {
     setTimeout(async () => {
       logger.info("[CacheWarm] Starting background search cache warm-up…");
       for (const q of WARM_QUERIES) {
-        try {
-          await enhancedSearch(q, "all", 20);
-          await new Promise((r) => setTimeout(r, 1500)); // gentle pacing (1.5s delay)
+          // "all" fans out into ~8 simultaneous sub-searches (songs, albums,
+          // artists, playlists, podcasts, episodes, videos, general). Firing
+          // that repeatedly at startup looks exactly like bot traffic to
+          // YouTube and is a likely cause of IP-level blocking after every
+          // redeploy. Warm only the "songs" filter people actually see
+          // first, and pace much more gently between queries.
+          await enhancedSearch(q, "songs", 20);
+          await new Promise((r) => setTimeout(r, 4000)); // gentle pacing (4s delay)
         } catch {
           // Non-fatal – silently skip
         }

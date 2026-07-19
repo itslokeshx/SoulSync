@@ -74,8 +74,32 @@ def create_session() -> requests.Session:
 
 
 
+_last_reset_time: float = 0.0
+_RESET_COOLDOWN_SECONDS = 30.0
+
+
 def reset_client_to_guest():
-    global _client
+    """
+    Reset the client to a clean guest-mode session.
+
+    Rate-limited: under sustained blocking (YouTube rejecting both cookie
+    and guest requests), every failing request would otherwise trigger a
+    full session rebuild + new YTMusic() init (each doing network I/O),
+    all while holding one of only 10 global semaphore slots. That turns
+    a block into a resource-exhaustion cascade across every endpoint.
+    Only actually rebuild once per cooldown window; otherwise just log
+    and move on so failures return fast instead of piling up.
+    """
+    global _client, _last_reset_time
+    now = time.monotonic()
+    if now - _last_reset_time < _RESET_COOLDOWN_SECONDS:
+        logger.warning(
+            "Skipping YTMusic client reset (cooldown active, "
+            f"{_RESET_COOLDOWN_SECONDS - (now - _last_reset_time):.0f}s remaining)"
+        )
+        return
+    _last_reset_time = now
+
     logger.warning("Resetting YTMusic client to guest mode fallback due to auth/parse failure")
     try:
         session = create_session()
@@ -122,10 +146,46 @@ def get_client() -> YTMusic:
     return _client
 
 
-from threading import Semaphore
+from threading import Semaphore, Lock
 
 # Limit to 10 concurrent outbound YouTube Music calls across all threads
 _yt_semaphore = Semaphore(10)
+
+# ── Circuit breaker ──────────────────────────────────────────────────────
+# If YouTube is actively blocking us (auth/parse failures), retrying each
+# request 3x with sleeps just piles up load on top of an already-failing
+# upstream and holds semaphore slots longer, making the pile-up worse.
+# Once we see repeated failures in a short window, trip the breaker and
+# fail new requests immediately (no retries, no sleeps) until the cooldown
+# passes, so the service stays responsive instead of queuing everything
+# behind guaranteed-to-fail calls.
+_breaker_lock = Lock()
+_consecutive_failures = 0
+_breaker_tripped_until: float = 0.0
+_BREAKER_THRESHOLD = 8
+_BREAKER_COOLDOWN_SECONDS = 20.0
+
+
+def _record_failure():
+    global _consecutive_failures, _breaker_tripped_until
+    with _breaker_lock:
+        _consecutive_failures += 1
+        if _consecutive_failures >= _BREAKER_THRESHOLD:
+            _breaker_tripped_until = time.monotonic() + _BREAKER_COOLDOWN_SECONDS
+            logger.error(
+                f"[circuit-breaker] Tripped after {_consecutive_failures} consecutive "
+                f"failures — failing fast for {_BREAKER_COOLDOWN_SECONDS:.0f}s"
+            )
+
+
+def _record_success():
+    global _consecutive_failures
+    with _breaker_lock:
+        _consecutive_failures = 0
+
+
+def _breaker_is_open() -> bool:
+    return time.monotonic() < _breaker_tripped_until
 
 
 def with_retry(max_retries: int = 3, base_delay: float = 0.5):
@@ -136,11 +196,19 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            if _breaker_is_open():
+                raise HTTPException(
+                    status_code=503,
+                    detail="YouTube Music service temporarily degraded — failing fast, retry shortly",
+                )
+
             last_error = None
             with _yt_semaphore:
                 for attempt in range(max_retries):
                     try:
-                        return func(*args, **kwargs)
+                        result = func(*args, **kwargs)
+                        _record_success()
+                        return result
                     except HTTPException:
                         raise  # Don't retry HTTP exceptions we raise ourselves
                     except Exception as e:
@@ -163,6 +231,7 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
                             if attempt < max_retries - 1:
                                 continue
                                 
+
                         if attempt < max_retries - 1:
                             delay = base_delay * (2 ** attempt)
                             logger.warning(
@@ -174,6 +243,7 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
                             logger.error(
                                 f"[{func.__name__}] All {max_retries} attempts failed: {e}"
                             )
+            _record_failure()
             raise HTTPException(
                 status_code=503,
                 detail=f"YouTube Music service error: {str(last_error)[:200]}",
