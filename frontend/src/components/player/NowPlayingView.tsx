@@ -23,6 +23,7 @@ import {
   Minus,
   Plus,
   Infinity,
+  Video,
 } from "lucide-react";
 import {
   bestImg,
@@ -139,7 +140,7 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
-  const { autoplay, toggleAutoplay } = usePlayerStore();
+  const { autoplay, toggleAutoplay, isVideoMode, setIsVideoMode } = usePlayerStore();
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -227,6 +228,12 @@ export const NowPlayingView = ({
     if (img) extractColor(img).then((c) => c && setBgColor(c));
   }, [currentSong?.id]);
 
+  useEffect(() => {
+    if (isVideoMode && isPlaying) {
+      onPlayPause();
+    }
+  }, [isVideoMode]);
+
 
   if (!currentSong) return null;
   const img = bestImg(currentSong.image) || FALLBACK_IMG;
@@ -292,22 +299,63 @@ export const NowPlayingView = ({
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row items-center justify-center px-4 sm:px-8 lg:px-0 gap-4 sm:gap-6 lg:gap-0 min-h-0 relative overflow-y-auto lg:overflow-hidden thin-scrollbar py-2 sm:pb-8 lg:py-0">
-        {/* Album art — centered on mobile, left half on desktop */}
-        <div className="flex-shrink-0 flex items-center justify-center lg:w-1/2 lg:justify-center">
+        {/* Album art / Video player container */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center lg:w-1/2 lg:justify-center gap-4">
+          {/* Audio / Video Switcher Pills */}
+          <div className="flex items-center gap-1 bg-white/[0.04] border border-white/[0.06] p-0.5 rounded-full z-10">
+            <button
+              onClick={() => setIsVideoMode(false)}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                !isVideoMode
+                  ? "bg-white/10 text-white shadow-md font-semibold"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <Music size={12} />
+              <span>Audio</span>
+            </button>
+            <button
+              onClick={() => setIsVideoMode(true)}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                isVideoMode
+                  ? "bg-white/10 text-white shadow-md font-semibold"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <Video size={12} />
+              <span>Video</span>
+            </button>
+          </div>
+
           <div
-            className={`transition-all duration-700 ease-out relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"}`}
+            className={`transition-all duration-500 ease-out relative rounded-2xl sm:rounded-3xl overflow-hidden`}
             style={{
               boxShadow: `0 20px 60px ${bgColor}30, 0 0 30px ${bgColor}15`,
             }}
           >
-            <img
-              src={img}
-              onError={onImgErr}
-              className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-2xl sm:rounded-3xl object-cover"
-              style={{ boxShadow: "0 16px 50px rgba(0,0,0,0.8)" }}
-            />
-            {isPlaying && (
-              <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.04] animate-breathe pointer-events-none" />
+            {isVideoMode ? (
+              <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black relative flex items-center justify-center">
+                <iframe
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&rel=0&modestbranding=1`}
+                  title={currentSong.name}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full rounded-2xl sm:rounded-3xl"
+                />
+              </div>
+            ) : (
+              <div className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}>
+                <img
+                  src={img}
+                  onError={onImgErr}
+                  className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-2xl sm:rounded-3xl object-cover"
+                  style={{ boxShadow: "0 16px 50px rgba(0,0,0,0.8)" }}
+                />
+                {isPlaying && (
+                  <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.04] animate-breathe pointer-events-none" />
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -170,8 +170,9 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
     } else if (typeof raw.duration === "number") {
       duration = raw.duration;
     } else if (typeof raw.duration === "string") {
-      if (raw.duration.includes(":")) {
-        const parts = raw.duration.split(":").map(Number);
+      const str = raw.duration.toLowerCase().trim();
+      if (str.includes(":")) {
+        const parts = str.split(":").map(Number);
         if (parts.every((p: number) => !isNaN(p))) {
           if (parts.length === 2) {
             duration = parts[0] * 60 + parts[1];
@@ -180,7 +181,17 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
           }
         }
       } else {
-        duration = Number(raw.duration) || 0;
+        // Handle human-readable patterns: e.g. "38 min", "1 hr 5 min", "2 hours"
+        let parsedSecs = 0;
+        const hourMatch = str.match(/(\d+)\s*(h|hr|hour|hours)/);
+        const minMatch = str.match(/(\d+)\s*(m|min|minute|minutes)/);
+        const secMatch = str.match(/(\d+)\s*(s|sec|second|seconds)/);
+
+        if (hourMatch) parsedSecs += Number(hourMatch[1]) * 3600;
+        if (minMatch) parsedSecs += Number(minMatch[1]) * 60;
+        if (secMatch) parsedSecs += Number(secMatch[1]);
+
+        duration = parsedSecs > 0 ? parsedSecs : (Number(str) || 0);
       }
     }
   }

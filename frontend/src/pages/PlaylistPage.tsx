@@ -208,6 +208,7 @@ export default function PlaylistPage() {
   const coverImg = playlist.coverImage || FALLBACK_IMG;
   const totalDur = songs.reduce((a, s) => a + (s.duration || 0), 0);
   const isOwner = user?._id === playlist.userId;
+  const isPodcast = playlist._id?.startsWith("MPSP") || playlist.description?.toLowerCase().includes("podcast") || playlist.name?.toLowerCase().includes("podcast");
 
   // Map playlist songs → player-compatible format with download URLs
   const mapSong = (s: PlaylistSong) =>
@@ -250,7 +251,7 @@ export default function PlaylistPage() {
           <div className="flex flex-col justify-end min-w-0 pb-2">
             <div className="flex items-center gap-2 mb-2">
               <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">
-                Playlist
+                {isPodcast ? "Podcast Show" : "Playlist"}
               </p>
               {playlist.isAIGenerated && (
                 <span className="text-[10px] font-bold text-sp-green bg-sp-green/10 px-2 py-0.5 rounded-full">
@@ -302,7 +303,7 @@ export default function PlaylistPage() {
 
             <div className="flex items-center gap-2 text-[13px]">
               <span className="text-white/50">
-                {songs.length} songs, {fmt(totalDur)}
+                {songs.length} {isPodcast ? (songs.length === 1 ? "episode" : "episodes") : (songs.length === 1 ? "song" : "songs")}, {fmt(totalDur)}
               </span>
             </div>
           </div>

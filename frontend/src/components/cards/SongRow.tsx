@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Play, Heart, MoreHorizontal } from "lucide-react";
+import { Play, Heart, MoreHorizontal, Video } from "lucide-react";
 import { EqBars } from "../ui/EqBars";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
 import { ArtistLinks } from "../ui/ArtistLinks";
+import { usePlayerStore } from "../../store/playerStore";
 
 interface SongRowProps {
   song: any;
@@ -81,6 +82,19 @@ export const SongRow = ({
       <p className="hidden lg:block text-xs text-sp-muted truncate w-36 text-center">
         {song.album?.name || ""}
       </p>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          usePlayerStore.getState().setIsVideoMode(true);
+          onPlay();
+        }}
+        title="Watch Video"
+        className={`p-1.5 rounded-full transition-all duration-150 text-sp-sub hover:text-white flex-shrink-0 ${
+          hov ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <Video size={14} />
+      </button>
       {onLike && (
         <button
           onClick={(e) => {

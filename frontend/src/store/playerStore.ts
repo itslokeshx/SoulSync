@@ -11,6 +11,7 @@ interface PlayerState {
   isShuffle: boolean;
   repeatMode: "off" | "one" | "all";
   autoplay: boolean;
+  isVideoMode: boolean;
 }
 
 interface PlayerActions {
@@ -27,6 +28,7 @@ interface PlayerActions {
   setCurrentTime: (t: number) => void;
   setIsPlaying: (v: boolean) => void;
   toggleAutoplay: () => void;
+  setIsVideoMode: (v: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState & PlayerActions>(
@@ -40,6 +42,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     isShuffle: false,
     repeatMode: "off",
     autoplay: true,
+    isVideoMode: false,
 
     playSong: (song) =>
       set({ currentSong: song, isPlaying: true, currentTime: 0 }),
@@ -63,5 +66,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     setCurrentTime: (t) => set({ currentTime: t }),
     setIsPlaying: (v) => set({ isPlaying: v }),
     toggleAutoplay: () => set((s) => ({ autoplay: !s.autoplay })),
+    setIsVideoMode: (v) => set({ isVideoMode: v }),
   }),
 );
