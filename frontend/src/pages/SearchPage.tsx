@@ -148,17 +148,25 @@ function TopResultHero({
   const isArtist = item.type === "artist" || item.description === "Artist";
   const isAlbum =
     item.type === "album" || item.description?.toLowerCase().includes("album");
+  const isPodcast =
+    item.type === "podcast" ||
+    (item.id && String(item.id).startsWith("MPSP")) ||
+    item.description?.toLowerCase().includes("podcast") ||
+    item.description?.toLowerCase().includes("show");
   const img = bestImg(item.image) || FALLBACK_IMG;
   const name = item.name || item.title || "Unknown";
   const subtitle = isArtist
     ? "Artist"
     : isAlbum
       ? item.description || "Album"
-      : getArtists(item);
+      : isPodcast
+        ? item.description || "Podcast"
+        : getArtists(item);
 
   const handleClick = () => {
     if (isArtist) navigate(`/artist/${item.id}`);
     else if (isAlbum) navigate(`/album/${item.id}`);
+    else if (isPodcast) navigate(`/playlist/${item.id}`);
     else onPlay(item);
   };
 
@@ -200,12 +208,12 @@ function TopResultHero({
               Top Result
             </span>
             <span className="text-[12px] text-white/50 truncate">
-              {isArtist || isAlbum ? subtitle : <ArtistLinks song={item} />}
+              {isArtist || isAlbum || isPodcast ? subtitle : <ArtistLinks song={item} />}
             </span>
           </div>
         </div>
       </div>
-      {!isArtist && !isAlbum && (
+      {!isArtist && !isAlbum && !isPodcast && (
         <>
           <button
             onClick={(e) => {

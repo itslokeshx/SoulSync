@@ -92,6 +92,7 @@ router.get("/:id", softAuth, async (req: SoftAuthRequest, res: Response): Promis
           album: t.album || "",
           albumArt: Array.isArray(t.image) && t.image.length > 0 ? (t.image[0].url || t.image[0]) : (t.image || ""),
           duration: t.duration || 0,
+          downloadUrl: t.downloadUrl || [],
         }))
       };
 

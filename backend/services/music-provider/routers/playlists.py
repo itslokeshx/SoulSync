@@ -30,7 +30,7 @@ def get_playlist(
         return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
 
     # Check if this is a podcast series
-    is_podcast_id = playlist_id.startswith("MPSPPL") or "podcast" in playlist_id.lower()
+    is_podcast_id = playlist_id.startswith("MPSP") or "podcast" in playlist_id.lower()
     
     yt = get_client()
 
