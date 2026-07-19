@@ -4,7 +4,7 @@
 //
 // "Users who listened to Song A also listened to Song B"
 // This is the strongest recommendation signal that doesn't
-// depend on JioSaavn's metadata at all.
+// depend on any external metadata at all.
 // ════════════════════════════════════════════════════════════════
 
 import mongoose, { Schema, Document } from "mongoose";

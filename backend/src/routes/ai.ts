@@ -216,7 +216,7 @@ async function searchOneSong(
     }
 
     // Use hybrid search for better quality results (fetches from both
-    // direct jiosaavn.com AND wrapper API in parallel)
+    // direct APIs in parallel)
     let rawSongs = await searchSongsHybrid(searchQuery, 20, artistHint);
 
     // If hybrid didn't return enough, fall back to wrapper
@@ -247,7 +247,7 @@ async function searchOneSong(
       artistHint || undefined,
     );
 
-    // Map ranked IDs back to original raw songs (frontend expects JioSaavnSong shape)
+    // Map ranked IDs back to original raw songs (frontend expects song shape)
     const rawById = new Map<string, any>(
       rawSongs.map((s: any) => [String(s.id || ""), s]),
     );
@@ -403,8 +403,8 @@ async function processChunkWithGroq(
       : "";
 
     const groqResult = await groqManager.callWithFallback(
-      "You are a music search optimizer for JioSaavn (Indian music platform). Return ONLY valid JSON. No explanation. No markdown.",
-      `Convert these song inputs to optimized JioSaavn search queries. Each query should be the song title + artist name to find the EXACT original song (not covers or remixes).${langInstruction}\n\nSongs:\n${songList.join("\n")}\n\nReturn exactly:\n{"queries": [{"original": "input", "searchQuery": "optimized query with artist name", "artistHint": "primary artist name or null", "movieHint": "movie/album name or null", "languageHint": "${languageHint || "null"}"}]}`,
+      "You are a music search optimizer for YouTube Music (music platform). Return ONLY valid JSON. No explanation. No markdown.",
+      `Convert these song inputs to optimized search queries. Each query should be the song title + artist name to find the EXACT original song (not covers or remixes).${langInstruction}\n\nSongs:\n${songList.join("\n")}\n\nReturn exactly:\n{"queries": [{"original": "input", "searchQuery": "optimized query with artist name", "artistHint": "primary artist name or null", "movieHint": "movie/album name or null", "languageHint": "${languageHint || "null"}"}]}`,
       1200,
     );
     const parsed = JSON.parse(groqResult);
@@ -704,7 +704,7 @@ router.post(
 
       emit("progress", {
         step: "searching",
-        message: `Searching ${allQueries.length} songs on JioSaavn...`,
+        message: `Searching ${allQueries.length} songs...`,
         percent: 35,
       });
 

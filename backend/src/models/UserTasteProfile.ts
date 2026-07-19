@@ -7,7 +7,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IArtistAffinity {
-  artistId: string;    // JioSaavn stable artist ID (not name string)
+  artistId: string;    // Stable artist ID (not name string)
   artistName: string;  // Display name (for debugging / reason tags)
   score: number;       // Recency-weighted play count (higher = more affinity)
   playCount: number;   // Raw play count (un-weighted)

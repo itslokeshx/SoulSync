@@ -5,7 +5,7 @@ export interface IListeningHistory extends Document {
   songId: string;
   title: string;
   artist: string;
-  artistId: string; // JioSaavn stable artist ID (for taste profile, not name-string matching)
+  artistId: string; // Stable artist ID (for taste profile, not name-string matching)
   albumArt: string;
   duration: number;
   language: string;
@@ -25,7 +25,7 @@ const ListeningHistorySchema = new Schema<IListeningHistory>({
   songId: String,
   title: String,
   artist: String,
-  artistId: { type: String, default: "" }, // JioSaavn artist ID (empty for legacy entries)
+  artistId: { type: String, default: "" }, // Stable artist ID (empty for legacy entries)
   albumArt: String,
   duration: Number,
   language: { type: String, default: "" },

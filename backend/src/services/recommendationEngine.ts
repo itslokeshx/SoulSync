@@ -38,7 +38,7 @@ import {
 // ════════════════════════════════════════════════════════════════
 const W = {
   // Candidate scoring weights
-  POPULARITY_MAX: 60,        // Max points from JioSaavn play count
+  POPULARITY_MAX: 60,        // Max points from play count
   TASTE_ARTIST_MATCH: 50,    // Points when candidate's artist is in taste profile
   TASTE_LANG_MATCH: 20,      // Points when candidate's language matches distribution
   COOCCURRENCE_BONUS: 40,    // Points from co-occurrence signal
@@ -335,7 +335,7 @@ export async function recordCooccurrence(
 // 3. GET CANDIDATES
 // Multi-source candidate generation:
 //   - Co-occurrence (strongest signal)
-//   - JioSaavn suggestions endpoint
+//   - Similar suggestions
 //   - Artist-ID-based fetching (songs by user's fav artists)
 // ════════════════════════════════════════════════════════════════
 interface RecommendedSong extends Song {
@@ -1516,7 +1516,7 @@ function isCompilationReRelease(song: Song): boolean {
     }
   }
 
-  // 3. Mathematical playcount ceiling for new releases (40M plays in < 45 days is impossible on JioSaavn)
+  // 3. Mathematical playcount ceiling for new releases (40M plays in < 45 days is impossible)
   if (song.releaseDate) {
     const rDate = new Date(song.releaseDate);
     const today = new Date();

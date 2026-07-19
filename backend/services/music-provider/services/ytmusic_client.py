@@ -150,6 +150,8 @@ from threading import Semaphore, Lock
 
 # Limit concurrent outbound YouTube Music calls (kept low for 512MB Render free tier)
 _yt_semaphore = Semaphore(3)
+_throttle_lock = Lock()
+_last_request_time: float = 0.0
 
 # ── Circuit breaker ──────────────────────────────────────────────────────
 # If YouTube is actively blocking us (auth/parse failures), retrying each
@@ -206,6 +208,13 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
             with _yt_semaphore:
                 for attempt in range(max_retries):
                     try:
+                        global _last_request_time
+                        with _throttle_lock:
+                            now = time.monotonic()
+                            diff = now - _last_request_time
+                            if diff < 0.2:
+                                time.sleep(0.2 - diff)
+                            _last_request_time = time.monotonic()
                         result = func(*args, **kwargs)
                         _record_success()
                         return result
