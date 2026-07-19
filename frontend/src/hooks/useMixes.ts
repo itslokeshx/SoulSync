@@ -12,6 +12,5 @@ export const useMixes = () => {
     queryFn: () => (user ? api.getMixes() : api.getGuestMixes()),
     staleTime: 60 * 60 * 1000, // 1 hour stale time, cache updates weekly on backend
     retry: 2,
-    enabled: isOnline,
   });
 };

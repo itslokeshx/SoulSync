@@ -320,8 +320,8 @@ async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<IUserMi
   const mixesData: IMix[] = [
     {
       key: "weekly_mix",
-      title: "Weekly Mix",
-      description: "A personalized mix of music curated just for you this week.",
+      title: "Made For You",
+      description: "Based on your listening history",
       songIds: finalSongs.map((s) => s.id),
     },
   ];
@@ -348,8 +348,8 @@ async function generateColdStartMixSet(userId: string, weekOf: Date): Promise<Us
   const mixes: SongMix[] = [
     {
       key: "weekly_mix",
-      title: "Weekly Mix",
-      description: "Trending hits and popular tracks to start your week.",
+      title: "Made For You",
+      description: "Trending hits and popular tracks",
       songs: popularSongs,
     },
   ];

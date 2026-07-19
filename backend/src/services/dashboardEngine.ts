@@ -174,9 +174,29 @@ export async function buildDashboard(
   let madeForYouSongs: Song[] = [];
   let recommendedPodcasts: any[] = [];
 
-  let langs: string[] = ["hindi"];
+  let langs: string[] = [];
   if (userDoc?.preferences?.languages && userDoc.preferences.languages.length > 0) {
     langs = userDoc.preferences.languages;
+  } else if (recentHistory && recentHistory.length > 0) {
+    const langCounts: Record<string, number> = {};
+    for (const entry of recentHistory) {
+      if (entry.language) {
+        const l = entry.language.toLowerCase().trim();
+        if (l) {
+          langCounts[l] = (langCounts[l] || 0) + 1;
+        }
+      }
+    }
+    const sortedInferred = Object.entries(langCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([l]) => l);
+    if (sortedInferred.length > 0) {
+      langs = sortedInferred.slice(0, 3);
+    }
+  }
+
+  if (langs.length === 0) {
+    langs = ["english", "hindi", "tamil", "telugu"];
   }
 
   try {
