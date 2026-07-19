@@ -361,10 +361,10 @@ const SEARCH_FILTERS = [
   { id: "all", label: "All" },
   { id: "songs", label: "Songs" },
   { id: "videos", label: "Videos" },
-  { id: "albums", label: "Albums" },
-  { id: "artists", label: "Artists" },
-  { id: "playlists", label: "Playlists" },
   { id: "podcasts", label: "Podcasts" },
+  { id: "artists", label: "Artists" },
+  { id: "albums", label: "Albums" },
+  { id: "playlists", label: "Playlists" },
 ];
 
 const SectionHeaderWithSeeAll = ({
