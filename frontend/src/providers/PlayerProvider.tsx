@@ -403,6 +403,42 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [isPlaying, isVideoMode, currentSong?.id, setCurrentTime]);
 
+  // ── Sleep Timer Ticker ──
+  const sleepTimerActive = usePlayerStore((s) => s.sleepTimerActive);
+  useEffect(() => {
+    if (!sleepTimerActive || !isPlaying) return;
+
+    const interval = setInterval(() => {
+      const state = usePlayerStore.getState();
+      if (!state.isPlaying || !state.sleepTimerActive) {
+        clearInterval(interval);
+        return;
+      }
+
+      if (state.sleepTimerSecondsLeft !== null) {
+        if (state.sleepTimerSecondsLeft <= 1) {
+          clearInterval(interval);
+          usePlayerStore.setState({
+            sleepTimerActive: false,
+            sleepTimerSecondsLeft: null,
+            sleepTimerEndOnTrack: false,
+          });
+          if (audioRef.current) {
+            audioRef.current.pause();
+          }
+          usePlayerStore.getState().pause();
+          toast("Sleep timer finished. Sweet dreams! 😴", { icon: "🌙" });
+        } else {
+          usePlayerStore.setState({
+            sleepTimerSecondsLeft: state.sleepTimerSecondsLeft - 1,
+          });
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, sleepTimerActive]);
+
   // Pre-fetch autoplay suggestions when approaching the end of the queue (before the last 2 songs played)
   const lastAutoplayFetchedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -463,6 +499,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handleEnded = () => {
+    const { sleepTimerActive, sleepTimerEndOnTrack } = usePlayerStore.getState();
+    if (sleepTimerActive && sleepTimerEndOnTrack) {
+      usePlayerStore.setState({
+        sleepTimerActive: false,
+        sleepTimerSecondsLeft: null,
+        sleepTimerEndOnTrack: false,
+      });
+      pause();
+      toast("Sleep timer finished. Sweet dreams! 😴", { icon: "🌙" });
+      return;
+    }
+
     if (repeatMode === "one") {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;

@@ -2,15 +2,47 @@
 SoulSync Music Provider Service — FastAPI entry point.
 Wraps ytmusicapi to provide a REST API for YouTube Music data.
 """
+import os
+import asyncio
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import home, search, songs, artists, albums, playlists, podcasts
 import uvicorn
 
+async def ping_self_loop():
+    await asyncio.sleep(15)  # Wait for startup
+    # Render automatically sets RENDER_EXTERNAL_URL for web services
+    self_url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("MUSIC_PROVIDER_URL")
+    if not self_url:
+        print("[KeepAlive] No RENDER_EXTERNAL_URL or MUSIC_PROVIDER_URL set — skipping self-ping")
+        return
+
+    health_url = f"{self_url.rstrip('/')}/health"
+    print(f"[KeepAlive] Self-ping active every 14 min → {health_url}")
+    
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                response = await client.get(health_url, timeout=10.0)
+                print(f"[KeepAlive] Pinged {health_url} → {response.status_code}")
+            except Exception as e:
+                print(f"[KeepAlive] Ping failed: {e}")
+            await asyncio.sleep(14 * 60)
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    keep_alive_task = asyncio.create_task(ping_self_loop())
+    yield
+    keep_alive_task.cancel()
+
 app = FastAPI(
     title="SoulSync Music Provider",
     description="YouTube Music data service powered by ytmusicapi",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
