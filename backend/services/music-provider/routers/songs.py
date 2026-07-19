@@ -142,6 +142,7 @@ def get_song_stream(video_id: str) -> dict:
             'format': 'bestaudio',
             'quiet': True,
             'remote_components': ['ejs:github'],
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
         if js_runtimes:
             opts['js_runtimes'] = js_runtimes
@@ -150,6 +151,7 @@ def get_song_stream(video_id: str) -> dict:
         if browser:
             opts['cookiesfrombrowser'] = (browser,)
         return opts
+
     
     # ── COOKIE FILE RESOLUTION ──────────────────────────────────────────────
     READONLY_COOKIES = "/etc/secrets/cookies.txt"

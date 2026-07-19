@@ -34,7 +34,43 @@ def create_session() -> requests.Session:
     adapter = TimeoutHTTPAdapter(pool_connections=40, pool_maxsize=40, timeout=10)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
+    
+    # Inject browser-like user agent and headers
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://music.youtube.com",
+        "Referer": "https://music.youtube.com/",
+    })
+    
+    # Load cookies if available
+    import http.cookiejar
+    from pathlib import Path
+    
+    readonly_cookies = "/etc/secrets/cookies.txt"
+    writable_cookies = "/tmp/cookies.txt"
+    local_cookies = Path(__file__).parent.parent / "cookies.txt"
+    
+    cookies_path = None
+    if os.path.exists(readonly_cookies):
+        cookies_path = readonly_cookies
+    elif os.path.exists(writable_cookies):
+        cookies_path = writable_cookies
+    elif local_cookies.exists():
+        cookies_path = str(local_cookies)
+        
+    if cookies_path:
+        try:
+            cj = http.cookiejar.MozillaCookieJar(cookies_path)
+            cj.load(ignore_discard=True, ignore_expires=True)
+            session.cookies.update(cj)
+            logger.info(f"Successfully loaded Netscape cookies from {cookies_path} into YTMusic session")
+        except Exception as e:
+            logger.error(f"Failed to load Netscape cookies into YTMusic session: {e}")
+            
     return session
+
 
 
 
