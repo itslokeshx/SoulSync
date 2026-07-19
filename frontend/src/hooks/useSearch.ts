@@ -8,12 +8,14 @@ const API = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/$/, "");
 
 export interface SmartSearchResult {
   songs: any[];
+  videos?: any[];
   albums: any[];
   artists: any[];
+  playlists?: any[];
   topResult: any | null;
   total: number;
   podcasts?: any[];
-  intent: {
+  intent?: {
     intent: string;
     entities: any;
   };
@@ -233,8 +235,10 @@ export function useSearch() {
     fetchRemoteSuggestions(q);
   }, [debouncedSuggestion, fetchRemoteSuggestions]);
 
+  const [filter, setFilter] = useState("all");
+
   // ── Main search ─────────────────────────────────────────────────────────
-  const doSearch = useCallback(async (q: string) => {
+  const doSearch = useCallback(async (q: string, activeFilter: string) => {
     const term = q.trim().toLowerCase();
     if (term.length < 2) {
       setResult(null);
@@ -242,7 +246,6 @@ export function useSearch() {
       return;
     }
 
-    // Clear immediately so old results never bleed into new search
     setResult(null);
     setState("loading");
 
@@ -251,24 +254,31 @@ export function useSearch() {
 
     try {
       const { data } = await axios.get<SmartSearchResult>(`${API}/api/search`, {
-        params: { q: term, limit: 50 },
+        params: {
+          q: term,
+          limit: 50,
+          filter: activeFilter !== "all" ? activeFilter : undefined
+        },
         signal: abortRef.current.signal,
         withCredentials: true,
       });
 
-      // Ensure arrays are always defined to prevent runtime errors
       const safeData = {
         ...data,
         songs: data.songs || [],
+        videos: data.videos || [],
         albums: data.albums || [],
         artists: data.artists || [],
+        playlists: data.playlists || [],
         podcasts: data.podcasts || [],
       };
       setResult(safeData);
       const hasResults =
         safeData.songs.length > 0 ||
+        safeData.videos.length > 0 ||
         safeData.albums.length > 0 ||
         safeData.artists.length > 0 ||
+        safeData.playlists.length > 0 ||
         safeData.podcasts.length > 0;
       setState(hasResults ? "results" : "no-results");
     } catch (err: any) {
@@ -279,15 +289,15 @@ export function useSearch() {
   }, []);
 
   useEffect(() => {
-    doSearch(debouncedQuery);
-  }, [debouncedQuery, doSearch]);
+    doSearch(debouncedQuery, filter);
+  }, [debouncedQuery, filter, doSearch]);
 
   const loadMore = useCallback(() => {
-    // Current backend returns full results for ultra-fast performance.
   }, []);
 
   const reset = useCallback(() => {
     setQuery("");
+    setFilter("all");
     setResult(null);
     setState("idle");
   }, []);
@@ -297,6 +307,8 @@ export function useSearch() {
     setQuery,
     state,
     result,
+    filter,
+    setFilter,
     suggestions,
     showSuggestions,
     setShowSuggestions,

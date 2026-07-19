@@ -11,6 +11,8 @@ import {
   searchAlbums,
   searchArtists,
   searchPodcasts,
+  searchPlaylists,
+  searchVideos,
   fetchArtistSongs,
   fetchAlbumSongs,
   fetchSongById,
@@ -41,17 +43,17 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
   const q = String(req.query.q || "").trim();
   const lang = String(req.query.lang || "").toLowerCase();
   const filter = req.query.filter ? String(req.query.filter).toLowerCase() : undefined;
-  const limit = Math.min(Number(req.query.limit || 60), 100);
+  const limit = Math.min(Number(req.query.limit || 50), 100);
 
   if (!q) {
-    res.json({ songs: [], artists: [], albums: [], query: "" });
+    res.json({ songs: [], videos: [], artists: [], albums: [], playlists: [], podcasts: [], query: "" });
     return;
   }
 
   const t0 = performance.now();
   const timings: any = {};
 
-  const cacheKey = `search:v8:${q.toLowerCase()}:${lang}:${filter || "all"}`;
+  const cacheKey = `search:v10:${q.toLowerCase()}:${lang}:${filter || "all"}`;
   try {
     const tCache = performance.now();
     const hit = await redisGet(cacheKey);
@@ -59,11 +61,6 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     
     if (hit) {
       const cached = JSON.parse(hit);
-      // Re-apply limit so a low-limit prefetch never poisons a high-limit request
-      if (Array.isArray(cached.songs) && cached.songs.length > limit) {
-        cached.songs = cached.songs.slice(0, limit);
-        cached.total = cached.songs.length;
-      }
       cached._timings = timings;
       res.json(cached);
       return;
@@ -74,18 +71,12 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
   const { queries, knownArtist } = buildSearchQueries(q);
   const [primaryQuery, ...fallbackQueries] = queries;
-
   const reqBaseUrl = `${req.protocol}://${req.get("host")}`;
 
   markUserQueryStart();
   try {
     const tParallel = performance.now();
-
     const pinnedIds = getKnownSongIds(q);
-    const wordCount = q.trim().split(/\s+/).length;
-    const hasArtistTrigger =
-      /songs?|hits?|latest|recent|best|top|tracks?|music/i.test(q);
-    const isArtistQuery = wordCount <= 3 || hasArtistTrigger;
 
     const parallelTasks: Promise<any>[] = [];
     const taskIndex: Record<string, number> = {};
@@ -100,20 +91,29 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       track("pinned", fetchSongsByIds(pinnedIds, reqBaseUrl));
     }
 
-    if (!filter || filter === "songs") {
-      track("hybrid", searchSongsHybrid(primaryQuery, 50, knownArtist));
-      track("fallbacks", Promise.allSettled(
-        fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
-      ));
-    }
-
     if (!filter) {
-      track("all", searchAll(q, reqBaseUrl));
-      track("artists", searchArtists(q, 5));
+      track("songs", searchSongs(primaryQuery, 30));
+      track("fallbacks", Promise.allSettled(
+        fallbackQueries.slice(0, 1).map((fq) => searchSongs(fq, 20)),
+      ));
+      track("artists", searchArtists(q, 8));
+      track("albums", searchAlbums(q, 8));
+      track("playlists", searchPlaylists(q, 8));
+      track("podcasts", searchPodcasts(q, 8));
+      track("videos", searchVideos(q, 15));
+    } else if (filter === "songs") {
+      track("songs", searchSongsHybrid(primaryQuery, limit, knownArtist));
+      track("fallbacks", Promise.allSettled(
+        fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, limit)),
+      ));
+    } else if (filter === "videos") {
+      track("videos", searchVideos(q, limit));
     } else if (filter === "artists") {
       track("artists", searchArtists(q, limit));
     } else if (filter === "albums") {
       track("albums", searchAlbums(q, limit));
+    } else if (filter === "playlists") {
+      track("playlists", searchPlaylists(q, limit));
     } else if (filter === "podcasts") {
       track("podcasts", searchPodcasts(q, limit));
     }
@@ -128,92 +128,92 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       return r.status === "fulfilled" ? r.value : null;
     };
 
-    const rawSongs: any[] = [];
-    const seenIds = new Set<string>();
-    const addSongs = (songs: any[]) => {
-      for (const s of songs) {
-        const id = String(s.id || s.songId || "").trim();
-        if (id && !seenIds.has(id)) {
-          seenIds.add(id);
-          rawSongs.push(s);
+    let songs: Song[] = [];
+    if (!filter || filter === "songs") {
+      const rawSongs: any[] = [];
+      const seenIds = new Set<string>();
+      const addSongs = (list: any[]) => {
+        for (const s of list) {
+          const id = String(s.id || s.songId || s.videoId || "").trim();
+          if (id && !seenIds.has(id)) {
+            seenIds.add(id);
+            rawSongs.push(s);
+          }
+        }
+      };
+
+      const pinnedSongs = get("pinned");
+      if (pinnedSongs) addSongs(pinnedSongs);
+
+      const songsVal = get("songs");
+      if (songsVal) addSongs(songsVal);
+
+      const fallbackVal = get("fallbacks");
+      if (fallbackVal) {
+        for (const r of fallbackVal) {
+          if (r.status === "fulfilled") addSongs(r.value);
         }
       }
-    };
 
-    const pinnedSongs = get("pinned");
-    if (pinnedSongs) addSongs(pinnedSongs);
+      const normalized = normalizeSongsToCanonical(rawSongs, reqBaseUrl);
+      const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
+      const ranked = rankSongs(
+        deduped as RankedSong[],
+        q,
+        lang || undefined,
+        knownArtist ?? undefined,
+      ) as Song[];
 
-    const hybridVal = get("hybrid");
-    if (hybridVal) addSongs(hybridVal);
-
-    const fallbackVal = get("fallbacks");
-    if (fallbackVal) {
-      for (const r of fallbackVal) {
-        if (r.status === "fulfilled") addSongs(r.value);
-      }
+      songs = ranked.filter(s => !/reaction|review|interview|trailer|teaser|vlog|making\s*of|press\s*meet|behind\s*the\s*scenes/i.test(s.name || ""));
     }
 
-    const allVal = get("all");
-    if (allVal) addSongs(allVal.songs);
-
-    const artistMap = new Map<string, any>();
-    const allResArtists = allVal ? allVal.artists : [];
-    const directArtists: any[] = get("artists") || [];
-    for (const a of [...allResArtists, ...directArtists]) {
-      const id = String(a.id || "");
-      if (id && !artistMap.has(id)) artistMap.set(id, a);
+    let videos: Song[] = [];
+    if (!filter || filter === "videos") {
+      const rawVideos = get("videos") || [];
+      videos = normalizeSongsToCanonical(rawVideos, reqBaseUrl);
     }
-    const artists = Array.from(artistMap.values()).slice(0, 8);
 
-    const tEnrich = performance.now();
-    if (artists.length > 0 && isArtistQuery) {
-      const topArtists = artists.slice(0, 2);
-      const artistSongsRes = await Promise.allSettled(
-        topArtists.map((a) => fetchArtistSongs(String(a.id || ""), 0)),
-      );
-      for (const r of artistSongsRes) {
-        if (r.status === "fulfilled") addSongs(r.value);
-      }
+    let artists: any[] = [];
+    if (!filter || filter === "artists") {
+      artists = get("artists") || [];
     }
-    timings.artistEnrichment = performance.now() - tEnrich;
 
-    const albums = allVal
-      ? allVal.albums
-      : get("albums") || (filter === "albums" ? [] : await searchAlbums(q, 5).catch(() => []));
+    let albums: any[] = [];
+    if (!filter || filter === "albums") {
+      albums = get("albums") || [];
+    }
 
-    const podcasts = allVal
-      ? allVal.podcasts
-      : get("podcasts") || (filter === "podcasts" ? [] : await searchPodcasts(q, 5).catch(() => []));
+    let playlists: any[] = [];
+    if (!filter || filter === "playlists") {
+      playlists = get("playlists") || [];
+    }
 
-    const normalized = normalizeSongsToCanonical(rawSongs, reqBaseUrl);
-    const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
-    const ranked = rankSongs(
-      deduped as RankedSong[],
-      q,
-      lang || undefined,
-      knownArtist ?? undefined,
-    ) as Song[];
-    // Cache the full ranked pool (up to 100) so any future request can get its own limit
-    const allSongs = ranked.slice(0, 100);
-    const songs = allSongs.slice(0, limit);
+    let podcasts: any[] = [];
+    if (!filter || filter === "podcasts") {
+      podcasts = get("podcasts") || [];
+    }
 
+    const topResult = songs[0] || videos[0] || artists[0] || albums[0] || playlists[0] || podcasts[0] || null;
     const relatedSearches = generateRelatedSearches(q, artists, songs);
 
     const result = {
       query: q,
-      songs: allSongs, // cache full pool
-      artists,
-      albums,
-      podcasts,
-      topResult: allSongs[0] ?? null,
-      total: allSongs.length,
+      filter: filter || "all",
+      songs: songs.slice(0, filter === "songs" ? limit : 20),
+      videos: videos.slice(0, filter === "videos" ? limit : 20),
+      artists: artists.slice(0, filter === "artists" ? limit : 10),
+      albums: albums.slice(0, filter === "albums" ? limit : 10),
+      playlists: playlists.slice(0, filter === "playlists" ? limit : 10),
+      podcasts: podcasts.slice(0, filter === "podcasts" ? limit : 10),
+      topResult,
+      total: songs.length + videos.length + artists.length + albums.length + playlists.length + podcasts.length,
       parsedIntent: { displayContext: `Results for "${q}"` },
       relatedSearches,
     };
 
     timings.totalTime = performance.now() - t0;
     
-    // Smart TTL: short queries cached longer (popular), long tail shorter
+    const wordCount = q.trim().split(/\s+/).length;
     const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
     
     const tCacheWrite = performance.now();
@@ -224,10 +224,18 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       const { downloadUrl, ...rest } = s;
       return rest;
     };
-    const trimmedSongs = songs.map(trimSong);
-    const trimmedTop = result.topResult ? trimSong(result.topResult) : null;
-    
-    res.json({ ...result, songs: trimmedSongs, topResult: trimmedTop, total: trimmedSongs.length, _timings: timings });
+
+    const trimmedSongs = result.songs.map(trimSong);
+    const trimmedVideos = result.videos.map(trimSong);
+    const trimmedTop = result.topResult && (result.topResult.id ? trimSong(result.topResult) : result.topResult);
+
+    res.json({
+      ...result,
+      songs: trimmedSongs,
+      videos: trimmedVideos,
+      topResult: trimmedTop,
+      _timings: timings
+    });
   } finally {
     markUserQueryEnd();
   }
@@ -508,19 +516,62 @@ router.get("/album", async (req: any, res: Response) => {
 });
 
 // ── GET /autoplay/:songId ────────────────────────────────────────────────────
-// Returns up to 10 suggested songs for a given song ID, using the taste-profile recommendation engine.
+// Returns suggested songs based on filter: similar, popular, discover
 router.get("/autoplay/:songId", softAuth, async (req: any, res: Response): Promise<void> => {
   const { songId } = req.params;
+  const filter = String(req.query.type || "similar").toLowerCase();
+
   if (!songId) {
     res.status(400).json({ error: "Song ID required" });
     return;
   }
 
   try {
-    const recommendedSongs = await getNextRecommendations(songId, req.userId);
-    // Limit to 10 to match previous response size and fit preview UI
-    const songs = recommendedSongs.slice(0, 10);
-    res.json({ songs });
+    let songs: any[] = [];
+
+    if (filter === "popular") {
+      const seedSong = await fetchSongById(songId).catch(() => null);
+      const artistId = seedSong?.artists?.[0]?.id;
+      if (artistId) {
+        songs = await fetchArtistSongs(artistId).catch(() => []);
+        // Exclude the seed song itself if present
+        songs = songs.filter((s: any) => s.id !== songId);
+      }
+      // If we couldn't get popular songs, fallback to similar
+      if (songs.length === 0) {
+        songs = await getSuggestions(songId, 15);
+      }
+    } else if (filter === "discover") {
+      const [similarSongs, tasteRecs] = await Promise.all([
+        getSuggestions(songId, 15).catch(() => []),
+        getNextRecommendations(songId, req.userId).catch(() => [])
+      ]);
+
+      const seen = new Set<string>([songId]);
+      // Interleave similar songs and taste recommendations for discovery
+      const maxLen = Math.max(similarSongs.length, tasteRecs.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < similarSongs.length) {
+          const s = similarSongs[i];
+          if (!seen.has(s.id)) {
+            seen.add(s.id);
+            songs.push(s);
+          }
+        }
+        if (i < tasteRecs.length) {
+          const s = tasteRecs[i];
+          if (!seen.has(s.id)) {
+            seen.add(s.id);
+            songs.push(s);
+          }
+        }
+      }
+    } else {
+      // "similar" (default) - uses native YouTube Music watch playlist
+      songs = await getSuggestions(songId, 20);
+    }
+
+    res.json({ songs: songs.slice(0, 15) });
   } catch (err) {
     console.error("[Search] Autoplay error:", err);
     res.status(500).json({ error: "Failed to fetch autoplay suggestions", songs: [] });

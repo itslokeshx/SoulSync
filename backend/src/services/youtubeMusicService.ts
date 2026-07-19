@@ -300,6 +300,16 @@ export async function searchPlaylists(query: string, limit = 10): Promise<any[]>
   }
 }
 
+export async function searchVideos(query: string, limit = 50): Promise<any[]> {
+  try {
+    const data = await callMusicProvider("/search", { q: query, filter: "videos", limit });
+    return data.results || [];
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchVideos failed for "${query}":`, err.message || err);
+    return [];
+  }
+}
+
 export async function searchPodcasts(query: string, limit = 12): Promise<any[]> {
   try {
     const data = await callMusicProvider("/search", { q: query, filter: "podcasts", limit });

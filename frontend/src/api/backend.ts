@@ -607,8 +607,11 @@ export async function markWhatsNewVersionSeen(version: string): Promise<{ succes
   return data;
 }
 
-export async function getAutoplaySongs(songId: string): Promise<{ songs: any[] }> {
-  const { data } = await api.get(`/api/search/autoplay/${songId}`, { timeout: 12000 });
+export async function getAutoplaySongs(songId: string, filter = "similar"): Promise<{ songs: any[] }> {
+  const { data } = await api.get(`/api/search/autoplay/${songId}`, {
+    params: { type: filter },
+    timeout: 12000
+  });
   return data;
 }
 

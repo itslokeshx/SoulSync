@@ -1026,6 +1026,31 @@ export async function getTasteProfileBatch(
     candidates.push(song);
   };
 
+  // Source 0: Listening History (3 most recently played songs watch playlists interleaved)
+  try {
+    const recentPlays = await ListeningHistory.find({ userId: tasteProfile.userId })
+      .sort({ playedAt: -1 })
+      .limit(3)
+      .lean();
+
+    if (recentPlays.length > 0) {
+      const watchPlaylists = await Promise.all(
+        recentPlays.map((p) => getSuggestions(p.songId, 15).catch(() => []))
+      );
+
+      const maxLen = Math.max(...watchPlaylists.map((list) => list.length), 0);
+      for (let i = 0; i < maxLen; i++) {
+        for (const list of watchPlaylists) {
+          if (i < list.length) {
+            addCandidate(list[i]);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[recommendationEngine] Listening history recommendations error:", err);
+  }
+
   // Rotating query modifiers for variety on every reload
   const ARTIST_QUERY_VARIANTS = [
     "best of", "top songs", "popular", "hits", "essentials",

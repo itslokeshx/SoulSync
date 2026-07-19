@@ -356,6 +356,41 @@ function SkeletonRow() {
   );
 }
 
+const SEARCH_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "songs", label: "Songs" },
+  { id: "videos", label: "Videos" },
+  { id: "albums", label: "Albums" },
+  { id: "artists", label: "Artists" },
+  { id: "playlists", label: "Playlists" },
+  { id: "podcasts", label: "Podcasts" },
+];
+
+const SectionHeaderWithSeeAll = ({
+  title,
+  icon: Icon,
+  onSeeAll,
+}: {
+  title: string;
+  icon: any;
+  onSeeAll?: () => void;
+}) => (
+  <div className="flex items-center justify-between mb-3">
+    <h3 className="text-white/40 text-[11.5px] font-extrabold uppercase tracking-[0.15em] flex items-center gap-2">
+      {Icon && <Icon size={12} className="text-sp-green" />}
+      {title}
+    </h3>
+    {onSeeAll && (
+      <button
+        onClick={onSeeAll}
+        className="text-[11px] font-bold text-sp-green hover:text-sp-green/80 transition-colors uppercase tracking-wider"
+      >
+        See all
+      </button>
+    )}
+  </div>
+);
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SearchPage() {
@@ -371,7 +406,15 @@ export function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { query, setQuery, state, result, loadMore } = useSearch();
+  const { query, setQuery, state, result, filter, setFilter, loadMore } = useSearch();
+
+  // Sync URL filter with state
+  useEffect(() => {
+    const urlFilter = urlParams.get("filter") || "all";
+    if (urlFilter !== filter) {
+      setFilter(urlFilter);
+    }
+  }, [urlParams, filter, setFilter]);
 
   // Init from URL and focus
   useEffect(() => {
@@ -390,12 +433,22 @@ export function SearchPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [navigate]);
 
+  const handleFilterChange = useCallback((newFilter: string) => {
+    setFilter(newFilter);
+    const params: Record<string, string> = { q: query };
+    if (newFilter !== "all") {
+      params.filter = newFilter;
+    }
+    setUrlParams(params, { replace: true });
+  }, [query, setFilter, setUrlParams]);
+
   const handleChange = useCallback(
     (v: string) => {
       setQuery(v);
+      setFilter("all");
       setUrlParams(v.trim() ? { q: v } : {}, { replace: true });
     },
-    [setQuery, setUrlParams],
+    [setQuery, setFilter, setUrlParams],
   );
 
   const handleEnter = useCallback(() => {
@@ -445,13 +498,14 @@ export function SearchPage() {
   const handleChipClick = useCallback(
     (q: string) => {
       setQuery(q);
+      setFilter("all");
       setUrlParams({ q }, { replace: true });
       saveRecentSearch(q);
       setRecentSearches(getRecentSearches());
       addRecentSearch(q);
       inputRef.current?.focus();
     },
-    [setQuery, setUrlParams, addRecentSearch],
+    [setQuery, setFilter, setUrlParams, addRecentSearch],
   );
 
   const handleRemoveRecent = useCallback((q: string, e: React.MouseEvent) => {
@@ -556,6 +610,28 @@ export function SearchPage() {
             Cancel
           </button>
         </div>
+
+        {/* Filter Chips row */}
+        {query.trim().length >= 2 && (
+          <div className="flex gap-2 overflow-x-auto thin-scrollbar py-1.5 mt-2 px-0.5 max-w-2xl">
+            {SEARCH_FILTERS.map((f) => {
+              const active = filter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => handleFilterChange(f.id)}
+                  className={`flex-shrink-0 px-3.5 py-1 rounded-full text-[11px] font-semibold transition-all duration-200 ${
+                    active
+                      ? "bg-white text-black shadow-md"
+                      : "bg-white/[0.04] border border-white/[0.06] text-white/60 hover:bg-white/[0.08] hover:text-white"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Scrollable results ── */}
@@ -622,7 +698,7 @@ export function SearchPage() {
         {/* ── RESULTS ── */}
         {state === "results" && result && (
           <div className="py-4 space-y-7 max-w-2xl">
-            {result.parsedIntent?.displayContext && (
+            {result.parsedIntent?.displayContext && filter === "all" && (
               <div className="flex items-center gap-2 px-1">
                 <Sparkles size={12} className="text-sp-green flex-shrink-0" />
                 <span className="text-[12px] text-white/40 font-medium">
@@ -631,22 +707,173 @@ export function SearchPage() {
               </div>
             )}
 
-            {/* Desktop 2-col: Top Result + Songs */}
-            <div className="hidden md:grid md:grid-cols-[280px_1fr] gap-5">
-              {result.topResult && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                    Top Result
-                  </h3>
-                  <TopResultHero item={result.topResult} onPlay={handlePlay} />
+            {/* ── ALL VIEW ── */}
+            {filter === "all" && (
+              <>
+                {/* Desktop 2-col: Top Result + Songs */}
+                <div className="hidden md:grid md:grid-cols-[280px_1fr] gap-5">
+                  {result.topResult && (
+                    <div>
+                      <SectionHeaderWithSeeAll title="Top Result" icon={Sparkles} />
+                      <TopResultHero item={result.topResult} onPlay={handlePlay} />
+                    </div>
+                  )}
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Songs"
+                      icon={Music}
+                      onSeeAll={() => handleFilterChange("songs")}
+                    />
+                    <div className="space-y-0.5">
+                      {result.songs.slice(0, 5).map((song, i) => (
+                        <SongRow
+                          key={song.id}
+                          song={song}
+                          index={i}
+                          onPlay={handlePlay}
+                          isCurrent={currentSong?.id === song.id}
+                          isPlaying={isPlaying}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Mobile: stacked */}
+                <div className="md:hidden flex flex-col gap-4">
+                  {result.topResult && (
+                    <div>
+                      <SectionHeaderWithSeeAll title="Top Result" icon={Sparkles} />
+                      <TopResultHero item={result.topResult} onPlay={handlePlay} />
+                    </div>
+                  )}
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Songs"
+                      icon={Music}
+                      onSeeAll={() => handleFilterChange("songs")}
+                    />
+                    <div className="space-y-0.5">
+                      {result.songs.slice(0, 5).map((song, i) => (
+                        <SongRow
+                          key={song.id}
+                          song={song}
+                          index={i}
+                          onPlay={handlePlay}
+                          isCurrent={currentSong?.id === song.id}
+                          isPlaying={isPlaying}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Videos */}
+                {result.videos && result.videos.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Videos"
+                      icon={Play}
+                      onSeeAll={() => handleFilterChange("videos")}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      {result.videos.slice(0, 4).map((v: any) => {
+                        const img = bestImg(v.image) || FALLBACK_IMG;
+                        return (
+                          <div
+                            key={v.id}
+                            onClick={() => handlePlay(v)}
+                            className="flex flex-col gap-2 p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer"
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-white/[0.04]">
+                              <img src={img} className="w-full h-full object-cover" alt="" />
+                              <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[10px] text-white font-mono">
+                                {v.duration ? fmt(v.duration) : "Video"}
+                              </div>
+                            </div>
+                            <div className="min-w-0 px-0.5">
+                              <p className="text-[12.5px] font-semibold text-white truncate">{v.name}</p>
+                              <p className="text-[11px] text-white/40 truncate">{v.primaryArtists || "YouTube Video"}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Artists */}
+                {result.artists?.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Artists"
+                      icon={Mic2}
+                      onSeeAll={() => handleFilterChange("artists")}
+                    />
+                    <div className="flex gap-5 overflow-x-auto pb-1 hide-scrollbar">
+                      {result.artists.slice(0, 6).map((a: any) => (
+                        <ArtistCircle key={a.id || a.name} artist={a} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Albums */}
+                {result.albums?.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Albums"
+                      icon={Disc3}
+                      onSeeAll={() => handleFilterChange("albums")}
+                    />
+                    <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
+                      {result.albums.slice(0, 5).map((a: any) => (
+                        <AlbumCard key={a.id || a.name} album={a} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Playlists */}
+                {result.playlists && result.playlists.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Playlists"
+                      icon={Music}
+                      onSeeAll={() => handleFilterChange("playlists")}
+                    />
+                    <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
+                      {result.playlists.slice(0, 5).map((p: any) => (
+                        <AlbumCard key={p.id || p.name} album={p} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Podcasts */}
+                {result.podcasts && result.podcasts.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Podcasts & Shows"
+                      icon={Radio}
+                      onSeeAll={() => handleFilterChange("podcasts")}
+                    />
+                    <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
+                      {result.podcasts.slice(0, 3).map((p: any) => (
+                        <PodcastCard key={p.id || p.name} podcast={p} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── FILTERED VIEW: SONGS ── */}
+            {filter === "songs" && result.songs?.length > 0 && (
               <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                  Songs
-                </h3>
+                <SectionHeaderWithSeeAll title="Songs" icon={Music} />
                 <div className="space-y-0.5">
-                  {firstSectionSongs.map((song, i) => (
+                  {result.songs.map((song, i) => (
                     <SongRow
                       key={song.id}
                       song={song}
@@ -658,100 +885,90 @@ export function SearchPage() {
                   ))}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Mobile: stacked */}
-            <div className="md:hidden flex flex-col gap-3">
-              {result.topResult && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2">
-                    Top Result
-                  </h3>
-                  <TopResultHero item={result.topResult} onPlay={handlePlay} />
-                </div>
-              )}
-              <div className="space-y-0.5">
-                {firstSectionSongs.map((song, i) => (
-                  <SongRow
-                    key={song.id}
-                    song={song}
-                    index={i}
-                    onPlay={handlePlay}
-                    isCurrent={currentSong?.id === song.id}
-                    isPlaying={isPlaying}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Artists */}
-            {result.artists?.length > 0 && (
+            {/* ── FILTERED VIEW: VIDEOS ── */}
+            {filter === "videos" && result.videos && result.videos.length > 0 && (
               <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                  <Mic2 size={11} /> Artists
-                </h3>
-                <div className="flex gap-5 overflow-x-auto pb-1 thin-scrollbar">
-                  {result.artists.slice(0, 8).map((a: any) => (
-                    <ArtistCircle key={a.id || a.name} artist={a} />
+                <SectionHeaderWithSeeAll title="Videos" icon={Play} />
+                <div className="grid grid-cols-2 gap-3">
+                  {result.videos.map((v: any) => {
+                    const img = bestImg(v.image) || FALLBACK_IMG;
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => handlePlay(v)}
+                        className="flex flex-col gap-2 p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer"
+                      >
+                        <div className="relative aspect-video rounded-lg overflow-hidden bg-white/[0.04]">
+                          <img src={img} className="w-full h-full object-cover" alt="" />
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[10px] text-white font-mono">
+                            {v.duration ? fmt(v.duration) : "Video"}
+                          </div>
+                        </div>
+                        <div className="min-w-0 px-0.5">
+                          <p className="text-[12.5px] font-semibold text-white truncate">{v.name}</p>
+                          <p className="text-[11px] text-white/40 truncate">{v.primaryArtists || "YouTube Video"}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── FILTERED VIEW: ARTISTS ── */}
+            {filter === "artists" && result.artists?.length > 0 && (
+              <div>
+                <SectionHeaderWithSeeAll title="Artists" icon={Mic2} />
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 py-2">
+                  {result.artists.map((a: any) => (
+                    <div key={a.id || a.name} className="flex flex-col items-center">
+                      <ArtistCircle artist={a} />
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Albums */}
-            {result.albums?.length > 0 && (
+            {/* ── FILTERED VIEW: ALBUMS ── */}
+            {filter === "albums" && result.albums?.length > 0 && (
               <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                  <Disc3 size={11} /> Albums
-                </h3>
-                <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
-                  {result.albums.slice(0, 10).map((a: any) => (
+                <SectionHeaderWithSeeAll title="Albums" icon={Disc3} />
+                <div className="grid grid-cols-3 gap-3">
+                  {result.albums.map((a: any) => (
                     <AlbumCard key={a.id || a.name} album={a} />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Podcasts */}
-            {result.podcasts && result.podcasts.length > 0 && (
+            {/* ── FILTERED VIEW: PLAYLISTS ── */}
+            {filter === "playlists" && result.playlists && result.playlists.length > 0 && (
               <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                  <Radio size={11} className="text-sp-green" /> Podcasts & Shows
-                </h3>
-                <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
-                  {result.podcasts.slice(0, 10).map((p: any) => (
+                <SectionHeaderWithSeeAll title="Playlists" icon={Music} />
+                <div className="grid grid-cols-3 gap-3">
+                  {result.playlists.map((p: any) => (
+                    <AlbumCard key={p.id || p.name} album={p} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── FILTERED VIEW: PODCASTS ── */}
+            {filter === "podcasts" && result.podcasts && result.podcasts.length > 0 && (
+              <div>
+                <SectionHeaderWithSeeAll title="Podcasts & Shows" icon={Radio} />
+                <div className="grid grid-cols-3 gap-3">
+                  {result.podcasts.map((p: any) => (
                     <PodcastCard key={p.id || p.name} podcast={p} />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Remaining songs — always visible */}
-            {hasMoreSongs && (
-              <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 flex items-center gap-2">
-                  <Music size={11} /> More Songs
-                  <span className="text-white/20 font-normal normal-case tracking-normal">
-                    {songs.length}
-                  </span>
-                </h3>
-                <div className="space-y-0.5">
-                  {remainingSongs.map((song, i) => (
-                    <SongRow
-                      key={song.id}
-                      song={song}
-                      index={splitAt + i}
-                      onPlay={handlePlay}
-                      isCurrent={currentSong?.id === song.id}
-                      isPlaying={isPlaying}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Related searches */}
-            {(result.relatedSearches?.length ?? 0) > 0 && (
+            {filter === "all" && (result.relatedSearches?.length ?? 0) > 0 && (
               <div>
                 <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
                   Related
