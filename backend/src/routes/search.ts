@@ -7,6 +7,7 @@ import {
   normalizeSongsToCanonical,
   searchSongsHybrid,
   searchSongs,
+  searchGeneral,
   searchAll,
   searchAlbums,
   searchArtists,
@@ -26,6 +27,7 @@ import {
   markUserQueryEnd,
   resolveRealStreamUrl,
   getStreamProxyUrl,
+  upgradeYTImageQuality,
 } from "../services/youtubeMusicService.js";
 import { redisGet, redisSet } from "../services/redis.js";
 import {
@@ -54,7 +56,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
   const t0 = performance.now();
   const timings: any = {};
 
-  const cacheKey = `search:v11:${q.toLowerCase()}:${lang}:${filter || "all"}`;
+  const cacheKey = `search:v12:${q.toLowerCase()}:${lang}:${filter || "all"}`;
   try {
     const tCache = performance.now();
     const hit = await redisGet(cacheKey);
@@ -93,6 +95,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     }
 
     if (!filter) {
+      track("general", searchGeneral(primaryQuery, 15));
       track("songs", searchSongs(primaryQuery, 30));
       track("fallbacks", Promise.allSettled(
         fallbackQueries.slice(0, 1).map((fq) => searchSongs(fq, 20)),
@@ -204,19 +207,194 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       episodes = normalizeSongsToCanonical(rawEpisodes, reqBaseUrl) as Song[];
     }
 
-    let topResult = songs[0] || videos[0] || artists[0] || albums[0] || playlists[0] || podcasts[0] || null;
-    if (episodes[0]) {
-      // If the top episode matches the query better than the top song, make it the top result!
-      const qLower = q.toLowerCase();
-      const songTitle = (songs[0]?.name || "").toLowerCase();
-      const epTitle = (episodes[0]?.name || "").toLowerCase();
-      
-      const qWords = qLower.split(/\s+/).filter(w => w.length > 2);
-      const songMatchCount = qWords.filter(w => songTitle.includes(w)).length;
-      const epMatchCount = qWords.filter(w => epTitle.includes(w)).length;
-      
-      if (epMatchCount > songMatchCount || (!songs[0] && episodes[0])) {
-        topResult = episodes[0];
+    let topResult: any = null;
+    if (!filter) {
+      const candidates: any[] = [];
+      const generalResults = get("general") || [];
+      const nativeTopRaw = generalResults.find((r: any) => r.category === "Top result");
+      if (nativeTopRaw) {
+        let nativeTopNormalized: any = null;
+        if (nativeTopRaw.resultType === "song" || nativeTopRaw.resultType === "video") {
+          nativeTopNormalized = normalizeSongToCanonical(nativeTopRaw, reqBaseUrl);
+        } else if (nativeTopRaw.resultType === "artist") {
+          nativeTopNormalized = {
+            id: nativeTopRaw.browseId,
+            name: nativeTopRaw.artist || nativeTopRaw.title || "",
+            type: "artist",
+            resultType: "artist",
+            image: upgradeYTImageQuality(nativeTopRaw.thumbnails?.[0]?.url || "/placeholder.png"),
+          };
+        } else if (nativeTopRaw.resultType === "album") {
+          nativeTopNormalized = {
+            id: nativeTopRaw.browseId,
+            name: nativeTopRaw.title || "",
+            type: "album",
+            resultType: "album",
+            artist: nativeTopRaw.artist || "",
+            image: upgradeYTImageQuality(nativeTopRaw.thumbnails?.[0]?.url || "/placeholder.png"),
+          };
+        } else if (nativeTopRaw.resultType === "playlist") {
+          nativeTopNormalized = {
+            id: nativeTopRaw.playlistId || nativeTopRaw.browseId,
+            name: nativeTopRaw.title || "",
+            type: "playlist",
+            resultType: "playlist",
+            image: upgradeYTImageQuality(nativeTopRaw.thumbnails?.[0]?.url || "/placeholder.png"),
+          };
+        }
+        if (nativeTopNormalized) {
+          nativeTopNormalized.isNativeTopResult = true;
+          nativeTopNormalized.views = nativeTopRaw.views;
+          candidates.push(nativeTopNormalized);
+        }
+      }
+      const songCandidates = songs.slice(0, 3);
+      for (const s of songCandidates) {
+        candidates.push({ ...s, type: "song", resultType: "song" });
+      }
+      const videoCandidates = videos.slice(0, 3);
+      for (const v of videoCandidates) {
+        candidates.push({ ...v, type: "video", resultType: "video" });
+      }
+      const artistCandidates = artists.slice(0, 3);
+      for (const a of artistCandidates) {
+        candidates.push({ ...a, type: "artist", resultType: "artist" });
+      }
+      const albumCandidates = albums.slice(0, 3);
+      for (const alb of albumCandidates) {
+        candidates.push({ ...alb, type: "album", resultType: "album" });
+      }
+      const playlistCandidates = playlists.slice(0, 3);
+      for (const p of playlistCandidates) {
+        candidates.push({ ...p, type: "playlist", resultType: "playlist" });
+      }
+      const podcastCandidates = podcasts.slice(0, 3);
+      for (const pod of podcastCandidates) {
+        candidates.push({ ...pod, type: "podcast", resultType: "podcast" });
+      }
+      const episodeCandidates = episodes.slice(0, 3);
+      for (const ep of episodeCandidates) {
+        candidates.push({ ...ep, type: "episode", resultType: "episode" });
+      }
+      const scoreCandidate = (candidate: any): number => {
+        let score = 0;
+        const qLower = q.toLowerCase();
+        const qWords = qLower.split(/\s+/).filter((w) => w.length > 1);
+        const title = (candidate.name || candidate.title || "").toLowerCase();
+        const artist = (
+          candidate.primaryArtists ||
+          (Array.isArray(candidate.artists) ? candidate.artists.map((a: any) => a.name).join(", ") : "") ||
+          candidate.artist ||
+          ""
+        ).toLowerCase();
+        const album = (
+          candidate.album && typeof candidate.album === "object"
+            ? candidate.album.name
+            : candidate.album || ""
+        ).toLowerCase();
+        const titleMatches = qWords.filter((w) => title.includes(w));
+        if (qWords.length > 0) {
+          score += (titleMatches.length / qWords.length) * 100;
+        }
+        if (title === qLower) {
+          score += 50;
+        } else if (title.startsWith(qLower)) {
+          score += 30;
+        }
+        const artistMatches = qWords.filter((w) => artist.includes(w));
+        score += artistMatches.length * 20;
+        if (candidate.isNativeTopResult) {
+          score += 200;
+        }
+        const isArtistEntity = candidate.resultType === "artist" || candidate.type === "artist";
+        if (isArtistEntity) {
+          if (title === qLower) {
+            score += 150;
+          } else if (title.includes(qLower) || qLower.includes(title)) {
+            score += 80;
+          }
+        }
+        const hasOfficialArtist =
+          Array.isArray(candidate.artists) &&
+          candidate.artists.some(
+            (a: any) => a.id && (a.id.startsWith("UC") || a.id.startsWith("FE") || a.id.length > 5)
+          );
+        if (hasOfficialArtist) {
+          score += 40;
+        }
+        const hasAlbum = !!(candidate.album && candidate.album !== candidate.name && candidate.albumId);
+        if (hasAlbum) {
+          score += 30;
+        }
+        const parseViewsVal = (viewsStr: any): number => {
+          if (!viewsStr) return 0;
+          if (typeof viewsStr === "number") return viewsStr;
+          const strVal = String(viewsStr).toLowerCase().trim();
+          const match = strVal.match(/^([\d.]+)\s*([kmbt]?)/);
+          if (!match) return 0;
+          const val = parseFloat(match[1]);
+          const unit = match[2];
+          if (unit === "k") return val * 1000;
+          if (unit === "m") return val * 1000000;
+          if (unit === "b") return val * 1000000000;
+          if (unit === "t") return val * 1000000000000;
+          return val;
+        };
+        const views = candidate.playCount || parseViewsVal(candidate.views || candidate.playCount);
+        if (views > 0) {
+          score += Math.min(50, Math.log10(views) * 5);
+        }
+        const coverKeywords = [
+          "cover",
+          "unplugged",
+          "remix",
+          "type beat",
+          "instrumental",
+          "karaoke",
+          "remake",
+          "tribute",
+          "fan made",
+          "fan-made",
+          "unofficial",
+          "lofi",
+          "slowed",
+          "reverb",
+          "sped up",
+          "bass boosted",
+          "mashup",
+          "medley",
+        ];
+        for (const kw of coverKeywords) {
+          if (!qLower.includes(kw)) {
+            if (title.includes(kw)) {
+              score -= 150;
+            }
+            if (artist.includes(kw)) {
+              score -= 150;
+            }
+            if (album.includes(kw)) {
+              score -= 150;
+            }
+          }
+        }
+        return score;
+      };
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
+        topResult = candidates[0];
+      }
+    } else {
+      topResult = songs[0] || videos[0] || artists[0] || albums[0] || playlists[0] || podcasts[0] || null;
+      if (episodes[0]) {
+        const qLower = q.toLowerCase();
+        const songTitle = (songs[0]?.name || "").toLowerCase();
+        const epTitle = (episodes[0]?.name || "").toLowerCase();
+        const qWords = qLower.split(/\s+/).filter((w) => w.length > 2);
+        const songMatchCount = qWords.filter((w) => songTitle.includes(w)).length;
+        const epMatchCount = qWords.filter((w) => epTitle.includes(w)).length;
+        if (epMatchCount > songMatchCount || (!songs[0] && episodes[0])) {
+          topResult = episodes[0];
+        }
       }
     }
 

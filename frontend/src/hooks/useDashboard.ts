@@ -218,31 +218,22 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     recommendedSongs.push(s);
   }
 
-  const maxSavedCount = 21;
-  const maxRecCount = 9;
+  const row1 = recommendedSongs.slice(0, 10);
+  const row2 = recommendedSongs.slice(10, 20);
+  const row3 = recommendedSongs.slice(20, 30);
 
-  const selectedSaved = savedSongs.slice(0, maxSavedCount);
-  const selectedRec = recommendedSongs.slice(0, maxRecCount);
-
-  const topSaved = selectedSaved.slice(0, 10);
-  const middleRec = selectedRec.slice(0, 10);
-  const bottomSaved = selectedSaved.slice(10, 21);
-
-  const extraSaved = savedSongs.slice(maxSavedCount);
-  const extraRec = recommendedSongs.slice(maxRecCount);
-
-  while (middleRec.length < 10 && extraSaved.length > 0) {
-    middleRec.push(extraSaved.shift()!);
+  const extraSaved = [...savedSongs];
+  while (row1.length < 10 && extraSaved.length > 0) {
+    row1.push(extraSaved.shift()!);
   }
-  while (bottomSaved.length < 10 && extraRec.length > 0) {
-    bottomSaved.push(extraRec.shift()!);
+  while (row2.length < 10 && extraSaved.length > 0) {
+    row2.push(extraSaved.shift()!);
+  }
+  while (row3.length < 10 && extraSaved.length > 0) {
+    row3.push(extraSaved.shift()!);
   }
 
-  const suggestionsSongs = [...topSaved, ...middleRec, ...bottomSaved];
-
-  const row1 = suggestionsSongs.slice(0, 10);
-  const row2 = suggestionsSongs.slice(10, 20);
-  const row3 = suggestionsSongs.slice(20, 30);
+  const suggestionsSongs = [...row1, ...row2, ...row3];
 
   // Compile list of songs for mobile 3x3 grids (Recently Played + Liked + Playlists + Made For You) to fill exactly 18 slots (2 pages)
   const allHomeSongs: any[] = [];

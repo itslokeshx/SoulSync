@@ -189,7 +189,7 @@ export async function buildDashboard(
           getIndustryNewReleases(["hindi"], 20),
           getIndustryNewReleases(["telugu"], 20),
         ]),
-        getTasteProfileBatch(null, Array.from(globalExcludeIds), 35),
+        getTasteProfileBatch(null, Array.from(globalExcludeIds), 50),
       ]);
 
       const [english, tamil, hindi, telugu] = guestReleaseResults;
@@ -202,14 +202,14 @@ export async function buildDashboard(
 
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
-        .slice(0, 30);
+        .slice(0, 45);
       recommendedPodcasts = [];
     } else {
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
 
       const [rawNewReleases, rawMadeForYou] = await Promise.all([
         getIndustryNewReleases(langs, 25),
-        getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 35),
+        getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 50),
       ]);
 
       newReleasesSongs = rawNewReleases
@@ -222,7 +222,7 @@ export async function buildDashboard(
 
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
-        .slice(0, 30);
+        .slice(0, 45);
       recommendedPodcasts = [];
     }
 

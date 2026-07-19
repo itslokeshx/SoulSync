@@ -101,6 +101,21 @@ export async function resolveRealStreamUrl(id: string): Promise<string | null> {
   }
 }
 
+function parseViews(viewsStr: any): number {
+  if (!viewsStr) return 0;
+  if (typeof viewsStr === "number") return viewsStr;
+  const str = String(viewsStr).toLowerCase().trim();
+  const match = str.match(/^([\d.]+)\s*([kmbt]?)/);
+  if (!match) return 0;
+  const val = parseFloat(match[1]);
+  const unit = match[2];
+  if (unit === "k") return val * 1000;
+  if (unit === "m") return val * 1000000;
+  if (unit === "b") return val * 1000000000;
+  if (unit === "t") return val * 1000000000000;
+  return val;
+}
+
 export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | null {
   if (!raw) return null;
   const id = String(raw.id || raw.videoId || raw.video_id || "");
@@ -213,7 +228,7 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
     releaseDate: raw.releaseDate ? String(raw.releaseDate) : undefined,
     streamUrl: proxyUrl,
     downloadUrl: [{ quality: "320kbps", url: proxyUrl }],
-    playCount: 0,
+    playCount: raw.playCount || parseViews(raw.views) || 0,
     url: raw.url || `https://music.youtube.com/watch?v=${id}`
   };
 }
@@ -223,6 +238,16 @@ export function normalizeSongsToCanonical(raws: any[], reqBaseUrl?: string): Son
   return raws
     .map(raw => normalizeSongToCanonical(raw, reqBaseUrl))
     .filter((s): s is Song => s !== null);
+}
+
+export async function searchGeneral(query: string, limit = 20): Promise<any[]> {
+  try {
+    const data = await callMusicProvider("/search", { q: query, filter: "", limit });
+    return data.results || [];
+  } catch (err: any) {
+    console.error(`[youtubeMusicService] searchGeneral failed for "${query}":`, err.message || err);
+    return [];
+  }
 }
 
 export async function searchSongs(query: string, limit = 50, page = 1): Promise<any[]> {
