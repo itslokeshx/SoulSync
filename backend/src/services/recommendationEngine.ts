@@ -1919,8 +1919,9 @@ export async function generateDiscoveryMix(
   });
 }
 
-export async function getPodcastRecommendations(limit = 10): Promise<any[]> {
-  const cacheKey = "podcast_recommendations:v2";
+export async function getPodcastRecommendations(langs: string[] = ["english"], limit = 10): Promise<any[]> {
+  const normalizedLangs = langs.map(l => l.toLowerCase().trim());
+  const cacheKey = `podcast_recommendations:v3:${normalizedLangs.sort().join("_")}`;
   try {
     const cached = await redisGet(cacheKey);
     if (cached) {
@@ -1930,9 +1931,27 @@ export async function getPodcastRecommendations(limit = 10): Promise<any[]> {
     console.error("[recommendationEngine] getPodcastRecommendations cache read failed:", err);
   }
 
-  const queries = ["The Ranveer Show", "Joe Rogan", "Lex Fridman", "Huberman Lab", "TED Talks Daily"];
+  const queriesByLang: Record<string, string[]> = {
+    tamil: ["Naallanaa Murugesan", "Schumy Vanna Kaviyangal", "RJ Balaji Podcast", "Dad's Life Tamil Podcast", "Tamil Podcast"],
+    hindi: ["The Ranveer Show", "Dostcast", "RealHit Podcast", "Kahaani Podcast", "Bhaskar Bose"],
+    telugu: ["Telugu Geeks Podcast", "The Telugu Podcast", "Mana Telugu Podcast", "Purana Stories"],
+    english: ["Joe Rogan", "Lex Fridman", "Huberman Lab", "TED Talks Daily", "The Diary Of A CEO"],
+  };
+
+  const queries: string[] = [];
+  for (const lang of normalizedLangs) {
+    const qList = queriesByLang[lang] || [];
+    queries.push(...qList);
+  }
+
+  if (queries.length === 0) {
+    queries.push(...queriesByLang.english, ...queriesByLang.tamil);
+  }
+
+  const uniqueQueries = Array.from(new Set(queries)).slice(0, 8);
+
   const searchResults = await Promise.allSettled(
-    queries.map((q) => searchPodcasts(q, 3))
+    uniqueQueries.map((q) => searchPodcasts(q, 3))
   );
 
   const candidates: any[] = [];

@@ -687,6 +687,7 @@ export const HomePage = () => {
     mixSet,
     user,
     refetch,
+    podcasts,
   } = useDashboard(onPlay);
 
 
@@ -888,6 +889,19 @@ export const HomePage = () => {
           )}
         </div>
       ) : null}
+
+      {/* ── RECOMMENDED PODCASTS ── */}
+      {podcasts && podcasts.length > 0 && (
+        <HSectionInline
+          title="Trending Podcasts"
+          subtitle="Popular shows in your languages"
+          albums={podcasts}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPlay={handleHomeSongClick}
+          cardSize="md"
+        />
+      )}
 
       {/* ── Error fallback ── */}
       {error && !dashboard && (
