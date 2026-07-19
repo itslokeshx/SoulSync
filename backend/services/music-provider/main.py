@@ -34,6 +34,20 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Copy cookies from read-only /etc/secrets/ to writable /tmp/
+    import shutil
+    readonly_cookies = "/etc/secrets/cookies.txt"
+    writable_cookies = "/tmp/cookies.txt"
+    if os.path.exists(readonly_cookies):
+        try:
+            os.makedirs(os.path.dirname(writable_cookies), exist_ok=True)
+            shutil.copy(readonly_cookies, writable_cookies)
+            print(f"[startup] Cookies copied to writable path: {writable_cookies}")
+        except Exception as e:
+            print(f"[startup] Failed to copy cookies to writable path: {e}")
+    else:
+        print("[startup] WARNING: cookies.txt not found at /etc/secrets/")
+
     keep_alive_task = asyncio.create_task(ping_self_loop())
     yield
     keep_alive_task.cancel()
@@ -44,6 +58,14 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    print(f"[GlobalHandler] Unhandled exception: {exc}")
+    return JSONResponse(status_code=502, content={"error": f"Upstream service error: {exc}"})
+
 
 app.add_middleware(
     CORSMiddleware,

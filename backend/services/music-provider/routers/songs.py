@@ -152,16 +152,20 @@ def get_song_stream(video_id: str) -> dict:
         return opts
     
     # ── COOKIE FILE RESOLUTION ──────────────────────────────────────────────
-    cookie_file_path = None
+    READONLY_COOKIES = "/etc/secrets/cookies.txt"
+    WRITABLE_COOKIES = "/tmp/cookies.txt"
     
-    # 1. Check for Render Secret File (highest priority)
-    secret_cookies = Path("/etc/secrets/cookies.txt")
-    if secret_cookies.exists():
-        cookie_file_path = str(secret_cookies)
-        logger.info("[song_stream] Using Render Secret File cookies.txt")
-        
-    # 2. Check for YT_COOKIES environment variable
-    if not cookie_file_path:
+    def get_cookies_path() -> Optional[str]:
+        # 1. Render Secret File copied to /tmp/cookies.txt (to avoid read-only issues)
+        if os.path.exists(READONLY_COOKIES):
+            try:
+                os.makedirs(os.path.dirname(WRITABLE_COOKIES), exist_ok=True)
+                shutil.copy(READONLY_COOKIES, WRITABLE_COOKIES)
+                return WRITABLE_COOKIES
+            except Exception as e:
+                logger.error(f"[song_stream] Failed to copy read-only secret cookies: {e}")
+                
+        # 2. YT_COOKIES environment variable
         yt_cookies_env = os.getenv("YT_COOKIES")
         if yt_cookies_env:
             try:
@@ -169,17 +173,19 @@ def get_song_stream(video_id: str) -> dict:
                 os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
                 with open(temp_cookie_path, "w", encoding="utf-8") as f:
                     f.write(yt_cookies_env)
-                cookie_file_path = temp_cookie_path
-                logger.info("[song_stream] Using YT_COOKIES environment variable")
+                return temp_cookie_path
             except Exception as e:
-                logger.error(f"[song_stream] Failed to write YT_COOKIES temp file: {e}")
+                logger.error(f"[song_stream] Failed to write YT_COOKIES to temp file: {e}")
                 
-    # 3. Check for local cookies.txt file
-    if not cookie_file_path:
+        # 3. Check for local cookies.txt file
         local_cookie_path = Path(__file__).parent.parent / "cookies.txt"
         if local_cookie_path.exists():
-            cookie_file_path = str(local_cookie_path)
-            logger.info("[song_stream] Using local cookies.txt file")
+            return str(local_cookie_path)
+            
+        return None
+
+    cookie_file_path = get_cookies_path()
+
 
     # Serialize resolutions and apply random sleep jitter to bypass bot blocks
     with _stream_lock:

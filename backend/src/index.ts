@@ -197,7 +197,7 @@ async function start() {
         }
       }
       logger.info("[CacheWarm] Done warming search cache.");
-    }, 15_000);
+    }, 20_000);
   });
 }
 
