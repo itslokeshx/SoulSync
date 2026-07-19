@@ -65,6 +65,39 @@ _stream_semaphore = threading.Semaphore(4)
 
 
 
+def backfill_song_metadata_if_needed(result: dict, video_id: str) -> dict:
+    if not result:
+        return result
+    
+    details = result.setdefault("videoDetails", {})
+    title = details.get("title")
+    
+    # If title is missing or empty, try to backfill from get_watch_playlist
+    if not title:
+        logger.warning(f"Song metadata title is missing for {video_id}. Attempting backfill via watch playlist...")
+        try:
+            yt = get_client()
+            watch = yt.get_watch_playlist(videoId=video_id, limit=5)
+            if watch and watch.get("tracks"):
+                track = watch["tracks"][0]
+                if track.get("videoId") == video_id or not details.get("videoId"):
+                    details["title"] = track.get("title")
+                    details["videoId"] = video_id
+                    if "author" not in details or not details["author"]:
+                        details["author"] = track.get("artists", [{}])[0].get("name") if track.get("artists") else None
+                    if "lengthSeconds" not in details or not details["lengthSeconds"]:
+                        details["lengthSeconds"] = str(track.get("lengthSeconds", 0))
+                    if "thumbnail" not in details or not details["thumbnail"]:
+                        details["thumbnail"] = {
+                            "thumbnails": track.get("thumbnail", [])
+                        }
+                    logger.info(f"Successfully backfilled metadata for {video_id} using watch playlist.")
+        except Exception as e:
+            logger.error(f"Failed to backfill metadata for {video_id}: {e}")
+            
+    return result
+
+
 @router.get("/song/{video_id}")
 @cache_response(ttl_seconds=86400, prefix="song")
 @with_retry()
@@ -75,6 +108,9 @@ def get_song(video_id: str) -> dict:
     result = yt.get_song(video_id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Song not found: {video_id}")
+    
+    result = backfill_song_metadata_if_needed(result, video_id)
+    
     elapsed = time.perf_counter() - start
     logger.info(f"[song] videoId={video_id} in {elapsed:.2f}s")
     return result
@@ -113,6 +149,14 @@ def get_watch_playlist(
     )
     if result is None:
         raise HTTPException(status_code=404, detail=f"Watch playlist not found: {video_id}")
+    
+    # Defensive metadata filtering for tracks in watch playlist
+    if result and "tracks" in result:
+        result["tracks"] = [
+            t for t in result["tracks"]
+            if isinstance(t, dict) and (t.get("title") or t.get("name")) and t.get("videoId")
+        ]
+
     elapsed = time.perf_counter() - start
     track_count = len(result.get("tracks", []))
     logger.info(f"[watch] videoId={video_id} radio={radio} → {track_count} tracks in {elapsed:.2f}s")

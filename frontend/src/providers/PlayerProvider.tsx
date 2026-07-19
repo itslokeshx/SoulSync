@@ -37,13 +37,56 @@ interface PlayerContextType {
   };
 }
 
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady?: () => void;
+    YT?: any;
+  }
+}
+
+let apiLoadingPromise: Promise<void> | null = null;
+
+function loadYoutubeApi(): Promise<void> {
+  if (window.YT && window.YT.Player) {
+    return Promise.resolve();
+  }
+  if (apiLoadingPromise) {
+    return apiLoadingPromise;
+  }
+  apiLoadingPromise = new Promise((resolve) => {
+    const existing = document.querySelector(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    );
+    if (!existing) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName("script")[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+
+    const previousCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (previousCallback) {
+        try {
+          previousCallback();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      resolve();
+    };
+  });
+  return apiLoadingPromise;
+}
+
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const ytIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const ytPlayerRef = useRef<any>(null);
+  const ytPlayerReadyRef = useRef<boolean>(false);
   const {
     currentSong,
     isPlaying,
@@ -164,11 +207,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleSeek = useCallback(
     (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytIframeRef.current && ytIframeRef.current.contentWindow) {
-        ytIframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "seekTo", args: [time, true] }),
-          "*"
-        );
+      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+        try {
+          ytPlayerRef.current.seekTo(time, true);
+        } catch {}
       } else if (audioRef.current) {
         audioRef.current.currentTime = time;
       }
@@ -333,12 +375,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (audioRef.current) audioRef.current.volume = isMuted ? 0 : volume;
 
     const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube && ytIframeRef.current && ytIframeRef.current.contentWindow) {
-      const vol = isMuted ? 0 : volume * 100;
-      ytIframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: "command", func: "setVolume", args: [vol] }),
-        "*"
-      );
+    if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      try {
+        ytPlayerRef.current.setVolume(isMuted ? 0 : volume * 100);
+      } catch {}
     }
   }, [volume, isMuted, currentSong?.id]);
 
@@ -427,62 +467,81 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [isPlaying, sleepTimerActive]);
 
-  // ── YouTube Background Player Message Listener ──
+  // Load YT API once
   useEffect(() => {
-    if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (!isYouTube) return;
+    loadYoutubeApi();
+  }, []);
 
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.includes("youtube.com")) return;
+  // Initialize YT.Player instance once
+  useEffect(() => {
+    let cancelled = false;
 
-      let payload = event.data;
-      if (typeof payload === "string") {
-        try {
-          payload = JSON.parse(payload);
-        } catch {
-          return;
-        }
+    const initPlayer = async () => {
+      await loadYoutubeApi();
+      if (cancelled) return;
+
+      // Wait a tiny bit to ensure the container is in the DOM
+      for (let i = 0; i < 20; i++) {
+        if (document.getElementById("youtube-audio-player")) break;
+        await new Promise((r) => setTimeout(r, 100));
       }
+      if (cancelled) return;
 
-      if (!payload || typeof payload !== "object") return;
+      try {
+        ytPlayerRef.current = new (window as any).YT.Player("youtube-audio-player", {
+          height: "1",
+          width: "1",
+          videoId: "",
+          playerVars: {
+            controls: 0,
+            rel: 0,
+            modestbranding: 1,
+            iv_load_policy: 3,
+            fs: 0,
+            disablekb: 1,
+            cc_load_policy: 0,
+            autoplay: 0,
+            playsinline: 1,
+          },
+          events: {
+            onReady: () => {
+              ytPlayerReadyRef.current = true;
+              if (ytPlayerRef.current) {
+                try {
+                  ytPlayerRef.current.setVolume(isMuted ? 0 : volume * 100);
+                } catch {}
+              }
+            },
+            onStateChange: (event: any) => {
+              const state = event.data;
+              const currentState = usePlayerStore.getState();
+              const isYouTube = currentState.currentSong && !currentState.currentSong._isOffline && !currentState.currentSong.id.startsWith("local_");
+              const isActiveBackground = isYouTube && (!currentState.isVideoMode || !currentState.isPlayerExpanded);
 
-      // Only sync state from background player if we are NOT in video mode or player is minimized
-      const state = usePlayerStore.getState();
-      const isActiveBackground = !state.isVideoMode || !state.isPlayerExpanded;
-      if (!isActiveBackground) return;
+              if (!isActiveBackground) return;
 
-      if (payload.event === "infoDelivery" || payload.event === "initialDelivery") {
-        const info = payload.info;
-        if (info) {
-          if (typeof info.currentTime === "number") {
-            setCurrentTime(info.currentTime);
-          }
-          if (typeof info.duration === "number") {
-            const currentDuration = usePlayerStore.getState().duration;
-            if (!currentDuration || Math.abs(currentDuration - info.duration) > 5) {
-              setDuration(info.duration);
-            }
-          }
-          if (typeof info.playerState === "number") {
-            if (info.playerState === 1) {
-              setIsPlaying(true);
-            } else if (info.playerState === 2) {
-              setIsPlaying(false);
-            } else if (info.playerState === 0) {
-              setIsPlaying(false);
-              handleEnded();
-            }
-          }
-        }
+              if (state === 1) { // playing
+                setIsPlaying(true);
+              } else if (state === 2) { // paused
+                setIsPlaying(false);
+              } else if (state === 0) { // ended
+                setIsPlaying(false);
+                handleEnded();
+              }
+            },
+          },
+        });
+      } catch (err) {
+        console.error("Failed to initialize YT.Player:", err);
       }
     };
 
-    window.addEventListener("message", handleMessage);
+    initPlayer();
+
     return () => {
-      window.removeEventListener("message", handleMessage);
+      cancelled = true;
     };
-  }, [currentSong?.id]);
+  }, []);
 
   // ── YouTube Background Player Command Sender ──
   useEffect(() => {
@@ -492,26 +551,71 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const playYTBackground = isPlaying && (!isVideoMode || !isPlayerExpanded);
 
-    if (ytIframeRef.current && ytIframeRef.current.contentWindow) {
+    if (ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const player = ytPlayerRef.current;
+      let loadedVideoId = "";
+      try {
+        if (typeof player.getVideoData === "function" && player.getVideoData()) {
+          loadedVideoId = player.getVideoData().video_id;
+        }
+      } catch {}
+
       if (playYTBackground) {
-        const currentSrc = ytIframeRef.current.src;
-        if (!currentSrc.includes(currentSong.id)) {
+        if (loadedVideoId !== currentSong.id) {
           const startSec = Math.floor(usePlayerStore.getState().currentTime);
-          ytIframeRef.current.src = `https://www.youtube.com/embed/${currentSong.id}?enablejsapi=1&controls=0&rel=0&modestbranding=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&autoplay=1&start=${startSec}`;
+          player.loadVideoById({
+            videoId: currentSong.id,
+            startSeconds: startSec || 0,
+          });
         } else {
-          ytIframeRef.current.contentWindow.postMessage(
-            JSON.stringify({ event: "command", func: "playVideo", args: [] }),
-            "*"
-          );
+          const playerState = player.getPlayerState();
+          if (playerState !== 1) {
+            player.playVideo();
+          }
         }
       } else {
-        ytIframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
-          "*"
-        );
+        try {
+          const playerState = player.getPlayerState();
+          if (playerState === 1 || playerState === 3) {
+            player.pauseVideo();
+          }
+        } catch {}
       }
     }
   }, [isPlaying, currentSong?.id, isVideoMode, isPlayerExpanded]);
+
+  // ── Polling ticker for background YouTube playback ──
+  useEffect(() => {
+    if (!isPlaying || !currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (!isYouTube) return;
+
+    const playYTBackground = !isVideoMode || !isPlayerExpanded;
+    if (!playYTBackground) return;
+
+    const interval = setInterval(() => {
+      if (ytPlayerRef.current && ytPlayerReadyRef.current) {
+        try {
+          const player = ytPlayerRef.current;
+          if (player.getPlayerState() === 1) {
+            const time = player.getCurrentTime();
+            const dur = player.getDuration();
+            if (typeof time === "number" && !isNaN(time)) {
+              setCurrentTime(time);
+            }
+            if (typeof dur === "number" && !isNaN(dur) && dur > 0) {
+              const currentDuration = usePlayerStore.getState().duration;
+              if (!currentDuration || Math.abs(currentDuration - dur) > 2) {
+                setDuration(dur);
+              }
+            }
+          }
+        } catch {}
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, isVideoMode, isPlayerExpanded, currentSong?.id, setCurrentTime, setDuration]);
 
   // Pre-fetch autoplay suggestions when approaching the end of the queue (before the last 2 songs played)
   const lastAutoplayFetchedRef = useRef<string | null>(null);
@@ -718,11 +822,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         preload="auto"
         onError={handleError}
       />
-      <iframe
-        ref={ytIframeRef}
-        id="youtube-audio-player"
-        src=""
-        allow="autoplay; encrypted-media"
+      <div
         style={{
           position: "fixed",
           width: "1px",
@@ -732,7 +832,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           bottom: "-999px",
           right: "-999px",
         }}
-      />
+      >
+        <div id="youtube-audio-player" />
+      </div>
     </PlayerContext.Provider>
   );
 };

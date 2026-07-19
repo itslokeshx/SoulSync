@@ -33,20 +33,51 @@ def search(
 
     results = yt.search(**kwargs)
 
-    # Defensive filtering based on requested filter type
+    # Defensive metadata verification and filter type mapping
     if isinstance(results, list):
-        if filter == "songs":
-            results = [r for r in results if isinstance(r, dict) and r.get("resultType") in ("song", "video")]
-        elif filter == "artists":
-            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "artist"]
-        elif filter == "albums":
-            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "album"]
-        elif filter == "playlists":
-            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "playlist"]
-        elif filter == "podcasts":
-            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "podcast"]
-        elif filter == "episodes":
-            results = [r for r in results if isinstance(r, dict) and r.get("resultType") == "episode"]
+        filtered_results = []
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+            
+            # Retrieve or backfill title
+            title = r.get("title") or r.get("name")
+            if not title:
+                # Resolve nested text object if title/name is a dict (e.g. { "text": "Song Name" })
+                title_obj = r.get("title")
+                name_obj = r.get("name")
+                if isinstance(title_obj, dict) and title_obj.get("text"):
+                    title = title_obj["text"]
+                    r["title"] = title
+                elif isinstance(name_obj, dict) and name_obj.get("text"):
+                    title = name_obj["text"]
+                    r["name"] = title
+
+            if not title:
+                logger.warning(f"Filtering out search result without title/name: {r.get('videoId') or r.get('browseId')}")
+                continue
+
+            if filter == "songs":
+                if r.get("resultType") in ("song", "video"):
+                    filtered_results.append(r)
+            elif filter == "artists":
+                if r.get("resultType") == "artist":
+                    filtered_results.append(r)
+            elif filter == "albums":
+                if r.get("resultType") == "album":
+                    filtered_results.append(r)
+            elif filter == "playlists":
+                if r.get("resultType") == "playlist":
+                    filtered_results.append(r)
+            elif filter == "podcasts":
+                if r.get("resultType") == "podcast":
+                    filtered_results.append(r)
+            elif filter == "episodes":
+                if r.get("resultType") == "episode":
+                    filtered_results.append(r)
+            else:
+                filtered_results.append(r)
+        results = filtered_results
 
     elapsed = time.perf_counter() - start
     logger.info(f"[search] q='{q}' filter={filter} → {len(results)} results in {elapsed:.2f}s")
