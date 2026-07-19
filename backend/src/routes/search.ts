@@ -65,11 +65,11 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     if (hit) {
       const cached = JSON.parse(hit);
       cached._timings = timings;
+      console.log(`[PerfAudit] Search cache hit: q="${q}" filter="${filter || "all"}" | redisCacheCheck=${timings.redisCacheCheck.toFixed(2)}ms`);
       res.json(cached);
       return;
     }
   } catch {
-    /* miss */
   }
 
   const { queries, knownArtist } = buildSearchQueries(q);
@@ -424,6 +424,8 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     const tCacheWrite = performance.now();
     await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
     timings.cacheWrite = performance.now() - tCacheWrite;
+
+    console.log(`[PerfAudit] Search: q="${q}" filter="${filter || "all"}" | redisCacheCheck=${timings.redisCacheCheck.toFixed(2)}ms parallelSearchFetch=${timings.parallelSearchFetch.toFixed(2)}ms cacheWrite=${timings.cacheWrite.toFixed(2)}ms totalTime=${timings.totalTime.toFixed(2)}ms`);
 
     const trimSong = (s: any) => {
       const { downloadUrl, ...rest } = s;

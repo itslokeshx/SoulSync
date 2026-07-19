@@ -77,6 +77,7 @@ export async function buildDashboard(
       const ttl = isGuest ? 30 * 60 * 1000 : (isDev ? 30 * 1000 : 2 * 60 * 1000);
       if (Date.now() - parsed.generatedAt < ttl) {
         parsed._timings = timings;
+        console.log(`[PerfAudit] Dashboard cache hit: userId="${userId}" | redisCacheCheck=${timings.redisCacheCheck.toFixed(2)}ms`);
         return parsed;
       }
     } catch {
@@ -314,6 +315,8 @@ export async function buildDashboard(
   const tCacheWrite = performance.now();
   await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
   timings.redisCacheWrite = performance.now() - tCacheWrite;
+
+  console.log(`[PerfAudit] Dashboard build: userId="${userId}" | redisCacheCheck=${timings.redisCacheCheck.toFixed(2)}ms dbQueriesParallel=${timings.dbQueriesParallel?.toFixed(2)}ms newReleases=${timings.newReleases?.toFixed(2)}ms madeForYou=${timings.madeForYou?.toFixed(2)}ms podcasts=${timings.podcasts?.toFixed(2)}ms redisCacheWrite=${timings.redisCacheWrite.toFixed(2)}ms totalBuildTime=${timings.totalBuildTime.toFixed(2)}ms`);
 
   return response;
 }

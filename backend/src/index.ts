@@ -121,14 +121,14 @@ app.get("/health", (_req, res) => {
 // ── Keep-alive self-ping to prevent Render free-tier sleep ───────────────
 function startKeepAlive() {
   const raw = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
+  const musicProviderUrl = process.env.MUSIC_PROVIDER_URL;
   if (!raw) {
     logger.info("[KeepAlive] No RENDER_EXTERNAL_URL set — skipping self-ping");
     return;
   }
-  // render.yaml property:host gives bare hostname without scheme — add it
   const base = raw.startsWith("http") ? raw : `https://${raw}`;
   const url = `${base.replace(/\/+$/, "")}/health`;
-  const INTERVAL = 13 * 60 * 1000; // every 13 minutes (Render sleeps after 15)
+  const INTERVAL = 13 * 60 * 1000;
 
   setInterval(async () => {
     try {
@@ -137,9 +137,22 @@ function startKeepAlive() {
     } catch (err) {
       logger.warn(`[KeepAlive] Ping failed: ${(err as Error).message}`);
     }
+
+    if (musicProviderUrl) {
+      try {
+        const providerHealthUrl = `${musicProviderUrl.replace(/\/+$/, "")}/health`;
+        const res = await fetch(providerHealthUrl);
+        logger.info(`[KeepAlive] Pinged Music Provider ${providerHealthUrl} → ${res.status}`);
+      } catch (err) {
+        logger.warn(`[KeepAlive] Music Provider ping failed: ${(err as Error).message}`);
+      }
+    }
   }, INTERVAL);
 
   logger.info(`[KeepAlive] Self-ping active every 13 min → ${url}`);
+  if (musicProviderUrl) {
+    logger.info(`[KeepAlive] Music Provider ping active every 13 min → ${musicProviderUrl}/health`);
+  }
 }
 
 // Initialize Socket.io
