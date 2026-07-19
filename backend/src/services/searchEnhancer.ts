@@ -754,9 +754,23 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
   const allArtistStr = allArtists.join(" ");
 
   // ═══ TITLE MATCHING ═══
+  const cleanedTitle = titleLower
+    .replace(/\(.*?\)/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/\s*-\s*single$/i, "")
+    .replace(/\s*-\s*ep$/i, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim();
+  const cleanedQuery = queryLower
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim();
+
   if (titleLower === queryLower) {
     score += 100;
     reasons.push("exact_title");
+  } else if (cleanedTitle === cleanedQuery) {
+    score += 95;
+    reasons.push("cleaned_exact_title");
   } else {
     const songNameTokens =
       parsed.entities.songName?.toLowerCase().split(/\s+/).filter(Boolean) ||
@@ -943,6 +957,24 @@ export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
       score -= 150;
       reasons.push("world_hit_low_plays_penalty");
     }
+  }
+
+  // ═══ GENERAL DURATION SNIPPET PENALTY ═══
+  if (song.duration && song.duration > 0 && song.duration < 120) {
+    score -= 180;
+    reasons.push("general_snippet_penalty");
+  }
+
+  // ═══ OFFICIAL SOUNDTRACK BOOST ═══
+  if (
+    albumLower &&
+    (albumLower.includes("original motion picture") ||
+      albumLower.includes("soundtrack") ||
+      albumLower.includes("original score") ||
+      albumLower.includes("ost"))
+  ) {
+    score += 55;
+    reasons.push("official_soundtrack_boost");
   }
 
   // ═══ ALBUM NAME HAS QUERY WORDS (original soundtrack) ═══

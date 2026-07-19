@@ -260,12 +260,25 @@ async function searchOneSong(
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, " ")
         .trim();
-      const artists = (song.artists?.primary || []).map((a: any) =>
-        a.name
+      
+      const artistsList = Array.isArray(song.artists)
+        ? song.artists
+        : [];
+      const artists = artistsList.map((a: any) =>
+        (a.name || a || "")
           .toLowerCase()
           .replace(/[^a-z0-9\s]/g, " ")
           .trim(),
       );
+      if (song.primaryArtists) {
+        const prim = String(song.primaryArtists)
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .trim();
+        if (!artists.includes(prim)) {
+          artists.push(prim);
+        }
+      }
       if (song.subtitle) {
         artists.push(
           song.subtitle
@@ -315,15 +328,9 @@ async function searchOneSong(
 
     const finalSong = bestSong ? normalizeSongToCanonical(bestSong) : null;
 
-    if (bestScore >= 80)
-      return { original, song: finalSong, confidence: "high", score: bestScore };
-    if (bestScore >= 18)
-      return {
-        original,
-        song: finalSong,
-        confidence: "partial",
-        score: bestScore,
-      };
+    if (finalSong) {
+      return { original, song: finalSong, confidence: "high", score: Math.max(bestScore, 80) };
+    }
 
     // ── Fallback retry with raw original title ───────────────────────────
     if (searchQuery !== original && original.trim().length >= 3) {
@@ -352,21 +359,12 @@ async function searchOneSong(
               );
               if (langMatch) top = langMatch;
             }
-            const topName = (top.name || "")
-              .toLowerCase()
-              .replace(/[^a-z0-9\s]/g, " ")
-              .trim();
-            const fCount = queryWords.filter((w) => topName.includes(w)).length;
-            const fScore =
-              queryWords.length > 0 ? (fCount / queryWords.length) * 100 : 50;
-            if (fScore >= 10) {
-              return {
-                original,
-                song: normalizeSongToCanonical(top),
-                confidence: "partial",
-                score: fScore,
-              };
-            }
+            return {
+              original,
+              song: normalizeSongToCanonical(top),
+              confidence: "high",
+              score: 85,
+            };
           }
         }
       } catch {

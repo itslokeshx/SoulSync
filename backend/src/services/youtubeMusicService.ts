@@ -208,7 +208,7 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
     album: decodeHtmlEntities(album || name),
     albumId,
     duration,
-    language: (raw.language || "english").toLowerCase(),
+    language: (raw.language || "").toLowerCase(),
     year: String(raw.year || ""),
     releaseDate: raw.releaseDate ? String(raw.releaseDate) : undefined,
     streamUrl: proxyUrl,
