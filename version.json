@@ -1,11 +1,11 @@
 {
-    "version": "4.0.0",
-    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk",
+    "version": "5.0.0",
+    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_5.0.apk",
     "force": false,
     "changelog": [
-        "Auto Song Suggestion (Infinite Playback)",
-        "Active Announcements Engine with Auto-Popup",
-        "Feedback Portal & Admin Panel",
-        "70/30 Balanced Recommendation Engine"
+        "450x faster dashboard & page loads (0.04s response time)",
+        "Global language new release caching",
+        "Python music provider deployment with Deno",
+        "Expired cookies auto-recovery & PO Token bot bypass"
     ]
 }
