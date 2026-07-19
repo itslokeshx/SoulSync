@@ -11,8 +11,8 @@ export interface NormalizedSong {
   id: string;
   name: string;
   primaryArtists: string;
-  image: Array<{ quality: string; url: string }> | string;
-  album: { name?: string } | string;
+  image: Array<{ quality: string; url: string }>;
+  album: { id: string; name: string; url?: string };
   albumId?: string;
   duration: number;
   language: string;
@@ -75,7 +75,7 @@ export function normalizeSong(raw: any): NormalizedSong | null {
   }
 
   // -- Image: normalize to array format --------------------------------
-  let image: Array<{ quality: string; url: string }> | string = [];
+  let image: Array<{ quality: string; url: string }> = [];
   if (typeof raw.image === "string" && raw.image) {
     image = [
       {
@@ -112,12 +112,16 @@ export function normalizeSong(raw: any): NormalizedSong | null {
   // -- Album -----------------------------------------------------------
   const album =
     raw.album && typeof raw.album === "object"
-      ? raw.album
-      : { name: raw.album || "" };
-  const albumId =
-    typeof raw.album === "object"
-      ? raw.album?.id || raw.albumId || ""
-      : raw.albumId || "";
+      ? {
+          id: String(raw.album.id || raw.albumId || ""),
+          name: String(raw.album.name || raw.album.title || ""),
+          url: String(raw.album.url || ""),
+        }
+      : {
+          id: String(raw.albumId || ""),
+          name: String(raw.album || ""),
+        };
+  const albumId = album.id;
 
   return {
     id,

@@ -16,6 +16,7 @@ import {
   updatePositionState,
 } from "../capacitor/musicControls";
 import { getBestAudioUrl, getBestImageUrl } from "../utils/getBestAudioUrl";
+import { normalizeSongs } from "../utils/normalizeSong";
 import {
   initBackgroundAudio,
   registerPlayerGetters,
@@ -649,9 +650,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           .then((data) => {
             const songs: any[] = data?.songs ?? [];
             if (!songs.length) return;
+            const normalized = normalizeSongs(songs);
+            if (!normalized.length) return;
             // Filter out duplicates already in the queue
             const queueIds = new Set(queue.map((s) => s.id));
-            const newSongs = songs.filter((s) => s.id && !queueIds.has(s.id));
+            const newSongs = normalized.filter((s) => s.id && !queueIds.has(s.id));
             newSongs.forEach((s) => addLast(s));
           })
           .catch((err) => {
@@ -721,7 +724,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               .then((data) => {
                 const songs: any[] = data?.songs ?? [];
                 if (!songs.length) { pause(); return; }
-                songs.forEach((s) => addLast(s));
+                const normalized = normalizeSongs(songs);
+                if (!normalized.length) { pause(); return; }
+                normalized.forEach((s) => addLast(s));
                 // Advance past the now-extended queue
                 const nextSong = useQueueStore.getState().next(repeatMode);
                 if (nextSong) playSong(nextSong);

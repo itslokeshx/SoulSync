@@ -24,6 +24,7 @@ import {
   getArtists,
 } from "../../lib/helpers";
 import * as api from "../../api/backend";
+import { normalizeSongs } from "../../utils/normalizeSong";
 import toast from "react-hot-toast";
 import { useAnnouncements } from "../../hooks/useAnnouncements";
 
@@ -152,7 +153,12 @@ export function AppLayout() {
               pause();
               return;
             }
-            songs.forEach((s) => addLast(s));
+            const normalized = normalizeSongs(songs);
+            if (!normalized.length) {
+              pause();
+              return;
+            }
+            normalized.forEach((s) => addLast(s));
             const nextSong = useQueueStore.getState().next(repeatMode);
             if (nextSong) {
               playSong(nextSong);
