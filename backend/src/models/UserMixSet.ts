@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IMix {
-  key: "new_music" | "favorites" | "discovery" | "because_you_liked";
+  key: "new_music" | "favorites" | "discovery" | "because_you_liked" | "weekly_mix";
   title: string;
   description: string;
   songIds: string[];
@@ -23,7 +23,7 @@ const MixSchema = new Schema<IMix>(
     key: {
       type: String,
       required: true,
-      enum: ["new_music", "favorites", "discovery", "because_you_liked"],
+      enum: ["new_music", "favorites", "discovery", "because_you_liked", "weekly_mix"],
     },
     title: { type: String, required: true },
     description: { type: String, required: true },

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { pLimit } from "../utils/concurrency.js";
+import { redisGet, redisSet } from "./redis.js";
 
 export function isYouTubeId(id: string): boolean {
   return /^[a-zA-Z0-9_-]{11}$/.test(id);
@@ -701,3 +702,27 @@ export function markUserQueryEnd(): void {
 export function hasActiveUserQueries(): boolean {
   return activeQueries > 0;
 }
+
+export async function getHomeFeed(limit = 10): Promise<any> {
+  const cacheKey = `youtube_home_feed:${limit}`;
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    // Ignore cache read error
+  }
+
+  try {
+    const data = await callMusicProvider("/home", { limit });
+    if (data && data.sections) {
+      await redisSet(cacheKey, JSON.stringify(data), 1800).catch(() => {});
+    }
+    return data;
+  } catch (err: any) {
+    console.error("[youtubeMusicService] getHomeFeed failed:", err.message || err);
+    return { sections: [], count: 0 };
+  }
+}
+

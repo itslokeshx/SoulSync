@@ -724,11 +724,11 @@ export const HomePage = () => {
 
 
 
-      {/* ── QUICK PICKS ── */}
+      {/* ── CONTINUE LISTENING ── */}
       {user && (
         <div className="mb-10">
           <SectionHeader
-            title="Quick picks"
+            title="Continue Listening"
             subtitle="Jump back in"
             action={
               <button
@@ -739,7 +739,6 @@ export const HomePage = () => {
                 <Shuffle size={14} />
               </button>
             }
-            onSeeAll={() => navigate("/library")}
           />
           {isLoading ? (
             <div className="space-y-2">
@@ -794,80 +793,10 @@ export const HomePage = () => {
           )}
         </div>
       )}
-
-      {/* ── REMIX OF THE WEEK ── */}
-      {user && suggestionsSongs.length > 0 && (
-        <div className="mb-10 animate-fadeIn">
-          <SectionHeader
-            title="Remix of the Week"
-            subtitle="Tuned to your taste"
-            onSeeAll={() => navigate("/search")}
-          />
-          {isLoading ? (
-            <div className="space-y-4">
-              <div className="flex gap-3 overflow-hidden">
-                {Array.from({ length: 6 }).map((_, j) => (
-                  <div
-                    key={j}
-                    className="flex-shrink-0 w-44 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04]"
-                  >
-                    <Skeleton className="w-full aspect-square mb-3 rounded-xl" />
-                    <Skeleton className="h-3 w-4/5 mb-2 rounded-md" />
-                    <Skeleton className="h-2.5 w-1/2 rounded-md" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {row1 && row1.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
-                  {row1.map((s, idx) => (
-                    <SongCardInline
-                      key={`${s.id}-row1-${idx}`}
-                      song={s}
-                      isCurrent={currentSong?.id === s.id}
-                      isPlaying={isPlaying}
-                      onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
-                    />
-                  ))}
-                </div>
-              )}
-              {row2 && row2.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
-                  {row2.map((s, idx) => (
-                    <SongCardInline
-                      key={`${s.id}-row2-${idx}`}
-                      song={s}
-                      isCurrent={currentSong?.id === s.id}
-                      isPlaying={isPlaying}
-                      onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
-                    />
-                  ))}
-                </div>
-              )}
-              {row3 && row3.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
-                  {row3.map((s, idx) => (
-                    <SongCardInline
-                      key={`${s.id}-row3-${idx}`}
-                      song={s}
-                      isCurrent={currentSong?.id === s.id}
-                      isPlaying={isPlaying}
-                      onPlay={() => handleHomeSongClick(s, suggestionsSongs)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ── NEW RELEASES ── */}
       <div className="mb-10">
         <SectionHeader
-          title={dashboard?.newReleases?.title || "New releases"}
+          title="New Releases"
           subtitle="Fresh from your languages"
         />
         {isLoading ? (

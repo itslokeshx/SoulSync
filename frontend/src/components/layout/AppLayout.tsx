@@ -72,7 +72,7 @@ export function AppLayout() {
     setPlayerExpanded(npOpen);
   }, [npOpen, setPlayerExpanded]);
 
-  const { queue, queueIndex, next, prev, move, remove, shuffle, setQueue } =
+  const { queue, queueIndex, next, prev, move, remove, shuffle, setQueue, addLast } =
     useQueueStore();
 
   const [likedSongs, toggleLike, setAllLiked] = useLikedSongs(isAuthenticated);
@@ -136,6 +136,39 @@ export function AppLayout() {
     },
     [likedSongs, toggleLike, gate],
   );
+
+  const handleNext = useCallback(() => {
+    const n = next(repeatMode);
+    if (n) {
+      playSong(n);
+    } else {
+      const { autoplay: ap, currentSong: song } = usePlayerStore.getState();
+      if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
+        toast("Finding up next...");
+        api.getAutoplaySongs(song.id)
+          .then((data) => {
+            const songs: any[] = data?.songs ?? [];
+            if (!songs.length) {
+              pause();
+              return;
+            }
+            songs.forEach((s) => addLast(s));
+            const nextSong = useQueueStore.getState().next(repeatMode);
+            if (nextSong) {
+              playSong(nextSong);
+            } else {
+              pause();
+            }
+          })
+          .catch((err) => {
+            console.error("[Player] Autoplay fetch failed:", err);
+            pause();
+          });
+      } else {
+        pause();
+      }
+    }
+  }, [next, repeatMode, playSong, addLast, pause]);
 
   const appContextValue = {
     currentSong,
@@ -307,10 +340,7 @@ export function AppLayout() {
             const p = prev();
             if (p) playSong(p);
           }}
-          onNext={() => {
-            const n = next(repeatMode);
-            if (n) playSong(n);
-          }}
+          onNext={handleNext}
           onShuffle={toggleShuffle}
           onRepeat={cycleRepeat}
           onLike={handleLike}
@@ -341,10 +371,7 @@ export function AppLayout() {
               const p = prev();
               if (p) playSong(p);
             }}
-            onNext={() => {
-              const n = next(repeatMode);
-              if (n) playSong(n);
-            }}
+            onNext={handleNext}
             onShuffle={toggleShuffle}
             onRepeat={cycleRepeat}
             onLike={handleLike}

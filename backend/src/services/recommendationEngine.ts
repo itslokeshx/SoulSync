@@ -20,6 +20,9 @@ import {
   normalizeSongsToCanonical,
   getSongsDetailsBatch,
   searchPodcasts,
+  searchAlbums,
+  fetchAlbumSongs,
+  getHomeFeed,
   type Song,
 } from "./youtubeMusicService.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
@@ -1371,86 +1374,56 @@ const LANGUAGE_PLAYLIST_MAP: Record<string, string[]> = {
   bhojpuri: ["latest bhojpuri", "new releases bhojpuri"],
 };
 
-async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
+async function fetchCuratedNewReleases(lang: string, homeAlbumIds: string[] = []): Promise<Song[]> {
   const currentYear = new Date().getFullYear();
-  const searchTerms = LANGUAGE_PLAYLIST_MAP[lang.toLowerCase()] || [
-    `latest ${lang}`,
-    `new releases ${lang}`,
-  ];
-
   const candidates: Song[] = [];
-  const seen = new Set<string>();
+  const seenIds = new Set<string>();
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  const addSongs = (songs: Song[]) => {
-    for (const s of songs) {
-      if (s?.id && !seen.has(s.id)) {
-        seen.add(s.id);
-        candidates.push(s);
-      }
-    }
-  };
-
-  // 1. Fetch from the top 2 curated playlists in parallel
+  // 2. Search for language-specific new release albums
+  let searchAlbumIds: string[] = [];
   try {
-    const playlistsResults = await Promise.allSettled(
-      searchTerms.map((term) => searchPlaylists(term, 2))
-    );
-
-    const playlistIds: string[] = [];
-    for (const res of playlistsResults) {
-      if (res.status === "fulfilled" && Array.isArray(res.value)) {
-        for (const playlist of res.value) {
-          if (playlist?.id) playlistIds.push(playlist.id);
-        }
-      }
-    }
-
-    if (playlistIds.length > 0) {
-      const playlistLimit = pLimit(3);
-      const chunkSize = 3;
-      const chunks: string[][] = [];
-      for (let i = 0; i < playlistIds.length; i += chunkSize) {
-        chunks.push(playlistIds.slice(i, i + chunkSize));
-      }
-
-      const songsResults: PromiseSettledResult<any[]>[] = [];
-      for (const batch of chunks) {
-        const batchResults = await Promise.allSettled(
-          batch.map((id) => playlistLimit(() => getPlaylistSongs(id)))
-        );
-        songsResults.push(...batchResults);
-        // Short pause between batches to prevent hammering
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-
-      for (const res of songsResults) {
-        if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
-          addSongs(normalizeSongsToCanonical(res.value));
-        }
-      }
+    const query = `new release ${lang} album`;
+    const searchResults = await searchAlbums(query, 3);
+    if (searchResults && Array.isArray(searchResults)) {
+      searchAlbumIds = searchResults
+        .filter((a: any) => String(a.year) === String(currentYear))
+        .map((a: any) => a.browseId || a.id)
+        .filter(Boolean);
     }
   } catch (err) {
-    console.warn(`[NewReleases] Failed to fetch playlists for lang: ${lang}`, err);
+    console.warn(`[NewReleases] Failed to search albums for ${lang}`, err);
   }
 
-  // 2. Fetch from active search results for new releases to capture the latest individual tracks in parallel
-  const searchQueries = [
-    `new ${lang} songs ${currentYear}`,
-    `latest ${lang} songs ${currentYear}`,
-  ];
+  // Combine album IDs, take top 2 to keep request count extremely low and fast
+  const allAlbumIds = Array.from(new Set([...homeAlbumIds.slice(0, 1), ...searchAlbumIds])).slice(0, 2);
 
-  try {
-    const searchLimit = pLimit(2);
-    const searchResults = await Promise.allSettled(
-      searchQueries.map((query) => searchLimit(() => searchSongs(query, 35)))
-    );
-    for (const res of searchResults) {
-      if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
-        addSongs(normalizeSongsToCanonical(res.value));
+  if (allAlbumIds.length > 0) {
+    try {
+      const albumLimit = pLimit(2);
+      const tracksResults = await Promise.allSettled(
+        allAlbumIds.map((id) => albumLimit(() => fetchAlbumSongs(id)))
+      );
+
+      for (const res of tracksResults) {
+        if (res.status === "fulfilled" && Array.isArray(res.value)) {
+          for (const s of res.value) {
+            if (s && s.id && !seenIds.has(s.id)) {
+              seenIds.add(s.id);
+              // Explicitly tag the language, year, and releaseDate since they come from a 2026 album
+              s.language = lang.toLowerCase();
+              s.year = String(currentYear);
+              if (!s.releaseDate) {
+                s.releaseDate = todayStr;
+              }
+              candidates.push(s);
+            }
+          }
+        }
       }
+    } catch (err) {
+      console.warn(`[NewReleases] Failed to fetch album tracks for ${lang}`, err);
     }
-  } catch (err) {
-    console.error(`[NewReleases] Search queries failed for lang: ${lang}`, err);
   }
 
   return candidates;
@@ -1516,9 +1489,26 @@ export async function getIndustryNewReleases(
     console.error("[recommendationEngine] getIndustryNewReleases cache read failed:", err);
   }
 
+  // 1. Fetch from global home feed "New Releases" shelf if available (once for all languages)
+  let homeAlbumIds: string[] = [];
+  try {
+    const homeFeed = await getHomeFeed(15);
+    const sections = homeFeed.sections || [];
+    const newReleasesSection = sections.find(
+      (s: any) => s.title && s.title.toLowerCase() === "new releases"
+    );
+    if (newReleasesSection && Array.isArray(newReleasesSection.contents)) {
+      homeAlbumIds = newReleasesSection.contents
+        .map((c: any) => c.browseId)
+        .filter(Boolean);
+    }
+  } catch (err) {
+    console.warn("[NewReleases] Failed to fetch home feed new releases", err);
+  }
+
   const langLimit = pLimit(2);
   const fetchResults = await Promise.allSettled(
-    targetLangs.map((l) => langLimit(() => fetchCuratedNewReleases(l)))
+    targetLangs.map((l) => langLimit(() => fetchCuratedNewReleases(l, homeAlbumIds)))
   );
 
   const candidates: Song[] = [];

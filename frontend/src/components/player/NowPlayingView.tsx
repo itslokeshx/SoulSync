@@ -26,6 +26,7 @@ import {
   Video,
   Maximize2,
   Minimize2,
+  Settings,
 } from "lucide-react";
 import {
   bestImg,
@@ -168,6 +169,35 @@ export const NowPlayingView = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [quality, setQuality] = useState("default");
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+
+  const handleQualityChange = (q: string) => {
+    // Capture current playing time so the video resumes from the exact spot after reload
+    setVideoStartTime(Math.floor(currentTime));
+    setQuality(q);
+    setShowQualityMenu(false);
+  };
+
+  // Close quality dropdown when tapping outside
+  useEffect(() => {
+    if (!showQualityMenu) return;
+    const close = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest(".quality-trigger") || target.closest(".quality-menu")) {
+        return;
+      }
+      setShowQualityMenu(false);
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener("pointerdown", close);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("pointerdown", close);
+    };
+  }, [showQualityMenu]);
 
   useEffect(() => {
     const becameOpen = isOpen && !prevIsOpen.current;
@@ -559,7 +589,7 @@ export const NowPlayingView = ({
               >
                 <iframe
                   ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}`}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}&vq=${quality}`}
                   title={currentSong.name}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -567,13 +597,58 @@ export const NowPlayingView = ({
                   className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
                 />
                 {!isFullscreen && (
-                  <button
-                    onClick={toggleFullscreen}
-                    className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center shadow-lg pointer-events-auto"
-                    title="Toggle Fullscreen"
-                  >
-                    <Maximize2 size={14} className="text-white/80" />
-                  </button>
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto z-50">
+                    {/* Quality Button */}
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowQualityMenu(!showQualityMenu);
+                        }}
+                        className="quality-trigger bg-black/60 hover:bg-black/80 border border-white/10 text-white px-2 py-1.5 rounded-xl backdrop-blur-md transition-all active:scale-95 flex items-center gap-1 shadow-lg text-[9px] sm:text-[10px] font-bold"
+                        title="Video Quality"
+                      >
+                        <Settings size={12} />
+                        <span>{quality === "default" ? "Auto" : quality === "hd1080" ? "1080p" : quality === "hd720" ? "720p" : quality === "large" ? "480p" : quality === "medium" ? "360p" : "240p"}</span>
+                      </button>
+                      
+                      {showQualityMenu && (
+                        <div className="quality-menu absolute bottom-10 right-0 bg-black/95 border border-white/15 rounded-xl p-1 z-[100] flex flex-col min-w-[110px] shadow-2xl backdrop-blur-xl">
+                          {[
+                            { val: "default", label: "Auto" },
+                            { val: "hd1080", label: "1080p" },
+                            { val: "hd720", label: "720p" },
+                            { val: "large", label: "480p" },
+                            { val: "medium", label: "360p" },
+                            { val: "small", label: "240p" }
+                          ].map((opt) => (
+                            <button
+                              key={opt.val}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQualityChange(opt.val);
+                              }}
+                              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10 flex items-center justify-between ${
+                                quality === opt.val ? "text-sp-green" : "text-white/80"
+                              }`}
+                            >
+                              <span>{opt.label}</span>
+                              {quality === opt.val && <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fullscreen Button */}
+                    <button
+                      onClick={toggleFullscreen}
+                      className="bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md transition-all active:scale-95 flex items-center justify-center shadow-lg"
+                      title="Toggle Fullscreen"
+                    >
+                      <Maximize2 size={14} className="text-white/80" />
+                    </button>
+                  </div>
                 )}
                 {isFullscreen && (
                   <div
@@ -612,7 +687,7 @@ export const NowPlayingView = ({
                       </div>
 
                       {/* Right: Controls & Info */}
-                      <div className="flex items-center gap-4 justify-end flex-shrink-0">
+                      <div className="flex items-center gap-4 justify-end flex-shrink-0 relative">
                         {/* Play/Pause Button */}
                         <button
                           onClick={onPlayPause}
@@ -628,6 +703,52 @@ export const NowPlayingView = ({
                         <span className="text-[10px] text-white/50 tabular-nums font-semibold">
                           {fmt(currentTime)} / {fmt(duration)}
                         </span>
+
+                        {/* Quality Controller */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              queueMicrotask(() => setShowQualityMenu(!showQualityMenu));
+                            }}
+                            className={`quality-trigger px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all active:scale-95 pointer-events-auto flex items-center gap-1 ${
+                              showQualityMenu
+                                ? "bg-white text-black border-white"
+                                : "bg-white/10 hover:bg-white/20 text-white/90 border-white/10"
+                            }`}
+                            title="Video Quality"
+                          >
+                            <Settings size={12} />
+                            <span>{quality === "default" ? "Auto" : quality === "hd1080" ? "1080p" : quality === "hd720" ? "720p" : quality === "large" ? "480p" : quality === "medium" ? "360p" : "240p"}</span>
+                          </button>
+                          
+                          {showQualityMenu && (
+                            <div className="quality-menu absolute bottom-10 right-0 bg-black/95 border border-white/15 rounded-xl p-1 z-[100] flex flex-col min-w-[110px] shadow-2xl backdrop-blur-xl pointer-events-auto">
+                              {[
+                                { val: "default", label: "Auto" },
+                                { val: "hd1080", label: "1080p" },
+                                { val: "hd720", label: "720p" },
+                                { val: "large", label: "480p" },
+                                { val: "medium", label: "360p" },
+                                { val: "small", label: "240p" }
+                              ].map((opt) => (
+                                <button
+                                  key={opt.val}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQualityChange(opt.val);
+                                  }}
+                                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10 flex items-center justify-between ${
+                                    quality === opt.val ? "text-sp-green" : "text-white/80"
+                                  }`}
+                                >
+                                  <span>{opt.label}</span>
+                                  {quality === opt.val && <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
                         <button
                           onClick={toggleFullscreen}

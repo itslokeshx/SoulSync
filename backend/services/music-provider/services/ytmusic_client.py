@@ -19,12 +19,23 @@ _client: Optional[YTMusic] = None
 import requests
 from requests.adapters import HTTPAdapter
 
+class TimeoutHTTPAdapter(HTTPAdapter):
+    def __init__(self, *args, timeout=10, **kwargs):
+        self.timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        if "timeout" not in kwargs or kwargs["timeout"] is None:
+            kwargs["timeout"] = self.timeout
+        return super().send(request, **kwargs)
+
 def create_session() -> requests.Session:
     session = requests.Session()
-    adapter = HTTPAdapter(pool_connections=40, pool_maxsize=40)
+    adapter = TimeoutHTTPAdapter(pool_connections=40, pool_maxsize=40, timeout=10)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
+
 
 
 def get_client() -> YTMusic:
