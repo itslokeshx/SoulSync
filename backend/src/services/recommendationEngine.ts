@@ -1380,51 +1380,77 @@ async function fetchCuratedNewReleases(lang: string, homeAlbumIds: string[] = []
   const seenIds = new Set<string>();
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // 2. Search for language-specific new release albums
-  let searchAlbumIds: string[] = [];
+  // 1. Try to fetch from the latest language-specific playlist for absolute recency
   try {
-    const query = `new release ${lang} album`;
-    const searchResults = await searchAlbums(query, 3);
-    if (searchResults && Array.isArray(searchResults)) {
-      searchAlbumIds = searchResults
-        .filter((a: any) => String(a.year) === String(currentYear))
-        .map((a: any) => a.browseId || a.id)
-        .filter(Boolean);
-    }
-  } catch (err) {
-    console.warn(`[NewReleases] Failed to search albums for ${lang}`, err);
-  }
-
-  // Combine album IDs. For language-specific curations (especially regional ones), only use searchAlbumIds to avoid contaminating with global/Hindi home feed releases.
-  const isGlobalLang = ["hindi", "english"].includes(lang.toLowerCase());
-  const baseAlbumIds = isGlobalLang ? homeAlbumIds : [];
-  const allAlbumIds = Array.from(new Set([...baseAlbumIds.slice(0, 1), ...searchAlbumIds])).slice(0, 2);
-
-  if (allAlbumIds.length > 0) {
-    try {
-      const albumLimit = pLimit(2);
-      const tracksResults = await Promise.allSettled(
-        allAlbumIds.map((id) => albumLimit(() => fetchAlbumSongs(id)))
-      );
-
-      for (const res of tracksResults) {
-        if (res.status === "fulfilled" && Array.isArray(res.value)) {
-          for (const s of res.value) {
-            if (s && s.id && !seenIds.has(s.id)) {
-              seenIds.add(s.id);
-              // Explicitly tag the language, year, and releaseDate since they come from a 2026 album
-              s.language = lang.toLowerCase();
-              s.year = String(currentYear);
-              if (!s.releaseDate) {
-                s.releaseDate = todayStr;
-              }
-              candidates.push(s);
-            }
+    const playlistQuery = `latest ${lang} songs playlist`;
+    const searchPlaylistsResults = await searchPlaylists(playlistQuery, 2);
+    if (searchPlaylistsResults && searchPlaylistsResults.length > 0) {
+      const targetPlaylist = searchPlaylistsResults[0];
+      if (targetPlaylist && targetPlaylist.id) {
+        const playlistSongsRaw = await getPlaylistSongs(targetPlaylist.id);
+        const normalizedSongs = normalizeSongsToCanonical(playlistSongsRaw);
+        for (const s of normalizedSongs) {
+          if (s && s.id && !seenIds.has(s.id)) {
+            seenIds.add(s.id);
+            s.language = lang.toLowerCase();
+            s.year = String(currentYear);
+            if (!s.releaseDate) s.releaseDate = todayStr;
+            candidates.push(s);
           }
         }
       }
+    }
+  } catch (err) {
+    console.warn(`[NewReleases] Failed to fetch playlist new releases for ${lang}`, err);
+  }
+
+  // 2. Search for language-specific new release albums as fallback/supplement
+  if (candidates.length < 12) {
+    let searchAlbumIds: string[] = [];
+    try {
+      const query = `new release ${lang} album`;
+      const searchResults = await searchAlbums(query, 3);
+      if (searchResults && Array.isArray(searchResults)) {
+        searchAlbumIds = searchResults
+          .filter((a: any) => String(a.year) === String(currentYear))
+          .map((a: any) => a.browseId || a.id)
+          .filter(Boolean);
+      }
     } catch (err) {
-      console.warn(`[NewReleases] Failed to fetch album tracks for ${lang}`, err);
+      console.warn(`[NewReleases] Failed to search albums for ${lang}`, err);
+    }
+
+    // Combine album IDs. For language-specific curations (especially regional ones), only use searchAlbumIds to avoid contaminating with global/Hindi home feed releases.
+    const isGlobalLang = ["hindi", "english"].includes(lang.toLowerCase());
+    const baseAlbumIds = isGlobalLang ? homeAlbumIds : [];
+    const allAlbumIds = Array.from(new Set([...baseAlbumIds.slice(0, 1), ...searchAlbumIds])).slice(0, 2);
+
+    if (allAlbumIds.length > 0) {
+      try {
+        const albumLimit = pLimit(2);
+        const tracksResults = await Promise.allSettled(
+          allAlbumIds.map((id) => albumLimit(() => fetchAlbumSongs(id)))
+        );
+
+        for (const res of tracksResults) {
+          if (res.status === "fulfilled" && Array.isArray(res.value)) {
+            for (const s of res.value) {
+              if (s && s.id && !seenIds.has(s.id)) {
+                seenIds.add(s.id);
+                // Explicitly tag the language, year, and releaseDate since they come from a 2026 album
+                s.language = lang.toLowerCase();
+                s.year = String(currentYear);
+                if (!s.releaseDate) {
+                  s.releaseDate = todayStr;
+                }
+                candidates.push(s);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[NewReleases] Failed to fetch album tracks for ${lang}`, err);
+      }
     }
   }
 

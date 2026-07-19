@@ -689,9 +689,18 @@ export const HomePage = () => {
   } = useDashboard(onPlay);
 
 
-  const quickPicks = normalizedRecentlyPlayed.length
-    ? normalizedRecentlyPlayed.slice(0, 12)
-    : suggestionsSongs.slice(0, 12);
+  const quickPicks = useMemo(() => {
+    const list: any[] = [];
+    const seen = new Set<string>();
+    const addToList = (s: any) => {
+      if (!s || !s.id || seen.has(s.id)) return;
+      seen.add(s.id);
+      list.push(s);
+    };
+    for (const s of normalizedRecentlyPlayed) addToList(s);
+    for (const s of suggestionsSongs) addToList(s);
+    return list.slice(0, 18);
+  }, [normalizedRecentlyPlayed, suggestionsSongs]);
 
   const newReleasesList = normalizedNewReleases.slice(0, 8);
 
@@ -752,44 +761,65 @@ export const HomePage = () => {
                 songs={quickPicks}
                 currentSong={currentSong}
                 isPlaying={isPlaying}
-                onPlay={(s) => handleHomeSongClick(s, mobileGridSongs || quickPicks)}
+                onPlay={(s) => handleHomeSongClick(s, quickPicks)}
               />
             )
           )}
         </div>
       )}
 
-      {/* ── WEEKLY MIXES ── */}
+      {/* ── MADE FOR YOU (WEEKLY MIXES) ── */}
       {mixSet?.mixes && mixSet.mixes.length > 0 && (
         <div className="mb-10">
           {mixesLoading ? (
-            <>
+            <div className="space-y-2">
               <Skeleton className="h-7 w-48 rounded-md mb-5" />
-              <div className="flex gap-4 overflow-hidden">
-                {Array.from({ length: 4 }).map((_, j) => (
-                  <div key={j} className="flex-shrink-0 w-52">
-                    <Skeleton className="w-full aspect-square rounded-2xl mb-3" />
-                    <Skeleton className="h-4 w-3/4 rounded-md mb-2" />
-                    <Skeleton className="h-3 w-1/2 rounded-md" />
-                  </div>
-                ))}
-              </div>
-            </>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-xl" />
+              ))}
+            </div>
           ) : (
             mixSet.mixes
               .filter((m: any) => (m.songs || []).length > 0)
-              .map((mix: any) => (
-                <HSectionInline
-                  key={mix.key}
-                  title={mix.title}
-                  subtitle={mix.description}
-                  songs={mix.songs}
-                  currentSong={currentSong}
-                  isPlaying={isPlaying}
-                  onPlay={(song, queue) => onPlay(song, queue)}
-                  cardSize="lg"
-                />
-              ))
+              .map((mix: any) => {
+                const displaySongs = mix.songs.slice(0, 6);
+                return (
+                  <div key={mix.key} className="mb-8">
+                    <SectionHeader
+                      title={mix.title}
+                      subtitle={mix.description}
+                    />
+                    
+                    {/* Desktop: 2-column grid (3 rows) */}
+                    <div className="hidden md:grid md:grid-cols-2 gap-2">
+                      {displaySongs.map((s: any, i: number) => (
+                        <SongRowInline
+                          key={`${s.id}-${i}`}
+                          song={s}
+                          index={i + 1}
+                          isCurrent={currentSong?.id === s.id}
+                          isPlaying={isPlaying}
+                          onPlay={() => handleHomeSongClick(s, mix.songs)}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Mobile: 1-column list (6 rows) */}
+                    <div className="grid grid-cols-1 gap-2 md:hidden">
+                      {displaySongs.map((s: any, i: number) => (
+                        <SongRowInline
+                          key={`${s.id}-mob-${i}`}
+                          song={s}
+                          index={i + 1}
+                          isCurrent={currentSong?.id === s.id}
+                          isPlaying={isPlaying}
+                          onPlay={() => handleHomeSongClick(s, mix.songs)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
           )}
         </div>
       )}
