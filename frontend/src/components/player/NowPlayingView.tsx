@@ -140,7 +140,91 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
-  const { autoplay, toggleAutoplay, isVideoMode, setIsVideoMode } = usePlayerStore();
+  const { 
+    autoplay, 
+    toggleAutoplay, 
+    isVideoMode, 
+    setIsVideoMode,
+    setCurrentTime,
+    setDuration,
+    setIsPlaying,
+    isMuted
+  } = usePlayerStore();
+
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const isSeekingRef = useRef(false);
+
+  // Sync YouTube playback events (Time, Duration, PlayState, EndOfVideo)
+  useEffect(() => {
+    if (!isVideoMode) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.origin.includes("youtube.com")) return;
+
+      let payload = event.data;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          return;
+        }
+      }
+
+      if (!payload || typeof payload !== "object") return;
+
+      if (payload.event === "infoDelivery" || payload.event === "initialDelivery") {
+        const info = payload.info;
+        if (info) {
+          if (typeof info.currentTime === "number" && !isSeekingRef.current) {
+            setCurrentTime(info.currentTime);
+          }
+          if (typeof info.duration === "number") {
+            setDuration(info.duration);
+          }
+          if (typeof info.playerState === "number") {
+            if (info.playerState === 1) {
+              setIsPlaying(true);
+            } else if (info.playerState === 2) {
+              setIsPlaying(false);
+            } else if (info.playerState === 0) {
+              setIsPlaying(false);
+              onNext(); // Trigger auto-advance to next song
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [isVideoMode, setCurrentTime, setDuration, setIsPlaying, onNext]);
+
+  // Sync state changes from app -> YouTube player
+  useEffect(() => {
+    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow) return;
+
+    const command = isPlaying ? "playVideo" : "pauseVideo";
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: command, args: [] }),
+      "*"
+    );
+  }, [isPlaying, isVideoMode]);
+
+  useEffect(() => {
+    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow) return;
+
+    const targetVol = volume * 100;
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: "setVolume", args: [targetVol] }),
+      "*"
+    );
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: isMuted ? "mute" : "unMute", args: [] }),
+      "*"
+    );
+  }, [volume, isMuted, isVideoMode]);
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -228,11 +312,25 @@ export const NowPlayingView = ({
     if (img) extractColor(img).then((c) => c && setBgColor(c));
   }, [currentSong?.id]);
 
-  useEffect(() => {
-    if (isVideoMode && isPlaying) {
-      onPlayPause();
+  const handleSeek = (val: number) => {
+    onSeek(val);
+    if (isVideoMode && iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: "seekTo", args: [val, true] }),
+        "*"
+      );
     }
-  }, [isVideoMode]);
+  };
+
+  const handleSeekStart = () => {
+    isSeekingRef.current = true;
+    onSeekStart();
+  };
+
+  const handleSeekEnd = () => {
+    isSeekingRef.current = false;
+    onSeekEnd();
+  };
 
 
   if (!currentSong) return null;
@@ -336,12 +434,13 @@ export const NowPlayingView = ({
             {isVideoMode ? (
               <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black relative flex items-center justify-center">
                 <iframe
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&rel=0&modestbranding=1`}
+                  ref={iframeRef}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1`}
                   title={currentSong.name}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
-                  className="w-full h-full rounded-2xl sm:rounded-3xl"
+                  className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
                 />
               </div>
             ) : (
@@ -496,9 +595,9 @@ export const NowPlayingView = ({
               max={duration || 0}
               step="any"
               value={currentTime}
-              onChange={(e) => onSeek(+e.target.value)}
-              onPointerDown={onSeekStart}
-              onPointerUp={onSeekEnd}
+              onChange={(e) => handleSeek(+e.target.value)}
+              onPointerDown={handleSeekStart}
+              onPointerUp={handleSeekEnd}
               className="progress-bar progress-glow w-full h-1.5 rounded-full cursor-pointer"
               style={
                 {

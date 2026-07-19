@@ -60,6 +60,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     resume,
     seekTo,
     setIsPlaying,
+    isVideoMode,
   } = usePlayerStore();
 
   const { next, prev, queue, queueIndex, addLast } = useQueueStore();
@@ -271,7 +272,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       const currentState = usePlayerStore.getState();
       if (
         currentState.isPlaying &&
-        currentState.currentSong?.id === currentSong.id
+        currentState.currentSong?.id === currentSong.id &&
+        !currentState.isVideoMode
       ) {
         // We use catch() to handle "interrupted by new request" errors gracefully
         audioRef.current!.play().catch(() => {});
@@ -287,7 +289,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       isCancelled = true;
     };
-  }, [currentSong?.id, isPlaying]);
+  }, [currentSong?.id, isPlaying, isVideoMode]);
 
   // ── Consolidated SoulLink Sync ────────────────────────────────────
   // Prevents infinite loops by checking isRemoteActionRef.
