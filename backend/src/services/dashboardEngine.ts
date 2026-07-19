@@ -232,13 +232,13 @@ export async function buildDashboard(
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
 
       const [rawNewReleases, rawMadeForYou] = await Promise.all([
-        getIndustryNewReleases(langs, 25),
+        getIndustryNewReleases(langs, 40),
         getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 50),
       ]);
 
       newReleasesSongs = rawNewReleases
         .filter((s) => !globalExcludeIds.has(s.id))
-        .slice(0, 20);
+        .slice(0, 24);
 
       for (const s of newReleasesSongs) {
         globalExcludeIds.add(s.id);

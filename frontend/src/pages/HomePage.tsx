@@ -213,6 +213,7 @@ const SongRowInline = ({
   isPlaying,
   onPlay,
   showAlbum = true,
+  size = "md",
 }: {
   song: any;
   index: number;
@@ -220,15 +221,18 @@ const SongRowInline = ({
   isPlaying: boolean;
   onPlay: () => void;
   showAlbum?: boolean;
+  size?: "md" | "lg";
 }) => {
   const [hov, setHov] = useState(false);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
-  const img = bestImg(song.image, "50x50") || FALLBACK_IMG;
+  const img = bestImg(song.image, size === "lg" ? "80x80" : "50x50") || FALLBACK_IMG;
 
   const handleMoreClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     showContextMenu(e.clientX, e.clientY, song);
   };
+
+  const isLg = size === "lg";
 
   return (
     <div
@@ -239,7 +243,9 @@ const SongRowInline = ({
         showContextMenu(e.clientX, e.clientY, song);
       }}
       onClick={onPlay}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-300 group/row ${
+      className={`flex items-center gap-3 rounded-xl cursor-pointer transition-all duration-300 group/row ${
+        isLg ? "px-4 py-3.5" : "px-3 py-2.5"
+      } ${
         isCurrent
           ? "bg-sp-green/[0.08] border border-sp-green/10"
           : "hover:bg-white/[0.04] border border-transparent"
@@ -249,10 +255,10 @@ const SongRowInline = ({
         {isCurrent && isPlaying ? (
           <EqBarsInline />
         ) : hov ? (
-          <Play size={13} className="text-white fill-white" />
+          <Play size={isLg ? 15 : 13} className="text-white fill-white" />
         ) : (
           <span
-            className={`text-xs tabular-nums ${
+            className={`${isLg ? "text-sm" : "text-xs"} tabular-nums ${
               isCurrent ? "text-sp-green" : "text-sp-sub"
             }`}
           >
@@ -264,17 +270,21 @@ const SongRowInline = ({
         src={img}
         onError={onImgErr}
         loading="lazy"
-        className="w-11 h-11 rounded-lg object-cover flex-shrink-0 group-hover/row:scale-105 transition-transform duration-200 shadow-sm"
+        className={`${
+          isLg ? "w-14 h-14 rounded-xl" : "w-11 h-11 rounded-lg"
+        } object-cover flex-shrink-0 group-hover/row:scale-105 transition-transform duration-200 shadow-sm`}
       />
       <div className="flex-1 min-w-0">
         <p
-          className={`text-sm font-semibold truncate ${
+          className={`${
+            isLg ? "text-base" : "text-sm"
+          } font-semibold truncate ${
             isCurrent ? "text-sp-green" : "text-white"
           }`}
         >
           {song.name}
         </p>
-        <p className="text-xs text-sp-sub/70 truncate">
+        <p className={`${isLg ? "text-sm" : "text-xs"} text-sp-sub/70 truncate`}>
           <ArtistLinks song={song} />
         </p>
       </div>
@@ -290,7 +300,7 @@ const SongRowInline = ({
         }`}
         aria-label="More"
       >
-        <MoreHorizontal size={14} />
+        <MoreHorizontal size={isLg ? 16 : 14} />
       </button>
       <p className="text-xs text-sp-muted w-10 text-right flex-shrink-0 tabular-nums">
         {fmt(song.duration)}
@@ -298,6 +308,7 @@ const SongRowInline = ({
     </div>
   );
 };
+
 
 /* =====================================================================
    H SECTION (horizontal carousel)
@@ -329,24 +340,14 @@ const HSectionInline = ({
   return (
     <div className="mb-10">
       {!hideHeader && title && (
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold text-white leading-tight truncate">
-                {title}
-              </h2>
-              {subtitle && (
-                <p className="text-xs text-white/40 mt-1 font-normal truncate">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        <SectionHeader
+          title={title}
+          subtitle={subtitle}
+        />
       )}
 
       <div
-        className={`flex overflow-x-auto hide-scrollbar pb-2 -mx-1 px-1 ${
+        className={`flex overflow-x-auto hide-scrollbar pb-2 -mx-4 px-4 ${
           isLg ? "gap-4" : "gap-3"
         }`}
         style={{ scrollSnapType: "x proximity" }}
@@ -702,7 +703,7 @@ export const HomePage = () => {
     return list.slice(0, 18);
   }, [normalizedRecentlyPlayed, suggestionsSongs]);
 
-  const newReleasesList = normalizedNewReleases.slice(0, 8);
+  const newReleasesList = normalizedNewReleases.slice(0, 24);
 
   const isLoading = authLoading || dashboardLoading;
 
@@ -781,102 +782,57 @@ export const HomePage = () => {
           ) : (
             mixSet.mixes
               .filter((m: any) => (m.songs || []).length > 0)
-              .map((mix: any) => {
-                const displaySongs = mix.songs.slice(0, 6);
-                return (
-                  <div key={mix.key} className="mb-8">
-                    <SectionHeader
-                      title={mix.title}
-                      subtitle={mix.description}
-                    />
-                    
-                    {/* Desktop: 2-column grid (3 rows) */}
-                    <div className="hidden md:grid md:grid-cols-2 gap-2">
-                      {displaySongs.map((s: any, i: number) => (
-                        <SongRowInline
-                          key={`${s.id}-${i}`}
-                          song={s}
-                          index={i + 1}
-                          isCurrent={currentSong?.id === s.id}
-                          isPlaying={isPlaying}
-                          onPlay={() => handleHomeSongClick(s, mix.songs)}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Mobile: 1-column list (6 rows) */}
-                    <div className="grid grid-cols-1 gap-2 md:hidden">
-                      {displaySongs.map((s: any, i: number) => (
-                        <SongRowInline
-                          key={`${s.id}-mob-${i}`}
-                          song={s}
-                          index={i + 1}
-                          isCurrent={currentSong?.id === s.id}
-                          isPlaying={isPlaying}
-                          onPlay={() => handleHomeSongClick(s, mix.songs)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })
+              .map((mix: any) => (
+                <HSectionInline
+                  key={mix.key}
+                  title={mix.title}
+                  subtitle={mix.description}
+                  songs={mix.songs}
+                  currentSong={currentSong}
+                  isPlaying={isPlaying}
+                  onPlay={handleHomeSongClick}
+                  cardSize="lg"
+                />
+              ))
           )}
         </div>
       )}
-      {/* ── NEW RELEASES ── */}
-      <div className="mb-10">
-        <SectionHeader
-          title="New Releases"
-          subtitle="Fresh from your languages"
-        />
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-xl" />
-            ))}
-          </div>
-        ) : !user && guestNewReleases.length > 0 ? (
-          <div className="space-y-8">
-            {guestNewReleases.map((sec: any) => (
-              <HSectionInline
-                key={sec.title}
-                title={sec.title}
-                songs={sec.songs}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={(song) => handleHomeSongClick(song, sec.songs)}
-              />
-            ))}
-          </div>
-        ) : newReleasesList.length > 0 ? (
-          <div className="hidden md:grid md:grid-cols-2 gap-2">
-            {newReleasesList.map((s, i) => (
-              <SongRowInline
-                key={`${s.id}-${i}`}
-                song={s}
-                index={i + 1}
-                isCurrent={currentSong?.id === s.id}
-                isPlaying={isPlaying}
-                onPlay={() => handleHomeSongClick(s, newReleasesList)}
-              />
-            ))}
-          </div>
-        ) : null}
 
-        {/* mobile: horizontal cards */}
-        {!isLoading && user && newReleasesList.length > 0 && (
-          <div className="md:hidden">
+      {/* ── NEW RELEASES ── */}
+      {isLoading ? (
+        <div className="mb-10 space-y-4">
+          <Skeleton className="h-7 w-48 rounded-lg" />
+          <div className="flex gap-4 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[260px] w-[180px] rounded-2xl flex-shrink-0" />
+            ))}
+          </div>
+        </div>
+      ) : !user && guestNewReleases.length > 0 ? (
+        <div className="space-y-8">
+          {guestNewReleases.map((sec: any) => (
             <HSectionInline
-              title=""
-              songs={newReleasesList}
+              key={sec.title}
+              title={sec.title}
+              songs={sec.songs}
               currentSong={currentSong}
               isPlaying={isPlaying}
-              onPlay={(song, queue) => handleHomeSongClick(song, queue)}
-              hideHeader
+              onPlay={(song) => handleHomeSongClick(song, sec.songs)}
+              cardSize="lg"
             />
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : newReleasesList.length > 0 ? (
+        <HSectionInline
+          title="New Releases"
+          subtitle="Fresh from your languages"
+          songs={newReleasesList}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPlay={handleHomeSongClick}
+          cardSize="lg"
+        />
+      ) : null}
 
       {/* ── Error fallback ── */}
       {error && !dashboard && (
