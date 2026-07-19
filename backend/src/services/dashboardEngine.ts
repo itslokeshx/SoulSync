@@ -94,15 +94,14 @@ export async function buildDashboard(
   if (!isGuest) {
     try {
       const userObjId = new mongoose.Types.ObjectId(userId);
-      const { UserMixSet } = await import("../models/UserMixSet.js");
       const { getStartOfWeek } = await import("./mixEngine.js");
       const startOfWeek = getStartOfWeek();
 
       const tDbStart = performance.now();
-      // Parallelize all non-dependent MongoDB / Taste profile calls
-      const [userRes, mixRes, recentRes, tasteRes, playlistsRes] = await Promise.all([
+      // Parallelize all non-dependent MongoDB / Taste profile/ Redis calls
+      const [userRes, mixCachedRes, recentRes, tasteRes, playlistsRes] = await Promise.all([
         User.findById(userId).select("name preferences likedSongs").lean(),
-        UserMixSet.findOne({ userId: userObjId, weekOf: startOfWeek }).lean(),
+        redisGet(`user_mix_set:${userId}`).catch(() => null),
         ListeningHistory.find({ userId: userObjId }).sort({ playedAt: -1 }).limit(50).lean(),
         getTasteProfile(userId),
         Playlist.find({ userId }).lean(),
@@ -110,7 +109,11 @@ export async function buildDashboard(
       timings.dbQueriesParallel = performance.now() - tDbStart;
 
       userDoc = userRes;
-      mixSet = mixRes;
+      try {
+        if (mixCachedRes) {
+          mixSet = JSON.parse(mixCachedRes);
+        }
+      } catch {}
       recentHistory = recentRes;
       tasteProfile = tasteRes;
       playlists = playlistsRes;
@@ -128,8 +131,9 @@ export async function buildDashboard(
   if (!isGuest && mixSet) {
     const discoveryMix = mixSet.mixes?.find((m: any) => m.key === "discovery");
     if (discoveryMix) {
-      for (const sId of discoveryMix.songIds) {
-        globalExcludeIds.add(sId);
+      const ids = (discoveryMix.songs || []).map((s: any) => s.id).filter(Boolean);
+      for (const id of ids) {
+        globalExcludeIds.add(id);
       }
     }
   }

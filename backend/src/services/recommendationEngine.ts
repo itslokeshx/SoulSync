@@ -1395,8 +1395,10 @@ async function fetchCuratedNewReleases(lang: string, homeAlbumIds: string[] = []
     console.warn(`[NewReleases] Failed to search albums for ${lang}`, err);
   }
 
-  // Combine album IDs, take top 2 to keep request count extremely low and fast
-  const allAlbumIds = Array.from(new Set([...homeAlbumIds.slice(0, 1), ...searchAlbumIds])).slice(0, 2);
+  // Combine album IDs. For language-specific curations (especially regional ones), only use searchAlbumIds to avoid contaminating with global/Hindi home feed releases.
+  const isGlobalLang = ["hindi", "english"].includes(lang.toLowerCase());
+  const baseAlbumIds = isGlobalLang ? homeAlbumIds : [];
+  const allAlbumIds = Array.from(new Set([...baseAlbumIds.slice(0, 1), ...searchAlbumIds])).slice(0, 2);
 
   if (allAlbumIds.length > 0) {
     try {

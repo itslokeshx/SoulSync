@@ -12,6 +12,7 @@ import {
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { User } from "../models/User.js";
 import { Playlist } from "../models/Playlist.js";
+import { redisGet, redisSet } from "./redis.js";
 
 // Helper to get start of current week (Monday 00:00:00)
 export function getStartOfWeek(): Date {
@@ -51,30 +52,35 @@ export async function getUserMixSet(userId: string): Promise<UserMixSetResponse>
     return generateColdStartMixSet("guest", startOfWeek);
   }
 
-  // 1. Find the latest mix set for this user (any week) to support stale-while-revalidate across week boundaries
-  const latestMixSet = await UserMixSet.findOne({
-    userId: new mongoose.Types.ObjectId(userId),
-  }).sort({ weekOf: -1 }).lean() as IUserMixSet | null;
-
-  if (latestMixSet) {
-    const isSameWeek = latestMixSet.weekOf.getTime() === startOfWeek.getTime();
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-    const isStale = !isSameWeek || (Date.now() - latestMixSet.generatedAt.getTime() > sevenDaysMs);
-
-    if (isStale) {
-      // Regenerate in the background to avoid blocking user response
-      triggerBackgroundRegeneration(userId, startOfWeek).catch((err) => {
-        console.error(`[MixEngine] Background regeneration failed for ${userId}:`, err);
-      });
+  const cacheKey = `user_mix_set:${userId}`;
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const totalSongs = parsed.mixes?.reduce((acc: number, m: any) => acc + (m.songs || []).length, 0) || 0;
+      if (totalSongs > 0) {
+        // Return cached mixes but trigger background refresh if it is more than 6 hours old (stale-while-revalidate!)
+        const ageMs = Date.now() - new Date(parsed.generatedAt).getTime();
+        if (ageMs > 6 * 60 * 60 * 1000) {
+          console.log(`[MixEngine] Cached mix for user ${userId} is older than 6 hours. Triggering background refresh.`);
+          triggerBackgroundRegeneration(userId, startOfWeek).catch(err => {
+            console.error(`[MixEngine] Background regeneration failed for ${userId}:`, err);
+          });
+        }
+        return parsed;
+      }
     }
-
-    // Return the cached latest mixes immediately (even if it's from last week, to keep loading instant!)
-    return hydrateMixSet(userId, latestMixSet);
+  } catch (err) {
+    console.warn("[MixEngine] Failed to read Redis cache for mix set:", err);
   }
 
-  // 2. Generate new mix set since none exists for this user at all
-  const newMixSet = await buildAndSaveMixSet(userId, startOfWeek);
-  return hydrateMixSet(userId, newMixSet);
+  // Generate new mix set fresh
+  try {
+    return await buildAndSaveMixSet(userId, startOfWeek);
+  } catch (err) {
+    console.error("[MixEngine] Failed to build and save mix set, falling back to cold start:", err);
+    return generateColdStartMixSet(userId, startOfWeek);
+  }
 }
 
 // Hydrates string songIds from MongoDB into full Song details
@@ -129,7 +135,7 @@ async function triggerBackgroundRegeneration(userId: string, weekOf: Date): Prom
 }
 
 // Builds the personalized Weekly Mix on real user data
-async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<IUserMixSet> {
+async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<UserMixSetResponse> {
   const userObjId = new mongoose.Types.ObjectId(userId);
   const now = Date.now();
 
@@ -151,18 +157,10 @@ async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<IUserMi
   if (isColdStart) {
     console.log(`[WeeklyMix] Served user ${userId} via cold-start fallback path (< 5 played songs)`);
     const coldStart = await generateColdStartMixSet(userId, weekOf);
-    const mixes = coldStart.mixes.map((m) => ({
-      key: m.key as any,
-      title: m.title,
-      description: m.description,
-      songIds: m.songs.map((s) => s.id),
-    }));
-
-    return (await UserMixSet.findOneAndUpdate(
-      { userId: userObjId, weekOf },
-      { mixes, generatedAt: new Date() },
-      { upsert: true, new: true }
-    )) as IUserMixSet;
+    const cacheKey = `user_mix_set:${userId}`;
+    const ttl = 12 * 60 * 60; // 12 hours
+    await redisSet(cacheKey, JSON.stringify(coldStart), ttl).catch(() => {});
+    return coldStart;
   }
 
   console.log(`[WeeklyMix] Served user ${userId} via real taste-based path`);
@@ -317,20 +315,25 @@ async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<IUserMi
 
   const finalSongs = weeklyMixSongs.slice(0, 30);
 
-  const mixesData: IMix[] = [
-    {
-      key: "weekly_mix",
-      title: "Made For You",
-      description: "Based on your listening history",
-      songIds: finalSongs.map((s) => s.id),
-    },
-  ];
+  const response: UserMixSetResponse = {
+    userId,
+    weekOf,
+    mixes: [
+      {
+        key: "weekly_mix",
+        title: "Made For You",
+        description: "Based on your listening history",
+        songs: finalSongs,
+      }
+    ],
+    generatedAt: new Date(),
+  };
 
-  return (await UserMixSet.findOneAndUpdate(
-    { userId: userObjId, weekOf },
-    { mixes: mixesData, generatedAt: new Date() },
-    { upsert: true, new: true }
-  )) as IUserMixSet;
+  const cacheKey = `user_mix_set:${userId}`;
+  const ttl = 12 * 60 * 60; // 12 hours TTL in seconds
+  await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
+
+  return response;
 }
 
 // Generates reduced/cold-start mix set for guest and new users
