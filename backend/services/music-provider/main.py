@@ -34,6 +34,32 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Add virtualenv bin directory to PATH so that executables like node from nodejs-wheel are found
+    import sys
+    import os
+    import shutil
+    import subprocess
+    
+    py_dir = os.path.dirname(sys.executable)
+    if py_dir and py_dir not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
+        print(f"[startup] Added python binary directory to PATH: {py_dir}")
+
+    # Node.js Startup Diagnostics
+    node_path = shutil.which("node")
+    if node_path:
+        print(f"[startup] Node.js binary found at: {node_path}")
+        try:
+            res = subprocess.run([node_path, "-e", "console.log(1)"], capture_output=True, text=True, timeout=5)
+            if res.returncode == 0 and res.stdout.strip() == "1":
+                print("[startup] Node.js execution verified successfully!")
+            else:
+                print(f"[startup] Node.js execution failed: returncode={res.returncode}, stdout='{res.stdout}', stderr='{res.stderr}'")
+        except Exception as e:
+            print(f"[startup] Node.js execution crashed with error: {e}")
+    else:
+        print("[startup] WARNING: Node.js binary NOT found in PATH")
+
     # Copy cookies from read-only /etc/secrets/ to writable /tmp/
     import shutil
     readonly_cookies = "/etc/secrets/cookies.txt"

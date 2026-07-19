@@ -182,3 +182,32 @@ cd android && ./gradlew assembleRelease
 
 *   **Contributing**: Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details on code style, formatting, and PR requirements.
 *   **License**: SoulSync is open-source software licensed under the [MIT License](LICENSE).
+
+---
+
+## 🍪 YouTube Cookies Authentication & Maintenance
+
+To bypass YouTube's strict bot detection ("Sign in to confirm you're not a bot"), the `music-provider` service relies on Netscape-format cookies exported from a real, active YouTube account.
+
+### 📋 Step-by-Step: Exporting & Uploading `cookies.txt`
+
+1. **Log in to YouTube**: Open your web browser (Chrome, Firefox, or Edge) and ensure you are logged in to a real, active YouTube/Google account.
+2. **Install a Cookie Exporter Extension**:
+   * **Chrome/Edge**: Install [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/ccmkkboeaegobackglgecmmjhbbdbacl) or [EditThisCookie](https://chromewebstore.google.com/detail/editthiscookie/fngmhngeecjbbjmjghghjebmgoaiecle).
+   * **Firefox**: Install [Export Cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/export-cookies-txt/).
+3. **Export Cookies**:
+   * Navigate to [youtube.com](https://www.youtube.com).
+   * Click the extension icon.
+   * Choose **Export** (as Netscape cookie format / `cookies.txt`).
+   * Save the file as `cookies.txt`.
+4. **Update Render Secrets**:
+   * Log in to the [Render Dashboard](https://dashboard.render.com).
+   * Select your `music-provider` Web Service.
+   * Go to **Environment** settings.
+   * Find **Secret Files**, delete the existing `cookies.txt` entry, and upload your newly exported `cookies.txt`. Keep the filename as `cookies.txt` and mount path as `/etc/secrets/cookies.txt`.
+   * Render will automatically trigger a rolling redeploy with the fresh cookies.
+5. **Local Setup**:
+   * Save the exported `cookies.txt` file directly inside the `backend/services/music-provider/` folder.
+
+> [!NOTE]
+> **Cookie Lifespan & Expiry**: YouTube rotates session cookies frequently. Since datacenter IP ranges (like Render's) are heavily flagged by YouTube, these cookies will expire faster than they do in your home browser. You should expect to re-export and update `cookies.txt` periodically (e.g., every few weeks or whenever stream resolution begins returning 429/Sign-In errors).

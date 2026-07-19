@@ -202,6 +202,12 @@ def get_song_stream(video_id: str) -> dict:
     
     url = f"https://www.youtube.com/watch?v={video_id}"
     
+    # Ensure virtualenv bin directory is in PATH for this request/process context
+    import sys
+    py_dir = os.path.dirname(sys.executable)
+    if py_dir and py_dir not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
+
     node_path = shutil.which("node")
     js_runtimes = {}
     if node_path:
@@ -215,7 +221,6 @@ def get_song_stream(video_id: str) -> dict:
             'format': 'bestaudio',
             'quiet': True,
             'no_plugins': True,
-            'remote_components': ['ejs:github'],
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
         if js_runtimes:
