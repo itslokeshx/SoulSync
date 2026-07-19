@@ -87,6 +87,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ytPlayerRef = useRef<any>(null);
   const ytPlayerReadyRef = useRef<boolean>(false);
+  const loadedYtVideoIdRef = useRef<string | null>(null);
   const {
     currentSong,
     isPlaying,
@@ -502,6 +503,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             cc_load_policy: 0,
             autoplay: 0,
             playsinline: 1,
+            origin: window.location.origin,
           },
           events: {
             onReady: () => {
@@ -553,25 +555,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (ytPlayerRef.current && ytPlayerReadyRef.current) {
       const player = ytPlayerRef.current;
-      let loadedVideoId = "";
-      try {
-        if (typeof player.getVideoData === "function" && player.getVideoData()) {
-          loadedVideoId = player.getVideoData().video_id;
-        }
-      } catch {}
 
       if (playYTBackground) {
-        if (loadedVideoId !== currentSong.id) {
+        if (loadedYtVideoIdRef.current !== currentSong.id) {
           const startSec = Math.floor(usePlayerStore.getState().currentTime);
-          player.loadVideoById({
-            videoId: currentSong.id,
-            startSeconds: startSec || 0,
-          });
-        } else {
-          const playerState = player.getPlayerState();
-          if (playerState !== 1) {
-            player.playVideo();
+          loadedYtVideoIdRef.current = currentSong.id;
+          try {
+            player.loadVideoById({
+              videoId: currentSong.id,
+              startSeconds: startSec || 0,
+            });
+          } catch (err) {
+            console.error("Failed to loadVideoById:", err);
           }
+        } else {
+          try {
+            const playerState = player.getPlayerState();
+            if (playerState !== 1) {
+              player.playVideo();
+            }
+          } catch {}
         }
       } else {
         try {
