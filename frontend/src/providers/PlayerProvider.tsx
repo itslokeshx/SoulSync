@@ -81,7 +81,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     ((song: any, queue: any[], fromDuo?: boolean) => void) | null
   >(null);
   useEffect(() => {
-    playSongRef.current = (song) => {
+    playSongRef.current = (song, duoQueue, fromDuo) => {
+      if (fromDuo && Array.isArray(duoQueue) && duoQueue.length > 0) {
+        const idx = Math.max(duoQueue.findIndex((s: any) => s.id === song.id), 0);
+        useQueueStore.getState().setQueue(duoQueue, idx);
+      }
       playSong(song);
     };
   }, [playSong]);
@@ -310,31 +314,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isVideoMode, isPlayerExpanded]);
 
   // ── Consolidated SoulLink Sync ────────────────────────────────────
-  // Prevents infinite loops by checking isRemoteActionRef.
 
-  // 1. DEDUPLICATED: Sync Play/Pause state is now handled natively via the <audio> element's onPlay/onPause events (bottom of file)
-  // to avoid React state race conditions.
-
-  // 2. Sync Song/Queue changes — only for locally-initiated changes
+  // 1. Sync Song/Queue changes — only for locally-initiated changes
+  const lastSyncedSongIdRef = useRef<string | null>(null);
   useEffect(() => {
     const isDuoActive = useDuoStore.getState().active;
     if (!isDuoActive) return;
 
-    // If this song change was triggered by the partner (remote), skip the echo.
     if (isRemoteSongChangeRef.current) {
       isRemoteSongChangeRef.current = false;
+      lastSyncedSongIdRef.current = currentSong?.id || null;
       return;
     }
 
-    if (currentSong) {
-      const q = queue.length ? queue : [currentSong];
+    if (currentSong && currentSong.id !== lastSyncedSongIdRef.current) {
+      lastSyncedSongIdRef.current = currentSong.id;
+      const q = useQueueStore.getState().queue;
+      const fullQueue = q.length ? q : [currentSong];
       const idx = Math.max(
-        q.findIndex((s) => s.id === currentSong.id),
+        fullQueue.findIndex((s) => s.id === currentSong.id),
         0,
       );
-      duo.syncSongChange(currentSong, q, idx);
+      duo.syncSongChange(currentSong, fullQueue, idx);
     }
-  }, [currentSong?.id, queue, duo]);
+  }, [currentSong?.id, duo]);
+
+  // 2. Sync video mode changes
+  useEffect(() => {
+    const isDuoActive = useDuoStore.getState().active;
+    if (!isDuoActive || !hasEverLoadedRef.current) return;
+    duo.syncVideoMode?.(isVideoMode);
+  }, [isVideoMode, duo]);
 
   // ── Volume & Media Controls ──────────────────────────────────────
   useEffect(() => {

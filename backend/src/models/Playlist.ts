@@ -24,7 +24,7 @@ const PlaylistSchema = new Schema<IPlaylist>(
       required: true,
     },
     name: { type: String, required: true, trim: true, maxlength: 100 },
-    description: { type: String, default: "", maxlength: 300 },
+    description: { type: String, default: "", maxlength: 1000 },
     coverImage: { type: String, default: null },
     songs: { type: [SongEmbedSchema], default: [] },
     isPublic: { type: Boolean, default: false },

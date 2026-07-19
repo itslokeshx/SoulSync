@@ -10,6 +10,7 @@ import {
 import { useDuoStore, getPersistedSession } from "./duoStore";
 import { getNativeToken } from "../api/backend";
 import { isNative } from "../utils/platform";
+import { usePlayerStore } from "../store/playerStore";
 
 const BACKEND_URL = (
   import.meta.env.VITE_DUO_BACKEND ||
@@ -272,6 +273,13 @@ export function useDuo({
   const syncSongChange = useCallback(
     (song: any, queue: any[], queueIndex: number) => {
       emitWhenReady("duo:sync-song-change", { song, queue, queueIndex });
+    },
+    [emitWhenReady],
+  );
+
+  const syncVideoMode = useCallback(
+    (isVideoMode: boolean) => {
+      emitWhenReady("duo:sync-video-mode", { isVideoMode });
     },
     [emitWhenReady],
   );
@@ -615,6 +623,14 @@ export function useDuo({
           break;
         }
 
+        // ── Video mode sync ────────────────────────────────────
+        case "duo:receive-video-mode": {
+          if (data && typeof data.isVideoMode === "boolean") {
+            usePlayerStore.getState().setIsVideoMode(data.isVideoMode);
+          }
+          break;
+        }
+
         // ── Messages ───────────────────────────────────────────
         case "duo:receive-message": {
           if (data) store.getState().addMessage(data);
@@ -672,6 +688,7 @@ export function useDuo({
       syncPause,
       syncSeek,
       syncSongChange,
+      syncVideoMode,
       sendMessage,
       endSession,
     }),
@@ -682,6 +699,7 @@ export function useDuo({
       syncPause,
       syncSeek,
       syncSongChange,
+      syncVideoMode,
       sendMessage,
       endSession,
     ],

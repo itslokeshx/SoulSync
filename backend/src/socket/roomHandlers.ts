@@ -351,6 +351,18 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     }
   });
 
+  // ── Sync video mode ─────────────────────────────────────────────────
+  socket.on("duo:sync-video-mode", ({ isVideoMode }: any) => {
+    const code = findSocketRoom(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (room) room.lastActivity = Date.now();
+    debugLog(
+      `[Duo] 🎬 sync-video-mode → room ${code} | video=${isVideoMode}`,
+    );
+    socket.to(code).emit("duo:receive-video-mode", { isVideoMode });
+  });
+
   // ── Messages ────────────────────────────────────────────────────────
   socket.on("duo:message", async ({ text }: { text: string }) => {
     const code = findSocketRoom(socket.id);

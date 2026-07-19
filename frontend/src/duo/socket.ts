@@ -31,6 +31,7 @@ const DUO_EVENTS = [
   "duo:receive-pause",
   "duo:receive-seek",
   "duo:receive-song-change",
+  "duo:receive-video-mode",
   "duo:receive-message",
   "duo:session-ended",
   "duo:error",
