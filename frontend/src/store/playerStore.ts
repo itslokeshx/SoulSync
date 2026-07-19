@@ -12,6 +12,7 @@ interface PlayerState {
   repeatMode: "off" | "one" | "all";
   autoplay: boolean;
   isVideoMode: boolean;
+  isPlayerExpanded: boolean;
 }
 
 interface PlayerActions {
@@ -29,6 +30,7 @@ interface PlayerActions {
   setIsPlaying: (v: boolean) => void;
   toggleAutoplay: () => void;
   setIsVideoMode: (v: boolean) => void;
+  setPlayerExpanded: (v: boolean) => void;
 }
 
 export const usePlayerStore = create<PlayerState & PlayerActions>(
@@ -43,6 +45,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     repeatMode: "off",
     autoplay: true,
     isVideoMode: false,
+    isPlayerExpanded: false,
 
     playSong: (song) =>
       set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 }),
@@ -67,5 +70,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     setIsPlaying: (v) => set({ isPlaying: v }),
     toggleAutoplay: () => set((s) => ({ autoplay: !s.autoplay })),
     setIsVideoMode: (v) => set({ isVideoMode: v }),
+    setPlayerExpanded: (v) => set({ isPlayerExpanded: v }),
   }),
 );

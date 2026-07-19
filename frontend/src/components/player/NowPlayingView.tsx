@@ -164,17 +164,23 @@ export const NowPlayingView = ({
   const [videoStartTime, setVideoStartTime] = useState(0);
   const prevVideoMode = useRef(isVideoMode);
   const prevSongId = useRef(currentSong?.id);
+  const prevIsOpen = useRef(isOpen);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isVideoMode && (!prevVideoMode.current || prevSongId.current !== currentSong?.id)) {
+    const becameOpen = isOpen && !prevIsOpen.current;
+    const switchedToVideo = isVideoMode && !prevVideoMode.current;
+    const songChanged = prevSongId.current !== currentSong?.id;
+
+    if (isVideoMode && (becameOpen || switchedToVideo || songChanged)) {
       setVideoStartTime(Math.floor(currentTime));
     }
     prevVideoMode.current = isVideoMode;
     prevSongId.current = currentSong?.id;
-  }, [isVideoMode, currentSong?.id, currentTime]);
+    prevIsOpen.current = isOpen;
+  }, [isVideoMode, isOpen, currentSong?.id, currentTime]);
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -545,9 +551,107 @@ export const NowPlayingView = ({
               </div>
             )}
 
-            {/* Placeholder container for video layout alignment */}
-            {isVideoMode && (
-              <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] pointer-events-none" />
+            {/* Video container - only rendered and mounted when open! */}
+            {isVideoMode && isOpen && (
+              <div
+                ref={containerRef}
+                className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center group shadow-2xl relative pointer-events-auto"
+              >
+                <iframe
+                  ref={iframeRef}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}`}
+                  title={currentSong.name}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
+                />
+                {!isFullscreen && (
+                  <button
+                    onClick={toggleFullscreen}
+                    className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center shadow-lg pointer-events-auto"
+                    title="Toggle Fullscreen"
+                  >
+                    <Maximize2 size={14} className="text-white/80" />
+                  </button>
+                )}
+                {isFullscreen && (
+                  <div
+                    className={`absolute inset-0 bg-black/60 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-300 pointer-events-auto ${
+                      showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                    }`}
+                  >
+                    {/* Floating Bottom Glass Control Bar */}
+                    <div className="bg-black/50 border border-white/10 rounded-2xl backdrop-blur-xl p-4 w-[95%] max-w-3xl mx-auto flex flex-col gap-3 shadow-2xl">
+                      {/* Row 1: Seek / Progress Bar */}
+                      <div className="flex items-center gap-4 w-full">
+                        <span className="text-xs text-white/60 tabular-nums font-semibold">{fmt(currentTime)}</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={duration || 0}
+                          step="any"
+                          value={currentTime}
+                          onChange={(e) => handleSeek(+e.target.value)}
+                          onPointerDown={handleSeekStart}
+                          onPointerUp={handleSeekEnd}
+                          className="progress-bar progress-glow flex-1 h-1.5 rounded-full cursor-pointer pointer-events-auto"
+                          style={{
+                            "--progress": `${duration ? currentTime / duration : 0}`,
+                          } as React.CSSProperties}
+                        />
+                        <span className="text-xs text-white/60 tabular-nums font-semibold">{fmt(duration)}</span>
+                      </div>
+
+                      {/* Row 2: Info & Control Buttons */}
+                      <div className="flex items-center justify-between w-full mt-1">
+                        {/* Left: Song Info */}
+                        <div className="text-left min-w-0 flex-1 pr-4">
+                          <h2 className="text-white text-base md:text-lg font-bold truncate leading-tight">{currentSong.name}</h2>
+                          <p className="text-white/40 text-xs mt-0.5 truncate">{artists}</p>
+                        </div>
+
+                        {/* Center: Play/Pause/Prev/Next Controls */}
+                        <div className="flex items-center gap-6 justify-center flex-shrink-0">
+                          <button
+                            onClick={onPrev}
+                            className="text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95 pointer-events-auto"
+                          >
+                            <SkipBack size={22} className="fill-current" />
+                          </button>
+                          <button
+                            onClick={onPlayPause}
+                            className="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg pointer-events-auto"
+                          >
+                            {isPlaying ? (
+                              <Pause size={18} className="text-black fill-black" />
+                            ) : (
+                              <Play size={18} className="text-black fill-black ml-0.5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={onNext}
+                            className="text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95 pointer-events-auto"
+                          >
+                            <SkipForward size={22} className="fill-current" />
+                          </button>
+                        </div>
+
+                        {/* Right: Exit Fullscreen */}
+                        <div className="flex items-center gap-3 justify-end flex-1 pl-4">
+                          <button
+                            onClick={toggleFullscreen}
+                            className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full backdrop-blur-md transition-all active:scale-95 flex items-center justify-center border border-white/10 pointer-events-auto"
+                            title="Exit Fullscreen"
+                          >
+                            <Minimize2 size={18} className="text-white/80" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -935,113 +1039,6 @@ export const NowPlayingView = ({
         </div>
       </div>
 
-      {/* 3. Outside Video Container (so it does not slide down, but moves to corner!) */}
-      {isVideoMode && (
-        <div
-          ref={containerRef}
-          onClick={!isOpen && onOpen ? onOpen : undefined}
-          className={
-            !isOpen
-              ? "fixed bottom-[5.1rem] md:bottom-[0.35rem] left-[0.7rem] md:left-[1.25rem] w-[2.75rem] h-[2.75rem] md:w-[3.5rem] md:h-[3.5rem] bg-black z-50 rounded-xl overflow-hidden pointer-events-auto cursor-pointer shadow-lg border border-white/10 transition-all duration-500 ease-out"
-              : "fixed top-[6.5rem] left-1/2 -translate-x-1/2 w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:top-1/2 lg:-translate-y-1/2 lg:left-[28%] lg:-translate-x-1/2 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black z-50 rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-500 ease-out flex items-center justify-center group shadow-2xl"
-          }
-        >
-          <iframe
-            ref={iframeRef}
-            src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}`}
-            title={currentSong.name}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
-          />
-          {!isFullscreen && isOpen && (
-            <button
-              onClick={toggleFullscreen}
-              className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center shadow-lg"
-              title="Toggle Fullscreen"
-            >
-              <Maximize2 size={14} className="text-white/80" />
-            </button>
-          )}
-          {isFullscreen && (
-            <div
-              className={`absolute inset-0 bg-black/60 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-300 pointer-events-auto ${
-                showControls ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              {/* Floating Bottom Glass Control Bar */}
-              <div className="bg-black/50 border border-white/10 rounded-2xl backdrop-blur-xl p-4 w-[95%] max-w-3xl mx-auto flex flex-col gap-3 shadow-2xl">
-                {/* Row 1: Seek / Progress Bar */}
-                <div className="flex items-center gap-4 w-full">
-                  <span className="text-xs text-white/60 tabular-nums font-semibold">{fmt(currentTime)}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 0}
-                    step="any"
-                    value={currentTime}
-                    onChange={(e) => handleSeek(+e.target.value)}
-                    onPointerDown={handleSeekStart}
-                    onPointerUp={handleSeekEnd}
-                    className="progress-bar progress-glow flex-1 h-1.5 rounded-full cursor-pointer"
-                    style={{
-                      "--progress": `${duration ? currentTime / duration : 0}`,
-                    } as React.CSSProperties}
-                  />
-                  <span className="text-xs text-white/60 tabular-nums font-semibold">{fmt(duration)}</span>
-                </div>
-
-                {/* Row 2: Info & Control Buttons */}
-                <div className="flex items-center justify-between w-full mt-1">
-                  {/* Left: Song Info */}
-                  <div className="text-left min-w-0 flex-1 pr-4">
-                    <h2 className="text-white text-base md:text-lg font-bold truncate leading-tight">{currentSong.name}</h2>
-                    <p className="text-white/40 text-xs mt-0.5 truncate">{artists}</p>
-                  </div>
-
-                  {/* Center: Play/Pause/Prev/Next Controls */}
-                  <div className="flex items-center gap-6 justify-center flex-shrink-0">
-                    <button
-                      onClick={onPrev}
-                      className="text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95"
-                    >
-                      <SkipBack size={22} className="fill-current" />
-                    </button>
-                    <button
-                      onClick={onPlayPause}
-                      className="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg"
-                    >
-                      {isPlaying ? (
-                        <Pause size={18} className="text-black fill-black" />
-                      ) : (
-                        <Play size={18} className="text-black fill-black ml-0.5" />
-                      )}
-                    </button>
-                    <button
-                      onClick={onNext}
-                      className="text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95"
-                    >
-                      <SkipForward size={22} className="fill-current" />
-                    </button>
-                  </div>
-
-                  {/* Right: Exit Fullscreen */}
-                  <div className="flex items-center gap-3 justify-end flex-1 pl-4">
-                    <button
-                      onClick={toggleFullscreen}
-                      className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full backdrop-blur-md transition-all active:scale-95 flex items-center justify-center border border-white/10"
-                      title="Exit Fullscreen"
-                    >
-                      <Minimize2 size={18} className="text-white/80" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

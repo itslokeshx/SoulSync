@@ -64,7 +64,13 @@ export function AppLayout() {
     playSong,
     seekTo,
     pause,
+    setPlayerExpanded,
   } = usePlayerStore();
+
+  // Sync local npOpen to store isPlayerExpanded
+  useEffect(() => {
+    setPlayerExpanded(npOpen);
+  }, [npOpen, setPlayerExpanded]);
 
   const { queue, queueIndex, next, prev, move, remove, shuffle, setQueue } =
     useQueueStore();

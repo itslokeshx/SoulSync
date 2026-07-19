@@ -61,6 +61,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     seekTo,
     setIsPlaying,
     isVideoMode,
+    isPlayerExpanded,
   } = usePlayerStore();
 
   const { next, prev, queue, queueIndex, addLast } = useQueueStore();
@@ -273,7 +274,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (
         currentState.isPlaying &&
         currentState.currentSong?.id === currentSong.id &&
-        !currentState.isVideoMode
+        (!currentState.isVideoMode || !currentState.isPlayerExpanded)
       ) {
         // We use catch() to handle "interrupted by new request" errors gracefully
         audioRef.current!.play().catch(() => {});
@@ -289,19 +290,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       isCancelled = true;
     };
-  }, [currentSong?.id, isPlaying, isVideoMode]);
+  }, [currentSong?.id, isPlaying, isVideoMode, isPlayerExpanded]);
 
-  // Sync audio currentTime with store currentTime when exiting video mode
+  // Sync audio currentTime with store currentTime when exiting video mode or when player is minimized
   const lastVideoModeRef = useRef(isVideoMode);
+  const lastExpandedRef = useRef(isPlayerExpanded);
   useEffect(() => {
-    if (lastVideoModeRef.current && !isVideoMode) {
+    const wasVideoAndExpanded = lastVideoModeRef.current && lastExpandedRef.current;
+    const isNowAudioOrMinimized = !isVideoMode || !isPlayerExpanded;
+
+    if (wasVideoAndExpanded && isNowAudioOrMinimized) {
       const storeTime = usePlayerStore.getState().currentTime;
       if (audioRef.current && isFinite(storeTime)) {
         audioRef.current.currentTime = storeTime;
       }
     }
     lastVideoModeRef.current = isVideoMode;
-  }, [isVideoMode]);
+    lastExpandedRef.current = isPlayerExpanded;
+  }, [isVideoMode, isPlayerExpanded]);
 
   // ── Consolidated SoulLink Sync ────────────────────────────────────
   // Prevents infinite loops by checking isRemoteActionRef.
