@@ -19,6 +19,7 @@ import {
   getPlaylistSongs,
   normalizeSongsToCanonical,
   getSongsDetailsBatch,
+  searchPodcasts,
   type Song,
 } from "./youtubeMusicService.js";
 import { redisGet, redisSet, redisDel } from "./redis.js";
@@ -1865,6 +1866,44 @@ export async function generateDiscoveryMix(
     delete (clean as any)._recScore;
     return clean;
   });
+}
+
+export async function getPodcastRecommendations(limit = 10): Promise<any[]> {
+  const cacheKey = "podcast_recommendations:v2";
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error("[recommendationEngine] getPodcastRecommendations cache read failed:", err);
+  }
+
+  const queries = ["The Ranveer Show", "Joe Rogan", "Lex Fridman", "Huberman Lab", "TED Talks Daily"];
+  const searchResults = await Promise.allSettled(
+    queries.map((q) => searchPodcasts(q, 3))
+  );
+
+  const candidates: any[] = [];
+  const seen = new Set<string>();
+
+  for (const res of searchResults) {
+    if (res.status !== "fulfilled") continue;
+    for (const item of res.value) {
+      if (item?.id && !seen.has(item.id)) {
+        seen.add(item.id);
+        candidates.push(item);
+      }
+    }
+  }
+
+  const shuffled = candidates.sort(() => Math.random() - 0.5).slice(0, limit);
+
+  if (shuffled.length > 0) {
+    await redisSet(cacheKey, JSON.stringify(shuffled), 86400).catch(() => {});
+  }
+
+  return shuffled;
 }
 
 

@@ -286,6 +286,7 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     normalizedRecentlyPlayed,
     guestNewReleases,
     normalizedNewReleases,
+    podcasts: dashboard?.podcasts || [],
     localGreeting,
     localSubtitle,
     handleHomeSongClick,

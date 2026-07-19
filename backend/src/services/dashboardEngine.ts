@@ -10,6 +10,7 @@ import {
   getTasteProfileBatch,
   getLanguageAwareNewReleases,
   getIndustryNewReleases,
+  getPodcastRecommendations,
 } from "./recommendationEngine.js";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ export interface DashboardResponse {
   madeForYou: { title: string; songs: Song[] };
   generatedAt: number;
   guestNewReleases?: { title: string; songs: Song[] }[];
+  podcasts?: any[];
   _timings?: any;
 }
 
@@ -170,6 +172,7 @@ export async function buildDashboard(
   let newReleasesTitle = "New Releases";
   let guestNewReleases: { title: string; songs: Song[] }[] | undefined;
   let madeForYouSongs: Song[] = [];
+  let recommendedPodcasts: any[] = [];
 
   let langs: string[] = ["hindi"];
   if (userDoc?.preferences?.languages && userDoc.preferences.languages.length > 0) {
@@ -179,7 +182,7 @@ export async function buildDashboard(
   try {
     const tExternalStart = performance.now();
     if (isGuest) {
-      const [guestReleaseResults, rawMadeForYou] = await Promise.all([
+      const [guestReleaseResults, rawMadeForYou, rawPodcasts] = await Promise.all([
         Promise.all([
           getIndustryNewReleases(["english"], 20),
           getIndustryNewReleases(["tamil"], 20),
@@ -187,6 +190,7 @@ export async function buildDashboard(
           getIndustryNewReleases(["telugu"], 20),
         ]),
         getTasteProfileBatch(null, Array.from(globalExcludeIds), 35),
+        getPodcastRecommendations(10),
       ]);
 
       const [english, tamil, hindi, telugu] = guestReleaseResults;
@@ -200,12 +204,14 @@ export async function buildDashboard(
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 30);
+      recommendedPodcasts = rawPodcasts;
     } else {
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
 
-      const [rawNewReleases, rawMadeForYou] = await Promise.all([
+      const [rawNewReleases, rawMadeForYou, rawPodcasts] = await Promise.all([
         getIndustryNewReleases(langs, 25),
         getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 35),
+        getPodcastRecommendations(10),
       ]);
 
       newReleasesSongs = rawNewReleases
@@ -219,6 +225,7 @@ export async function buildDashboard(
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 30);
+      recommendedPodcasts = rawPodcasts;
     }
 
     for (const s of madeForYouSongs) {
@@ -265,6 +272,7 @@ export async function buildDashboard(
       songs: madeForYouSongs,
     },
     guestNewReleases,
+    podcasts: recommendedPodcasts,
     generatedAt: Date.now(),
   };
 
