@@ -767,6 +767,43 @@ export async function maybeRecomputeTaste(userId: string): Promise<void> {
 // 8. TASTE REDESIGN HELPER FUNCTIONS
 // ════════════════════════════════════════════════════════════════
 
+function inferSongLanguage(song: any): string {
+  const title = (song.name || "").toLowerCase();
+  const artist = (song.primaryArtists || "").toLowerCase();
+  const album = (song.album || song.album?.name || "").toLowerCase();
+  const combined = `${title} ${artist} ${album}`;
+
+  if (/[\u0B80-\u0BFF]/.test(combined)) return "tamil";
+  if (/[\u0C00-\u0C7F]/.test(combined)) return "telugu";
+  if (/[\u0900-\u097F]/.test(combined)) return "hindi";
+  if (/[\u0D00-\u0D7F]/.test(combined)) return "malayalam";
+  if (/[\u0C80-\u0CFF]/.test(combined)) return "kannada";
+
+  const tamilKws = ["tamil", "kollywood", "anirudh", "spb", "rahman", "arr", "yuvan", "imman", "ilayaraja", "harris jayaraj", "santhosh narayanan", "pradeep kumar", "sid sriram", "srinivas", "vijay", "thalapathy", "ajith", "thala", "rajini", "kamal haasan"];
+  if (tamilKws.some(kw => combined.includes(kw))) return "tamil";
+
+  const teluguKws = ["telugu", "tollywood", "thaman", "devi sri prasad", "dsp", "ntr", "ram charan", "prabhas", "mahesh babu", "allu arjun"];
+  if (teluguKws.some(kw => combined.includes(kw))) return "telugu";
+
+  const hindiKws = ["hindi", "bollywood", "arijit", "pritam", "shreya", "atif aslam", "lofi hindi", "t-series", "tseries", "srk", "shah rukh", "salman", "aamir", "hrithik", "ranbir", "ranveer", "akshay"];
+  if (hindiKws.some(kw => combined.includes(kw))) return "hindi";
+
+  const punjabiKws = ["punjabi", "diljit", "dosanjh", "moose wala", "moosewala", "aujla", "dhillon"];
+  if (punjabiKws.some(kw => combined.includes(kw))) return "punjabi";
+
+  const malayalamKws = ["malayalam", "mollywood", "sushin", "vineeth", "dulquer", "mohanlal", "mammootty"];
+  if (malayalamKws.some(kw => combined.includes(kw))) return "malayalam";
+
+  const kannadaKws = ["kannada", "sandalwood", "arjun janya", "yash"];
+  if (kannadaKws.some(kw => combined.includes(kw))) return "kannada";
+
+  if (song.language && song.language !== "english") {
+    return song.language.toLowerCase().trim();
+  }
+
+  return "english";
+}
+
 export async function generateSeedAnchoredBatch(
   seed: Song,
   tasteProfile: IUserTasteProfile | null,
@@ -775,56 +812,54 @@ export async function generateSeedAnchoredBatch(
 ): Promise<Song[]> {
   const seedId = seed.id;
   const seedArtist = (seed.primaryArtists || "").split(",")[0].trim();
-  const seedLang = (seed.language || "").toLowerCase().trim();
+  const seedLang = inferSongLanguage(seed);
+
+  const allowedLanguages = new Set<string>([seedLang]);
+  if (tasteProfile && Array.isArray(tasteProfile.languages)) {
+    for (const l of tasteProfile.languages) {
+      if (l.weight >= 0.1) {
+        allowedLanguages.add(l.language.toLowerCase().trim());
+      }
+    }
+  }
 
   const excludeSet = new Set<string>([...excludeIds, seedId]);
   const candidates: Song[] = [];
 
   const addCandidate = (song: Song) => {
     if (excludeSet.has(song.id)) return;
+    const lang = inferSongLanguage(song);
+    if (!allowedLanguages.has(lang)) return;
     excludeSet.add(song.id);
     candidates.push(song);
   };
 
-  // Source 1: Co-occurrence
-  let cooccurCount = 0;
-  const coOccurrenceCandidatesList: Song[] = [];
   try {
     const cooccurrences = await SongCooccurrence.find({ songIdA: seedId })
       .sort({ decayedScore: -1 })
       .limit(20)
       .lean();
-    cooccurCount = cooccurrences.length;
     for (const co of cooccurrences) {
       try {
         const song = await fetchSongById(co.songIdB);
         if (song) {
-          coOccurrenceCandidatesList.push(song);
           addCandidate(song);
         }
       } catch {}
     }
   } catch {}
 
-  // Source 2: YT Music suggestions
-  let suggestionsCount = 0;
-  const suggestionsCandidatesList: Song[] = [];
   try {
     const raw = await getSuggestions(seedId, 30);
-    suggestionsCount = raw.length;
     const normalized = normalizeSongsToCanonical(raw);
     for (const s of normalized) {
-      suggestionsCandidatesList.push(s);
       addCandidate(s);
     }
   } catch {}
 
-  // Source 3: Hits from primary artist of the seed
-  let artistHitsCount = 0;
   if (seedArtist) {
     try {
       const artistSongs = await searchSongs(`${seedArtist} hits`, 15);
-      artistHitsCount = artistSongs.length;
       const normalized = normalizeSongsToCanonical(artistSongs);
       for (const s of normalized) {
         addCandidate(s);
@@ -832,50 +867,52 @@ export async function generateSeedAnchoredBatch(
     } catch {}
   }
 
-  // Sanity check: if candidate pool is too small, supplement with cold start/popular songs
-  let fallbackCount = 0;
-  if (candidates.length < 10) {
+  if (candidates.length < 15) {
+    if (tasteProfile && tasteProfile.userId) {
+      try {
+        const recentPlays = await ListeningHistory.find({
+          userId: new mongoose.Types.ObjectId(tasteProfile.userId),
+          language: seedLang,
+          songId: { $ne: seedId },
+        })
+          .sort({ playedAt: -1 })
+          .limit(3)
+          .lean();
+        const extraPromises = recentPlays.map((p) => getSuggestions(p.songId, 25));
+        const extraResults = await Promise.allSettled(extraPromises);
+        for (const res of extraResults) {
+          if (res.status === "fulfilled") {
+            const normalized = normalizeSongsToCanonical(res.value);
+            for (const s of normalized) {
+              addCandidate(s);
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+
+  if (candidates.length < 15) {
     try {
-      const prefLangs = tasteProfile?.languages.map((l: any) => l.language) || [];
-      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize, prefLangs);
-      fallbackCount = fallbacks.length;
-      for (const s of fallbacks) {
+      const fallbacks = await searchSongs(`popular ${seedLang} songs`, 25);
+      const normalized = normalizeSongsToCanonical(fallbacks);
+      for (const s of normalized) {
         addCandidate(s);
       }
     } catch {}
   }
+
   if (candidates.length === 0) {
     return [];
   }
 
-  // Score candidates with seed-weighted ranking (seed weight close to 1.0)
   const scored = candidates.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
     const artist = (song.primaryArtists || "").toLowerCase();
-    const lang = (song.language || "").toLowerCase();
-    const label = ((song as any).label || "").toLowerCase();
+    const lang = inferSongLanguage(song);
+    const album = (song.album || "").toLowerCase();
 
-    // Base popularity (0–60 pts)
-    score += popularityScore(song.playCount);
-
-    // Full cover penalty (applied unconditionally)
-    score += coverPenalty(title);
-
-    // Blacklisted label check
-    if (label && BLACKLISTED_LABELS.some((bl) => label.includes(bl))) {
-      score += W.BLACKLISTED_LABEL;
-    }
-
-    // Original indicator bonus
-    for (const marker of ORIGINAL_MARKERS) {
-      if (title.includes(marker)) {
-        score += W.ORIGINAL_BONUS;
-        break;
-      }
-    }
-
-    // Seed-anchored similarity (heavy weights, close to 1.0)
     const songArtists = artist.split(",").map((a) => a.trim().toLowerCase());
     const isSameArtist = songArtists.some(
       (sa) =>
@@ -883,56 +920,60 @@ export async function generateSeedAnchoredBatch(
         seedArtist.toLowerCase().includes(sa),
     );
     if (isSameArtist) {
-      score += 60; // Extra heavy seed artist similarity
+      score += 150;
+    }
+
+    const seedAlbum = (seed.album || "").toLowerCase();
+    if (seedAlbum && album && (album.includes(seedAlbum) || seedAlbum.includes(album))) {
+      score += 100;
     }
 
     if (lang === seedLang) {
-      score += 40; // Heavy seed language similarity
+      score += 50;
     }
 
-    // Overall taste profile score (if present)
     if (tasteProfile) {
       const artistNameSet = new Set(
         tasteProfile.artists.map((a) => a.artistName.toLowerCase()),
       );
-      const langWeightMap = new Map(
-        tasteProfile.languages.map((l) => [l.language, l.weight]),
-      );
-
       for (const sa of songArtists) {
         if (artistNameSet.has(sa)) {
-          score += 20;
+          score += 30;
           break;
         }
       }
-
-      if (lang && langWeightMap.has(lang)) {
-        score += Math.round(15 * langWeightMap.get(lang)!);
-      }
     }
 
-    if (!song.streamUrl) score -= 30;
+    score += popularityScore(song.playCount) * 0.5;
+    score += coverPenalty(title);
 
-    return { ...song, _recScore: score };
+    return { ...song, _recScore: score, language: lang };
   });
 
-  // Sort candidates
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  // Diversity: max 2 songs per artist
-  const artistCount = new Map<string, number>();
   const diversified: Song[] = [];
+  const artistCount = new Map<string, number>();
+  let lastArtist1 = "";
+  let lastArtist2 = "";
 
   for (const song of scored) {
     const firstArtist = (song.primaryArtists || "")
       .split(",")[0]
       .trim()
       .toLowerCase();
-    const count = artistCount.get(firstArtist) || 0;
-    if (count >= 2) continue; // max 2 per artist
-    artistCount.set(firstArtist, count + 1);
 
-    // Attach reason
+    if (firstArtist === lastArtist1 && firstArtist === lastArtist2) {
+      continue;
+    }
+
+    const count = artistCount.get(firstArtist) || 0;
+    if (count >= 4) continue;
+
+    artistCount.set(firstArtist, count + 1);
+    lastArtist2 = lastArtist1;
+    lastArtist1 = firstArtist;
+
     const cleanSong = { ...song };
     delete (cleanSong as any)._recScore;
     (cleanSong as any).reason = `Similar to ${seed.name}`;
@@ -943,6 +984,7 @@ export async function generateSeedAnchoredBatch(
 
   return diversified;
 }
+
 
 export async function getColdStartBatch(
   excludeIds: string[],

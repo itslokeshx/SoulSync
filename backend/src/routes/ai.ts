@@ -149,6 +149,20 @@ async function withConcurrency<T>(
   return results;
 }
 
+function deduplicateByVideoId(results: MatchedSong[]): MatchedSong[] {
+  const seenVideoIds = new Set<string>();
+  return results.map((r) => {
+    if (!r.song || r.confidence === "none") return r;
+    const videoId = String((r.song as any).id || "");
+    if (!videoId) return r;
+    if (seenVideoIds.has(videoId)) {
+      return { ...r, confidence: "none" as const, score: 0 };
+    }
+    seenVideoIds.add(videoId);
+    return r;
+  });
+}
+
 // ─── Check if a song matches the requested language ─────────────────────────
 function songMatchesLanguage(song: any, targetLang: string | null): boolean {
   if (!targetLang) return true; // no language constraint
@@ -433,9 +447,10 @@ RULES:
 2. Format each entry as "Song Title - Artist Name" (include the real original artist)
 3. Prioritize popular, critically acclaimed, and widely loved songs — NOT obscure or generic tracks
 4. Vary artists (maximum 3 songs per artist) for diversity
-5. Include a mix of classic hits and modern favorites that match the mood
-6. Every song should be a real track that exists on music platforms like JioSaavn, Spotify, etc.
-7. Do NOT make up fake song names or pair wrong artists with songs${langConstraint}${langContext}
+5. STRONGLY prefer songs released in the last 2 years (2024-2026). At least 70% of songs should be recent chart-toppers and trending hits. Only include older classics if they perfectly match the mood and modern options are exhausted.
+6. Every song should be a real track that exists on music platforms like YouTube Music, Spotify, etc.
+7. Do NOT make up fake song names or pair wrong artists with songs
+8. Include currently viral and streaming-chart songs that match the mood${langConstraint}${langContext}
 
 Return JSON:
 {"songs": ["Song Title - Artist Name", ...], "playlistName": "creative 4-word playlist name"}`;
@@ -578,14 +593,12 @@ router.post(
 
         const allResults = await withConcurrency(tasks, MAX_SEARCH_CONCURRENT);
 
-        // Filter by language if a language was detected, then sort by confidence
-        let filteredResults = allResults;
+        let filteredResults = deduplicateByVideoId(allResults);
         if (detectedLang) {
-          filteredResults = allResults.map((r) => {
+          filteredResults = filteredResults.map((r) => {
             if (r.confidence === "none" || !r.song) return r;
             const song = r.song as any;
             if (songMatchesLanguage(song, detectedLang)) return r;
-            // Downgrade confidence for wrong-language songs
             return { ...r, confidence: "none" as const, score: 0 };
           });
         }
@@ -715,13 +728,13 @@ router.post(
           }),
       );
 
-      const allResults = await withConcurrency(
+      const rawResults = await withConcurrency(
         searchTasks,
         MAX_SEARCH_CONCURRENT,
       );
 
-      // Sort: high-confidence first, then partial. Trim to the user's requested
-      // count so the final playlist always has exactly maxSongs songs.
+      const allResults = deduplicateByVideoId(rawResults);
+
       const allFound = [
         ...allResults.filter((r) => r.confidence === "high"),
         ...allResults.filter((r) => r.confidence === "partial"),
