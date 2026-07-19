@@ -19,7 +19,7 @@ No advertisements. No subscription. No data tracking. Ever.
 
 ## ⚡ Highlights & Key Features
 
-*   **AI Playlist Synthesis** — Natural language mood-to-track synthesis (GPT-Llama-3-120B via Groq) with multi-key API failover rotation, playlist length verification, and Spotify/YT Music import tools.
+*   **AI Playlist Synthesis** — Natural language mood-to-track synthesis (GPT-OSS-120B via Groq) with multi-key API failover rotation, playlist length verification, and Spotify/YT Music import tools.
 *   **Decoupled Streaming Engine** — Hybrid streaming engine powered by **JioSaavn API** and a dedicated **FastAPI Python microservice** for Youtube / YT Music search translation and direct high-quality audio streaming.
 *   **SoulLink Real-Time Sync** — Host-controlled synchronization (play, pause, seek, queue) and live chat over WebSocket rooms for synchronized social listening sessions.
 *   **Cross-Platform Client** — Client optimized for Web (Vercel) and Android (Capacitor Native) supporting background audio playback, system media control notifications, and offline-first capabilities.
@@ -66,7 +66,7 @@ flowchart TD
     subgraph Backend ["Business & Inference Engines"]
         Ranker["7-Factor Search Ranker"]
         Import["Platform Importer Engine (Spotify, YT Music)"]
-        AI["Groq GPT-Llama-3-120B Mood Synthesizer"]
+        AI["Groq GPT-OSS-120B Mood Synthesizer"]
         Dash["Dashboard Aggregator"]
     end
 
