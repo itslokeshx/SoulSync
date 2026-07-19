@@ -31,7 +31,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 def create_session() -> requests.Session:
     session = requests.Session()
-    adapter = TimeoutHTTPAdapter(pool_connections=40, pool_maxsize=40, timeout=10)
+    adapter = TimeoutHTTPAdapter(pool_connections=5, pool_maxsize=5, timeout=10)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     
@@ -148,8 +148,8 @@ def get_client() -> YTMusic:
 
 from threading import Semaphore, Lock
 
-# Limit to 10 concurrent outbound YouTube Music calls across all threads
-_yt_semaphore = Semaphore(10)
+# Limit concurrent outbound YouTube Music calls (kept low for 512MB Render free tier)
+_yt_semaphore = Semaphore(3)
 
 # ── Circuit breaker ──────────────────────────────────────────────────────
 # If YouTube is actively blocking us (auth/parse failures), retrying each

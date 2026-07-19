@@ -184,8 +184,8 @@ def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
     if not video_ids:
         return {"results": []}
 
-    # Limit batch size to 30 to prevent rate-limiting or uvicorn starvation
-    vids = video_ids[:30]
+    # Limit batch size to prevent memory exhaustion on 512MB Render free tier
+    vids = video_ids[:10]
 
     def fetch_one(vid: str):
         try:
@@ -196,7 +196,7 @@ def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
             return {"video_id": vid, "error": str(e), "success": False}
 
     start = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=min(len(vids), 15)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(vids), 4)) as executor:
         results = list(executor.map(fetch_one, vids))
 
     elapsed = time.perf_counter() - start
@@ -251,11 +251,6 @@ def get_song_stream(video_id: str) -> dict:
     py_dir = os.path.dirname(sys.executable)
     if py_dir and py_dir not in os.environ.get("PATH", "").split(os.pathsep):
         os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
-
-    node_path = shutil.which("node")
-    js_runtimes = {}
-    if node_path:
-        js_runtimes['node'] = {'path': node_path}
         
     last_err = None
     
@@ -267,8 +262,6 @@ def get_song_stream(video_id: str) -> dict:
             'no_plugins': True,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
-        if js_runtimes:
-            opts['js_runtimes'] = js_runtimes
         if cookies_path:
             opts['cookiefile'] = cookies_path
         if browser:

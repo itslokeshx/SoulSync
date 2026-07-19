@@ -17,6 +17,7 @@ logger = logging.getLogger("music-provider.cache")
 # Thread-safe in-memory cache fallback
 _memory_cache = {}
 _memory_lock = Lock()
+MAX_MEMORY_CACHE_SIZE = 200  # Cap entries to prevent OOM on 512MB Render free tier
 
 UPSTASH_REDIS_REST_URL = os.getenv("UPSTASH_REDIS_REST_URL")
 UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
@@ -93,9 +94,20 @@ def set_cached(key: str, value: Any, ttl_seconds: int = 1800) -> None:
     if USE_REDIS:
         _redis_request(["SET", key, val_str, "EX", str(ttl_seconds)])
 
-    # 2. Set in-memory
+    # 2. Set in-memory (with size cap)
     with _memory_lock:
-        expires_at = time.time() + ttl_seconds
+        # Evict expired entries first
+        now = time.time()
+        expired_keys = [k for k, (_, exp) in _memory_cache.items() if exp is not None and now >= exp]
+        for k in expired_keys:
+            del _memory_cache[k]
+
+        # If still over budget, evict oldest entries
+        while len(_memory_cache) >= MAX_MEMORY_CACHE_SIZE:
+            oldest_key = next(iter(_memory_cache))
+            del _memory_cache[oldest_key]
+
+        expires_at = now + ttl_seconds
         _memory_cache[key] = (val_str, expires_at)
 
 
