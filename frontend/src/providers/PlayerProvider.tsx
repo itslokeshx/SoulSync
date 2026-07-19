@@ -485,7 +485,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       await loadYoutubeApi();
       if (cancelled) return;
 
-      // Wait a tiny bit to ensure the container is in the DOM
+      // Wait for the container div to appear in the DOM
       for (let i = 0; i < 20; i++) {
         if (document.getElementById("youtube-audio-player")) break;
         await new Promise((r) => setTimeout(r, 100));
@@ -512,28 +512,38 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           events: {
             onReady: () => {
               ytPlayerReadyRef.current = true;
-              if (ytPlayerRef.current) {
-                try {
-                  ytPlayerRef.current.setVolume(isMuted ? 0 : volume * 100);
-                } catch {}
+              // Flush any action that was queued while the player was loading
+              if (pendingYtActionRef.current) {
+                try { pendingYtActionRef.current(); } catch {}
+                pendingYtActionRef.current = null;
               }
             },
             onStateChange: (event: any) => {
               const state = event.data;
-              const currentState = usePlayerStore.getState();
-              const isYouTube = currentState.currentSong && !currentState.currentSong._isOffline && !currentState.currentSong.id.startsWith("local_");
-              const isActiveBackground = isYouTube && (!currentState.isVideoMode || !currentState.isPlayerExpanded);
-
-              if (!isActiveBackground) return;
+              const s = usePlayerStore.getState();
+              const isYT = s.currentSong && !s.currentSong._isOffline && !s.currentSong.id.startsWith("local_");
+              if (!isYT || (s.isVideoMode && s.isPlayerExpanded)) return;
 
               if (state === 1) { // playing
-                setIsPlaying(true);
+                usePlayerStore.getState().setIsPlaying(true);
               } else if (state === 2) { // paused
-                setIsPlaying(false);
+                usePlayerStore.getState().setIsPlaying(false);
               } else if (state === 0) { // ended
-                setIsPlaying(false);
-                handleEnded();
+                usePlayerStore.getState().setIsPlaying(false);
+                handleEndedRef.current();
               }
+            },
+            onError: (event: any) => {
+              console.error("[YTPlayer] error code:", event.data);
+              // Auto-skip to next song on player error after a short delay
+              setTimeout(() => {
+                const s = usePlayerStore.getState();
+                if (s.currentSong) {
+                  const n = useQueueStore.getState().next(s.repeatMode);
+                  if (n) usePlayerStore.getState().playSong(n);
+                  else usePlayerStore.getState().pause();
+                }
+              }, 1500);
             },
           },
         });
@@ -544,12 +554,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     initPlayer();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   // ── YouTube Background Player Command Sender ──
+  // Runs on every relevant state change; queues the action if the player isn't ready yet.
   useEffect(() => {
     if (!currentSong) return;
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
@@ -557,37 +566,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const playYTBackground = isPlaying && (!isVideoMode || !isPlayerExpanded);
 
-    if (ytPlayerRef.current && ytPlayerReadyRef.current) {
+    const executeCommand = () => {
       const player = ytPlayerRef.current;
+      if (!player || typeof player.getPlayerState !== "function") return;
 
       if (playYTBackground) {
         if (loadedYtVideoIdRef.current !== currentSong.id) {
           const startSec = Math.floor(usePlayerStore.getState().currentTime);
           loadedYtVideoIdRef.current = currentSong.id;
           try {
-            player.loadVideoById({
-              videoId: currentSong.id,
-              startSeconds: startSec || 0,
-            });
+            player.loadVideoById({ videoId: currentSong.id, startSeconds: startSec || 0 });
           } catch (err) {
-            console.error("Failed to loadVideoById:", err);
+            console.error("[YTPlayer] loadVideoById failed:", err);
           }
         } else {
           try {
-            const playerState = player.getPlayerState();
-            if (playerState !== 1) {
-              player.playVideo();
-            }
+            if (player.getPlayerState() !== 1) player.playVideo();
           } catch {}
         }
       } else {
         try {
-          const playerState = player.getPlayerState();
-          if (playerState === 1 || playerState === 3) {
-            player.pauseVideo();
-          }
+          const ps = player.getPlayerState();
+          if (ps === 1 || ps === 3) player.pauseVideo();
         } catch {}
       }
+    };
+
+    if (ytPlayerReadyRef.current) {
+      executeCommand();
+    } else {
+      // Player not ready yet — queue this action to be flushed in onReady
+      pendingYtActionRef.current = executeCommand;
     }
   }, [isPlaying, currentSong?.id, isVideoMode, isPlayerExpanded]);
 
@@ -596,29 +605,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isPlaying || !currentSong) return;
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
     if (!isYouTube) return;
-
-    const playYTBackground = !isVideoMode || !isPlayerExpanded;
-    if (!playYTBackground) return;
+    if (isVideoMode && isPlayerExpanded) return;
 
     const interval = setInterval(() => {
-      if (ytPlayerRef.current && ytPlayerReadyRef.current) {
-        try {
-          const player = ytPlayerRef.current;
-          if (player.getPlayerState() === 1) {
-            const time = player.getCurrentTime();
-            const dur = player.getDuration();
-            if (typeof time === "number" && !isNaN(time)) {
-              setCurrentTime(time);
-            }
-            if (typeof dur === "number" && !isNaN(dur) && dur > 0) {
-              const currentDuration = usePlayerStore.getState().duration;
-              if (!currentDuration || Math.abs(currentDuration - dur) > 2) {
-                setDuration(dur);
-              }
+      const player = ytPlayerRef.current;
+      if (!player || !ytPlayerReadyRef.current) return;
+      try {
+        if (player.getPlayerState() === 1) {
+          const time = player.getCurrentTime();
+          const dur = player.getDuration();
+          if (typeof time === "number" && !isNaN(time)) {
+            setCurrentTime(time);
+          }
+          if (typeof dur === "number" && !isNaN(dur) && dur > 0) {
+            const currentDuration = usePlayerStore.getState().duration;
+            if (!currentDuration || Math.abs(currentDuration - dur) > 2) {
+              setDuration(dur);
             }
           }
-        } catch {}
-      }
+        }
+      } catch {}
     }, 500);
 
     return () => clearInterval(interval);
@@ -740,6 +746,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
   };
+  // Keep ref in sync so the YT.Player's onStateChange (captured in a [] effect) always calls the latest version
+  handleEndedRef.current = handleEnded;
 
   // ── FIX: prevent random pauses from buffering/browser events ──────
   const handlePause = () => {
