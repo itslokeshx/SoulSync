@@ -88,6 +88,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const ytPlayerRef = useRef<any>(null);
   const ytPlayerReadyRef = useRef<boolean>(false);
   const loadedYtVideoIdRef = useRef<string | null>(null);
+  // Stable ref for handleEnded so the YT.Player [] init effect doesn't capture a stale closure
+  const handleEndedRef = useRef<() => void>(() => {});
+  // Queue a pending action when YT.Player isn't ready yet — flushed in onReady
+  const pendingYtActionRef = useRef<(() => void) | null>(null);
   const {
     currentSong,
     isPlaying,
