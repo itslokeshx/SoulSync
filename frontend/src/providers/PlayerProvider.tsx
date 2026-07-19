@@ -372,6 +372,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     initBackgroundAudio();
   }, []);
 
+  // ── Local playback time ticker for Video Mode (since audio is paused) ────
+  useEffect(() => {
+    if (!isPlaying || !isVideoMode || !currentSong) return;
+
+    const interval = setInterval(() => {
+      const state = usePlayerStore.getState();
+      const nextTime = state.currentTime + 0.25;
+      if (state.duration && nextTime <= state.duration) {
+        setCurrentTime(nextTime);
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, isVideoMode, currentSong?.id, setCurrentTime]);
+
   // Pre-fetch autoplay suggestions when approaching the end of the queue (before the last 2 songs played)
   const lastAutoplayFetchedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -424,7 +439,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     if (audioRef.current) {
       const dur = audioRef.current.duration;
-      if (dur && isFinite(dur)) setDuration(dur);
+      const currentDuration = usePlayerStore.getState().duration;
+      if (dur && isFinite(dur) && (!currentDuration || Math.abs(currentDuration - dur) > 5)) {
+        setDuration(dur);
+      }
     }
   };
 

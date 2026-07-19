@@ -316,6 +316,7 @@ export function AppLayout() {
         {currentSong && (
           <NowPlayingView
             isOpen={npOpen}
+            onOpen={() => setNpOpen(true)}
             currentSong={currentSong}
             isPlaying={isPlaying}
             currentTime={currentTime}

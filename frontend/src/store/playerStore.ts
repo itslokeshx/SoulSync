@@ -45,7 +45,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     isVideoMode: false,
 
     playSong: (song) =>
-      set({ currentSong: song, isPlaying: true, currentTime: 0 }),
+      set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 }),
     pause: () => set({ isPlaying: false }),
     resume: () => set({ isPlaying: true }),
     togglePlay: () => set((s) => ({ isPlaying: !s.isPlaying })),
