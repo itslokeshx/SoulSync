@@ -189,6 +189,7 @@ async function start() {
     setTimeout(async () => {
       logger.info("[CacheWarm] Starting background search cache warm-up…");
       for (const q of WARM_QUERIES) {
+        try {
           // "all" fans out into ~8 simultaneous sub-searches (songs, albums,
           // artists, playlists, podcasts, episodes, videos, general). Firing
           // that repeatedly at startup looks exactly like bot traffic to
