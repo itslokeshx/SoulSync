@@ -170,6 +170,9 @@ router.post(
         await user.save();
       }
 
+      // Invalidate the dashboard cache immediately so "Liked Songs" shelf updates
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
       res.json({ success: true, likedCount: user.likedSongs.length });
     } catch (err) {
       console.error("[User] Like error:", err);
@@ -272,6 +275,10 @@ router.delete(
       }
 
       await user.save();
+
+      // Invalidate the dashboard cache immediately so "Liked Songs" shelf updates
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
       res.json({ success: true, likedCount: user.likedSongs.length });
     } catch (err) {
       console.error("[User] Unlike error:", err);

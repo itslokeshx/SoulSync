@@ -217,8 +217,11 @@ export async function buildTasteProfile(
     W.PROFILE_CACHE_TTL,
   ).catch(() => {});
 
-  // Invalidate dashboard cache immediately
-  await redisDel(`dashboard:${userId}`).catch(() => {});
+  // Invalidate dashboard and candidates cache immediately
+  await Promise.all([
+    redisDel(`dashboard:${userId}`),
+    redisDel(`taste_candidates:${userId}`),
+  ]).catch(() => {});
 
   return profile;
 }
@@ -1170,27 +1173,50 @@ export async function getTasteProfileBatch(
     return normalizeSongsToCanonical(moodSongs);
   };
 
-  const [src0, src1, src2, src3, src4] = await Promise.allSettled([
-    fetchSource0(),
-    fetchSource1(),
-    fetchSource2(),
-    fetchSource3(),
-    fetchSource4(),
-  ]);
+  const cacheKey = `taste_candidates:${tasteProfile.userId}`;
+  let rawCandidates: Song[] = [];
+
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      rawCandidates = JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error("[getTasteProfileBatch] Cache read failed:", err);
+  }
+
+  if (rawCandidates.length === 0) {
+    const [src0, src1, src2, src3, src4] = await Promise.allSettled([
+      fetchSource0(),
+      fetchSource1(),
+      fetchSource2(),
+      fetchSource3(),
+      fetchSource4(),
+    ]);
+
+    const seenIds = new Set<string>();
+    const sourceResults = [src0, src1, src2, src3, src4];
+    for (const res of sourceResults) {
+      if (res.status === "fulfilled") {
+        for (const s of res.value) {
+          if (s && s.id && !seenIds.has(s.id)) {
+            seenIds.add(s.id);
+            rawCandidates.push(s);
+          }
+        }
+      }
+    }
+
+    if (rawCandidates.length > 0) {
+      await redisSet(cacheKey, JSON.stringify(rawCandidates), 3600).catch(() => {});
+    }
+  }
 
   const excludeSet = new Set(excludeIds);
   const candidates: Song[] = [];
-
-  const addCandidate = (song: Song) => {
-    if (excludeSet.has(song.id)) return;
-    excludeSet.add(song.id);
-    candidates.push(song);
-  };
-
-  const sourceResults = [src0, src1, src2, src3, src4];
-  for (const res of sourceResults) {
-    if (res.status === "fulfilled") {
-      for (const s of res.value) addCandidate(s);
+  for (const s of rawCandidates) {
+    if (s && s.id && !excludeSet.has(s.id)) {
+      candidates.push(s);
     }
   }
 
@@ -1406,6 +1432,16 @@ const LANGUAGE_PLAYLIST_MAP: Record<string, string[]> = {
 };
 
 async function fetchCuratedNewReleases(lang: string, homeAlbumIds: string[] = []): Promise<Song[]> {
+  const cacheKey = `curated_new_releases:v3:${lang.toLowerCase().trim()}`;
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error("[fetchCuratedNewReleases] Cache read error:", err);
+  }
+
   const currentYear = new Date().getFullYear();
   const candidates: Song[] = [];
   const seenIds = new Set<string>();
@@ -1483,6 +1519,10 @@ async function fetchCuratedNewReleases(lang: string, homeAlbumIds: string[] = []
         console.warn(`[NewReleases] Failed to fetch album tracks for ${lang}`, err);
       }
     }
+  }
+
+  if (candidates.length > 0) {
+    await redisSet(cacheKey, JSON.stringify(candidates), 43200).catch(() => {});
   }
 
   return candidates;

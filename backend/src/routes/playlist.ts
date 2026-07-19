@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { Playlist } from "../models/Playlist.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
+import { redisDel } from "../services/redis.js";
 
 const router = Router();
 
@@ -42,6 +43,9 @@ router.post("/", authMiddleware, async (req: AuthRequest, res: Response): Promis
       songs: songs || [],
       tags: tags || [],
     });
+
+    // Invalidate the dashboard cache immediately so "Playlists" shelf updates
+    await redisDel(`dashboard:${req.userId}`).catch(() => {});
 
     res.status(201).json({ playlist });
   } catch (err) {
@@ -138,6 +142,10 @@ router.patch("/:id", authMiddleware, async (req: AuthRequest, res: Response): Pr
     if (isPublic !== undefined) playlist.isPublic = isPublic;
 
     await playlist.save();
+
+    // Invalidate the dashboard cache immediately so "Playlists" shelf updates
+    await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
     res.json({ playlist });
   } catch (err) {
     console.error("[Playlist] Update error:", err);
@@ -159,6 +167,9 @@ router.delete(
         res.status(404).json({ error: "Playlist not found" });
         return;
       }
+      // Invalidate the dashboard cache immediately so "Playlists" shelf updates
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
       res.json({ success: true });
     } catch (err) {
       console.error("[Playlist] Delete error:", err);
@@ -197,6 +208,9 @@ router.post(
 
       playlist.songs.push(song);
       await playlist.save();
+      // Invalidate the dashboard cache immediately so "Playlists" shelf updates
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
       res.json({ playlist });
     } catch (err) {
       console.error("[Playlist] Add song error:", err);
@@ -224,6 +238,9 @@ router.delete(
         (s) => s.songId !== req.params.songId,
       );
       await playlist.save();
+      // Invalidate the dashboard cache immediately so "Playlists" shelf updates
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
       res.json({ playlist });
     } catch (err) {
       console.error("[Playlist] Remove song error:", err);
@@ -260,6 +277,9 @@ router.patch(
         .filter(Boolean);
       playlist.songs = reordered as any;
       await playlist.save();
+      // Invalidate the dashboard cache immediately so "Playlists" shelf updates
+      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
       res.json({ playlist });
     } catch (err) {
       console.error("[Playlist] Reorder error:", err);
