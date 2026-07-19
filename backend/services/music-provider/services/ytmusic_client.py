@@ -74,6 +74,19 @@ def create_session() -> requests.Session:
 
 
 
+def reset_client_to_guest():
+    global _client
+    logger.warning("Resetting YTMusic client to guest mode fallback due to auth/parse failure")
+    try:
+        session = create_session()
+        session.cookies.clear()
+        _client = YTMusic(requests_session=session)
+        logger.info("YTMusic client successfully reset to clean guest mode")
+    except Exception as e:
+        logger.error(f"Failed to reset YTMusic client to guest mode: {e}")
+        _client = None
+
+
 def get_client() -> YTMusic:
     """
     Get or create the singleton YTMusic instance.
@@ -132,6 +145,24 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
                         raise  # Don't retry HTTP exceptions we raise ourselves
                     except Exception as e:
                         last_error = e
+                        err_str = str(e).lower()
+                        is_auth_or_parse_fail = (
+                            "unauthorized" in err_str or
+                            "auth" in err_str or
+                            "login" in err_str or
+                            "sign in" in err_str or
+                            "expecting value" in err_str or
+                            "json" in err_str
+                        )
+                        if is_auth_or_parse_fail:
+                            logger.warning(
+                                f"[{func.__name__}] Auth/Parse failure detected: {e}. "
+                                f"Attempting immediate guest mode fallback."
+                            )
+                            reset_client_to_guest()
+                            if attempt < max_retries - 1:
+                                continue
+                                
                         if attempt < max_retries - 1:
                             delay = base_delay * (2 ** attempt)
                             logger.warning(
