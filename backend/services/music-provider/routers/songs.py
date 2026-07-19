@@ -120,6 +120,8 @@ def get_song_stream(video_id: str) -> dict:
     start = time.perf_counter()
     import yt_dlp
     import shutil
+    import os
+    from pathlib import Path
     
     url = f"https://www.youtube.com/watch?v={video_id}"
     
@@ -128,19 +130,34 @@ def get_song_stream(video_id: str) -> dict:
     if node_path:
         js_runtimes['node'] = {'path': node_path}
         
-    browsers = ['chrome', 'firefox', 'brave', 'chromium', 'opera', 'vivaldi', 'edge']
-    if _working_cookie_browser and _working_cookie_browser in browsers:
-        browsers.remove(_working_cookie_browser)
-        browsers.insert(0, _working_cookie_browser)
-        
     last_err = None
     
-    # 1. Try resolving using cookies from common browsers
-    for browser in browsers:
+    # ── COOKIE FILE RESOLUTION ──────────────────────────────────────────────
+    cookie_file_path = None
+    yt_cookies_env = os.getenv("YT_COOKIES")
+    if yt_cookies_env:
+        try:
+            temp_cookie_path = "/tmp/soulsync_cookies.txt"
+            os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
+            with open(temp_cookie_path, "w", encoding="utf-8") as f:
+                f.write(yt_cookies_env)
+            cookie_file_path = temp_cookie_path
+            logger.info("[song_stream] Using YT_COOKIES environment variable")
+        except Exception as e:
+            logger.error(f"[song_stream] Failed to write YT_COOKIES temp file: {e}")
+            
+    if not cookie_file_path:
+        local_cookie_path = Path(__file__).parent.parent / "cookies.txt"
+        if local_cookie_path.exists():
+            cookie_file_path = str(local_cookie_path)
+            logger.info("[song_stream] Using local cookies.txt file")
+
+    # 1. Try resolving using cookies file if available
+    if cookie_file_path:
         ydl_opts = {
             'format': 'bestaudio',
             'quiet': True,
-            'cookiesfrombrowser': (browser,),
+            'cookiefile': cookie_file_path,
         }
         if js_runtimes:
             ydl_opts['js_runtimes'] = js_runtimes
@@ -150,15 +167,44 @@ def get_song_stream(video_id: str) -> dict:
                 info = ydl.extract_info(url, download=False)
                 stream_url = info.get('url')
                 if stream_url:
-                    _working_cookie_browser = browser
                     elapsed = time.perf_counter() - start
-                    logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies from browser '{browser}'")
+                    logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies file")
                     return {"url": stream_url}
         except Exception as e:
+            logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
             last_err = e
-            continue
 
-    # 2. Try guest mode fallback if all browser cookie extractions failed
+    # 2. Try resolving using cookies from common browsers (skip on Render/headless)
+    is_render = os.getenv("RENDER") == "true"
+    if not is_render:
+        browsers = ['chrome', 'firefox', 'brave', 'chromium', 'opera', 'vivaldi', 'edge']
+        if _working_cookie_browser and _working_cookie_browser in browsers:
+            browsers.remove(_working_cookie_browser)
+            browsers.insert(0, _working_cookie_browser)
+            
+        for browser in browsers:
+            ydl_opts = {
+                'format': 'bestaudio',
+                'quiet': True,
+                'cookiesfrombrowser': (browser,),
+            }
+            if js_runtimes:
+                ydl_opts['js_runtimes'] = js_runtimes
+                
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    stream_url = info.get('url')
+                    if stream_url:
+                        _working_cookie_browser = browser
+                        elapsed = time.perf_counter() - start
+                        logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies from browser '{browser}'")
+                        return {"url": stream_url}
+            except Exception as e:
+                last_err = e
+                continue
+
+    # 3. Try guest mode fallback if all else failed
     ydl_opts = {
         'format': 'bestaudio',
         'quiet': True,
