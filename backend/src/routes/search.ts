@@ -608,13 +608,46 @@ router.get("/stream", async (req: any, res: Response): Promise<void> => {
       res.status(404).json({ error: "Stream not found" });
       return;
     }
-    // Perform 302 redirection to the deciphered YouTube stream URL.
-    // The browser will follow this redirect and stream it directly from Google Video.
-    res.redirect(302, realUrl);
+    // Proxy the audio stream directly to bypass client-side signature/IP checks
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    };
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range as string;
+    }
+    
+    const response = await axios({
+      method: "get",
+      url: realUrl,
+      headers: headers,
+      responseType: "stream",
+      timeout: 15000,
+    });
+    
+    res.status(response.status);
+    
+    const headersToForward = [
+      "content-type",
+      "content-length",
+      "content-range",
+      "accept-ranges",
+      "cache-control",
+    ];
+    for (const h of headersToForward) {
+      if (response.headers[h]) {
+        res.setHeader(h, response.headers[h]);
+      }
+    }
+    
+    response.data.pipe(res);
+    
+    req.on("close", () => {
+      response.data.destroy();
+    });
   } catch (err: any) {
-    console.error("[Stream] Error redirecting to stream:", err.message);
+    console.error("[Stream] Error proxying stream:", err.message);
     if (!res.headersSent) {
-      res.status(500).json({ error: "Failed to resolve stream redirect" });
+      res.status(500).json({ error: "Failed to resolve stream" });
     }
   }
 });
