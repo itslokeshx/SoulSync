@@ -783,16 +783,30 @@ export const HomePage = () => {
             mixSet.mixes
               .filter((m: any) => (m.songs || []).length > 0)
               .map((mix: any) => (
-                <HSectionInline
-                  key={mix.key}
-                  title={mix.title}
-                  subtitle={mix.description}
-                  songs={mix.songs}
-                  currentSong={currentSong}
-                  isPlaying={isPlaying}
-                  onPlay={handleHomeSongClick}
-                  cardSize="lg"
-                />
+                <div key={mix.key} className="mb-10">
+                  <HSectionInline
+                    title={mix.title}
+                    subtitle={mix.description}
+                    songs={mix.songs.slice(0, 8)}
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    onPlay={handleHomeSongClick}
+                    cardSize="lg"
+                  />
+                  {mix.songs.length > 8 && (
+                    <div className="-mt-8">
+                      <HSectionInline
+                        title=""
+                        hideHeader={true}
+                        songs={mix.songs.slice(8, 16)}
+                        currentSong={currentSong}
+                        isPlaying={isPlaying}
+                        onPlay={handleHomeSongClick}
+                        cardSize="lg"
+                      />
+                    </div>
+                  )}
+                </div>
               ))
           )}
         </div>
@@ -823,15 +837,30 @@ export const HomePage = () => {
           ))}
         </div>
       ) : newReleasesList.length > 0 ? (
-        <HSectionInline
-          title="New Releases"
-          subtitle="Fresh from your languages"
-          songs={newReleasesList}
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPlay={handleHomeSongClick}
-          cardSize="lg"
-        />
+        <div className="mb-10">
+          <HSectionInline
+            title="New Releases"
+            subtitle="Fresh from your languages"
+            songs={newReleasesList.slice(0, 8)}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={handleHomeSongClick}
+            cardSize="lg"
+          />
+          {newReleasesList.length > 8 && (
+            <div className="-mt-8">
+              <HSectionInline
+                title=""
+                hideHeader={true}
+                songs={newReleasesList.slice(8, 16)}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="lg"
+              />
+            </div>
+          )}
+        </div>
       ) : null}
 
       {/* ── Error fallback ── */}
