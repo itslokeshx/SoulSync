@@ -3,6 +3,8 @@ Songs, lyrics, watch queue, and related content router.
 """
 import time
 import logging
+import random
+import threading
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Body
 from concurrent.futures import ThreadPoolExecutor
@@ -12,6 +14,8 @@ from services.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger("music-provider.songs")
+_stream_lock = threading.Lock()
+
 
 
 @router.get("/song/{video_id}")
@@ -149,74 +153,88 @@ def get_song_stream(video_id: str) -> dict:
     
     # ── COOKIE FILE RESOLUTION ──────────────────────────────────────────────
     cookie_file_path = None
-    yt_cookies_env = os.getenv("YT_COOKIES")
-    if yt_cookies_env:
-        try:
-            temp_cookie_path = "/tmp/soulsync_cookies.txt"
-            os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
-            with open(temp_cookie_path, "w", encoding="utf-8") as f:
-                f.write(yt_cookies_env)
-            cookie_file_path = temp_cookie_path
-            logger.info("[song_stream] Using YT_COOKIES environment variable")
-        except Exception as e:
-            logger.error(f"[song_stream] Failed to write YT_COOKIES temp file: {e}")
-            
+    
+    # 1. Check for Render Secret File (highest priority)
+    secret_cookies = Path("/etc/secrets/cookies.txt")
+    if secret_cookies.exists():
+        cookie_file_path = str(secret_cookies)
+        logger.info("[song_stream] Using Render Secret File cookies.txt")
+        
+    # 2. Check for YT_COOKIES environment variable
+    if not cookie_file_path:
+        yt_cookies_env = os.getenv("YT_COOKIES")
+        if yt_cookies_env:
+            try:
+                temp_cookie_path = "/tmp/soulsync_cookies.txt"
+                os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
+                with open(temp_cookie_path, "w", encoding="utf-8") as f:
+                    f.write(yt_cookies_env)
+                cookie_file_path = temp_cookie_path
+                logger.info("[song_stream] Using YT_COOKIES environment variable")
+            except Exception as e:
+                logger.error(f"[song_stream] Failed to write YT_COOKIES temp file: {e}")
+                
+    # 3. Check for local cookies.txt file
     if not cookie_file_path:
         local_cookie_path = Path(__file__).parent.parent / "cookies.txt"
         if local_cookie_path.exists():
             cookie_file_path = str(local_cookie_path)
             logger.info("[song_stream] Using local cookies.txt file")
 
-    # 1. Try resolving using cookies file if available
-    if cookie_file_path:
-        ydl_opts = build_ydl_opts(cookies_path=cookie_file_path)
+    # Serialize resolutions and apply random sleep jitter to bypass bot blocks
+    with _stream_lock:
+        time.sleep(random.uniform(0.1, 0.4))
+        
+        # 1. Try resolving using cookies file if available
+        if cookie_file_path:
+            ydl_opts = build_ydl_opts(cookies_path=cookie_file_path)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    stream_url = info.get('url')
+                    if stream_url:
+                        elapsed = time.perf_counter() - start
+                        logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies file")
+                        return {"url": stream_url}
+            except Exception as e:
+                logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
+                last_err = e
+    
+        # 2. Try resolving using cookies from common browsers (skip on Render/headless)
+        is_render = os.getenv("RENDER") == "true"
+        if not is_render:
+            browsers = ['chrome', 'firefox', 'brave', 'chromium', 'opera', 'vivaldi', 'edge']
+            if _working_cookie_browser and _working_cookie_browser in browsers:
+                browsers.remove(_working_cookie_browser)
+                browsers.insert(0, _working_cookie_browser)
+                
+            for browser in browsers:
+                ydl_opts = build_ydl_opts(browser=browser)
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        stream_url = info.get('url')
+                        if stream_url:
+                            _working_cookie_browser = browser
+                            elapsed = time.perf_counter() - start
+                            logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies from browser '{browser}'")
+                            return {"url": stream_url}
+                except Exception as e:
+                    last_err = e
+                    continue
+    
+        # 3. Try guest mode fallback if all else failed
+        ydl_opts = build_ydl_opts()
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 stream_url = info.get('url')
                 if stream_url:
                     elapsed = time.perf_counter() - start
-                    logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies file")
+                    logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s via guest fallback")
                     return {"url": stream_url}
         except Exception as e:
-            logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
             last_err = e
-
-    # 2. Try resolving using cookies from common browsers (skip on Render/headless)
-    is_render = os.getenv("RENDER") == "true"
-    if not is_render:
-        browsers = ['chrome', 'firefox', 'brave', 'chromium', 'opera', 'vivaldi', 'edge']
-        if _working_cookie_browser and _working_cookie_browser in browsers:
-            browsers.remove(_working_cookie_browser)
-            browsers.insert(0, _working_cookie_browser)
-            
-        for browser in browsers:
-            ydl_opts = build_ydl_opts(browser=browser)
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    stream_url = info.get('url')
-                    if stream_url:
-                        _working_cookie_browser = browser
-                        elapsed = time.perf_counter() - start
-                        logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s using cookies from browser '{browser}'")
-                        return {"url": stream_url}
-            except Exception as e:
-                last_err = e
-                continue
-
-    # 3. Try guest mode fallback if all else failed
-    ydl_opts = build_ydl_opts()
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            stream_url = info.get('url')
-            if stream_url:
-                elapsed = time.perf_counter() - start
-                logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s via guest fallback")
-                return {"url": stream_url}
-    except Exception as e:
-        last_err = e
 
     logger.error(f"[song_stream] Failed to resolve {video_id}: {last_err}")
     raise HTTPException(status_code=500, detail=str(last_err))
