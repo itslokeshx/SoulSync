@@ -97,9 +97,8 @@ npm run install:all
 cp frontend/.env.example frontend/.env
 cp backend/.env.example  backend/.env
 
-# 4. Start development servers (runs frontend + backend concurrently)
-npm run dev:backend    # Server runs on http://localhost:4000
-npm run dev:frontend   # App runs on http://localhost:5173
+# 4. Start development servers (runs frontend, Node backend, and Python music provider concurrently in one terminal)
+npm run dev
 ```
 
 ### Minimal Configuration
