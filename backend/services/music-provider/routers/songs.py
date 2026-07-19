@@ -60,7 +60,7 @@ class InFlightResolution:
 
 _inflight_resolutions = {}
 _inflight_lock = threading.Lock()
-_stream_semaphore = threading.Semaphore(4)
+_stream_semaphore = threading.Semaphore(2)
 
 
 

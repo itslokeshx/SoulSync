@@ -61,20 +61,6 @@ async def lifespan(app: FastAPI):
         print("[startup] WARNING: cookies.txt not found at /etc/secrets/")
 
     keep_alive_task = asyncio.create_task(ping_self_loop())
-    
-    async def run_startup_check():
-        await asyncio.sleep(5)
-        try:
-            from fastapi.concurrency import run_in_threadpool
-            status = await run_in_threadpool(check_cookies_health)
-            if status["status"] == "healthy":
-                print(f"[CookieHealth] SUCCESS: {status['message']}")
-            else:
-                print(f"[CookieHealth] WARNING: {status['message']}")
-        except Exception as e:
-            print(f"[CookieHealth] Error during startup health check: {e}")
-
-    asyncio.create_task(run_startup_check())
 
     yield
     keep_alive_task.cancel()
