@@ -24,6 +24,7 @@ import {
   Plus,
   Infinity,
   Video,
+  Maximize2,
 } from "lucide-react";
 import {
   bestImg,
@@ -152,7 +153,17 @@ export const NowPlayingView = ({
   } = usePlayerStore();
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const isSeekingRef = useRef(false);
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      containerRef.current.requestFullscreen().catch(() => {});
+    }
+  };
 
   // Sync YouTube playback events (Time, Duration, PlayState, EndOfVideo)
   useEffect(() => {
@@ -432,16 +443,23 @@ export const NowPlayingView = ({
             }}
           >
             {isVideoMode ? (
-              <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black relative flex items-center justify-center">
+              <div ref={containerRef} className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black relative flex items-center justify-center group">
                 <iframe
                   ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1`}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0`}
                   title={currentSong.name}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
                 />
+                <button
+                  onClick={toggleFullscreen}
+                  className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center shadow-lg"
+                  title="Toggle Fullscreen"
+                >
+                  <Maximize2 size={14} className="text-white/80" />
+                </button>
               </div>
             ) : (
               <div className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}>
