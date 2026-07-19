@@ -10,3 +10,6 @@ oauth.json
 report.json
 .pytest_cache/
 .json-report.json
+*cookies.txt
+cookies.txt
+

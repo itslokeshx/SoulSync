@@ -56,4 +56,7 @@ __pycache__/
 .json-report.json
 report.json
 oauth.json
+*cookies.txt
+cookies.txt
+
 
