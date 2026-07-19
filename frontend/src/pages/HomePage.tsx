@@ -791,7 +791,7 @@ export const HomePage = () => {
                     currentSong={currentSong}
                     isPlaying={isPlaying}
                     onPlay={handleHomeSongClick}
-                    cardSize="lg"
+                    cardSize="md"
                   />
                   {mix.songs.length > 8 && (
                     <div className="-mt-8">
@@ -802,7 +802,20 @@ export const HomePage = () => {
                         currentSong={currentSong}
                         isPlaying={isPlaying}
                         onPlay={handleHomeSongClick}
-                        cardSize="lg"
+                        cardSize="md"
+                      />
+                    </div>
+                  )}
+                  {mix.songs.length > 16 && (
+                    <div className="-mt-8">
+                      <HSectionInline
+                        title=""
+                        hideHeader={true}
+                        songs={mix.songs.slice(16, 24)}
+                        currentSong={currentSong}
+                        isPlaying={isPlaying}
+                        onPlay={handleHomeSongClick}
+                        cardSize="md"
                       />
                     </div>
                   )}
@@ -818,7 +831,7 @@ export const HomePage = () => {
           <Skeleton className="h-7 w-48 rounded-lg" />
           <div className="flex gap-4 overflow-hidden">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[260px] w-[180px] rounded-2xl flex-shrink-0" />
+              <Skeleton key={i} className="h-[210px] w-[140px] rounded-2xl flex-shrink-0" />
             ))}
           </div>
         </div>
@@ -832,7 +845,7 @@ export const HomePage = () => {
               currentSong={currentSong}
               isPlaying={isPlaying}
               onPlay={(song) => handleHomeSongClick(song, sec.songs)}
-              cardSize="lg"
+              cardSize="md"
             />
           ))}
         </div>
@@ -845,7 +858,7 @@ export const HomePage = () => {
             currentSong={currentSong}
             isPlaying={isPlaying}
             onPlay={handleHomeSongClick}
-            cardSize="lg"
+            cardSize="md"
           />
           {newReleasesList.length > 8 && (
             <div className="-mt-8">
@@ -856,7 +869,20 @@ export const HomePage = () => {
                 currentSong={currentSong}
                 isPlaying={isPlaying}
                 onPlay={handleHomeSongClick}
-                cardSize="lg"
+                cardSize="md"
+              />
+            </div>
+          )}
+          {newReleasesList.length > 16 && (
+            <div className="-mt-8">
+              <HSectionInline
+                title=""
+                hideHeader={true}
+                songs={newReleasesList.slice(16, 24)}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="md"
               />
             </div>
           )}
