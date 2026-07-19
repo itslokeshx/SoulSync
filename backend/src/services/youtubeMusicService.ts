@@ -9,91 +9,7 @@ export function isYouTubeId(id: string): boolean {
   return /^[a-zA-Z0-9_-]{11}$/.test(id);
 }
 
-const jioToYtCache = new Map<string, string>();
 
-export async function translateJioSaavnIdToYouTubeId(jioId: string): Promise<string | null> {
-  if (!jioId) return null;
-  if (isYouTubeId(jioId)) return jioId;
-  
-  // 1. Check in-memory cache
-  if (jioToYtCache.has(jioId)) {
-    return jioToYtCache.get(jioId) || null;
-  }
-
-  // 2. Check Redis cache
-  try {
-    const cachedYtId = await redisGet(`jio_to_yt:${jioId}`);
-    if (cachedYtId) {
-      jioToYtCache.set(jioId, cachedYtId);
-      return cachedYtId;
-    }
-  } catch {}
-
-  console.log(`[youtubeMusicService] Translating JioSaavn ID "${jioId}" to YouTube ID...`);
-
-  // 3. Find metadata from DB collections
-  let metadata: { title: string; artist: string } | null = null;
-  try {
-    // 3a. Search User likedSongs
-    const userDoc = await User.findOne({ "likedSongs.songId": jioId })
-      .select({ likedSongs: { $elemMatch: { songId: jioId } } })
-      .lean();
-    if (userDoc?.likedSongs?.length) {
-      const match = userDoc.likedSongs[0];
-      metadata = { title: match.title, artist: match.artist };
-    }
-
-    // 3b. Search Playlist songs
-    if (!metadata) {
-      const playlistDoc = await Playlist.findOne({ "songs.songId": jioId })
-        .select({ songs: { $elemMatch: { songId: jioId } } })
-        .lean();
-      if (playlistDoc?.songs?.length) {
-        const match = playlistDoc.songs[0];
-        metadata = { title: match.title, artist: match.artist };
-      }
-    }
-
-    // 3c. Search ListeningHistory
-    if (!metadata) {
-      const historyEntry = await ListeningHistory.findOne({ songId: jioId }).lean();
-      if (historyEntry) {
-        metadata = { title: historyEntry.title, artist: historyEntry.artist };
-      }
-    }
-  } catch (err) {
-    console.error("[youtubeMusicService] Error searching DB for JioSaavn metadata:", err);
-  }
-
-  if (!metadata || !metadata.title) {
-    console.warn(`[youtubeMusicService] No metadata found in DB for JioSaavn ID: ${jioId}`);
-    return null;
-  }
-
-  console.log(`[youtubeMusicService] Found JioSaavn metadata: "${metadata.title}" by "${metadata.artist}". Searching YouTube...`);
-
-  // 4. Search on YouTube Music using title + artist
-  try {
-    const query = `${metadata.title} ${metadata.artist}`;
-    const ytSongs = await searchSongs(query, 5);
-    if (ytSongs && ytSongs.length > 0) {
-      const firstSong = ytSongs[0];
-      const ytId = firstSong.id || firstSong.videoId || firstSong.video_id;
-      if (ytId && isYouTubeId(ytId)) {
-        console.log(`[youtubeMusicService] Translated JioSaavn ID "${jioId}" -> YouTube ID "${ytId}"`);
-        // Cache it in-memory
-        jioToYtCache.set(jioId, ytId);
-        // Cache in Redis (set a very long expiry, e.g. 30 days)
-        await redisSet(`jio_to_yt:${jioId}`, ytId, 30 * 24 * 3600).catch(() => {});
-        return ytId;
-      }
-    }
-  } catch (err) {
-    console.error(`[youtubeMusicService] YouTube search failed for JioSaavn translation of ${jioId}:`, err);
-  }
-
-  return null;
-}
 
 export interface Song {
   id: string;
@@ -130,7 +46,7 @@ async function callMusicProvider(endpoint: string, params: Record<string, any> =
     const { data } = await axios.get(`${MUSIC_PROVIDER_URL}/api/music${endpoint}`, {
       params,
       headers,
-      timeout: 30000,
+      timeout: 5000,
     });
     return data;
   } catch (err: any) {
@@ -179,19 +95,14 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
 }
 
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
-  let finalId = id;
   if (!isYouTubeId(id)) {
-    const translated = await translateJioSaavnIdToYouTubeId(id);
-    if (!translated) {
-      return null;
-    }
-    finalId = translated;
+    return null;
   }
   try {
-    const data = await callMusicProvider(`/song/${finalId}/stream`);
+    const data = await callMusicProvider(`/song/${id}/stream`);
     return data.url || null;
   } catch (e: any) {
-    console.error(`[resolveRealStreamUrl] Error resolving stream via Python provider for ${finalId}:`, e.message || e);
+    console.error(`[resolveRealStreamUrl] Error resolving stream via Python provider for ${id}:`, e.message || e);
     return null;
   }
 }
@@ -541,19 +452,12 @@ export async function getAlbumSongs(albumId: string): Promise<any[]> {
 }
 
 export async function fetchSongById(id: string, reqBaseUrl?: string): Promise<Song | null> {
-  let finalId = id;
-  const isJio = !isYouTubeId(id);
-
-  if (isJio) {
-    const translated = await translateJioSaavnIdToYouTubeId(id);
-    if (!translated) {
-      return null;
-    }
-    finalId = translated;
+  if (!isYouTubeId(id)) {
+    return null;
   }
 
   try {
-    const data = await callMusicProvider(`/song/${finalId}`);
+    const data = await callMusicProvider(`/song/${id}`);
     const details = data.videoDetails || {};
     let image = "/placeholder.png";
     const thumbContents = details.thumbnail?.thumbnails || [];
@@ -575,10 +479,10 @@ export async function fetchSongById(id: string, reqBaseUrl?: string): Promise<So
       streamUrl: proxyUrl,
       downloadUrl: [{ quality: "320kbps", url: proxyUrl }],
       playCount: 0,
-      url: `https://music.youtube.com/watch?v=${finalId}`
+      url: `https://music.youtube.com/watch?v=${id}`
     };
   } catch (err: any) {
-    console.error(`[youtubeMusicService] fetchSongById failed for ${finalId}:`, err.message || err);
+    console.error(`[youtubeMusicService] fetchSongById failed for ${id}:`, err.message || err);
     return null;
   }
 }
@@ -641,32 +545,12 @@ async function fetchYouTubeSongsByIds(ids: string[], reqBaseUrl?: string): Promi
 export async function fetchSongsByIds(ids: string[], reqBaseUrl?: string): Promise<Song[]> {
   if (!ids || ids.length === 0) return [];
 
-  const ytIds: string[] = [];
-  const jioIds: string[] = [];
-  for (const id of ids) {
-    if (isYouTubeId(id)) {
-      ytIds.push(id);
-    } else {
-      jioIds.push(id);
-    }
-  }
+  const ytIds = ids.filter(isYouTubeId);
+  if (ytIds.length === 0) return [];
 
-  // Fetch YouTube IDs in batch
-  const ytSongsPromise = fetchYouTubeSongsByIds(ytIds, reqBaseUrl).catch(() => []);
-
-  // Fetch JioSaavn IDs individually in parallel (since they need translation)
-  const limit = pLimit(3);
-  const jioSongsPromise = Promise.all(
-    jioIds.map(id => limit(() => fetchSongById(id, reqBaseUrl).catch(() => null)))
-  ).then(songs => songs.filter((s): s is Song => s !== null));
-
-  const [ytSongs, jioSongs] = await Promise.all([ytSongsPromise, jioSongsPromise]);
-
+  const ytSongs = await fetchYouTubeSongsByIds(ytIds, reqBaseUrl).catch(() => []);
   const songMap = new Map<string, Song>();
   for (const s of ytSongs) {
-    songMap.set(s.id, s);
-  }
-  for (const s of jioSongs) {
     songMap.set(s.id, s);
   }
 
@@ -709,21 +593,16 @@ export async function fetchAlbumSongs(id: string): Promise<Song[]> {
 }
 
 export async function getSuggestions(songId: string, limit = 20): Promise<any[]> {
-  let finalId = songId;
   if (!isYouTubeId(songId)) {
-    const translated = await translateJioSaavnIdToYouTubeId(songId);
-    if (!translated) {
-      return [];
-    }
-    finalId = translated;
+    return [];
   }
   try {
-    const data = await callMusicProvider(`/watch/${finalId}`);
+    const data = await callMusicProvider(`/watch/${songId}`);
     const songs = data.tracks || [];
-    const filtered = songs.filter((s: any) => s.videoId && s.videoId !== finalId);
+    const filtered = songs.filter((s: any) => s.videoId && s.videoId !== songId);
     return normalizeSongsToCanonical(filtered).slice(0, limit);
   } catch (err: any) {
-    console.error(`[youtubeMusicService] getSuggestions failed for ${finalId}:`, err.message || err);
+    console.error(`[youtubeMusicService] getSuggestions failed for ${songId}:`, err.message || err);
     return [];
   }
 }

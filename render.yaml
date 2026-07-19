@@ -22,7 +22,7 @@ services:
     name: soulsync-music-provider
     runtime: python
     rootDir: backend/services/music-provider
-    buildCommand: pip install -r requirements.txt
+    buildCommand: curl -fsSL https://deno.land/install.sh | sh && pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port 4002
     envVars:
       - key: YTMUSIC_AUTH_TYPE

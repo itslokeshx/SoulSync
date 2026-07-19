@@ -246,15 +246,17 @@ def get_song_stream(video_id: str) -> dict:
     
     url = f"https://www.youtube.com/watch?v={video_id}"
     
-    # Ensure virtualenv bin directory is in PATH for this request/process context
     import sys
     py_dir = os.path.dirname(sys.executable)
     if py_dir and py_dir not in os.environ.get("PATH", "").split(os.pathsep):
         os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
-        
+    
+    deno_bin = os.path.expanduser("~/.deno/bin")
+    if deno_bin not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = deno_bin + os.pathsep + os.environ.get("PATH", "")
+
     last_err = None
     
-    # Helper to construct ydl options cleanly
     def build_ydl_opts(cookies_path: str = None, browser: str = None) -> dict:
         opts = {
             'format': 'bestaudio',
@@ -266,6 +268,14 @@ def get_song_stream(video_id: str) -> dict:
             opts['cookiefile'] = cookies_path
         if browser:
             opts['cookiesfrombrowser'] = (browser,)
+        
+        po_token = os.getenv("YT_PO_TOKEN")
+        if po_token:
+            opts['extractor_args'] = {
+                'youtube': {
+                    'po_token': [po_token]
+                }
+            }
         return opts
 
     # ── COOKIE FILE RESOLUTION ──────────────────────────────────────────────
@@ -320,6 +330,9 @@ def get_song_stream(video_id: str) -> dict:
                             _stream_circuit_breaker.record_success()
                             return result
                 except Exception as e:
+                    err_msg = str(e).lower()
+                    if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg:
+                        logger.error("[cookies] expired, refresh needed")
                     logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
                     last_err = e
         
@@ -365,7 +378,9 @@ def get_song_stream(video_id: str) -> dict:
             except Exception as e:
                 last_err = e
 
-            # If we get here, all resolution paths failed
+            err_msg = str(last_err).lower()
+            if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg:
+                logger.error("[cookies] expired, refresh needed")
             logger.error(f"[song_stream] Failed to resolve {video_id}: {last_err}")
             exc = HTTPException(status_code=500, detail=str(last_err))
             res_future.error = exc

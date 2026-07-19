@@ -24,6 +24,7 @@ import adminRoutes from "./routes/admin.js";
 import musicProviderRoutes from "./routes/musicProvider.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { enhancedSearch } from "./services/searchEnhancer.js";
+import { runJioSaavnMigration } from "./migrations/jiosaavnMigration.js";
 
 // Logger
 export const logger = winston.createLogger({
@@ -174,6 +175,7 @@ function handleListenError(error: NodeJS.ErrnoException) {
 
 async function start() {
   await connectMongoDB();
+  runJioSaavnMigration().catch(console.error);
 
   httpServer.once("error", handleListenError);
 
