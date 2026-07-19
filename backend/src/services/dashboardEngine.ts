@@ -166,10 +166,10 @@ export async function buildDashboard(
     }
   }
 
-  // B. New Releases from Industry (generic for preferred languages, not personalized)
   let newReleasesSongs: Song[] = [];
   let newReleasesTitle = "New Releases";
   let guestNewReleases: { title: string; songs: Song[] }[] | undefined;
+  let madeForYouSongs: Song[] = [];
 
   let langs: string[] = ["hindi"];
   if (userDoc?.preferences?.languages && userDoc.preferences.languages.length > 0) {
@@ -179,40 +179,30 @@ export async function buildDashboard(
   try {
     const tExternalStart = performance.now();
     if (isGuest) {
-      const [english, tamil, hindi, telugu] = await Promise.all([
-        getIndustryNewReleases(["english"], 20),
-        getIndustryNewReleases(["tamil"], 20),
-        getIndustryNewReleases(["hindi"], 20),
-        getIndustryNewReleases(["telugu"], 20),
+      const [guestReleaseResults, rawMadeForYou] = await Promise.all([
+        Promise.all([
+          getIndustryNewReleases(["english"], 20),
+          getIndustryNewReleases(["tamil"], 20),
+          getIndustryNewReleases(["hindi"], 20),
+          getIndustryNewReleases(["telugu"], 20),
+        ]),
+        getTasteProfileBatch(null, Array.from(globalExcludeIds), 35),
       ]);
+
+      const [english, tamil, hindi, telugu] = guestReleaseResults;
       guestNewReleases = [
         { title: "New English Releases", songs: english },
         { title: "New Tamil Releases", songs: tamil },
         { title: "New Hindi Releases", songs: hindi },
         { title: "New Telugu Releases", songs: telugu },
       ];
-    } else {
-      newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
-    }
-    timings.guestNewReleasesFetch = performance.now() - tExternalStart;
-  } catch (err) {
-    console.error("[Dashboard] New Releases setup error:", err);
-  }
 
-  // C. Made For You & B. New Releases (if not guest) in parallel
-  let madeForYouSongs: Song[] = [];
-  try {
-    const tRecommendationsStart = performance.now();
-    if (isGuest) {
-      const rawMadeForYou = await getTasteProfileBatch(
-        null,
-        Array.from(globalExcludeIds),
-        35,
-      );
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 30);
     } else {
+      newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
+
       const [rawNewReleases, rawMadeForYou] = await Promise.all([
         getIndustryNewReleases(langs, 25),
         getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 35),
@@ -234,9 +224,9 @@ export async function buildDashboard(
     for (const s of madeForYouSongs) {
       globalExcludeIds.add(s.id);
     }
-    timings.recommendationsFetch = performance.now() - tRecommendationsStart;
+    timings.externalFetch = performance.now() - tExternalStart;
   } catch (err) {
-    console.error("[Dashboard] Recommendations fetches error:", err);
+    console.error("[Dashboard] External fetches error:", err);
   }
 
   // Liked Songs mapping (from pre-loaded userDoc)

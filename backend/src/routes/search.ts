@@ -79,50 +79,54 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
   markUserQueryStart();
   try {
-    // Phase 0: Inject pinned songs for known queries ───────────────
-    // These are real JioSaavn IDs that wrapper search never surfaces
-    // (e.g. Ed Sheeran's "Shape of You" is buried by covers).
-    // Fetched directly by ID — always in the pool before ranking.
-    const pinnedIds = getKnownSongIds(q);
-    const pinnedSongs = pinnedIds.length
-      ? await fetchSongsByIds(pinnedIds, reqBaseUrl)
-      : [];
-    // Phase 1: all in parallel ─────────────────────────────────────
-    // hybridRes  → direct jiosaavn.com (popularity-ranked, Ed Sheeran, Ranjini etc.)
-    // fallbackRes→ wrapper /search/songs (covers, regional)
-    // Phase 1: all in parallel ─────────────────────────────────────
     const tParallel = performance.now();
-    let hybridRes: any = null;
-    let fallbackRes: any = null;
-    let allRes: any = null;
-    let artistRes: any = null;
+
+    const pinnedIds = getKnownSongIds(q);
+    const wordCount = q.trim().split(/\s+/).length;
+    const hasArtistTrigger =
+      /songs?|hits?|latest|recent|best|top|tracks?|music/i.test(q);
+    const isArtistQuery = wordCount <= 3 || hasArtistTrigger;
+
+    const parallelTasks: Promise<any>[] = [];
+    const taskIndex: Record<string, number> = {};
+    let idx = 0;
+
+    const track = (name: string, promise: Promise<any>) => {
+      taskIndex[name] = idx++;
+      parallelTasks.push(promise);
+    };
+
+    if (pinnedIds.length) {
+      track("pinned", fetchSongsByIds(pinnedIds, reqBaseUrl));
+    }
 
     if (!filter || filter === "songs") {
-      const results = await Promise.allSettled([
-        searchSongsHybrid(primaryQuery, 50, knownArtist),
-        Promise.allSettled(
-          fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
-        ),
-      ]);
-      hybridRes = results[0];
-      fallbackRes = results[1];
+      track("hybrid", searchSongsHybrid(primaryQuery, 50, knownArtist));
+      track("fallbacks", Promise.allSettled(
+        fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
+      ));
     }
 
     if (!filter) {
-      const results = await Promise.allSettled([
-        searchAll(q, reqBaseUrl),
-        searchArtists(q, 5),
-      ]);
-      allRes = results[0];
-      artistRes = results[1];
+      track("all", searchAll(q, reqBaseUrl));
+      track("artists", searchArtists(q, 5));
     } else if (filter === "artists") {
-      artistRes = { status: "fulfilled", value: await searchArtists(q, limit) };
+      track("artists", searchArtists(q, limit));
     } else if (filter === "albums") {
-      allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: await searchAlbums(q, limit), podcasts: [] } };
+      track("albums", searchAlbums(q, limit));
     } else if (filter === "podcasts") {
-      allRes = { status: "fulfilled", value: { songs: [], artists: [], albums: [], podcasts: await searchPodcasts(q, limit) } };
+      track("podcasts", searchPodcasts(q, limit));
     }
+
+    const settled = await Promise.allSettled(parallelTasks);
     timings.parallelSearchFetch = performance.now() - tParallel;
+
+    const get = (name: string): any => {
+      const i = taskIndex[name];
+      if (i === undefined) return null;
+      const r = settled[i];
+      return r.status === "fulfilled" ? r.value : null;
+    };
 
     const rawSongs: any[] = [];
     const seenIds = new Set<string>();
@@ -136,39 +140,30 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       }
     };
 
-    // Always add pinned songs first so they're guaranteed in the pool
-    if (!filter || filter === "songs") {
-      addSongs(pinnedSongs);
-    }
+    const pinnedSongs = get("pinned");
+    if (pinnedSongs) addSongs(pinnedSongs);
 
-    if (hybridRes && hybridRes.status === "fulfilled") addSongs(hybridRes.value);
-    if (fallbackRes && fallbackRes.status === "fulfilled") {
-      for (const r of fallbackRes.value) {
+    const hybridVal = get("hybrid");
+    if (hybridVal) addSongs(hybridVal);
+
+    const fallbackVal = get("fallbacks");
+    if (fallbackVal) {
+      for (const r of fallbackVal) {
         if (r.status === "fulfilled") addSongs(r.value);
       }
     }
-    if (allRes && allRes.status === "fulfilled") addSongs(allRes.value.songs);
 
-    // Merge artists from /search + /search/artists, dedup by ID
+    const allVal = get("all");
+    if (allVal) addSongs(allVal.songs);
+
     const artistMap = new Map<string, any>();
-    const allResArtists =
-      allRes && allRes.status === "fulfilled" ? allRes.value.artists : [];
-    const directArtists: any[] =
-      artistRes && artistRes.status === "fulfilled" ? artistRes.value : [];
+    const allResArtists = allVal ? allVal.artists : [];
+    const directArtists: any[] = get("artists") || [];
     for (const a of [...allResArtists, ...directArtists]) {
       const id = String(a.id || "");
       if (id && !artistMap.has(id)) artistMap.set(id, a);
     }
     const artists = Array.from(artistMap.values()).slice(0, 8);
-
-    // Phase 2: Artist song enrichment ────────────────────────────
-    // For queries that look like artist searches ("ranjini songs", "arijit singh hits",
-    // "ed sheeran", short names etc.) fetch the artist's popularity-sorted songs
-    // and add them to the pool so the user sees real songs, not just artist chips.
-    const wordCount = q.trim().split(/\s+/).length;
-    const hasArtistTrigger =
-      /songs?|hits?|latest|recent|best|top|tracks?|music/i.test(q);
-    const isArtistQuery = wordCount <= 3 || hasArtistTrigger;
 
     const tEnrich = performance.now();
     if (artists.length > 0 && isArtistQuery) {
@@ -182,15 +177,13 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     }
     timings.artistEnrichment = performance.now() - tEnrich;
 
-    const albums =
-      allRes && allRes.status === "fulfilled"
-        ? allRes.value.albums
-        : filter === "albums" ? [] : await searchAlbums(q, 5).catch(() => []);
+    const albums = allVal
+      ? allVal.albums
+      : get("albums") || (filter === "albums" ? [] : await searchAlbums(q, 5).catch(() => []));
 
-    const podcasts =
-      allRes && allRes.status === "fulfilled"
-        ? allRes.value.podcasts
-        : filter === "podcasts" ? [] : await searchPodcasts(q, 5).catch(() => []);
+    const podcasts = allVal
+      ? allVal.podcasts
+      : get("podcasts") || (filter === "podcasts" ? [] : await searchPodcasts(q, 5).catch(() => []));
 
     const normalized = normalizeSongsToCanonical(rawSongs, reqBaseUrl);
     const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
@@ -226,8 +219,15 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     const tCacheWrite = performance.now();
     await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
     timings.cacheWrite = performance.now() - tCacheWrite;
+
+    const trimSong = (s: any) => {
+      const { downloadUrl, ...rest } = s;
+      return rest;
+    };
+    const trimmedSongs = songs.map(trimSong);
+    const trimmedTop = result.topResult ? trimSong(result.topResult) : null;
     
-    res.json({ ...result, songs, total: songs.length, _timings: timings });
+    res.json({ ...result, songs: trimmedSongs, topResult: trimmedTop, total: trimmedSongs.length, _timings: timings });
   } finally {
     markUserQueryEnd();
   }

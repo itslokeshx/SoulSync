@@ -133,8 +133,8 @@ export function removeRecentSearch(q: string) {
 
 export function useSearch() {
   const [query, setQuery] = useState("");
-  const [debouncedQuery] = useDebounce(query, 80); // was 120ms
-  const [debouncedSuggestion] = useDebounce(query, 50);
+  const [debouncedQuery] = useDebounce(query, 250);
+  const [debouncedSuggestion] = useDebounce(query, 150);
 
   const [state, setState] = useState<SearchState>("idle");
   const [result, setResult] = useState<SmartSearchResult | null>(null);

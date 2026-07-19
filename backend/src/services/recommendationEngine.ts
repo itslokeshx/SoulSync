@@ -945,47 +945,65 @@ export async function getColdStartBatch(
   limit: number = 20,
   preferredLangs?: string[],
 ): Promise<Song[]> {
-  const excludeSet = new Set(excludeIds);
   const langs = (preferredLangs && preferredLangs.length > 0)
     ? preferredLangs.map((l: any) => l.toLowerCase().trim())
     : ["english", "hindi", "tamil", "punjabi"];
 
-  const fallbacks = langs.map((l: string) => `best ${l} songs`);
-  
-  const searchResults = await Promise.allSettled(
-    fallbacks.map((q) => searchSongs(q, 15)),
-  );
+  const cacheKey = `cold_start:v2:${[...langs].sort().join(",")}`;
+  let candidates: Song[] = [];
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      candidates = JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error("[recommendationEngine] getColdStartBatch cache read failed:", err);
+  }
 
-  const candidates: Song[] = [];
-  for (const res of searchResults) {
-    if (res.status !== "fulfilled") continue;
-    const normalized = normalizeSongsToCanonical(res.value);
-    for (const s of normalized) {
-      if (!excludeSet.has(s.id)) {
-        candidates.push(s);
-        excludeSet.add(s.id);
+  if (candidates.length === 0) {
+    const fallbacks = langs.map((l: string) => `best ${l} songs`);
+    
+    const searchResults = await Promise.allSettled(
+      fallbacks.map((q) => searchSongs(q, 30)),
+    );
+
+    const seen = new Set<string>();
+    for (const res of searchResults) {
+      if (res.status !== "fulfilled") continue;
+      const normalized = normalizeSongsToCanonical(res.value);
+      for (const s of normalized) {
+        if (!seen.has(s.id)) {
+          candidates.push(s);
+          seen.add(s.id);
+        }
       }
+    }
+
+    // Score only based on cover penalties and popularity
+    const scored = candidates.map((song) => {
+      let score = 0;
+      const title = (song.name || "").toLowerCase();
+      score += popularityScore(song.playCount);
+      score += coverPenalty(title);
+      if (!song.streamUrl) score -= 30;
+      return { ...song, _recScore: score };
+    });
+
+    scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
+    candidates = scored.map((s) => {
+      const clean = { ...s };
+      delete (clean as any)._recScore;
+      (clean as any).reason = "Popular right now";
+      return clean;
+    });
+
+    if (candidates.length > 0) {
+      await redisSet(cacheKey, JSON.stringify(candidates), 86400).catch(() => {}); // 24 hours TTL
     }
   }
 
-  // Score only based on cover penalties and popularity
-  const scored = candidates.map((song) => {
-    let score = 0;
-    const title = (song.name || "").toLowerCase();
-    score += popularityScore(song.playCount);
-    score += coverPenalty(title);
-    if (!song.streamUrl) score -= 30;
-    return { ...song, _recScore: score };
-  });
-
-  scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
-
-  return scored.slice(0, limit).map((s) => {
-    const clean = { ...s };
-    delete (clean as any)._recScore;
-    (clean as any).reason = "Popular right now";
-    return clean;
-  });
+  const excludeSet = new Set(excludeIds);
+  return candidates.filter((s) => !excludeSet.has(s.id)).slice(0, limit);
 }
 
 export async function getTasteProfileBatch(
@@ -1459,6 +1477,18 @@ export async function getIndustryNewReleases(
   limit: number = 20,
 ): Promise<Song[]> {
   const targetLangs = langs.length > 0 ? langs : ["hindi"];
+  const sortedLangs = [...targetLangs].sort();
+  const cacheKey = `industry_new_releases:v2:${sortedLangs.join(",")}`;
+
+  try {
+    const cached = await redisGet(cacheKey);
+    if (cached) {
+      const cachedSongs = JSON.parse(cached);
+      return cachedSongs.slice(0, limit);
+    }
+  } catch (err) {
+    console.error("[recommendationEngine] getIndustryNewReleases cache read failed:", err);
+  }
 
   const langLimit = pLimit(2);
   const fetchResults = await Promise.allSettled(
@@ -1597,17 +1627,20 @@ export async function getIndustryNewReleases(
     finalSongs = [...finalSongs, ...remaining];
   }
 
-  // Slice to limit
-  const selected = finalSongs.slice(0, limit);
-
-  // Return cleaned items
-  return selected.map((s) => {
+  const cleanedSongs = finalSongs.map((s) => {
     const clean = { ...s };
     delete (clean as any)._recScore;
     delete (clean as any)._isWithin30Days;
     delete (clean as any)._isWithin90Days;
     return clean;
   });
+
+  if (cleanedSongs.length > 0) {
+    // Cache up to 100 scored candidates (longer than the requested limit) so other limits can use it
+    await redisSet(cacheKey, JSON.stringify(cleanedSongs.slice(0, 100)), 7200).catch(() => {}); // 2 hours TTL
+  }
+
+  return cleanedSongs.slice(0, limit);
 }
 
 // ─── APPLE MUSIC MIX GENERATORS ───────────────────────────────────
