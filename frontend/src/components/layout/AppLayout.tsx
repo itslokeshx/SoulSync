@@ -313,8 +313,9 @@ export function AppLayout() {
           queueOpen={queueOpen}
         />
 
-        {npOpen && currentSong && (
+        {currentSong && (
           <NowPlayingView
+            isOpen={npOpen}
             currentSong={currentSong}
             isPlaying={isPlaying}
             currentTime={currentTime}

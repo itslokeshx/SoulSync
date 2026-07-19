@@ -43,6 +43,7 @@ import { EqBars } from "../ui/EqBars";
 import { ArtistLinks } from "../ui/ArtistLinks";
 
 interface NowPlayingViewProps {
+  isOpen?: boolean;
   currentSong: any;
   isPlaying: boolean;
   currentTime: number;
@@ -79,6 +80,7 @@ const VolumeIcon = ({ volume }: { volume: number }) => {
 };
 
 export const NowPlayingView = ({
+  isOpen = false,
   currentSong,
   isPlaying,
   currentTime,
@@ -155,6 +157,56 @@ export const NowPlayingView = ({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isSeekingRef = useRef(false);
+
+  const [videoStartTime, setVideoStartTime] = useState(0);
+  const prevVideoMode = useRef(isVideoMode);
+  const prevSongId = useRef(currentSong?.id);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isVideoMode && (!prevVideoMode.current || prevSongId.current !== currentSong?.id)) {
+      setVideoStartTime(Math.floor(currentTime));
+    }
+    prevVideoMode.current = isVideoMode;
+    prevSongId.current = currentSong?.id;
+  }, [isVideoMode, currentSong?.id, currentTime]);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFsChange);
+    };
+  }, []);
+
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  useEffect(() => {
+    if (isFullscreen) {
+      setShowControls(true);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("pointerdown", handleMouseMove);
+    } else {
+      setShowControls(true);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("pointerdown", handleMouseMove);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("pointerdown", handleMouseMove);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    };
+  }, [isFullscreen]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -350,17 +402,26 @@ export const NowPlayingView = ({
   const progress = duration ? (currentTime / duration) * 100 : 0;
   const volPct = Math.round(volume * 100);
 
+  const openTransform = `translateY(${dragOffset}px)`;
+  const closedTransform = `translateY(100%)`;
+  const transformVal = isOpen ? openTransform : closedTransform;
+
+  const openOpacity = 1 - Math.min(dragOffset / 500, 0.4);
+  const opacityVal = isOpen ? openOpacity : 0;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col touch-pan-x"
+      className={`fixed inset-0 z-50 flex flex-col touch-pan-x transition-all duration-300 ${
+        isOpen ? "pointer-events-auto" : "pointer-events-none"
+      }`}
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         background:
           "radial-gradient(circle at 20% 30%, #1e1e20, transparent 60%),\n           radial-gradient(circle at 80% 70%, #101012, transparent 80%),\n           linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
-        transform: `translateY(${dragOffset}px)`,
-        transition: isDragging.current ? "none" : "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
-        opacity: 1 - Math.min(dragOffset / 500, 0.4),
+        transform: transformVal,
+        transition: isDragging.current ? "none" : "transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease",
+        opacity: opacityVal,
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -446,20 +507,92 @@ export const NowPlayingView = ({
               <div ref={containerRef} className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black relative flex items-center justify-center group">
                 <iframe
                   ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0`}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}`}
                   title={currentSong.name}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
                 />
-                <button
-                  onClick={toggleFullscreen}
-                  className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center shadow-lg"
-                  title="Toggle Fullscreen"
-                >
-                  <Maximize2 size={14} className="text-white/80" />
-                </button>
+                {!isFullscreen && (
+                  <button
+                    onClick={toggleFullscreen}
+                    className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 flex items-center justify-center shadow-lg"
+                    title="Toggle Fullscreen"
+                  >
+                    <Maximize2 size={14} className="text-white/80" />
+                  </button>
+                )}
+                {isFullscreen && (
+                  <div
+                    className={`absolute inset-0 bg-black/60 flex flex-col justify-between p-8 transition-opacity duration-300 pointer-events-auto ${
+                      showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                    }`}
+                  >
+                    {/* Top Bar */}
+                    <div className="flex items-center justify-between w-full">
+                      <div className="text-left">
+                        <h2 className="text-white text-2xl font-black truncate max-w-xl">{currentSong.name}</h2>
+                        <p className="text-white/50 text-sm mt-1 truncate max-w-md">{artists}</p>
+                      </div>
+                      <button
+                        onClick={toggleFullscreen}
+                        className="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all active:scale-95 flex items-center justify-center border border-white/10"
+                        title="Exit Fullscreen"
+                      >
+                        <ChevronDown size={24} className="rotate-180 text-white/80" />
+                      </button>
+                    </div>
+
+                    {/* Play/Pause controls in middle */}
+                    <div className="flex items-center justify-center gap-10">
+                      <button
+                        onClick={onPrev}
+                        className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-90"
+                      >
+                        <SkipBack size={36} className="fill-current" />
+                      </button>
+                      <button
+                        onClick={onPlayPause}
+                        className="w-20 h-20 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-2xl"
+                      >
+                        {isPlaying ? (
+                          <Pause size={30} className="text-black fill-black" />
+                        ) : (
+                          <Play size={30} className="text-black fill-black ml-1.5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={onNext}
+                        className="text-white/60 hover:text-white transition-all hover:scale-110 active:scale-90"
+                      >
+                        <SkipForward size={36} className="fill-current" />
+                      </button>
+                    </div>
+
+                    {/* Bottom Progress Bar */}
+                    <div className="w-full space-y-3">
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-white/50 tabular-nums font-medium">{fmt(currentTime)}</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={duration || 0}
+                          step="any"
+                          value={currentTime}
+                          onChange={(e) => handleSeek(+e.target.value)}
+                          onPointerDown={handleSeekStart}
+                          onPointerUp={handleSeekEnd}
+                          className="progress-bar progress-glow flex-1 h-1.5 rounded-full cursor-pointer"
+                          style={{
+                            "--progress": `${duration ? currentTime / duration : 0}`,
+                          } as React.CSSProperties}
+                        />
+                        <span className="text-xs text-white/50 tabular-nums font-medium">{fmt(duration)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}>

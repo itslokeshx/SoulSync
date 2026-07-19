@@ -291,6 +291,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [currentSong?.id, isPlaying, isVideoMode]);
 
+  // Sync audio currentTime with store currentTime when exiting video mode
+  const lastVideoModeRef = useRef(isVideoMode);
+  useEffect(() => {
+    if (lastVideoModeRef.current && !isVideoMode) {
+      const storeTime = usePlayerStore.getState().currentTime;
+      if (audioRef.current && isFinite(storeTime)) {
+        audioRef.current.currentTime = storeTime;
+      }
+    }
+    lastVideoModeRef.current = isVideoMode;
+  }, [isVideoMode]);
+
   // ── Consolidated SoulLink Sync ────────────────────────────────────
   // Prevents infinite loops by checking isRemoteActionRef.
 

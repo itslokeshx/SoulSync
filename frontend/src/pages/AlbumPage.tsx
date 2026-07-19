@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Play, Shuffle } from "lucide-react";
+import { ChevronLeft, Play, Shuffle, Plus, Loader2 } from "lucide-react";
 import { Skeleton } from "../components/ui/Skeleton";
 import { GreenButton } from "../components/ui/GreenButton";
 import { SongRow } from "../components/cards/SongRow";
@@ -8,6 +8,10 @@ import { bestImg, fmt, onImgErr, extractColor } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { getAlbum as fetchAlbum } from "../api/search";
 import { useApp } from "../context/AppContext";
+import { useAuth } from "../auth/AuthContext";
+import { useUIStore } from "../store/uiStore";
+import * as api from "../api/backend";
+import toast from "react-hot-toast";
 
 export const AlbumPage = () => {
   const { id: albumId } = useParams<{ id: string }>();
@@ -19,6 +23,9 @@ export const AlbumPage = () => {
     likedSongs,
     handleLike: onLike,
   } = useApp();
+  const { user } = useAuth();
+  const { openAuthGate } = useUIStore();
+  const [isImporting, setIsImporting] = useState(false);
   const onBack = () => navigate(-1);
   const [album, setAlbum] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +79,37 @@ export const AlbumPage = () => {
     (acc: number, s: any) => acc + (s.duration || 0),
     0,
   );
+  const handleImport = async () => {
+    if (!album) return;
+    if (!user) {
+      openAuthGate("Sign in to save this album to your library");
+      return;
+    }
+
+    try {
+      setIsImporting(true);
+      const newPlaylist = await api.createPlaylist({
+        name: album.name,
+        description: `Album by ${artist}`,
+        isPublic: false,
+        songs: songs.map((s: any) => ({
+          songId: s.id,
+          title: s.name,
+          artist: s.primaryArtists || artist,
+          albumArt: bestImg(s.image) || img,
+          duration: s.duration || 0,
+          downloadUrl: s.downloadUrl || [],
+        })),
+      });
+      toast.success("Added to your library!");
+      navigate(`/playlist/${newPlaylist._id}`);
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error("Failed to import album");
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   return (
     <div className="animate-fadeIn -mt-6 -mx-6">
@@ -120,6 +158,15 @@ export const AlbumPage = () => {
         </GreenButton>
         <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all duration-200">
           <Shuffle size={15} />
+        </button>
+        <button
+          onClick={handleImport}
+          disabled={isImporting}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white text-[13px] font-bold transition-all disabled:opacity-50"
+        >
+          {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+          <span className="hidden sm:inline">Add to Library</span>
+          <span className="sm:hidden">Add</span>
         </button>
       </div>
 

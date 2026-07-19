@@ -308,6 +308,41 @@ function AlbumCard({ album }: { album: any }) {
   );
 }
 
+function PlaylistCard({ playlist }: { playlist: any }) {
+  const navigate = useNavigate();
+  const img = bestImg(playlist.image) || FALLBACK_IMG;
+  return (
+    <button
+      onClick={() => playlist.id && navigate(`/playlist/${playlist.id}`)}
+      className="flex flex-col gap-2 w-32 sm:w-36 flex-shrink-0 group cursor-pointer text-left"
+    >
+      <div className="relative overflow-hidden rounded-xl">
+        <img
+          src={img}
+          alt={playlist.name}
+          className="w-32 h-32 sm:w-36 sm:h-36 object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+          }}
+        />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+          <div className="w-10 h-10 rounded-full bg-sp-green flex items-center justify-center shadow-xl">
+            <Play size={16} className="text-black fill-black ml-0.5" />
+          </div>
+        </div>
+      </div>
+      <div>
+        <p className="text-white/80 text-[12px] font-medium truncate group-hover:text-white transition-colors">
+          {playlist.name}
+        </p>
+        <p className="text-white/35 text-[11px] truncate">
+          {playlist.subtitle || playlist.author || "Playlist"}
+        </p>
+      </div>
+    </button>
+  );
+}
+
 function PodcastCard({ podcast }: { podcast: any }) {
   const navigate = useNavigate();
   const img = bestImg(podcast.image) || FALLBACK_IMG;
@@ -845,7 +880,7 @@ export function SearchPage() {
                     />
                     <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar">
                       {result.playlists.slice(0, 5).map((p: any) => (
-                        <AlbumCard key={p.id || p.name} album={p} />
+                        <PlaylistCard key={p.id || p.name} playlist={p} />
                       ))}
                     </div>
                   </div>
@@ -973,7 +1008,7 @@ export function SearchPage() {
                 <SectionHeaderWithSeeAll title="Playlists" icon={Music} />
                 <div className="grid grid-cols-3 gap-3">
                   {result.playlists.map((p: any) => (
-                    <AlbumCard key={p.id || p.name} album={p} />
+                    <PlaylistCard key={p.id || p.name} playlist={p} />
                   ))}
                 </div>
               </div>
