@@ -15,6 +15,7 @@ export interface SmartSearchResult {
   topResult: any | null;
   total: number;
   podcasts?: any[];
+  episodes?: any[];
   intent?: {
     intent: string;
     entities: any;

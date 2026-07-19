@@ -25,6 +25,7 @@ import {
   Radio,
   Headphones,
   MoreVertical,
+  Video,
 } from "lucide-react";
 import {
   useSearch,
@@ -865,6 +866,29 @@ export function SearchPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Podcast Episodes */}
+                {result.episodes && result.episodes.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll
+                      title="Podcast Episodes"
+                      icon={Video}
+                      onSeeAll={() => handleFilterChange("podcasts")}
+                    />
+                    <div className="space-y-0.5">
+                      {result.episodes.slice(0, 3).map((episode: any, i: number) => (
+                        <SongRow
+                          key={episode.id}
+                          song={episode}
+                          index={i}
+                          isCurrent={currentSong?.id === episode.id}
+                          isPlaying={isPlaying}
+                          onPlay={() => playSong(episode, result.episodes)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -956,14 +980,35 @@ export function SearchPage() {
             )}
 
             {/* ── FILTERED VIEW: PODCASTS ── */}
-            {filter === "podcasts" && result.podcasts && result.podcasts.length > 0 && (
-              <div>
-                <SectionHeaderWithSeeAll title="Podcasts & Shows" icon={Radio} />
-                <div className="grid grid-cols-3 gap-3">
-                  {result.podcasts.map((p: any) => (
-                    <PodcastCard key={p.id || p.name} podcast={p} />
-                  ))}
-                </div>
+            {filter === "podcasts" && (
+              <div className="space-y-6">
+                {result.podcasts && result.podcasts.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll title="Podcasts & Shows" icon={Radio} />
+                    <div className="grid grid-cols-3 gap-3">
+                      {result.podcasts.map((p: any) => (
+                        <PodcastCard key={p.id || p.name} podcast={p} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {result.episodes && result.episodes.length > 0 && (
+                  <div>
+                    <SectionHeaderWithSeeAll title="Podcast Episodes" icon={Video} />
+                    <div className="space-y-0.5">
+                      {result.episodes.map((episode: any, i: number) => (
+                        <SongRow
+                          key={episode.id}
+                          song={episode}
+                          index={i}
+                          isCurrent={currentSong?.id === episode.id}
+                          isPlaying={isPlaying}
+                          onPlay={() => playSong(episode, result.episodes)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

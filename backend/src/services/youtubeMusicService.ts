@@ -68,8 +68,8 @@ export function upgradeYTImageQuality(url: string): string {
               .replace(/=s\d+$/, "=s500");
   }
   if (url.includes("ytimg.com")) {
-    if (url.includes("default.jpg")) {
-      return url.replace("default.jpg", "maxresdefault.jpg");
+    if (url.includes("/default.jpg")) {
+      return url.replace("/default.jpg", "/hqdefault.jpg");
     }
   }
   return url;
@@ -272,8 +272,10 @@ export async function searchArtists(query: string, limit = 10): Promise<any[]> {
       let image = "/placeholder.png";
       const thumbContents = artist.thumbnails || [];
       if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
+        const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+        image = sorted[0].url || image;
       }
+      image = upgradeYTImageQuality(image);
       return {
         id: artist.browseId,
         name: artist.artist || artist.title || "",
@@ -295,8 +297,10 @@ export async function searchPlaylists(query: string, limit = 10): Promise<any[]>
       let image = "/placeholder.png";
       const thumbContents = p.thumbnails || [];
       if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
+        const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+        image = sorted[0].url || image;
       }
+      image = upgradeYTImageQuality(image);
       return {
         id: p.browseId || p.playlistId,
         name: p.title || "",
@@ -328,8 +332,10 @@ export async function searchPodcasts(query: string, limit = 12): Promise<any[]> 
       let image = "/placeholder.png";
       const thumbContents = podcast.thumbnails || [];
       if (thumbContents.length > 0) {
-        image = thumbContents[0].url || image;
+        const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+        image = sorted[0].url || image;
       }
+      image = upgradeYTImageQuality(image);
       return {
         id: podcast.browseId,
         name: podcast.title || "",

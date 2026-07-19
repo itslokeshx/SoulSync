@@ -11,6 +11,7 @@ import {
   searchAlbums,
   searchArtists,
   searchPodcasts,
+  searchEpisodes,
   searchPlaylists,
   searchVideos,
   fetchArtistSongs,
@@ -100,6 +101,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       track("albums", searchAlbums(q, 8));
       track("playlists", searchPlaylists(q, 8));
       track("podcasts", searchPodcasts(q, 8));
+      track("episodes", searchEpisodes(q, 12));
       track("videos", searchVideos(q, 15));
     } else if (filter === "songs") {
       track("songs", searchSongsHybrid(primaryQuery, limit, knownArtist));
@@ -116,6 +118,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       track("playlists", searchPlaylists(q, limit));
     } else if (filter === "podcasts") {
       track("podcasts", searchPodcasts(q, limit));
+      track("episodes", searchEpisodes(q, limit));
+    } else if (filter === "episodes") {
+      track("episodes", searchEpisodes(q, limit));
     }
 
     const settled = await Promise.allSettled(parallelTasks);
@@ -193,7 +198,28 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       podcasts = get("podcasts") || [];
     }
 
-    const topResult = songs[0] || videos[0] || artists[0] || albums[0] || playlists[0] || podcasts[0] || null;
+    let episodes: Song[] = [];
+    if (!filter || filter === "podcasts" || filter === "episodes") {
+      const rawEpisodes = get("episodes") || [];
+      episodes = normalizeSongsToCanonical(rawEpisodes, reqBaseUrl) as Song[];
+    }
+
+    let topResult = songs[0] || videos[0] || artists[0] || albums[0] || playlists[0] || podcasts[0] || null;
+    if (episodes[0]) {
+      // If the top episode matches the query better than the top song, make it the top result!
+      const qLower = q.toLowerCase();
+      const songTitle = (songs[0]?.name || "").toLowerCase();
+      const epTitle = (episodes[0]?.name || "").toLowerCase();
+      
+      const qWords = qLower.split(/\s+/).filter(w => w.length > 2);
+      const songMatchCount = qWords.filter(w => songTitle.includes(w)).length;
+      const epMatchCount = qWords.filter(w => epTitle.includes(w)).length;
+      
+      if (epMatchCount > songMatchCount || (!songs[0] && episodes[0])) {
+        topResult = episodes[0];
+      }
+    }
+
     const relatedSearches = generateRelatedSearches(q, artists, songs);
 
     const result = {
@@ -205,8 +231,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       albums: albums.slice(0, filter === "albums" ? limit : 10),
       playlists: playlists.slice(0, filter === "playlists" ? limit : 10),
       podcasts: podcasts.slice(0, filter === "podcasts" ? limit : 10),
+      episodes: episodes.slice(0, filter === "episodes" ? limit : 10),
       topResult,
-      total: songs.length + videos.length + artists.length + albums.length + playlists.length + podcasts.length,
+      total: songs.length + videos.length + artists.length + albums.length + playlists.length + podcasts.length + episodes.length,
       parsedIntent: { displayContext: `Results for "${q}"` },
       relatedSearches,
     };
@@ -227,12 +254,14 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
     const trimmedSongs = result.songs.map(trimSong);
     const trimmedVideos = result.videos.map(trimSong);
+    const trimmedEpisodes = result.episodes.map(trimSong);
     const trimmedTop = result.topResult && (result.topResult.id ? trimSong(result.topResult) : result.topResult);
 
     res.json({
       ...result,
       songs: trimmedSongs,
       videos: trimmedVideos,
+      episodes: trimmedEpisodes,
       topResult: trimmedTop,
       _timings: timings
     });
