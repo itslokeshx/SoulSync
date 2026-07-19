@@ -815,13 +815,6 @@ export async function generateSeedAnchoredBatch(
   const seedLang = inferSongLanguage(seed);
 
   const allowedLanguages = new Set<string>([seedLang]);
-  if (tasteProfile && Array.isArray(tasteProfile.languages)) {
-    for (const l of tasteProfile.languages) {
-      if (l.weight >= 0.1) {
-        allowedLanguages.add(l.language.toLowerCase().trim());
-      }
-    }
-  }
 
   const excludeSet = new Set<string>([...excludeIds, seedId]);
   const candidates: Song[] = [];
@@ -1062,41 +1055,6 @@ export async function getTasteProfileBatch(
     return getColdStartBatch(excludeIds, limit, prefLangs);
   }
 
-  const excludeSet = new Set(excludeIds);
-  const candidates: Song[] = [];
-
-  const addCandidate = (song: Song) => {
-    if (excludeSet.has(song.id)) return;
-    excludeSet.add(song.id);
-    candidates.push(song);
-  };
-
-  // Source 0: Listening History (3 most recently played songs watch playlists interleaved)
-  try {
-    const recentPlays = await ListeningHistory.find({ userId: tasteProfile.userId })
-      .sort({ playedAt: -1 })
-      .limit(3)
-      .lean();
-
-    if (recentPlays.length > 0) {
-      const watchPlaylists = await Promise.all(
-        recentPlays.map((p) => getSuggestions(p.songId, 15).catch(() => []))
-      );
-
-      const maxLen = Math.max(...watchPlaylists.map((list) => list.length), 0);
-      for (let i = 0; i < maxLen; i++) {
-        for (const list of watchPlaylists) {
-          if (i < list.length) {
-            addCandidate(list[i]);
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error("[recommendationEngine] Listening history recommendations error:", err);
-  }
-
-  // Rotating query modifiers for variety on every reload
   const ARTIST_QUERY_VARIANTS = [
     "best of", "top songs", "popular", "hits", "essentials",
     "greatest", "playlist", "latest", "new", "trending",
@@ -1105,37 +1063,55 @@ export async function getTasteProfileBatch(
     "trending", "popular", "best", "top", "latest",
     "new releases", "hot", "viral", "chartbusters", "hits",
   ];
-
   const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const topLangs = tasteProfile.languages.slice(0, 3);
+  const currentYear = new Date().getFullYear();
 
-  // Source 1: User's top artists (randomize page + search query variants)
-  const topArtists = tasteProfile.artists.slice(0, 10);
-  const artistResults = await Promise.allSettled(
-    topArtists.map((a) => {
-      if (a.artistId && /^\d+$/.test(a.artistId)) {
-        const randomPage = Math.floor(Math.random() * 8); // pages 0-7 for wider variety
-        return fetchArtistSongs(a.artistId, randomPage, 2);
+  const fetchSource0 = async (): Promise<Song[]> => {
+    const recentPlays = await ListeningHistory.find({ userId: tasteProfile.userId })
+      .sort({ playedAt: -1 })
+      .limit(3)
+      .lean();
+    if (recentPlays.length === 0) return [];
+    const watchPlaylists = await Promise.all(
+      recentPlays.map((p) => getSuggestions(p.songId, 15).catch(() => []))
+    );
+    const interleaved: Song[] = [];
+    const maxLen = Math.max(...watchPlaylists.map((list) => list.length), 0);
+    for (let i = 0; i < maxLen; i++) {
+      for (const list of watchPlaylists) {
+        if (i < list.length) interleaved.push(list[i]);
       }
-      const variant = pickRandom(ARTIST_QUERY_VARIANTS);
-      return searchSongs(`${variant} ${a.artistName}`, 20);
-    }),
-  );
-
-  for (let i = 0; i < artistResults.length; i++) {
-    const res = artistResults[i];
-    if (res.status !== "fulfilled") continue;
-    const songs = Array.isArray(res.value)
-      ? normalizeSongsToCanonical(res.value)
-      : (res.value as Song[]);
-    for (const s of songs) {
-      addCandidate(s);
     }
-  }
+    return interleaved;
+  };
 
-  // Source 2: Co-occurrences for the user's recent songs (randomize which recent songs to use)
-  const recentIds = tasteProfile.recentSongIds || [];
-  if (recentIds.length > 0) {
-    // Shuffle recent IDs so we pick different co-occurrences each time
+  const fetchSource1 = async (): Promise<Song[]> => {
+    const topArtists = tasteProfile.artists.slice(0, 10);
+    const artistResults = await Promise.allSettled(
+      topArtists.map((a) => {
+        if (a.artistId && /^\d+$/.test(a.artistId)) {
+          const randomPage = Math.floor(Math.random() * 8);
+          return fetchArtistSongs(a.artistId, randomPage, 2);
+        }
+        const variant = pickRandom(ARTIST_QUERY_VARIANTS);
+        return searchSongs(`${variant} ${a.artistName}`, 20);
+      }),
+    );
+    const songs: Song[] = [];
+    for (const res of artistResults) {
+      if (res.status !== "fulfilled") continue;
+      const normalized = Array.isArray(res.value)
+        ? normalizeSongsToCanonical(res.value)
+        : (res.value as Song[]);
+      for (const s of normalized) songs.push(s);
+    }
+    return songs;
+  };
+
+  const fetchSource2 = async (): Promise<Song[]> => {
+    const recentIds = tasteProfile.recentSongIds || [];
+    if (recentIds.length === 0) return [];
     const shuffledRecent = [...recentIds].sort(() => Math.random() - 0.5);
     const cooccurrences = await SongCooccurrence.find({
       songIdA: { $in: shuffledRecent.slice(0, 10) },
@@ -1143,13 +1119,11 @@ export async function getTasteProfileBatch(
       .sort({ decayedScore: -1 })
       .limit(30)
       .lean();
-
-    // Fetch songs concurrently in batches to respect rate limits (bounded concurrency pool of 8)
     const cooccurIds = cooccurrences.map((co) => co.songIdB);
+    if (cooccurIds.length === 0) return [];
     const results: (Song | null)[] = new Array(cooccurIds.length);
     let idx = 0;
     const CONCURRENCY_LIMIT = 8;
-
     async function worker() {
       while (idx < cooccurIds.length) {
         const currentIdx = idx++;
@@ -1160,50 +1134,65 @@ export async function getTasteProfileBatch(
         }
       }
     }
-
     const workers = Array.from(
       { length: Math.min(CONCURRENCY_LIMIT, cooccurIds.length) },
       worker
     );
     await Promise.all(workers);
+    return results.filter((s): s is Song => s !== null);
+  };
 
-    for (const song of results) {
-      if (song) addCandidate(song);
+  const fetchSource3 = async (): Promise<Song[]> => {
+    const langResults = await Promise.allSettled(
+      topLangs.map((l) => {
+        const variant = pickRandom(LANG_QUERY_VARIANTS);
+        const yearVariant = Math.random() > 0.5 ? ` ${currentYear}` : "";
+        return searchSongs(
+          `${variant} ${l.language} songs${yearVariant}`,
+          20,
+        );
+      }),
+    );
+    const songs: Song[] = [];
+    for (const res of langResults) {
+      if (res.status !== "fulfilled") continue;
+      const normalized = normalizeSongsToCanonical(res.value);
+      for (const s of normalized) songs.push(s);
     }
-  }
+    return songs;
+  };
 
-  // Source 3: Language discovery (randomized query variants)
-  const topLangs = tasteProfile.languages.slice(0, 3);
-  const currentYear = new Date().getFullYear();
-  const langResults = await Promise.allSettled(
-    topLangs.map((l) => {
-      const variant = pickRandom(LANG_QUERY_VARIANTS);
-      const yearVariant = Math.random() > 0.5 ? ` ${currentYear}` : "";
-      return searchSongs(
-        `${variant} ${l.language} songs${yearVariant}`,
-        20,
-      );
-    }),
-  );
-  for (const res of langResults) {
-    if (res.status !== "fulfilled") continue;
-    const songs = normalizeSongsToCanonical(res.value);
-    for (const s of songs) {
-      addCandidate(s);
-    }
-  }
-
-  // Source 4: Genre/mood discovery for extra variety
-  const moodQueries = ["chill vibes", "upbeat energy", "romantic", "party", "soulful", "acoustic", "lo-fi"];
-  const randomMood = pickRandom(moodQueries);
-  const randomLang = topLangs.length > 0 ? pickRandom(topLangs).language : "hindi";
-  try {
+  const fetchSource4 = async (): Promise<Song[]> => {
+    const moodQueries = ["chill vibes", "upbeat energy", "romantic", "party", "soulful", "acoustic", "lo-fi"];
+    const randomMood = pickRandom(moodQueries);
+    const randomLang = topLangs.length > 0 ? pickRandom(topLangs).language : "hindi";
     const moodSongs = await searchSongs(`${randomMood} ${randomLang} songs`, 15);
-    const normalized = normalizeSongsToCanonical(moodSongs);
-    for (const s of normalized) {
-      addCandidate(s);
+    return normalizeSongsToCanonical(moodSongs);
+  };
+
+  const [src0, src1, src2, src3, src4] = await Promise.allSettled([
+    fetchSource0(),
+    fetchSource1(),
+    fetchSource2(),
+    fetchSource3(),
+    fetchSource4(),
+  ]);
+
+  const excludeSet = new Set(excludeIds);
+  const candidates: Song[] = [];
+
+  const addCandidate = (song: Song) => {
+    if (excludeSet.has(song.id)) return;
+    excludeSet.add(song.id);
+    candidates.push(song);
+  };
+
+  const sourceResults = [src0, src1, src2, src3, src4];
+  for (const res of sourceResults) {
+    if (res.status === "fulfilled") {
+      for (const s of res.value) addCandidate(s);
     }
-  } catch {}
+  }
 
   if (candidates.length === 0) {
     const prefLangs = tasteProfile?.languages.map(l => l.language) || [];
