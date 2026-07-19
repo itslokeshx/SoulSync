@@ -502,10 +502,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handlePause = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    // Skip entirely during src transitions — browser fires a spurious pause
-    // when the src attribute changes. Processing it would falsely set isPlaying=false
-    // and consume the isRemoteActionRef meant for the real play event.
+    // Skip entirely during src transitions
     if (srcJustChangedRef.current) return;
+
+    // Skip if we are in video mode and player is expanded,
+    // because the audio element is paused intentionally to let the video play.
+    const state = usePlayerStore.getState();
+    if (state.isVideoMode && state.isPlayerExpanded) return;
+
     // Only update state if the pause was intentional (not buffering/seeking)
     if (!audio.seeking && !audio.ended) {
       setIsPlaying(false);
@@ -561,6 +565,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         onPause={(e) => {
           // Skip spurious pause events fired by the browser during src changes
           if (srcJustChangedRef.current) return;
+
+          // Skip if we are in video mode and player is expanded,
+          // because the audio element is paused intentionally to let the video play.
+          const state = usePlayerStore.getState();
+          if (state.isVideoMode && state.isPlayerExpanded) return;
+
           handlePause();
           const isDuoActive = useDuoStore.getState().active;
           if (isDuoActive) {

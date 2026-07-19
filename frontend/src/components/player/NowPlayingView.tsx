@@ -577,15 +577,15 @@ export const NowPlayingView = ({
                 )}
                 {isFullscreen && (
                   <div
-                    className={`absolute inset-0 bg-black/60 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-300 pointer-events-auto ${
+                    className={`absolute inset-0 bg-transparent flex flex-col justify-end transition-opacity duration-300 pointer-events-auto ${
                       showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
                   >
-                    {/* Floating Bottom Glass Control Bar */}
-                    <div className="bg-black/50 border border-white/10 rounded-2xl backdrop-blur-xl p-4 w-[95%] max-w-3xl mx-auto flex flex-col gap-3 shadow-2xl">
-                      {/* Row 1: Seek / Progress Bar */}
-                      <div className="flex items-center gap-4 w-full">
-                        <span className="text-xs text-white/60 tabular-nums font-semibold">{fmt(currentTime)}</span>
+                    {/* Compact Full-Width Bottom Glass Control Bar */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/85 border-t border-white/10 backdrop-blur-xl px-6 py-2.5 flex items-center justify-between gap-6 shadow-2xl text-white pointer-events-auto">
+                      
+                      {/* Top Timeline Slider */}
+                      <div className="absolute top-0 left-0 right-0 -translate-y-1/2 w-full h-1 px-1">
                         <input
                           type="range"
                           min={0}
@@ -595,58 +595,47 @@ export const NowPlayingView = ({
                           onChange={(e) => handleSeek(+e.target.value)}
                           onPointerDown={handleSeekStart}
                           onPointerUp={handleSeekEnd}
-                          className="progress-bar progress-glow flex-1 h-1.5 rounded-full cursor-pointer pointer-events-auto"
+                          className="w-full h-1 cursor-pointer accent-sp-green"
                           style={{
-                            "--progress": `${duration ? currentTime / duration : 0}`,
-                          } as React.CSSProperties}
+                            background: `linear-gradient(to right, #1db954 0%, #1db954 ${duration ? (currentTime / duration) * 100 : 0}%, rgba(255,255,255,0.2) ${duration ? (currentTime / duration) * 100 : 0}%, rgba(255,255,255,0.2) 100%)`,
+                            appearance: "none",
+                            outline: "none",
+                            borderRadius: "9999px",
+                          }}
                         />
-                        <span className="text-xs text-white/60 tabular-nums font-semibold">{fmt(duration)}</span>
                       </div>
 
-                      {/* Row 2: Info & Control Buttons */}
-                      <div className="flex items-center justify-between w-full mt-1">
-                        {/* Left: Song Info */}
-                        <div className="text-left min-w-0 flex-1 pr-4">
-                          <h2 className="text-white text-base md:text-lg font-bold truncate leading-tight">{currentSong.name}</h2>
-                          <p className="text-white/40 text-xs mt-0.5 truncate">{artists}</p>
-                        </div>
+                      {/* Left: Song Info */}
+                      <div className="text-left min-w-0 flex-1">
+                        <h2 className="text-white text-xs md:text-sm font-bold truncate leading-tight">{currentSong.name}</h2>
+                        <p className="text-white/40 text-[9px] md:text-xs mt-0.5 truncate">{artists}</p>
+                      </div>
 
-                        {/* Center: Play/Pause/Prev/Next Controls */}
-                        <div className="flex items-center gap-6 justify-center flex-shrink-0">
-                          <button
-                            onClick={onPrev}
-                            className="text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95 pointer-events-auto"
-                          >
-                            <SkipBack size={22} className="fill-current" />
-                          </button>
-                          <button
-                            onClick={onPlayPause}
-                            className="w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg pointer-events-auto"
-                          >
-                            {isPlaying ? (
-                              <Pause size={18} className="text-black fill-black" />
-                            ) : (
-                              <Play size={18} className="text-black fill-black ml-0.5" />
-                            )}
-                          </button>
-                          <button
-                            onClick={onNext}
-                            className="text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95 pointer-events-auto"
-                          >
-                            <SkipForward size={22} className="fill-current" />
-                          </button>
-                        </div>
+                      {/* Right: Controls & Info */}
+                      <div className="flex items-center gap-4 justify-end flex-shrink-0">
+                        {/* Play/Pause Button */}
+                        <button
+                          onClick={onPlayPause}
+                          className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg pointer-events-auto"
+                        >
+                          {isPlaying ? (
+                            <Pause size={14} className="text-black fill-black" />
+                          ) : (
+                            <Play size={14} className="text-black fill-black ml-0.5" />
+                          )}
+                        </button>
 
-                        {/* Right: Exit Fullscreen */}
-                        <div className="flex items-center gap-3 justify-end flex-1 pl-4">
-                          <button
-                            onClick={toggleFullscreen}
-                            className="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full backdrop-blur-md transition-all active:scale-95 flex items-center justify-center border border-white/10 pointer-events-auto"
-                            title="Exit Fullscreen"
-                          >
-                            <Minimize2 size={18} className="text-white/80" />
-                          </button>
-                        </div>
+                        <span className="text-[10px] text-white/50 tabular-nums font-semibold">
+                          {fmt(currentTime)} / {fmt(duration)}
+                        </span>
+
+                        <button
+                          onClick={toggleFullscreen}
+                          className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-all active:scale-95 flex items-center justify-center border border-white/10 pointer-events-auto"
+                          title="Exit Fullscreen"
+                        >
+                          <Minimize2 size={16} className="text-white/85" />
+                        </button>
                       </div>
                     </div>
                   </div>
