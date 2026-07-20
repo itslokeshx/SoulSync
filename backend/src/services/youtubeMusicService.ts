@@ -46,7 +46,7 @@ async function callMusicProvider(endpoint: string, params: Record<string, any> =
     const { data } = await axios.get(`${MUSIC_PROVIDER_URL}/api/music${endpoint}`, {
       params,
       headers,
-      timeout: 15000,
+      timeout: 35000,
     });
     return data;
   } catch (err: any) {
@@ -512,7 +512,7 @@ async function fetchYouTubeSongsByIds(ids: string[], reqBaseUrl?: string): Promi
       video_ids: ids
     }, {
       headers: SERVICE_TOKEN ? { "X-Service-Token": SERVICE_TOKEN } : {},
-      timeout: 20000
+      timeout: 35000
     });
 
     const results = response.data?.results || [];

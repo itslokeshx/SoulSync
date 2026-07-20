@@ -28,6 +28,8 @@ import { useDuoStore } from "../duo/duoStore";
 import { getOfflineBlob } from "../utils/offlineDB";
 import toast from "react-hot-toast";
 
+const SILENT_MP3 = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjM2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU2LjQxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAARTMu//MUZAYAAAGkAAAAAAAAA0gAAAAAOTku//MUZAkAAAGkAAAAAAAAA0gAAAAANVVV";
+
 interface PlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement>;
   handleSeek: (time: number) => void;
@@ -162,6 +164,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     else toast(msg);
   }, []);
 
+  const handleSeekRemoteRef = useRef<((time: number) => void) | null>(null);
+
   const duo = useDuo({
     playSongRef,
     audioRef: audioRef as React.RefObject<HTMLAudioElement>,
@@ -173,7 +177,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     isRemoteActionRef,
     isPlayingRef,
     isRemoteSongChangeRef,
+    handleSeekRemoteRef,
   });
+
+  // Centralized play/pause syncing over Duo
+  useEffect(() => {
+    const isDuoActive = useDuoStore.getState().active;
+    if (!isDuoActive || !currentSong) return;
+
+    if (isRemoteActionRef.current) {
+      isRemoteActionRef.current = false;
+      return;
+    }
+
+    const currentSec = usePlayerStore.getState().currentTime;
+    if (isPlaying) {
+      duo.syncPlay(currentSec, currentSong.id);
+    } else {
+      duo.syncPause(currentSec);
+    }
+  }, [isPlaying, currentSong?.id, duo]);
 
   // ── Flag: has the very first audio source been loaded yet? ────────
   // This prevents syncing the initial empty/null state to partner.
@@ -231,6 +254,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     [seekTo, duo, currentSong?.id],
   );
 
+  useEffect(() => {
+    handleSeekRemoteRef.current = (time: number) => {
+      const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
+      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+        try {
+          ytPlayerRef.current.seekTo(time, true);
+        } catch {}
+      } else if (audioRef.current) {
+        audioRef.current.currentTime = time;
+      }
+      seekTo(time);
+    };
+  }, [currentSong?.id, seekTo]);
+
   // ── consolidated Audio & Source Control ─────────────────────────
   // Fixes the "image only changed" race condition by ensuring play()
   // is only called after src is set and ready.
@@ -245,9 +282,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (isYouTube) {
         // Online YouTube songs are played via the client-side YouTube iframe player.
-        // We bypass HTML5 audio element entirely.
-        targetSrc = "";
+        // We bypass HTML5 audio element entirely by playing a silent loop track.
+        targetSrc = SILENT_MP3;
+        audioRef.current!.loop = true;
       } else {
+        audioRef.current!.loop = false;
         // For downloaded/local songs, try to load the blob from IndexedDB first
         const blob = await getOfflineBlob(currentSong.id);
         if (blob) {
@@ -284,7 +323,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             targetSrc.startsWith("blob:") ||
             targetSrc.startsWith("file:") ||
             targetSrc.startsWith("ms-appdata:") ||
-            targetSrc.includes("_capacitor_file_")
+            targetSrc.includes("_capacitor_file_") ||
+            targetSrc.startsWith("data:")
           ) {
             audioRef.current!.removeAttribute("crossOrigin");
           } else {
@@ -725,10 +765,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ── Audio Element Handlers ──────────────────────────────────────
   const handleTimeUpdate = () => {
+    if (!currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (isYouTube) return;
     if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
   };
 
   const handleLoadedMetadata = () => {
+    if (!currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (isYouTube) return;
     // New src is now loaded — any future pause events are real user actions.
     srcJustChangedRef.current = false;
     if (srcChangedTimerRef.current) {
@@ -745,6 +791,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handleEnded = () => {
+    if (!currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (isYouTube) return;
     const { sleepTimerActive, sleepTimerEndOnTrack } = usePlayerStore.getState();
     if (sleepTimerActive && sleepTimerEndOnTrack) {
       usePlayerStore.setState({
@@ -808,6 +857,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ── FIX: prevent random pauses from buffering/browser events ──────
   const handlePause = () => {
+    if (!currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (isYouTube) return;
     const audio = audioRef.current;
     if (!audio) return;
     // Skip entirely during src transitions
@@ -825,10 +877,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handlePlay = () => {
+    if (!currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (isYouTube) return;
     setIsPlaying(true);
   };
 
   const handleError = () => {
+    if (!currentSong) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (isYouTube) return;
     console.error("[AudioEngine] Playback error for:", currentSong?.name);
     setIsPlaying(false);
     // Auto-skip on error after 2s delay
@@ -859,36 +917,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={handleLoadedMetadata}
-        onPlay={(e) => {
-          handlePlay();
-          const isDuoActive = useDuoStore.getState().active;
-          if (isDuoActive) {
-            if (isRemoteActionRef.current) {
-              isRemoteActionRef.current = false; // Consume the remote action
-            } else {
-              duo.syncPlay(e.currentTarget.currentTime, currentSong?.id || "");
-            }
-          }
-        }}
-        onPause={(e) => {
-          // Skip spurious pause events fired by the browser during src changes
-          if (srcJustChangedRef.current) return;
-
-          // Skip if we are in video mode and player is expanded,
-          // because the audio element is paused intentionally to let the video play.
-          const state = usePlayerStore.getState();
-          if (state.isVideoMode && state.isPlayerExpanded) return;
-
-          handlePause();
-          const isDuoActive = useDuoStore.getState().active;
-          if (isDuoActive) {
-            if (isRemoteActionRef.current) {
-              isRemoteActionRef.current = false; // Consume the remote action
-            } else {
-              duo.syncPause(e.currentTarget.currentTime);
-            }
-          }
-        }}
+        onPlay={handlePlay}
+        onPause={handlePause}
         className="hidden"
         crossOrigin="anonymous"
         preload="auto"
@@ -897,12 +927,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       <div
         style={{
           position: "fixed",
-          width: "1px",
-          height: "1px",
-          opacity: 0,
+          width: "200px",
+          height: "200px",
+          opacity: 0.001,
           pointerEvents: "none",
-          bottom: "-999px",
-          right: "-999px",
+          top: "0px",
+          left: "0px",
+          zIndex: -9999,
         }}
       >
         <div id="youtube-audio-player" />

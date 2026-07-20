@@ -47,7 +47,7 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20_000,
-      transports: ["polling", "websocket"],
+      transports: ["websocket"],
       upgrade: true,
       auth: (cb) => {
         const token = getNativeToken();

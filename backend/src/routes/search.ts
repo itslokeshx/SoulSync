@@ -103,7 +103,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
     const track = (name: string, promise: Promise<any>) => {
       taskIndex[name] = idx++;
-      parallelTasks.push(withTimeout(promise, 3500, []));
+      parallelTasks.push(withTimeout(promise, 10000, []));
     };
 
     if (pinnedIds.length) {
@@ -639,7 +639,7 @@ router.get("/stream", async (req: any, res: Response): Promise<void> => {
       url: realUrl,
       headers: headers,
       responseType: "stream",
-      timeout: 15000,
+      timeout: 35000,
     });
     
     res.status(response.status);

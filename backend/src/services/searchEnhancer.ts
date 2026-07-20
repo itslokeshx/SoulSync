@@ -1122,7 +1122,7 @@ export async function enhancedSearch(
   displayContext: string;
 }> {
   // Cache check — word-sorted key so "sad hindi" and "hindi sad" share one entry
-  const ck = `search:v11:${normalizeSearchKey(query)}:${type}`;
+  const ck = `search:v12:${normalizeSearchKey(query)}:${type}`;
 
   const l1 = l1Get(ck);
   if (l1) return l1;

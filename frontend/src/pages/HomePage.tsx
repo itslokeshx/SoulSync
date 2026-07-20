@@ -543,6 +543,7 @@ const QuickPicksList = ({
 }) => {
   const [activePage, setActivePage] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const showContextMenu = useUIStore((s) => s.showContextMenu);
 
   const pages = useMemo(() => {
     const perPage = 9; // mobile: 3x3
@@ -608,7 +609,7 @@ const QuickPicksList = ({
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-2">
                       {isCurrent && (
-                        <div className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-sp-green/20">
+                        <div className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-sp-green/20">
                           {isPlaying ? (
                             <div className="flex gap-[2px] items-end h-2.5 px-0.5">
                               <div className="w-[1.5px] bg-sp-green rounded-full animate-pulse h-2.5" />
@@ -626,6 +627,15 @@ const QuickPicksList = ({
                           )}
                         </div>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showContextMenu(e.clientX, e.clientY, s);
+                        }}
+                        className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-full p-1 border border-white/10 active:scale-90 transition-transform"
+                      >
+                        <MoreHorizontal size={10} />
+                      </button>
                       <p
                         className={`text-[10px] font-bold truncate leading-snug text-center ${
                           isCurrent ? "text-sp-green" : "text-white"

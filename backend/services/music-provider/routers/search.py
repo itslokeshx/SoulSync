@@ -31,7 +31,7 @@ def _search_sync(q: str, filter: Optional[str] = "songs", limit: int = 20) -> di
             if not isinstance(r, dict):
                 continue
             
-            title = r.get("title") or r.get("name")
+            title = r.get("title") or r.get("name") or r.get("artist")
             if not title:
                 title_obj = r.get("title")
                 name_obj = r.get("name")

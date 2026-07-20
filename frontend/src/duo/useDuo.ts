@@ -52,6 +52,7 @@ interface UseDuoOpts {
   isRemoteActionRef: React.MutableRefObject<boolean>;
   isPlayingRef: React.MutableRefObject<boolean>;
   isRemoteSongChangeRef: React.MutableRefObject<boolean>;
+  handleSeekRemoteRef: React.MutableRefObject<((time: number) => void) | null>;
 }
 
 export function useDuo({
@@ -65,6 +66,7 @@ export function useDuo({
   isRemoteActionRef,
   isPlayingRef,
   isRemoteSongChangeRef,
+  handleSeekRemoteRef,
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasConnectedOnceRef = useRef(false);
@@ -328,8 +330,7 @@ export function useDuo({
           });
         })
         .catch(() => {
-          console.warn("[Duo] Rejoin failed — clearing stale session");
-          store.getState().fullReset();
+          console.warn("[Duo] Rejoin connection slow — will auto-reconnect in background");
           hasConnectedOnceRef.current = false;
         });
     }
@@ -351,6 +352,7 @@ export function useDuo({
     isRemoteActionRef,
     isPlayingRef,
     isRemoteSongChangeRef,
+    handleSeekRemoteRef,
   });
   useEffect(() => {
     callbackRefs.current = {
@@ -364,6 +366,7 @@ export function useDuo({
       isRemoteActionRef,
       isPlayingRef,
       isRemoteSongChangeRef,
+      handleSeekRemoteRef,
     };
   });
 
@@ -557,40 +560,26 @@ export function useDuo({
 
         // ── Playback sync ──────────────────────────────────────
         case "duo:receive-play": {
-          const audio = callbackRefs.current.audioRef.current;
-          if (audio) {
-            const ct = data?.currentTime;
-            if (ct != null && Math.abs(audio.currentTime - ct) > 2)
-              audio.currentTime = ct;
-
-            callbackRefs.current.isRemoteActionRef.current = true;
-            audio
-              .play()
-              .then(() => callbackRefs.current.setIsPlaying(true))
-              .catch(() => {});
+          const ct = data?.currentTime;
+          callbackRefs.current.isRemoteActionRef.current = true;
+          if (ct != null) {
+            callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
           }
+          usePlayerStore.getState().resume();
           break;
         }
         case "duo:receive-pause": {
-          const audio = callbackRefs.current.audioRef.current;
-          if (audio) {
-            const ct = data?.currentTime;
-            if (ct != null) {
-              audio.currentTime = ct;
-              callbackRefs.current.setCurrentTime(ct);
-            }
-
-            callbackRefs.current.isRemoteActionRef.current = true;
-            audio.pause();
-            callbackRefs.current.setIsPlaying(false);
+          const ct = data?.currentTime;
+          callbackRefs.current.isRemoteActionRef.current = true;
+          if (ct != null) {
+            callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
           }
+          usePlayerStore.getState().pause();
           break;
         }
         case "duo:receive-seek": {
-          const audio = callbackRefs.current.audioRef.current;
-          if (audio && data?.currentTime != null) {
-            audio.currentTime = data.currentTime;
-            callbackRefs.current.setCurrentTime(data.currentTime);
+          if (data?.currentTime != null) {
+            callbackRefs.current.handleSeekRemoteRef?.current?.(data.currentTime);
           }
           break;
         }
