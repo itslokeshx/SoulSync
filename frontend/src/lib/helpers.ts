@@ -140,6 +140,16 @@ export const hashColor = (id: string): string => {
 export const extractColor = (imgUrl: string): Promise<string | null> =>
   new Promise((resolve) => {
     if (!imgUrl) return resolve(null);
+
+    const cacheKey = `ss_color_${imgUrl}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        if (cached === "FAILED") return resolve(null);
+        return resolve(cached);
+      }
+    } catch {}
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -165,13 +175,24 @@ export const extractColor = (imgUrl: string): Promise<string | null> =>
         }
         if (!n) return resolve(null);
         const f = 0.42;
-        resolve(
-          `rgb(${Math.round((r / n) * f)},${Math.round((g / n) * f)},${Math.round((b / n) * f)})`,
-        );
+        const color = `rgb(${Math.round((r / n) * f)},${Math.round((g / n) * f)},${Math.round((b / n) * f)})`;
+        
+        try {
+          localStorage.setItem(cacheKey, color);
+        } catch {}
+        resolve(color);
       } catch {
+        try {
+          localStorage.setItem(cacheKey, "FAILED");
+        } catch {}
         resolve(null);
       }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      try {
+        localStorage.setItem(cacheKey, "FAILED");
+      } catch {}
+      resolve(null);
+    };
     img.src = imgUrl;
   });
