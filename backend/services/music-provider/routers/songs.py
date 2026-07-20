@@ -408,6 +408,8 @@ def _resolve_stream_sync(video_id: str) -> dict:
             if _inflight_resolutions.get(video_id) is res_future:
                 del _inflight_resolutions[video_id]
         res_future.event.set()
+        import gc
+        gc.collect()
 
 
 @router.get("/song/{video_id}/stream")

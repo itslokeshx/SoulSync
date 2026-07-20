@@ -137,12 +137,17 @@ def check_cookies_health() -> dict:
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.extract_info(url, download=False)
-        return {"status": "healthy", "message": "Cookies are healthy"}
+        res = {"status": "healthy", "message": "Cookies are healthy"}
     except Exception as e:
         err_msg = str(e)
         if "sign in" in err_msg.lower() or "bot" in err_msg.lower():
-            return {"status": "expired", "message": f"[cookies] expired — refresh needed: {err_msg}"}
-        return {"status": "error", "message": f"Cookie check failed: {err_msg}"}
+            res = {"status": "expired", "message": f"[cookies] expired — refresh needed: {err_msg}"}
+        else:
+            res = {"status": "error", "message": f"Cookie check failed: {err_msg}"}
+    finally:
+        import gc
+        gc.collect()
+    return res
 
 
 @app.get("/api/music/cookies/health")
