@@ -1,3 +1,4 @@
+// Force HMR refresh
 import React, {
   createContext,
   useContext,
@@ -178,12 +179,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // This prevents syncing the initial empty/null state to partner.
   const hasEverLoadedRef = useRef(false);
 
-  // ── Log play history + bust dashboard cache on every new song ────────
+  // ── Log play history + bust dashboard cache after 5 seconds of active playback ────────
   const loggedSongRef = useRef<string | null>(null);
   useEffect(() => {
     if (!currentSong) return;
     if (loggedSongRef.current === currentSong.id) return; // already logged this song
     if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
+
+    // Only log history once the song has played for at least 5 seconds
+    if (currentTime < 5) return;
+
     loggedSongRef.current = currentSong.id;
 
     // Log to backend — invalidates Redis dashboard cache server-side
@@ -207,7 +212,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         if (key?.startsWith("ss_dashboard")) sessionStorage.removeItem(key);
       }
     } catch {}
-  }, [currentSong?.id]);
+  }, [currentSong?.id, currentTime]);
 
   // ── Seek handler: updates BOTH audio element AND state ──────────────
   const handleSeek = useCallback(
