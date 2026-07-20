@@ -1091,8 +1091,9 @@ export async function getTasteProfileBatch(
 
   const fetchSource1 = async (): Promise<Song[]> => {
     const topArtists = tasteProfile.artists.slice(0, 10);
+    const sampledArtists = [...topArtists].sort(() => Math.random() - 0.5).slice(0, 4);
     const artistResults = await Promise.allSettled(
-      topArtists.map((a) => {
+      sampledArtists.map((a) => {
         if (a.artistId && /^\d+$/.test(a.artistId)) {
           const randomPage = Math.floor(Math.random() * 8);
           return fetchArtistSongs(a.artistId, randomPage, 2);
@@ -1124,25 +1125,11 @@ export async function getTasteProfileBatch(
       .lean();
     const cooccurIds = cooccurrences.map((co) => co.songIdB);
     if (cooccurIds.length === 0) return [];
-    const results: (Song | null)[] = new Array(cooccurIds.length);
-    let idx = 0;
-    const CONCURRENCY_LIMIT = 8;
-    async function worker() {
-      while (idx < cooccurIds.length) {
-        const currentIdx = idx++;
-        try {
-          results[currentIdx] = await fetchSongById(cooccurIds[currentIdx]);
-        } catch {
-          results[currentIdx] = null;
-        }
-      }
+    try {
+      return await fetchSongsByIds(cooccurIds);
+    } catch {
+      return [];
     }
-    const workers = Array.from(
-      { length: Math.min(CONCURRENCY_LIMIT, cooccurIds.length) },
-      worker
-    );
-    await Promise.all(workers);
-    return results.filter((s): s is Song => s !== null);
   };
 
   const fetchSource3 = async (): Promise<Song[]> => {
@@ -2019,10 +2006,11 @@ export async function getPodcastRecommendations(langs: string[] = ["english"], l
     queries.push(...queriesByLang.english, ...queriesByLang.tamil);
   }
 
-  const uniqueQueries = Array.from(new Set(queries)).slice(0, 8);
+  const uniqueQueries = Array.from(new Set(queries));
+  const sampledQueries = [...uniqueQueries].sort(() => Math.random() - 0.5).slice(0, 4);
 
   const searchResults = await Promise.allSettled(
-    uniqueQueries.map((q) => searchPodcasts(q, 3))
+    sampledQueries.map((q) => searchPodcasts(q, 3))
   );
 
   const candidates: any[] = [];

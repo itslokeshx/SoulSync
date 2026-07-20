@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { getArtistsList } from "../../lib/helpers";
 
 interface ArtistLinksProps {
@@ -8,35 +7,20 @@ interface ArtistLinksProps {
 }
 
 export const ArtistLinks = ({ song, className = "" }: ArtistLinksProps) => {
-  const navigate = useNavigate();
   const list = getArtistsList(song);
 
   if (!list.length) return <span className={className}>—</span>;
 
   return (
     <span className={className}>
-      {list.map((artist, idx) => {
-        const handleClick = (e: React.MouseEvent) => {
-          e.stopPropagation();
-          if (artist.id) {
-            navigate(`/artist/${artist.id}`);
-          } else {
-            navigate(`/search?q=${encodeURIComponent(artist.name)}`);
-          }
-        };
-
-        return (
-          <React.Fragment key={`${artist.name}-${idx}`}>
-            <span
-              onClick={handleClick}
-              className="hover:underline hover:text-white cursor-pointer transition-colors duration-150"
-            >
-              {artist.name}
-            </span>
-            {idx < list.length - 1 && <span className="text-white/40">, </span>}
-          </React.Fragment>
-        );
-      })}
+      {list.map((artist, idx) => (
+        <React.Fragment key={`${artist.name}-${idx}`}>
+          <span>
+            {artist.name}
+          </span>
+          {idx < list.length - 1 && <span className="text-white/40">, </span>}
+        </React.Fragment>
+      ))}
     </span>
   );
 };

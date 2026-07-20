@@ -74,7 +74,7 @@ export async function buildDashboard(
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      const ttl = isGuest ? 30 * 60 * 1000 : (isDev ? 30 * 1000 : 2 * 60 * 1000);
+      const ttl = isGuest ? 30 * 60 * 1000 : 5 * 60 * 1000;
       if (Date.now() - parsed.generatedAt < ttl) {
         parsed._timings = timings;
         console.log(`[PerfAudit] Dashboard cache hit: userId="${userId}" | redisCacheCheck=${timings.redisCacheCheck.toFixed(2)}ms`);
@@ -309,8 +309,8 @@ export async function buildDashboard(
   timings.totalBuildTime = performance.now() - t0;
   response._timings = timings;
 
-  // Cache response (30 sec in dev, 2 min in prod for auth; 30 min for guest)
-  const ttl = isGuest ? 1800 : (isDev ? 30 : 120);
+  // Cache response (5 min in dev/prod for auth; 30 min for guest)
+  const ttl = isGuest ? 1800 : 300;
   
   const tCacheWrite = performance.now();
   await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
