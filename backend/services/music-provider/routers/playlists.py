@@ -1,10 +1,8 @@
-"""
-Playlists router.
-"""
 import time
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
+from starlette.concurrency import run_in_threadpool
 
 from services.ytmusic_client import get_client, with_retry
 from services.cache import get_cached, set_cached, cache_response
@@ -13,23 +11,16 @@ router = APIRouter()
 logger = logging.getLogger("music-provider.playlists")
 
 
-@router.get("/playlist/{playlist_id}")
 @cache_response(ttl_seconds=1800, prefix="playlist")
 @with_retry()
-def get_playlist(
-    playlist_id: str,
-    limit: Optional[int] = Query(default=None, ge=1, le=5000),
-) -> dict:
-    """Get playlist details and tracks by playlistId or browseId."""
+def _get_playlist_sync(playlist_id: str, limit: Optional[int] = None) -> dict:
     start = time.perf_counter()
     dead_key = f"dead_playlist:{playlist_id}"
     
-    # Check dead playlist cache
     if get_cached(dead_key):
         logger.info(f"[playlist] id={playlist_id} is marked as DEAD, returning empty stub")
         return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
 
-    # Check if this is a podcast series
     is_podcast_id = playlist_id.startswith("MPSP") or "podcast" in playlist_id.lower()
     
     yt = get_client()
@@ -78,7 +69,6 @@ def get_playlist(
     except KeyError as e:
         is_structural = any(k in str(e) for k in ("contents", "secondSubtitle", "tabs"))
         if is_structural:
-            # Fallback to get_podcast on structural error (just in case the prefix check missed it)
             try:
                 logger.info(f"[playlist] Structural error on standard playlist, attempting podcast fallback for {playlist_id}...")
                 podcast = yt.get_podcast(playlist_id)
@@ -111,7 +101,6 @@ def get_playlist(
             return {"tracks": [], "title": "Stale/Inactive Playlist", "id": playlist_id, "browseId": playlist_id, "is_dead": True}
         raise
     except Exception as e:
-        # Increment failure count for other transient exceptions
         fail_key = f"playlist_fails:{playlist_id}"
         fails = (get_cached(fail_key) or 0) + 1
         set_cached(fail_key, fails, ttl_seconds=3600)
@@ -122,11 +111,17 @@ def get_playlist(
         raise
 
 
-@router.get("/playlist/{playlist_id}/suggestions")
+@router.get("/playlist/{playlist_id}")
+async def get_playlist(
+    playlist_id: str,
+    limit: Optional[int] = Query(default=None, ge=1, le=5000),
+) -> dict:
+    return await run_in_threadpool(_get_playlist_sync, playlist_id, limit)
+
+
 @cache_response(ttl_seconds=1800, prefix="playlist_suggestions")
 @with_retry()
-def get_playlist_suggestions(playlist_id: str) -> dict:
-    """Get track suggestions for a playlist. Requires authentication."""
+def _get_playlist_suggestions_sync(playlist_id: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     try:
@@ -136,3 +131,8 @@ def get_playlist_suggestions(playlist_id: str) -> dict:
     elapsed = time.perf_counter() - start
     logger.info(f"[playlist_suggestions] id={playlist_id} in {elapsed:.2f}s")
     return {"suggestions": result}
+
+
+@router.get("/playlist/{playlist_id}/suggestions")
+async def get_playlist_suggestions(playlist_id: str) -> dict:
+    return await run_in_threadpool(_get_playlist_suggestions_sync, playlist_id)

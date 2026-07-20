@@ -1,9 +1,7 @@
-"""
-Albums router.
-"""
 import time
 import logging
 from fastapi import APIRouter, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from services.ytmusic_client import get_client, with_retry
 from services.cache import cache_response
@@ -12,11 +10,9 @@ router = APIRouter()
 logger = logging.getLogger("music-provider.albums")
 
 
-@router.get("/album/{browse_id}")
-@cache_response(ttl_seconds=3600, prefix="album")
+@cache_response(ttl_seconds=7200, prefix="album")
 @with_retry()
-def get_album(browse_id: str) -> dict:
-    """Get album details and tracks by browseId."""
+def _get_album_sync(browse_id: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     result = yt.get_album(browse_id)
@@ -27,11 +23,14 @@ def get_album(browse_id: str) -> dict:
     return result
 
 
-@router.get("/album/browse/{audio_playlist_id}")
-@cache_response(ttl_seconds=3600, prefix="album_browse")
+@router.get("/album/{browse_id}")
+async def get_album(browse_id: str) -> dict:
+    return await run_in_threadpool(_get_album_sync, browse_id)
+
+
+@cache_response(ttl_seconds=7200, prefix="album_browse")
 @with_retry()
-def get_album_browse_id(audio_playlist_id: str) -> dict:
-    """Convert an audioPlaylistId to a browseId."""
+def _get_album_browse_id_sync(audio_playlist_id: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     result = yt.get_album_browse_id(audio_playlist_id)
@@ -40,3 +39,8 @@ def get_album_browse_id(audio_playlist_id: str) -> dict:
     elapsed = time.perf_counter() - start
     logger.info(f"[album_browse] audioPlaylistId={audio_playlist_id} → {result} in {elapsed:.2f}s")
     return {"browseId": result}
+
+
+@router.get("/album/browse/{audio_playlist_id}")
+async def get_album_browse_id(audio_playlist_id: str) -> dict:
+    return await run_in_threadpool(_get_album_browse_id_sync, audio_playlist_id)

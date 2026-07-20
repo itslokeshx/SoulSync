@@ -1,8 +1,6 @@
-"""
-Singleton YTMusic instance manager with retry logic.
-"""
 import os
 import time
+import random
 import logging
 from typing import Optional
 from pathlib import Path
@@ -35,7 +33,6 @@ def create_session() -> requests.Session:
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     
-    # Inject browser-like user agent and headers
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "*/*",
@@ -44,7 +41,6 @@ def create_session() -> requests.Session:
         "Referer": "https://music.youtube.com/",
     })
     
-    # Load cookies if available
     import http.cookiejar
     from pathlib import Path
     
@@ -73,30 +69,14 @@ def create_session() -> requests.Session:
 
 
 
-
 _last_reset_time: float = 0.0
 _RESET_COOLDOWN_SECONDS = 2.0
 
 
 def reset_client_to_guest():
-    """
-    Reset the client to a clean guest-mode session.
-
-    Rate-limited: under sustained blocking (YouTube rejecting both cookie
-    and guest requests), every failing request would otherwise trigger a
-    full session rebuild + new YTMusic() init (each doing network I/O),
-    all while holding one of only 10 global semaphore slots. That turns
-    a block into a resource-exhaustion cascade across every endpoint.
-    Only actually rebuild once per cooldown window; otherwise just log
-    and move on so failures return fast instead of piling up.
-    """
     global _client, _last_reset_time
     now = time.monotonic()
     if now - _last_reset_time < _RESET_COOLDOWN_SECONDS:
-        logger.warning(
-            "Skipping YTMusic client reset (cooldown active, "
-            f"{_RESET_COOLDOWN_SECONDS - (now - _last_reset_time):.0f}s remaining)"
-        )
         return
     _last_reset_time = now
 
@@ -112,13 +92,6 @@ def reset_client_to_guest():
 
 
 def get_client() -> YTMusic:
-    """
-    Get or create the singleton YTMusic instance.
-
-    Auth priority:
-    1. oauth.json (authenticated — full API access)
-    2. Browser auth (guest mode — public endpoints only)
-    """
     global _client
     if _client is not None:
         return _client
@@ -148,24 +121,15 @@ def get_client() -> YTMusic:
 
 from threading import Semaphore, Lock
 
-# Limit concurrent outbound YouTube Music calls (kept low for 512MB Render free tier)
-_yt_semaphore = Semaphore(3)
+_yt_semaphore = Semaphore(10)
 _throttle_lock = Lock()
 _last_request_time: float = 0.0
 
-# ── Circuit breaker ──────────────────────────────────────────────────────
-# If YouTube is actively blocking us (auth/parse failures), retrying each
-# request 3x with sleeps just piles up load on top of an already-failing
-# upstream and holds semaphore slots longer, making the pile-up worse.
-# Once we see repeated failures in a short window, trip the breaker and
-# fail new requests immediately (no retries, no sleeps) until the cooldown
-# passes, so the service stays responsive instead of queuing everything
-# behind guaranteed-to-fail calls.
 _breaker_lock = Lock()
 _consecutive_failures = 0
 _breaker_tripped_until: float = 0.0
-_BREAKER_THRESHOLD = 8
-_BREAKER_COOLDOWN_SECONDS = 20.0
+_BREAKER_THRESHOLD = 5
+_BREAKER_COOLDOWN_SECONDS = 10.0
 
 
 def _record_failure():
@@ -190,14 +154,11 @@ def _breaker_is_open() -> bool:
     return time.monotonic() < _breaker_tripped_until
 
 
-def with_retry(max_retries: int = 3, base_delay: float = 0.5):
-    """
-    Decorator that adds retry logic with exponential backoff.
-    On permanent failure, raises HTTPException(503).
-    """
+def with_retry(max_retries: int = 2, base_delay: float = 0.2):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            global _last_request_time
             if _breaker_is_open():
                 raise HTTPException(
                     status_code=503,
@@ -205,21 +166,26 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
                 )
 
             last_error = None
-            with _yt_semaphore:
+            acquired = _yt_semaphore.acquire(timeout=3)
+            if not acquired:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Service overloaded — too many concurrent requests",
+                )
+            try:
                 for attempt in range(max_retries):
                     try:
-                        global _last_request_time
                         with _throttle_lock:
                             now = time.monotonic()
                             diff = now - _last_request_time
-                            if diff < 0.2:
-                                time.sleep(0.2 - diff)
+                            if diff < 0.1:
+                                time.sleep(0.1 - diff)
                             _last_request_time = time.monotonic()
                         result = func(*args, **kwargs)
                         _record_success()
                         return result
                     except HTTPException:
-                        raise  # Don't retry HTTP exceptions we raise ourselves
+                        raise
                     except Exception as e:
                         last_error = e
                         err_str = str(e).lower()
@@ -237,21 +203,24 @@ def with_retry(max_retries: int = 3, base_delay: float = 0.5):
                                 f"Attempting immediate guest mode fallback."
                             )
                             reset_client_to_guest()
-                            if attempt < max_retries - 1:
-                                continue
-                                
 
                         if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
+                            delays = [0.2, 0.5, 1.2]
+                            delay = delays[min(attempt, len(delays) - 1)]
+                            jitter = random.uniform(0, delay * 0.3)
+                            sleep_time = delay + jitter
                             logger.warning(
                                 f"[{func.__name__}] Attempt {attempt + 1}/{max_retries} "
-                                f"failed: {e}. Retrying in {delay:.1f}s..."
+                                f"failed: {e}. Retrying in {sleep_time:.2f}s..."
                             )
-                            time.sleep(delay)
+                            time.sleep(sleep_time)
                         else:
                             logger.error(
                                 f"[{func.__name__}] All {max_retries} attempts failed: {e}"
                             )
+            finally:
+                _yt_semaphore.release()
+
             _record_failure()
             raise HTTPException(
                 status_code=503,

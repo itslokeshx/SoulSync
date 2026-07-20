@@ -1,7 +1,3 @@
-"""
-SoulSync Music Provider Service — FastAPI entry point.
-Wraps ytmusicapi to provide a REST API for YouTube Music data.
-"""
 import os
 import asyncio
 import httpx
@@ -11,8 +7,7 @@ from routers import home, search, songs, artists, albums, playlists, podcasts
 import uvicorn
 
 async def ping_self_loop():
-    await asyncio.sleep(15)  # Wait for startup
-    # Render automatically sets RENDER_EXTERNAL_URL for web services
+    await asyncio.sleep(15)
     self_url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("MUSIC_PROVIDER_URL")
     if not self_url:
         print("[KeepAlive] No RENDER_EXTERNAL_URL or MUSIC_PROVIDER_URL set — skipping self-ping")
@@ -34,7 +29,6 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Add virtualenv bin directory to PATH so that executables like node from nodejs-wheel are found
     import sys
     import os
     import shutil
@@ -45,8 +39,19 @@ async def lifespan(app: FastAPI):
         os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
         print(f"[startup] Added python binary directory to PATH: {py_dir}")
 
+    deno_bin = os.path.expanduser("~/.deno/bin")
+    if os.path.isdir(deno_bin):
+        if deno_bin not in os.environ.get("PATH", "").split(os.pathsep):
+            os.environ["PATH"] = deno_bin + os.pathsep + os.environ.get("PATH", "")
+            print(f"[startup] Added Deno binary directory to PATH: {deno_bin}")
+        deno_path = os.path.join(deno_bin, "deno")
+        if os.path.isfile(deno_path):
+            print(f"[startup] Deno found at: {deno_path}")
+        else:
+            print(f"[startup] WARNING: Deno binary not found at {deno_path}")
+    else:
+        print(f"[startup] WARNING: Deno bin directory not found at {deno_bin}")
 
-    # Copy cookies from read-only /etc/secrets/ to writable /tmp/
     import shutil
     readonly_cookies = "/etc/secrets/cookies.txt"
     writable_cookies = "/tmp/cookies.txt"
@@ -101,7 +106,7 @@ def check_cookies_health() -> dict:
     import os
     from pathlib import Path
     
-    test_video_id = "dQw4w9WgXcQ"  # Never Gonna Give You Up
+    test_video_id = "dQw4w9WgXcQ"
     url = f"https://www.youtube.com/watch?v={test_video_id}"
     
     readonly_cookies = "/etc/secrets/cookies.txt"
@@ -122,7 +127,9 @@ def check_cookies_health() -> dict:
     opts = {
         'format': 'bestaudio',
         'quiet': True,
-        'no_plugins': True,
+        'socket_timeout': 8,
+        'extractor_retries': 1,
+        'retries': 1,
         'cookiefile': cookies_path,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     }
@@ -134,21 +141,22 @@ def check_cookies_health() -> dict:
     except Exception as e:
         err_msg = str(e)
         if "sign in" in err_msg.lower() or "bot" in err_msg.lower():
-            return {"status": "expired", "message": f"Cookies expired or flagged: {err_msg}"}
+            return {"status": "expired", "message": f"[cookies] expired — refresh needed: {err_msg}"}
         return {"status": "error", "message": f"Cookie check failed: {err_msg}"}
 
 
 @app.get("/api/music/cookies/health")
-def cookies_health() -> dict:
-    """Check YouTube authentication cookies health status."""
-    return check_cookies_health()
+async def cookies_health() -> dict:
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(check_cookies_health)
 
 
 @app.get("/health")
-def health() -> dict:
-    """Health check endpoint."""
+async def health() -> dict:
     return {"status": "ok", "service": "music-provider", "version": "1.0.0"}
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=4002, reload=True)
+    import multiprocessing
+    workers = min(multiprocessing.cpu_count(), 4)
+    uvicorn.run("main:app", host="0.0.0.0", port=4002, reload=True, workers=1)

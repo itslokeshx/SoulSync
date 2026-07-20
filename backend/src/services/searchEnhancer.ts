@@ -2,7 +2,7 @@ import {
   searchSongs,
   searchAlbums,
   searchArtists,
-  JioSaavnSong,
+  YTMusicSong,
 } from "./youtubeMusicService.js";
 import { redisGet, redisSet } from "./redis.js";
 import { ARTIST_DICT } from "../data/artistDictionary.js";
@@ -708,13 +708,13 @@ export function parseQuery(raw: string): ParsedQuery {
 
 // ─── RESULT SCORER ───────────────────────────────────────────────────────────
 
-export interface ScoredSong extends JioSaavnSong {
+export interface ScoredSong extends YTMusicSong {
   relevanceScore: number;
   matchReasons: string[];
   isTopResult: boolean;
 }
 
-export function scoreSong(song: JioSaavnSong, parsed: ParsedQuery): ScoredSong {
+export function scoreSong(song: YTMusicSong, parsed: ParsedQuery): ScoredSong {
   let score = 0;
   const reasons: string[] = [];
   const titleLower = (song.name || "").toLowerCase();
@@ -1136,7 +1136,7 @@ export async function enhancedSearch(
   }
 
   const parsed = parseQuery(query);
-  let allResults: JioSaavnSong[] = [];
+  let allResults: YTMusicSong[] = [];
   let albums: any[] = [];
   let artists: any[] = [];
 
@@ -1176,7 +1176,7 @@ export async function enhancedSearch(
 
   // ── Step 2: Score and check if top result is strong ──
   const seen = new Set<string>();
-  const deduped: JioSaavnSong[] = [];
+  const deduped: YTMusicSong[] = [];
   for (const s of allResults) {
     if (!seen.has(s.id)) {
       seen.add(s.id);

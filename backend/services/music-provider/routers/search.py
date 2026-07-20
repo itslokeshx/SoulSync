@@ -1,10 +1,8 @@
-"""
-Search and suggestions router.
-"""
 import time
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
+from starlette.concurrency import run_in_threadpool
 
 from services.ytmusic_client import get_client, with_retry
 from services.cache import cache_response
@@ -13,15 +11,9 @@ router = APIRouter()
 logger = logging.getLogger("music-provider.search")
 
 
-@router.get("/search")
 @cache_response(ttl_seconds=900, prefix="search")
 @with_retry()
-def search(
-    q: str = Query(..., min_length=1, description="Search query"),
-    filter: Optional[str] = Query(default="songs", description="Filter: songs, videos, albums, artists, playlists, podcasts"),
-    limit: int = Query(default=20, ge=1, le=100),
-) -> dict:
-    """Search YouTube Music across all content types or filtered by type."""
+def _search_sync(q: str, filter: Optional[str] = "songs", limit: int = 20) -> dict:
     start = time.perf_counter()
     yt = get_client()
 
@@ -33,17 +25,14 @@ def search(
 
     results = yt.search(**kwargs)
 
-    # Defensive metadata verification and filter type mapping
     if isinstance(results, list):
         filtered_results = []
         for r in results:
             if not isinstance(r, dict):
                 continue
             
-            # Retrieve or backfill title
             title = r.get("title") or r.get("name")
             if not title:
-                # Resolve nested text object if title/name is a dict (e.g. { "text": "Song Name" })
                 title_obj = r.get("title")
                 name_obj = r.get("name")
                 if isinstance(title_obj, dict) and title_obj.get("text"):
@@ -84,14 +73,26 @@ def search(
     return {"results": results, "total": len(results), "query": q, "filter": filter}
 
 
-@router.get("/suggestions")
+@router.get("/search")
+async def search(
+    q: str = Query(..., min_length=1, description="Search query"),
+    filter: Optional[str] = Query(default="songs", description="Filter: songs, videos, albums, artists, playlists, podcasts"),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict:
+    return await run_in_threadpool(_search_sync, q, filter, limit)
+
+
 @cache_response(ttl_seconds=900, prefix="suggestions")
 @with_retry()
-def get_suggestions(q: str = Query(..., min_length=1)) -> dict:
-    """Get search suggestions/autocomplete for a query."""
+def _get_suggestions_sync(q: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     results = yt.get_search_suggestions(q)
     elapsed = time.perf_counter() - start
     logger.info(f"[suggestions] q='{q}' → {len(results)} suggestions in {elapsed:.2f}s")
     return {"suggestions": results, "query": q}
+
+
+@router.get("/suggestions")
+async def get_suggestions(q: str = Query(..., min_length=1)) -> dict:
+    return await run_in_threadpool(_get_suggestions_sync, q)

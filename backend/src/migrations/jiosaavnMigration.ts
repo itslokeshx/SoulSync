@@ -33,8 +33,26 @@ async function translateId(jioId: string, title: string, artist: string): Promis
   return null;
 }
 
+const MIGRATION_COMPLETE_KEY = "migration:jiosaavn_to_yt:complete";
+
 export async function runJioSaavnMigration() {
   try {
+    const alreadyRan = await redisGet(MIGRATION_COMPLETE_KEY);
+    if (alreadyRan === "true") {
+      console.log("[Migration] JioSaavn migration already completed — skipping.");
+      return;
+    }
+
+    const hasNonYtLiked = await User.exists({ "likedSongs.songId": { $not: /^[a-zA-Z0-9_-]{11}$/ } });
+    const hasNonYtPlaylist = await Playlist.exists({ "songs.songId": { $not: /^[a-zA-Z0-9_-]{11}$/ } });
+    const hasNonYtHistory = await ListeningHistory.exists({ songId: { $not: /^[a-zA-Z0-9_-]{11}$/ } });
+
+    if (!hasNonYtLiked && !hasNonYtPlaylist && !hasNonYtHistory) {
+      console.log("[Migration] No non-YouTube IDs found — marking migration as complete.");
+      await redisSet(MIGRATION_COMPLETE_KEY, "true", 365 * 24 * 3600).catch(() => {});
+      return;
+    }
+
     console.log("[Migration] Running JioSaavn ID to YouTube ID migration...");
 
     const users = await User.find({ "likedSongs.songId": { $not: /^[a-zA-Z0-9_-]{11}$/ } });
@@ -86,6 +104,7 @@ export async function runJioSaavnMigration() {
     }
 
     console.log(`[Migration] JioSaavn migration completed. Migrated: likedSongs=${migratedLikedCount}, playlistSongs=${migratedPlaylistCount}, historyEntries=${migratedHistoryCount}`);
+    await redisSet(MIGRATION_COMPLETE_KEY, "true", 365 * 24 * 3600).catch(() => {});
   } catch (err) {
     console.error("[Migration] JioSaavn migration failed:", err);
   }

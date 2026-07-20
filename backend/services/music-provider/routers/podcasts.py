@@ -1,10 +1,8 @@
-"""
-Podcasts, episodes, and channels router.
-"""
 import time
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
+from starlette.concurrency import run_in_threadpool
 
 from services.ytmusic_client import get_client, with_retry
 from services.cache import cache_response
@@ -13,11 +11,9 @@ router = APIRouter()
 logger = logging.getLogger("music-provider.podcasts")
 
 
-@router.get("/podcast/{playlist_id}")
-@cache_response(ttl_seconds=3600, prefix="podcast")
+@cache_response(ttl_seconds=7200, prefix="podcast")
 @with_retry()
-def get_podcast(playlist_id: str) -> dict:
-    """Get podcast details and episodes."""
+def _get_podcast_sync(playlist_id: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     try:
@@ -29,11 +25,14 @@ def get_podcast(playlist_id: str) -> dict:
     return result
 
 
-@router.get("/episode/{video_id}")
-@cache_response(ttl_seconds=3600, prefix="episode")
+@router.get("/podcast/{playlist_id}")
+async def get_podcast(playlist_id: str) -> dict:
+    return await run_in_threadpool(_get_podcast_sync, playlist_id)
+
+
+@cache_response(ttl_seconds=7200, prefix="episode")
 @with_retry()
-def get_episode(video_id: str) -> dict:
-    """Get episode details by videoId."""
+def _get_episode_sync(video_id: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     try:
@@ -45,11 +44,14 @@ def get_episode(video_id: str) -> dict:
     return result
 
 
-@router.get("/channel/{channel_id}")
-@cache_response(ttl_seconds=3600, prefix="channel")
+@router.get("/episode/{video_id}")
+async def get_episode(video_id: str) -> dict:
+    return await run_in_threadpool(_get_episode_sync, video_id)
+
+
+@cache_response(ttl_seconds=7200, prefix="channel")
 @with_retry()
-def get_channel(channel_id: str) -> dict:
-    """Get podcast channel details."""
+def _get_channel_sync(channel_id: str) -> dict:
     start = time.perf_counter()
     yt = get_client()
     try:
@@ -61,14 +63,14 @@ def get_channel(channel_id: str) -> dict:
     return result
 
 
-@router.get("/channel/{channel_id}/episodes")
-@cache_response(ttl_seconds=3600, prefix="channel_episodes")
+@router.get("/channel/{channel_id}")
+async def get_channel(channel_id: str) -> dict:
+    return await run_in_threadpool(_get_channel_sync, channel_id)
+
+
+@cache_response(ttl_seconds=7200, prefix="channel_episodes")
 @with_retry()
-def get_channel_episodes(
-    channel_id: str,
-    params: Optional[str] = Query(default=None),
-) -> dict:
-    """Get episodes for a podcast channel."""
+def _get_channel_episodes_sync(channel_id: str, params: Optional[str] = None) -> dict:
     start = time.perf_counter()
     yt = get_client()
     try:
@@ -86,3 +88,11 @@ def get_channel_episodes(
     elapsed = time.perf_counter() - start
     logger.info(f"[channel_episodes] channelId={channel_id} in {elapsed:.2f}s")
     return {"episodes": result, "count": len(result) if isinstance(result, list) else 0}
+
+
+@router.get("/channel/{channel_id}/episodes")
+async def get_channel_episodes(
+    channel_id: str,
+    params: Optional[str] = Query(default=None),
+) -> dict:
+    return await run_in_threadpool(_get_channel_episodes_sync, channel_id, params)

@@ -29,7 +29,7 @@ export interface Song {
   artists?: Array<{ name: string; id: string }>;
 }
 
-export type JioSaavnSong = any;
+export type YTMusicSong = any;
 
 const MUSIC_PROVIDER_URL = process.env.MUSIC_PROVIDER_URL || "http://127.0.0.1:4002";
 const SERVICE_TOKEN = process.env.SERVICE_TOKEN || "";
