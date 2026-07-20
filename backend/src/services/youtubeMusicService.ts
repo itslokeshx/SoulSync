@@ -220,10 +220,27 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
     ? raw.artists.map((a: any) => ({ name: a.name || "", id: a.id || a.browseId || "" }))
     : [{ name: primaryArtists.split(", ")[0] || "Unknown Show", id: String(raw.author?.id || raw.author?.browseId || raw.artistId || raw.podcast?.id || "") }];
 
+  const cleanName = decodeHtmlEntities(name);
+  const cleanArtists = decodeHtmlEntities(primaryArtists.replace(/\s*-\s*Topic$/i, ""));
+
+  if (
+    !cleanName ||
+    cleanName.toLowerCase() === "unknown" ||
+    cleanName.toLowerCase() === "null" ||
+    !cleanArtists ||
+    cleanArtists.toLowerCase() === "unknown" ||
+    cleanArtists.toLowerCase() === "null" ||
+    !image ||
+    image === "/placeholder.png" ||
+    image.includes("placeholder")
+  ) {
+    return null;
+  }
+
   return {
     id,
-    name: decodeHtmlEntities(name),
-    primaryArtists: decodeHtmlEntities(primaryArtists.replace(/\s*-\s*Topic$/i, "")),
+    name: cleanName,
+    primaryArtists: cleanArtists,
     artists: artistsList.filter((a: any) => a.name),
     image,
     album: decodeHtmlEntities(album || name),

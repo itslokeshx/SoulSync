@@ -3,6 +3,7 @@ import { Playlist } from "../models/Playlist.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { redisDel } from "../services/redis.js";
+import { buildTasteProfile } from "../services/recommendationEngine.js";
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.post("/", authMiddleware, async (req: AuthRequest, res: Response): Promis
 
     // Invalidate the dashboard cache immediately so "Playlists" shelf updates
     await redisDel(`dashboard:${req.userId}`).catch(() => {});
+    buildTasteProfile(req.userId!).catch(() => {});
 
     res.status(201).json({ playlist });
   } catch (err) {
@@ -169,6 +171,7 @@ router.delete(
       }
       // Invalidate the dashboard cache immediately so "Playlists" shelf updates
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
+      buildTasteProfile(req.userId!).catch(() => {});
 
       res.json({ success: true });
     } catch (err) {
@@ -210,6 +213,7 @@ router.post(
       await playlist.save();
       // Invalidate the dashboard cache immediately so "Playlists" shelf updates
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
+      buildTasteProfile(req.userId!).catch(() => {});
 
       res.json({ playlist });
     } catch (err) {
@@ -240,6 +244,7 @@ router.delete(
       await playlist.save();
       // Invalidate the dashboard cache immediately so "Playlists" shelf updates
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
+      buildTasteProfile(req.userId!).catch(() => {});
 
       res.json({ playlist });
     } catch (err) {
@@ -279,6 +284,7 @@ router.patch(
       await playlist.save();
       // Invalidate the dashboard cache immediately so "Playlists" shelf updates
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
+      buildTasteProfile(req.userId!).catch(() => {});
 
       res.json({ playlist });
     } catch (err) {

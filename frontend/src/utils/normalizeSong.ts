@@ -123,10 +123,29 @@ export function normalizeSong(raw: any): NormalizedSong | null {
         };
   const albumId = album.id;
 
+  const name = raw.name || raw.title || raw.song || "";
+  const cleanName = String(name).trim();
+  const cleanArtists = String(primaryArtists).trim();
+
+  if (
+    !cleanName ||
+    cleanName.toLowerCase() === "unknown" ||
+    cleanName.toLowerCase() === "unknown song" ||
+    cleanName.toLowerCase() === "null" ||
+    !cleanArtists ||
+    cleanArtists.toLowerCase() === "unknown" ||
+    cleanArtists.toLowerCase() === "null" ||
+    image.length === 0 ||
+    !image[0]?.url ||
+    image[0].url.includes("placeholder")
+  ) {
+    return null;
+  }
+
   return {
     id,
-    name: raw.name || raw.title || raw.song || "Unknown Song",
-    primaryArtists: String(primaryArtists).trim(),
+    name: cleanName,
+    primaryArtists: cleanArtists,
     image,
     album,
     albumId,

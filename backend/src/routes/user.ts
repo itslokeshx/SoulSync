@@ -4,7 +4,7 @@ import { ListeningHistory } from "../models/ListeningHistory.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { redisDel } from "../services/redis.js";
-import { maybeRecomputeTaste, recordCooccurrence } from "../services/recommendationEngine.js";
+import { maybeRecomputeTaste, recordCooccurrence, buildTasteProfile } from "../services/recommendationEngine.js";
 
 const router = Router();
 
@@ -173,6 +173,9 @@ router.post(
       // Invalidate the dashboard cache immediately so "Liked Songs" shelf updates
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
 
+      // Recompute taste profile asynchronously to update recommendations instantly
+      buildTasteProfile(req.userId!).catch(() => {});
+
       res.json({ success: true, likedCount: user.likedSongs.length });
     } catch (err) {
       console.error("[User] Like error:", err);
@@ -278,6 +281,9 @@ router.delete(
 
       // Invalidate the dashboard cache immediately so "Liked Songs" shelf updates
       await redisDel(`dashboard:${req.userId}`).catch(() => {});
+
+      // Recompute taste profile asynchronously to update recommendations instantly
+      buildTasteProfile(req.userId!).catch(() => {});
 
       res.json({ success: true, likedCount: user.likedSongs.length });
     } catch (err) {
