@@ -658,7 +658,6 @@ export function useDuo({
       }
     };
 
-    console.log("[Duo] Registering duo event callback");
     registerDuoCallback(handleEvent);
     return () => registerDuoCallback(null);
   }, []); // eslint-disable-line

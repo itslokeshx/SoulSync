@@ -13,6 +13,33 @@ import { saveNativeToken } from "./api/backend";
 import { Capacitor } from "@capacitor/core";
 import { NetworkProvider } from "./providers/NetworkProvider";
 
+// Suppress unavoidable third-party warnings from embedded YouTube players and ad-networks
+const originalWarn = console.warn;
+console.warn = (...args: any[]) => {
+  const msg = String(args[0] || "");
+  if (
+    msg.includes("web-share") || 
+    msg.includes("unload is not allowed") || 
+    msg.includes("Permissions policy violation")
+  ) {
+    return;
+  }
+  originalWarn.apply(console, args);
+};
+
+const originalError = console.error;
+console.error = (...args: any[]) => {
+  const msg = String(args[0] || "");
+  if (
+    msg.includes("doubleclick.net") || 
+    msg.includes("googleads") ||
+    msg.includes("YTPlayer") && msg.includes("error code: 150") // We handle this error programmatically with fallback
+  ) {
+    return;
+  }
+  originalError.apply(console, args);
+};
+
 // @ts-ignore
 if (import.meta.env.VITE_PREVIEW_OFFLINE === "true") {
   // @ts-ignore

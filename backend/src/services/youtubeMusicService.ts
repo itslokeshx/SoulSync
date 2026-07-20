@@ -46,7 +46,7 @@ async function callMusicProvider(endpoint: string, params: Record<string, any> =
     const { data } = await axios.get(`${MUSIC_PROVIDER_URL}/api/music${endpoint}`, {
       params,
       headers,
-      timeout: 5000,
+      timeout: 15000,
     });
     return data;
   } catch (err: any) {

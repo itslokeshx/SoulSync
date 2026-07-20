@@ -18,7 +18,7 @@ import requests
 from requests.adapters import HTTPAdapter
 
 class TimeoutHTTPAdapter(HTTPAdapter):
-    def __init__(self, *args, timeout=4, **kwargs):
+    def __init__(self, *args, timeout=10, **kwargs):
         self.timeout = timeout
         super().__init__(*args, **kwargs)
 
@@ -29,7 +29,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 def create_session() -> requests.Session:
     session = requests.Session()
-    adapter = TimeoutHTTPAdapter(pool_connections=5, pool_maxsize=5, timeout=4)
+    adapter = TimeoutHTTPAdapter(pool_connections=15, pool_maxsize=15, timeout=10)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     

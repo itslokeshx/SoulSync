@@ -27,7 +27,7 @@ async function proxyToMusicProvider(req: Request, res: Response, targetPath: str
       params: req.query,
       data: req.body,
       headers,
-      timeout: 5000,
+      timeout: 15000,
     });
 
     res.status(response.status).json(response.data);

@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
-import { logHistory, getAutoplaySongs } from "../api/backend";
+import { logHistory, getAutoplaySongs, smartSearch } from "../api/backend";
 import { bestImg, getArtists } from "../lib/helpers";
 import {
   registerMediaControls,
@@ -534,13 +534,60 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 handleEndedRef.current();
               }
             },
-            onError: (event: any) => {
-              console.error("[YTPlayer] error code:", event.data);
+            onError: async (event: any) => {
+              const errCode = event.data;
+              console.error("[YTPlayer] error code:", errCode);
+
+              const s = usePlayerStore.getState();
+              const failedSong = s.currentSong;
+
+              // Error code 101/150 = embedding disabled, 100 = video deleted/not found, 5 = HTML5 player error
+              if (failedSong && (errCode === 101 || errCode === 150 || errCode === 100 || errCode === 5)) {
+                const attempted = (window as any)._attemptedFallbacks || new Set<string>();
+                (window as any)._attemptedFallbacks = attempted;
+
+                if (!attempted.has(failedSong.id)) {
+                  attempted.add(failedSong.id);
+                  toast("Resolving playable audio version... 🎧", { icon: "🔄" });
+
+                  try {
+                    const query = `${failedSong.name} ${getArtists(failedSong)}`;
+                    const searchRes: any = await smartSearch(query, "songs", 5);
+                    const songs = searchRes?.songs || [];
+                    const playableSong = songs.find((song: any) => song.id && song.id !== failedSong.id);
+
+                    if (playableSong) {
+                      console.log(`[Player] Fallback found: from ${failedSong.id} to ${playableSong.id}`);
+                      const updatedSong = {
+                        ...failedSong,
+                        id: playableSong.id,
+                        url: playableSong.url || `https://music.youtube.com/watch?v=${playableSong.id}`,
+                        streamUrl: playableSong.streamUrl,
+                      };
+
+                      // Update queue
+                      const q = useQueueStore.getState().queue;
+                      const qIdx = useQueueStore.getState().queueIndex;
+                      if (q[qIdx] && q[qIdx].id === failedSong.id) {
+                        const newQueue = [...q];
+                        newQueue[qIdx] = updatedSong;
+                        useQueueStore.getState().setQueue(newQueue, qIdx);
+                      }
+
+                      usePlayerStore.getState().playSong(updatedSong);
+                      return;
+                    }
+                  } catch (err) {
+                    console.error("Failed to find fallback for unplayable video:", err);
+                  }
+                }
+              }
+
               // Auto-skip to next song on player error after a short delay
               setTimeout(() => {
-                const s = usePlayerStore.getState();
-                if (s.currentSong) {
-                  const n = useQueueStore.getState().next(s.repeatMode);
+                const state = usePlayerStore.getState();
+                if (state.currentSong) {
+                  const n = useQueueStore.getState().next(state.repeatMode);
                   if (n) usePlayerStore.getState().playSong(n);
                   else usePlayerStore.getState().pause();
                 }
