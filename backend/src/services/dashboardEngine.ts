@@ -13,6 +13,21 @@ import {
   getPodcastRecommendations,
 } from "./recommendationEngine.js";
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      resolve(fallback);
+    }, timeoutMs);
+  });
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timeoutId);
+      return res;
+    }),
+    timeoutPromise,
+  ]);
+}
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 export interface DashboardResponse {
   greeting: string;
@@ -208,16 +223,26 @@ export async function buildDashboard(
     const tExternalStart = performance.now();
     if (isGuest) {
       const [guestReleaseResults, rawMadeForYou, rawPodcasts] = await Promise.all([
-        Promise.all([
-          getIndustryNewReleases(["english"], 20),
-          getIndustryNewReleases(["tamil"], 20),
-          getIndustryNewReleases(["hindi"], 20),
-          getIndustryNewReleases(["telugu"], 20),
-        ]).then(r => { timings.guestNewReleases = performance.now() - tExternalStart; return r; }),
-        getTasteProfileBatch(null, Array.from(globalExcludeIds), 50)
-          .then(r => { timings.madeForYou = performance.now() - tExternalStart; return r; }),
-        getPodcastRecommendations(["english", "tamil"], 12)
-          .then(r => { timings.podcasts = performance.now() - tExternalStart; return r; }),
+        withTimeout(
+          Promise.all([
+            getIndustryNewReleases(["english"], 20),
+            getIndustryNewReleases(["tamil"], 20),
+            getIndustryNewReleases(["hindi"], 20),
+            getIndustryNewReleases(["telugu"], 20),
+          ]),
+          4000,
+          [[], [], [], []]
+        ).then(r => { timings.guestNewReleases = performance.now() - tExternalStart; return r; }),
+        withTimeout(
+          getTasteProfileBatch(null, Array.from(globalExcludeIds), 50),
+          3000,
+          []
+        ).then(r => { timings.madeForYou = performance.now() - tExternalStart; return r; }),
+        withTimeout(
+          getPodcastRecommendations(["english", "tamil"], 12),
+          2500,
+          []
+        ).then(r => { timings.podcasts = performance.now() - tExternalStart; return r; }),
       ]);
 
       const [english, tamil, hindi, telugu] = guestReleaseResults;
@@ -236,12 +261,21 @@ export async function buildDashboard(
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
 
       const [rawNewReleases, rawMadeForYou, rawPodcasts] = await Promise.all([
-        getIndustryNewReleases(langs, 40)
-          .then(r => { timings.newReleases = performance.now() - tExternalStart; return r; }),
-        getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 50)
-          .then(r => { timings.madeForYou = performance.now() - tExternalStart; return r; }),
-        getPodcastRecommendations(langs, 12)
-          .then(r => { timings.podcasts = performance.now() - tExternalStart; return r; }),
+        withTimeout(
+          getIndustryNewReleases(langs, 40),
+          4000,
+          []
+        ).then(r => { timings.newReleases = performance.now() - tExternalStart; return r; }),
+        withTimeout(
+          getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 50),
+          3500,
+          []
+        ).then(r => { timings.madeForYou = performance.now() - tExternalStart; return r; }),
+        withTimeout(
+          getPodcastRecommendations(langs, 12),
+          2500,
+          []
+        ).then(r => { timings.podcasts = performance.now() - tExternalStart; return r; }),
       ]);
 
       newReleasesSongs = rawNewReleases

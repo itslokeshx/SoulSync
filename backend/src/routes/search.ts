@@ -42,6 +42,22 @@ import { getNextRecommendations } from "../services/recommendationEngine.js";
 
 const router = Router();
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      resolve(fallback);
+    }, timeoutMs);
+  });
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timeoutId);
+      return res;
+    }),
+    timeoutPromise,
+  ]);
+}
+
 router.get("/", async (req: any, res: Response): Promise<void> => {
   const q = String(req.query.q || "").trim();
   const lang = String(req.query.lang || "").toLowerCase();
@@ -87,7 +103,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
     const track = (name: string, promise: Promise<any>) => {
       taskIndex[name] = idx++;
-      parallelTasks.push(promise);
+      parallelTasks.push(withTimeout(promise, 3500, []));
     };
 
     if (pinnedIds.length) {
