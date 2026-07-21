@@ -97,17 +97,46 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
   return `${formattedBase.replace(/\/+$/, "")}/api/search/stream?id=${id}`;
 }
 
+async function resolveInvidiousStream(id: string): Promise<string | null> {
+  const instances = [
+    "https://iv.melmac.space",
+    "https://invidious.privacydev.net",
+    "https://invidious.projectsegfau.lt",
+    "https://invidious.lunar.icu",
+    "https://yewtu.be",
+  ];
+  for (const inst of instances) {
+    try {
+      const resp = await axios.get(`${inst}/api/v1/videos/${encodeURIComponent(id)}`, { timeout: 3500 });
+      const adaptive = resp.data?.adaptiveFormats || [];
+      const audioFormats = adaptive.filter((f: any) => f.type && typeof f.type === "string" && f.type.startsWith("audio/"));
+      if (audioFormats.length > 0) {
+        audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
+        if (audioFormats[0].url) {
+          console.info(`[resolveRealStreamUrl] Resolved ${id} via Node backend Invidious mirror: ${inst}`);
+          return audioFormats[0].url;
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
   if (!isYouTubeId(id)) {
     return null;
   }
   try {
     const data = await callMusicProvider(`/song/${id}/stream`);
-    return data.url || null;
+    if (data && data.url) return data.url;
   } catch (e: any) {
     console.error(`[resolveRealStreamUrl] Error resolving stream via Python provider for ${id}:`, e.message || e);
-    return null;
   }
+
+  // Fallback: Resolve via public Invidious instances from Node backend
+  return await resolveInvidiousStream(id);
 }
 
 function parseViews(viewsStr: any): number {
