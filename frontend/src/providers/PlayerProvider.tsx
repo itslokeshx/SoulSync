@@ -807,8 +807,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleEnded = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
     const { sleepTimerActive, sleepTimerEndOnTrack } = usePlayerStore.getState();
     if (sleepTimerActive && sleepTimerEndOnTrack) {
       usePlayerStore.setState({
@@ -822,9 +820,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     if (repeatMode === "one") {
-      if (audioRef.current) {
+      const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+        try {
+          ytPlayerRef.current.seekTo(0, true);
+          ytPlayerRef.current.playVideo();
+        } catch {
+          playSong(currentSong);
+        }
+      } else if (audioRef.current) {
         audioRef.current.currentTime = 0;
         audioRef.current.play();
+      } else {
+        playSong(currentSong);
       }
     } else {
       const n = next(repeatMode);

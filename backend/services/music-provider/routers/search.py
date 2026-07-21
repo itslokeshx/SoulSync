@@ -25,6 +25,15 @@ def _search_sync(q: str, filter: Optional[str] = "songs", limit: int = 20) -> di
 
     results = yt.search(**kwargs)
 
+    # Fallback for strict filter == "songs" returning 0 results for transliterated/misspelled queries
+    if filter == "songs" and (not results or len(results) == 0):
+        try:
+            fallback_results = yt.search(query=q, limit=limit)
+            if isinstance(fallback_results, list) and len(fallback_results) > 0:
+                results = fallback_results
+        except Exception as e:
+            logger.warning(f"[search] fallback search failed for '{q}': {e}")
+
     if isinstance(results, list):
         filtered_results = []
         for r in results:

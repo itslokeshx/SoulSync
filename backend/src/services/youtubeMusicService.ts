@@ -306,7 +306,11 @@ export async function searchGeneral(query: string, limit = 20): Promise<any[]> {
 export async function searchSongs(query: string, limit = 50, page = 1): Promise<any[]> {
   try {
     const data = await callMusicProvider("/search", { q: query, filter: "songs", limit });
-    return data.results || [];
+    const results = data.results || [];
+    if (results.length > 0) return results;
+    // Fallback: If strict song search yields 0 results (e.g. transliterated/phonetic search queries), perform general fuzzy search
+    const fallbackData = await callMusicProvider("/search", { q: query, filter: "", limit });
+    return fallbackData.results || [];
   } catch (err: any) {
     console.error(`[youtubeMusicService] searchSongs failed for "${query}":`, err.message || err);
     return [];

@@ -1280,13 +1280,10 @@ export const NowPlayingView = ({
               ) : (
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
                   {[
-                    { label: "5 minutes", value: 5 * 60 },
                     { label: "15 minutes", value: 15 * 60 },
                     { label: "30 minutes", value: 30 * 60 },
                     { label: "45 minutes", value: 45 * 60 },
-                    { label: "1 hour", value: 60 * 60 },
                     { label: "Custom...", value: "custom" },
-                    { label: "End of track", value: "track" },
                   ].map((opt) => (
                     <button
                       key={opt.label}
