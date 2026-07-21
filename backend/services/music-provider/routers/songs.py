@@ -289,7 +289,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
 
         yt_args = {}
         if is_fallback:
-            yt_args['player_client'] = ['android', 'ios', 'web']
+            yt_args['player_client'] = ['mweb', 'android', 'ios']
 
         po_token = os.getenv("YT_PO_TOKEN")
         if po_token:
@@ -356,8 +356,14 @@ def _resolve_stream_sync(video_id: str) -> dict:
                             return result
                 except Exception as e:
                     err_msg = str(e).lower()
-                    if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg:
+                    if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg or "no longer valid" in err_msg:
                         logger.error("[cookies] expired — refresh needed")
+                        if cookie_file_path.startswith("/tmp/"):
+                            try:
+                                os.remove(cookie_file_path)
+                                logger.warning(f"[cookies] Cleaned up stale temp cookie file: {cookie_file_path}")
+                            except Exception:
+                                pass
                     logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
                     last_err = e
         

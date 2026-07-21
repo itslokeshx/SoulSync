@@ -623,7 +623,9 @@ router.get("/stream", async (req: any, res: Response): Promise<void> => {
   try {
     const realUrl = await resolveRealStreamUrl(id as string);
     if (!realUrl) {
-      res.status(404).json({ error: "Stream not found" });
+      res.setHeader("Retry-After", "15");
+      res.setHeader("X-Circuit-Breaker", "OPEN");
+      res.status(503).json({ error: "Stream temporarily unavailable" });
       return;
     }
     // Proxy the audio stream directly to bypass client-side signature/IP checks
