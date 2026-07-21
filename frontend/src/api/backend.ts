@@ -81,8 +81,8 @@ export function isServiceDegraded(): boolean {
 api.interceptors.request.use((config) => {
   if (Date.now() < _serviceBackoffUntil) {
     const url = config.url || "";
-    // Allow admin, health, and cookie updates during backoff
-    if (!url.includes("/cookies") && !url.includes("/health") && !url.includes("/admin")) {
+    // Allow admin, health, cookie updates, and stream requests during backoff
+    if (!url.includes("/cookies") && !url.includes("/health") && !url.includes("/admin") && !url.includes("/stream")) {
       const err = new Error("Music service temporarily degraded. Backing off for recovery.");
       (err as any).isBackoff = true;
       return Promise.reject(err);
