@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
-import { logHistory, getAutoplaySongs, smartSearch } from "../api/backend";
+import { logHistory, getAutoplaySongs, smartSearch, api } from "../api/backend";
 import { bestImg, getArtists } from "../lib/helpers";
 import {
   registerMediaControls,
@@ -254,51 +254,93 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isPlaying, currentSong?.id, duo]);
 
   // ── Flag: has the very first audio source been loaded yet? ────────
-  // This prevents syncing the initial empty/null state to partner.
   const hasEverLoadedRef = useRef(false);
 
-  // ── Log play history + bust dashboard cache after 5 seconds of active playback ────────
-  const loggedSongRef = useRef<string | null>(null);
+  // ── Persistent Audio Element Initialization (ONCE on mount) ──────
   useEffect(() => {
-    if (!currentSong || !isPlaying) return;
-    if (loggedSongRef.current === currentSong.id) return; // already logged this song
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.preload = "auto";
+      audio.autoplay = false;
+      audioRef.current = audio;
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+    };
+  }, []);
+
+  // ── Background Engine Switching Guard & Handler ─────────────────
+  const isSwitchingEngineRef = useRef(false);
+
+  const syncEnginePlayback = useCallback(async (toBackground: boolean) => {
+    if (isSwitchingEngineRef.current || !currentSong) return;
     if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
 
-    // Start a timer to log after 5 seconds of active playback
-    const timer = setTimeout(() => {
-      loggedSongRef.current = currentSong.id;
+    isSwitchingEngineRef.current = true;
+    try {
+      const state = usePlayerStore.getState();
 
-      // Log to backend — invalidates Redis dashboard cache server-side
-      logHistory({
-        songId: currentSong.id,
-        title: currentSong.name || "",
-        artist: getArtists(currentSong),
-        artistId: (Array.isArray(currentSong.artists)
-          ? currentSong.artists[0]?.id
-          : currentSong.artists?.primary?.[0]?.id) || currentSong.artist_map?.primary_artists?.[0]?.id || "",
-        albumArt: bestImg(currentSong.image) || "",
-        duration: Number(currentSong.duration) || 0,
-        source: "player",
-        language: currentSong.language || "",
-      }).catch(() => {});
+      if (toBackground) {
+        // Backgrounding: Pause YouTube iframe, switch to HTML5 <audio>
+        const curTime = ytPlayerRef.current?.getCurrentTime?.() || state.currentTime;
+        try { ytPlayerRef.current?.pauseVideo?.(); } catch {}
 
-      // Bust frontend sessionStorage dashboard cache so HomePage re-fetches
-      try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const key = sessionStorage.key(i);
-          if (key?.startsWith("ss_dashboard")) sessionStorage.removeItem(key);
+        const streamUrl = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
+        if (audioRef.current) {
+          if (audioRef.current.src !== streamUrl) {
+            audioRef.current.src = streamUrl;
+          }
+          audioRef.current.currentTime = curTime;
+          if (state.isPlaying) {
+            audioRef.current.play().catch(() => {});
+          }
         }
-      } catch {}
-    }, 5000);
+      } else {
+        // Returning to Foreground: Resume video if user is STILL playing AND in video mode
+        if (state.isPlaying && state.isVideoMode && state.isPlayerExpanded) {
+          const curTime = audioRef.current?.currentTime || state.currentTime;
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+          }
+          if (ytPlayerRef.current && ytPlayerReadyRef.current) {
+            try {
+              ytPlayerRef.current.seekTo(curTime, true);
+              ytPlayerRef.current.playVideo();
+            } catch {}
+          }
+        }
+      }
+    } finally {
+      setTimeout(() => {
+        isSwitchingEngineRef.current = false;
+      }, 300);
+    }
+  }, [currentSong]);
 
-    return () => clearTimeout(timer);
-  }, [currentSong?.id, isPlaying]);
+  // ── Visibilitychange & AppState Listeners ───────────────────────
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        syncEnginePlayback(true);
+      } else {
+        syncEnginePlayback(false);
+      }
+    };
 
-  // ── Seek handler: updates BOTH audio element AND state ──────────────
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [syncEnginePlayback]);
+
+  // ── Seek handler: engine aware (updates audio element or YT player) ──────────────
   const handleSeek = useCallback(
     (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const useAudioEngine = document.hidden || !isVideoMode || !isPlayerExpanded;
+      if (isYouTube && !useAudioEngine && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
@@ -308,13 +350,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       seekTo(time);
       duo.syncSeek(time);
     },
-    [seekTo, duo, currentSong?.id],
+    [seekTo, duo, currentSong?.id, isVideoMode, isPlayerExpanded],
   );
 
   useEffect(() => {
     handleSeekRemoteRef.current = (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const useAudioEngine = document.hidden || !isVideoMode || !isPlayerExpanded;
+      if (isYouTube && !useAudioEngine && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
@@ -323,11 +366,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       seekTo(time);
     };
-  }, [currentSong?.id, seekTo]);
+  }, [currentSong?.id, seekTo, isVideoMode, isPlayerExpanded]);
 
   // ── consolidated Audio & Source Control ─────────────────────────
-  // Fixes the "image only changed" race condition by ensuring play()
-  // is only called after src is set and ready.
   useEffect(() => {
     if (!audioRef.current || !currentSong) return;
 
@@ -336,12 +377,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const resolveAndHandle = async () => {
       let targetSrc = "";
       const isYouTube = !currentSong._isOffline && !currentSong.id?.startsWith("local_");
+      const useAudioEngine = document.hidden || !isVideoMode || !isPlayerExpanded;
 
       if (isYouTube) {
-        // Online YouTube songs are played via the client-side YouTube iframe player.
-        // We bypass HTML5 audio element entirely by playing a silent loop track.
-        targetSrc = SILENT_MP3;
-        audioRef.current!.loop = true;
+        if (useAudioEngine) {
+          targetSrc = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
+          audioRef.current!.loop = false;
+        } else {
+          // Visible Video Mode: pause <audio>, YouTube iframe handles video + audio
+          targetSrc = "";
+          audioRef.current!.pause();
+          if (audioRef.current!.src !== "") {
+            audioRef.current!.src = "";
+          }
+        }
       } else {
         audioRef.current!.loop = false;
         // For downloaded/local songs, try to load the blob from IndexedDB first
@@ -364,10 +413,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Only update src if it's actually different (avoid unnecessary reloads)
         if (audioRef.current!.src !== targetSrc) {
-          // Mark that we're swapping src — the browser will fire a spurious
-          // 'pause' event that must NOT update isPlaying or consume isRemoteActionRef.
           srcJustChangedRef.current = true;
-          // Safety net: clear the flag after 3s in case loadedmetadata never fires
           if (srcChangedTimerRef.current)
             clearTimeout(srcChangedTimerRef.current);
           srcChangedTimerRef.current = setTimeout(() => {
@@ -375,7 +421,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             srcChangedTimerRef.current = null;
           }, 3000);
 
-          // IMPORTANT: Must set crossOrigin BEFORE setting src, otherwise the browser will abort playback.
           if (
             targetSrc.startsWith("blob:") ||
             targetSrc.startsWith("file:") ||
@@ -389,8 +434,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           audioRef.current!.src = targetSrc;
         } else {
-          // Src didn't change — any pause() below is intentional, not spurious.
-          // Clear the flag so onPause can properly sync the pause event.
           srcJustChangedRef.current = false;
           if (srcChangedTimerRef.current) {
             clearTimeout(srcChangedTimerRef.current);
@@ -398,20 +441,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
-        // Check fresh store state to avoid closure staleness on rapid clicks
         const currentState = usePlayerStore.getState();
-        if (
-          currentState.isPlaying &&
-          currentState.currentSong?.id === currentSong.id &&
-          (!currentState.isVideoMode || !currentState.isPlayerExpanded)
-        ) {
-          // We use catch() to handle "interrupted by new request" errors gracefully
+        if (currentState.isPlaying && currentState.currentSong?.id === currentSong.id) {
           audioRef.current!.play().catch(() => {});
         } else {
           audioRef.current!.pause();
         }
       } else {
-        // For YouTube playback: ensure HTML5 audio is paused and source cleared
         audioRef.current!.pause();
         if (audioRef.current!.src !== "" && audioRef.current!.src !== window.location.href) {
           audioRef.current!.src = "";
