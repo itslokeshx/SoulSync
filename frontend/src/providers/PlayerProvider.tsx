@@ -374,38 +374,38 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [syncEnginePlayback]);
 
-  // ── Seek handler: engine aware (updates audio element or YT player) ──────────────
+  // ── Seek handler: updates BOTH YT player AND audio element ──────────────
   const handleSeek = useCallback(
     (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      const useAudioEngine = document.hidden || !isVideoMode || !isPlayerExpanded;
-      if (isYouTube && !useAudioEngine && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
-      } else if (audioRef.current) {
+      }
+      if (audioRef.current) {
         audioRef.current.currentTime = time;
       }
       seekTo(time);
       duo.syncSeek(time);
     },
-    [seekTo, duo, currentSong?.id, isVideoMode, isPlayerExpanded],
+    [seekTo, duo, currentSong?.id],
   );
 
   useEffect(() => {
     handleSeekRemoteRef.current = (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      const useAudioEngine = document.hidden || !isVideoMode || !isPlayerExpanded;
-      if (isYouTube && !useAudioEngine && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
-      } else if (audioRef.current) {
+      }
+      if (audioRef.current) {
         audioRef.current.currentTime = time;
       }
       seekTo(time);
     };
-  }, [currentSong?.id, seekTo, isVideoMode, isPlayerExpanded]);
+  }, [currentSong?.id, seekTo]);
 
   // ── Consolidated Audio & Source Control (Pre-Warmed Activation) ──────
   useEffect(() => {
