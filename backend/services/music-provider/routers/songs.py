@@ -262,7 +262,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
 
     last_err = None
     
-    def build_ydl_opts(cookies_path: str = None, browser: str = None) -> dict:
+    def build_ydl_opts(cookies_path: str = None, browser: str = None, is_fallback: bool = False) -> dict:
         opts = {
             'format': 'bestaudio',
             'quiet': True,
@@ -286,13 +286,17 @@ def _resolve_stream_sync(video_id: str) -> dict:
         if runtimes:
             opts['js_runtimes'] = runtimes
 
+        yt_args = {}
+        if is_fallback:
+            yt_args['player_client'] = ['android', 'ios', 'web']
+
         po_token = os.getenv("YT_PO_TOKEN")
         if po_token:
-            opts['extractor_args'] = {
-                'youtube': {
-                    'po_token': [po_token]
-                }
-            }
+            yt_args['po_token'] = [po_token]
+
+        if yt_args:
+            opts['extractor_args'] = {'youtube': yt_args}
+
         return opts
 
     READONLY_COOKIES = "/etc/secrets/cookies.txt"
@@ -381,7 +385,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
                         last_err = e
                         continue
         
-            ydl_opts = build_ydl_opts()
+            ydl_opts = build_ydl_opts(is_fallback=True)
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)

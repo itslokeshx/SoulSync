@@ -22,17 +22,31 @@ router.post(
       }
 
       // Fetch seed song metadata
-      const seedSong = await fetchSongById(seedSongId);
+      let seedSong = await fetchSongById(seedSongId);
       if (!seedSong) {
-        res.status(404).json({ error: "Seed song not found" });
-        return;
+        const streamUrl = `/api/music/song/${seedSongId}/stream`;
+        seedSong = {
+          id: seedSongId,
+          name: "Playing Track",
+          primaryArtists: "YouTube Music",
+          image: `https://i.ytimg.com/vi/${seedSongId}/hqdefault.jpg`,
+          album: "",
+          albumId: "",
+          duration: 0,
+          language: "english",
+          year: "",
+          streamUrl: streamUrl,
+          downloadUrl: [{ quality: "320kbps", url: streamUrl }],
+          playCount: 0,
+          url: `https://music.youtube.com/watch?v=${seedSongId}`
+        };
       }
 
       // Fetch next recommendations, excluding the seed song itself
       const recommendations = await getNextRecommendations(seedSongId, req.userId, [seedSongId]);
 
       // Filter out seed song from recommendations if present
-      const filteredRecommendations = recommendations.filter((s) => s.id !== seedSongId);
+      const filteredRecommendations = (recommendations || []).filter((s) => s.id !== seedSongId);
 
       res.json({
         songs: [seedSong, ...filteredRecommendations],
