@@ -99,29 +99,25 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
 
 async function resolveInvidiousStream(id: string): Promise<string | null> {
   const instances = [
-    "https://iv.melmac.space",
-    "https://invidious.privacydev.net",
     "https://invidious.projectsegfau.lt",
-    "https://invidious.lunar.icu",
+    "https://invidious.nerdvpn.de",
     "https://yewtu.be",
+    "https://inv.tux.pizza",
+    "https://invidious.drgns.space",
   ];
   for (const inst of instances) {
     try {
-      const resp = await axios.get(`${inst}/api/v1/videos/${encodeURIComponent(id)}`, { timeout: 3500 });
-      const adaptive = resp.data?.adaptiveFormats || [];
-      const audioFormats = adaptive.filter((f: any) => f.type && typeof f.type === "string" && f.type.startsWith("audio/"));
-      if (audioFormats.length > 0) {
-        audioFormats.sort((a: any, b: any) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
-        if (audioFormats[0].url) {
-          console.info(`[resolveRealStreamUrl] Resolved ${id} via Node backend Invidious mirror: ${inst}`);
-          return audioFormats[0].url;
-        }
+      const streamUrl = `${inst}/latest_version?id=${encodeURIComponent(id)}&itag=140`;
+      const resp = await axios.head(streamUrl, { timeout: 2500 });
+      if (resp.status === 200 || resp.status === 206 || resp.status === 302) {
+        console.info(`[resolveRealStreamUrl] Resolved ${id} via proxied stream mirror: ${inst}`);
+        return streamUrl;
       }
     } catch {
       continue;
     }
   }
-  return null;
+  return `https://invidious.projectsegfau.lt/latest_version?id=${encodeURIComponent(id)}&itag=140`;
 }
 
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
