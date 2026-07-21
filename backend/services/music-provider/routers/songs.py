@@ -263,10 +263,13 @@ def _resolve_stream_sync(video_id: str) -> dict:
 
     last_err = None
     
-    def build_ydl_opts(cookies_path: str = None, browser: str = None, is_fallback: bool = False) -> dict:
+    def build_ydl_opts(cookies_path: str = None, browser: str = None, is_fallback: bool = False, client_override: str = None) -> dict:
         opts = {
-            'format': 'bestaudio',
+            'format': 'bestaudio/best',
+            'noplaylist': True,
             'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
             'socket_timeout': 8,
             'extractor_retries': 1,
             'retries': 1,
@@ -288,8 +291,10 @@ def _resolve_stream_sync(video_id: str) -> dict:
             opts['js_runtimes'] = runtimes
 
         yt_args = {}
-        if is_fallback:
-            yt_args['player_client'] = ['mweb', 'android', 'ios']
+        if client_override:
+            yt_args['player_client'] = [client_override]
+        elif is_fallback:
+            yt_args['player_client'] = ['android']
 
         po_token = os.getenv("YT_PO_TOKEN")
         if po_token:
@@ -392,20 +397,22 @@ def _resolve_stream_sync(video_id: str) -> dict:
                         last_err = e
                         continue
         
-            ydl_opts = build_ydl_opts(is_fallback=True)
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    stream_url = info.get('url')
-                    if stream_url:
-                        elapsed = time.perf_counter() - start
-                        logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s via guest fallback")
-                        result = {"url": stream_url}
-                        res_future.result = result
-                        _stream_circuit_breaker.record_success()
-                        return result
-            except Exception as e:
-                last_err = e
+            for fallback_client in ['android', 'ios', 'tvhtml5']:
+                ydl_opts = build_ydl_opts(is_fallback=True, client_override=fallback_client)
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        stream_url = info.get('url')
+                        if stream_url:
+                            elapsed = time.perf_counter() - start
+                            logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s via fallback client '{fallback_client}'")
+                            result = {"url": stream_url}
+                            res_future.result = result
+                            _stream_circuit_breaker.record_success()
+                            return result
+                except Exception as e:
+                    last_err = e
+                    continue
 
             err_msg = str(last_err).lower()
             if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg:
