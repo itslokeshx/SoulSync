@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
-import { logHistory, getAutoplaySongs, smartSearch } from "../api/backend";
+import { logHistory, getAutoplaySongs, smartSearch, api } from "../api/backend";
 import { bestImg, getArtists } from "../lib/helpers";
 import {
   registerMediaControls,
@@ -26,6 +26,7 @@ import { isNative } from "../utils/platform";
 import { useDuo } from "../duo/useDuo";
 import { useDuoStore } from "../duo/duoStore";
 import { getOfflineBlob } from "../utils/offlineDB";
+import { resolveClientStream } from "../utils/resolveClientStream";
 
 import toast from "react-hot-toast";
 
@@ -257,7 +258,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleSeek = useCallback(
     (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const isAudioActive = currentSong && (currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded);
+      if (isYouTube && !isAudioActive && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
@@ -267,13 +269,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       seekTo(time);
       duo.syncSeek(time);
     },
-    [seekTo, duo, currentSong?.id],
+    [seekTo, duo, currentSong?.id, isVideoMode, isPlayerExpanded],
   );
 
   useEffect(() => {
     handleSeekRemoteRef.current = (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const isAudioActive = currentSong && (currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded);
+      if (isYouTube && !isAudioActive && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
@@ -282,7 +285,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       seekTo(time);
     };
-  }, [currentSong?.id, seekTo]);
+  }, [currentSong?.id, seekTo, isVideoMode, isPlayerExpanded]);
 
   // ── consolidated Audio & Source Control ─────────────────────────
   // Fixes the "image only changed" race condition by ensuring play()
@@ -297,10 +300,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       const isYouTube = !currentSong._isOffline && !currentSong.id?.startsWith("local_");
 
       if (isYouTube) {
-        // Online YouTube songs are played via the client-side YouTube iframe player.
-        // We bypass HTML5 audio element entirely by playing a silent loop track.
-        targetSrc = SILENT_MP3;
-        audioRef.current!.loop = true;
+        if (isVideoMode && isPlayerExpanded) {
+          // Online YouTube songs in video mode are played via the client-side YouTube iframe player.
+          // We bypass HTML5 audio element entirely by playing a silent loop track.
+          targetSrc = SILENT_MP3;
+          audioRef.current!.loop = true;
+        } else {
+          // In audio mode, play the proxied stream URL directly via HTML5 audio element.
+          // This enables continuous background playback, lock screen media controls, and tab-switch playback!
+          targetSrc = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
+          audioRef.current!.loop = false;
+        }
       } else {
         audioRef.current!.loop = false;
         // For downloaded/local songs, try to load the blob from IndexedDB first
@@ -588,7 +598,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               if (state === 1) { // playing
                 usePlayerStore.getState().setIsPlaying(true);
               } else if (state === 2) { // paused
-                usePlayerStore.getState().setIsPlaying(false);
+                const isAutoBackgroundPause =
+                  s.isPlaying &&
+                  (document.hidden ||
+                    !document.hasFocus() ||
+                    (window as any)._isAppBackgrounded);
+
+                if (isAutoBackgroundPause) {
+                  try {
+                    event.target.playVideo();
+                  } catch {}
+                } else {
+                  usePlayerStore.getState().setIsPlaying(false);
+                }
               } else if (state === 0) { // ended
                 usePlayerStore.getState().setIsPlaying(false);
                 handleEndedRef.current();
