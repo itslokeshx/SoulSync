@@ -294,9 +294,9 @@ export const NowPlayingView = ({
           if (typeof info.currentTime === "number" && !isSeekingRef.current) {
             setCurrentTime(info.currentTime);
           }
-          if (typeof info.duration === "number") {
+          if (typeof info.duration === "number" && info.duration > 0) {
             const currentDuration = usePlayerStore.getState().duration;
-            if (!currentDuration || Math.abs(currentDuration - info.duration) > 5) {
+            if (!currentDuration || (Math.abs(currentDuration - info.duration) > 5 && info.duration > 30)) {
               setDuration(info.duration);
             }
           }

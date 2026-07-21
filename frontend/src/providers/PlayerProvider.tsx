@@ -1015,22 +1015,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // Keep ref in sync so the YT.Player's onStateChange (captured in a [] effect) always calls the latest version
   handleEndedRef.current = handleEnded;
 
-  // ── FIX: prevent random pauses from buffering/browser events ──────
   const handlePause = () => {
-    console.log(`[DIAG ${Date.now()}] handlePause() TAG=audio.onPause song=${currentSong?.id} audio.paused=${audioRef.current?.paused}`, new Error().stack);
     if (!currentSong) return;
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.muted = false;
-        audioRef.current.volume = 1;
-      }
-      if (ytPlayerRef.current && ytPlayerReadyRef.current) {
-        try { ytPlayerRef.current.pauseVideo(); } catch {}
-      }
-      return;
-    }
+    if (isYouTube) return;
     const audio = audioRef.current;
     if (!audio) return;
     // Skip entirely during src transitions
