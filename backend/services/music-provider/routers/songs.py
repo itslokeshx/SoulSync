@@ -213,6 +213,35 @@ async def get_songs_batch(video_ids: list[str] = Body(embed=True)) -> dict:
     return await run_in_threadpool(_get_songs_batch_sync, video_ids)
 
 
+def resolve_via_public_instances(video_id: str) -> Optional[str]:
+    import urllib.request
+    import json
+    public_instances = [
+        "https://iv.melmac.space",
+        "https://invidious.privacydev.net",
+        "https://invidious.projectsegfau.lt",
+        "https://invidious.lunar.icu",
+        "https://yewtu.be",
+        "https://inv.tux.pizza",
+    ]
+    for inst in public_instances:
+        try:
+            url = f"{inst}/api/v1/videos/{video_id}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
+                data = json.loads(resp.read().decode())
+                adaptive = data.get('adaptiveFormats', [])
+                audio_formats = [f for f in adaptive if f.get('type', '').startswith('audio/')]
+                if audio_formats:
+                    audio_formats.sort(key=lambda x: int(x.get('bitrate', 0)), reverse=True)
+                    stream_url = audio_formats[0].get('url')
+                    if stream_url:
+                        return stream_url
+        except Exception:
+            continue
+    return None
+
+
 _working_cookie_browser = None
 
 
@@ -413,6 +442,16 @@ def _resolve_stream_sync(video_id: str) -> dict:
                 except Exception as e:
                     last_err = e
                     continue
+
+            # Failover: If direct yt-dlp extraction was blocked by YouTube IP bot detection, resolve via public Invidious API instances
+            public_stream_url = resolve_via_public_instances(video_id)
+            if public_stream_url:
+                elapsed = time.perf_counter() - start
+                logger.info(f"[song_stream] resolved {video_id} in {elapsed:.2f}s via public instance fallback")
+                result = {"url": public_stream_url}
+                res_future.result = result
+                _stream_circuit_breaker.record_success()
+                return result
 
             err_msg = str(last_err).lower() if last_err else "stream extraction failed"
             if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg:
