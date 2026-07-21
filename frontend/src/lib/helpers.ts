@@ -74,21 +74,21 @@ export interface ArtistItem {
 export const getArtistsList = (song: any): ArtistItem[] => {
   if (!song) return [];
   
-  if (Array.isArray(song.artists)) {
+  if (Array.isArray(song.artists) && song.artists.length > 0) {
     return song.artists.map((a: any) => ({
       name: a.name || "",
       id: a.id || a.browseId || ""
     })).filter((a: any) => a.name);
   }
   
-  if (Array.isArray(song.artist_map?.primary_artists)) {
+  if (Array.isArray(song.artist_map?.primary_artists) && song.artist_map.primary_artists.length > 0) {
     return song.artist_map.primary_artists.map((a: any) => ({
       name: a.name || "",
       id: a.id || a.browseId || ""
     })).filter((a: any) => a.name);
   }
   
-  if (Array.isArray(song.artists?.primary)) {
+  if (Array.isArray(song.artists?.primary) && song.artists.primary.length > 0) {
     return song.artists.primary.map((a: any) => ({
       name: a.name || "",
       id: a.id || a.browseId || ""
@@ -97,10 +97,13 @@ export const getArtistsList = (song: any): ArtistItem[] => {
 
   const primary = song.primaryArtists || song.primary_artists || song.music || song.subtitle || "";
   if (primary && primary !== "—") {
-    return String(primary).split(", ").map((name: string) => ({
-      name: name.trim(),
-      id: ""
-    }));
+    const parts = String(primary).split(/[,&]|\band\b|\bx\b/i);
+    return parts
+      .map((name: string) => ({
+        name: name.trim(),
+        id: ""
+      }))
+      .filter((a: ArtistItem) => a.name.length > 0);
   }
   return [];
 };

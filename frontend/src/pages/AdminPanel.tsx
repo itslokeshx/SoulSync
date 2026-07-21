@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as api from "../api/backend";
+import { ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
 import { Feedback } from "../types/feedback";
 
-type Tab = "feedback" | "announcements";
+type Tab = "feedback" | "announcements" | "cookies";
 
 export default function AdminPanel() {
   const [password, setPassword] = useState("");
@@ -32,6 +33,12 @@ export default function AdminPanel() {
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+
+  // Cookie Health State
+  const [cookieHealth, setCookieHealth] = useState<any>(null);
+  const [checkingCookieHealth, setCheckingCookieHealth] = useState(false);
+  const [cookieInput, setCookieInput] = useState("");
+  const [updatingCookies, setUpdatingCookies] = useState(false);
 
   // Expanded feedback IDs
   const [expandedFeedback, setExpandedFeedback] = useState<Set<string>>(new Set());
@@ -315,6 +322,48 @@ export default function AdminPanel() {
     }
   };
 
+  const handleCheckCookieHealth = async () => {
+    setCheckingCookieHealth(true);
+    try {
+      const res = await api.checkCookiesHealth();
+      setCookieHealth(res);
+      if (res.status === "healthy") {
+        toast.success("Cookies are valid & healthy!");
+      } else {
+        toast.error(`Cookie status: ${res.status}`);
+      }
+    } catch (err: any) {
+      console.error("Failed to check cookies health:", err);
+      toast.error("Failed to check cookie health.");
+    } finally {
+      setCheckingCookieHealth(false);
+    }
+  };
+
+  const handleSaveCookies = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cookieInput.trim()) {
+      toast.error("Please paste Netscape/text cookies content");
+      return;
+    }
+    setUpdatingCookies(true);
+    try {
+      const res = await api.updateCookies(cookieInput.trim());
+      if (res.status === "success") {
+        toast.success("Cookies updated & circuit breaker reset!");
+        setCookieHealth(res.health);
+        setCookieInput("");
+      } else {
+        toast.error(res.message || "Failed to update cookies");
+      }
+    } catch (err: any) {
+      console.error("Cookie update error:", err);
+      toast.error("Failed to push cookies update");
+    } finally {
+      setUpdatingCookies(false);
+    }
+  };
+
   // Get count of 'new' feedback items
   const newFeedbackCount = feedbackList.filter((fb) => fb.status === "new").length;
 
@@ -409,6 +458,20 @@ export default function AdminPanel() {
         >
           <Megaphone size={14} />
           Announcements
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("cookies");
+            if (!cookieHealth) handleCheckCookieHealth();
+          }}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 ${
+            activeTab === "cookies"
+              ? "border-sp-green text-sp-green"
+              : "border-transparent text-white/40 hover:text-white/80"
+          }`}
+        >
+          <KeyRound size={14} />
+          Cookies & Stream Health
         </button>
       </div>
 
@@ -858,6 +921,96 @@ export default function AdminPanel() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ─── TAB 3: COOKIES & STREAM HEALTH ──────────────────────────────────── */}
+      {activeTab === "cookies" && (
+        <div className="space-y-6">
+          {/* Status Card */}
+          <div className="p-6 rounded-[28px] bg-white/[0.01] border border-white/[0.04] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className="text-sp-green" />
+                <h3 className="text-sm font-black text-white/80 uppercase tracking-widest font-mono">
+                  YouTube Playback Cookies Status
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCheckCookieHealth}
+                disabled={checkingCookieHealth}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white/70 hover:text-white text-xs font-bold transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={checkingCookieHealth ? "animate-spin" : ""} />
+                Re-check
+              </button>
+            </div>
+
+            {checkingCookieHealth ? (
+              <div className="py-6 flex items-center gap-3 text-xs text-white/50">
+                <span className="w-4 h-4 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
+                Validating YouTube streaming cookies against live test video...
+              </div>
+            ) : cookieHealth ? (
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.04] space-y-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      cookieHealth.status === "healthy"
+                        ? "bg-sp-green shadow-lg shadow-sp-green/50"
+                        : cookieHealth.status === "expired"
+                        ? "bg-sp-rose shadow-lg shadow-sp-rose/50"
+                        : "bg-sp-amber shadow-lg shadow-sp-amber/50"
+                    }`}
+                  />
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-white">
+                    Status: {cookieHealth.status}
+                  </span>
+                </div>
+                <p className="text-xs font-mono text-white/60 leading-relaxed">
+                  {cookieHealth.message}
+                </p>
+              </div>
+            ) : (
+              <div className="text-xs text-white/30 italic">Click Re-check to test cookie status.</div>
+            )}
+          </div>
+
+          {/* Cookie Update Form */}
+          <form
+            onSubmit={handleSaveCookies}
+            className="p-6 rounded-[28px] bg-white/[0.01] border border-white/[0.04] space-y-4"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <KeyRound size={18} className="text-sp-green" />
+              <h3 className="text-sm font-black text-white/80 uppercase tracking-widest font-mono">
+                Deploy Fresh Cookies Payload
+              </h3>
+            </div>
+            <p className="text-xs text-white/40 leading-relaxed">
+              Export cookies from a logged-in YouTube browser session in Netscape format (`cookies.txt`) and paste below.
+              Saving will immediately update both local and writable secrets store and reset the streaming circuit breaker.
+            </p>
+
+            <textarea
+              rows={8}
+              value={cookieInput}
+              onChange={(e) => setCookieInput(e.target.value)}
+              placeholder="# Netscape HTTP Cookie File&#10;.youtube.com TRUE / TRUE 0 ... "
+              className="w-full bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-sp-green/30 resize-none scrollbar-thin"
+            />
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={updatingCookies || !cookieInput.trim()}
+                className="px-6 py-2.5 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-100 transition-all duration-200"
+              >
+                {updatingCookies ? "Deploying..." : "Update Cookies & Reset Circuit Breaker"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
       </div>

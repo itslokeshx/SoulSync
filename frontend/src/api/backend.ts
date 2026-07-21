@@ -615,3 +615,13 @@ export async function getAutoplaySongs(songId: string, filter = "similar"): Prom
   return data;
 }
 
+export async function checkCookiesHealth(): Promise<any> {
+  const { data } = await api.get("/api/music/cookies/health");
+  return data;
+}
+
+export async function updateCookies(cookies: string): Promise<any> {
+  const { data } = await api.post("/api/music/cookies/update", { cookies });
+  return data;
+}
+

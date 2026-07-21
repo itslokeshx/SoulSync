@@ -150,6 +150,50 @@ def check_cookies_health() -> dict:
     return res
 
 
+from pydantic import BaseModel
+from pathlib import Path
+
+class CookieUpdatePayload(BaseModel):
+    cookies: str
+
+
+@app.post("/api/music/cookies/update")
+async def update_cookies(payload: CookieUpdatePayload) -> dict:
+    from starlette.concurrency import run_in_threadpool
+    
+    def do_update():
+        writable_cookies = "/tmp/cookies.txt"
+        local_cookies = Path(__file__).parent / "cookies.txt"
+        
+        try:
+            with open(local_cookies, "w") as f:
+                f.write(payload.cookies)
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to write to local cookies: {e}"}
+            
+        try:
+            os.makedirs(os.path.dirname(writable_cookies), exist_ok=True)
+            with open(writable_cookies, "w") as f:
+                f.write(payload.cookies)
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to write to writable cookies: {e}"}
+            
+        try:
+            from routers.songs import _stream_circuit_breaker
+            _stream_circuit_breaker.record_success()
+        except Exception as e:
+            print(f"[cookies_update] Failed to reset circuit breaker: {e}")
+            
+        health_res = check_cookies_health()
+        return {
+            "status": "success",
+            "message": "Cookies successfully updated",
+            "health": health_res
+        }
+        
+    return await run_in_threadpool(do_update)
+
+
 @app.get("/api/music/cookies/health")
 async def cookies_health() -> dict:
     from starlette.concurrency import run_in_threadpool
