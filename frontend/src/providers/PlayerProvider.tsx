@@ -267,12 +267,33 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.muted = false;
+        audioRef.current.volume = 1;
         audioRef.current.src = "";
       }
     };
   }, []);
 
-  // ── Background Engine Switching Guard & Handler ─────────────────
+  // ── Position Syncing Ticker (Syncs audioRef to ytPlayerRef only when drift > 1.0s) ──
+  useEffect(() => {
+    if (!isPlaying || !currentSong || document.hidden) return;
+    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
+    if (!isYouTube || !isVideoMode || !isPlayerExpanded) return;
+
+    const interval = setInterval(() => {
+      const ytTime = ytPlayerRef.current?.getCurrentTime?.();
+      const audioTime = audioRef.current?.currentTime;
+      if (ytTime != null && audioTime != null && isFinite(ytTime) && isFinite(audioTime)) {
+        if (Math.abs(ytTime - audioTime) > 1.0) {
+          audioRef.current!.currentTime = ytTime;
+        }
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, currentSong?.id, isVideoMode, isPlayerExpanded]);
+
+  // ── Pre-Warmed Engine Switching Guard & Handler ─────────────────
   const isSwitchingEngineRef = useRef(false);
 
   const syncEnginePlayback = useCallback(async (toBackground: boolean) => {
@@ -284,28 +305,25 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       const state = usePlayerStore.getState();
 
       if (toBackground) {
-        // Backgrounding: Pause YouTube iframe, switch to HTML5 <audio>
-        const curTime = ytPlayerRef.current?.getCurrentTime?.() || state.currentTime;
+        // ── Backgrounding: Pause YT Iframe, Unmute Pre-Warmed <audio> ──
+        // Since <audio> was ALREADY actively playing (muted) in the foreground,
+        // we simply unmute it. NO play() call is needed on backgrounding!
         try { ytPlayerRef.current?.pauseVideo?.(); } catch {}
 
-        const streamUrl = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
         if (audioRef.current) {
-          if (audioRef.current.src !== streamUrl) {
-            audioRef.current.src = streamUrl;
-          }
-          audioRef.current.currentTime = curTime;
-          if (state.isPlaying) {
-            audioRef.current.play().catch(() => {});
-          }
+          audioRef.current.muted = false;
+          audioRef.current.volume = 1;
         }
       } else {
-        // Returning to Foreground: Resume video if user is STILL playing AND in video mode
+        // ── Foreground Return: Mute <audio>, Resume YT Iframe ──
         if (state.isPlaying && state.isVideoMode && state.isPlayerExpanded) {
           const curTime = audioRef.current?.currentTime || state.currentTime;
+
           if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = "";
+            audioRef.current.muted = true;
+            audioRef.current.volume = 0;
           }
+
           if (ytPlayerRef.current && ytPlayerReadyRef.current) {
             try {
               ytPlayerRef.current.seekTo(curTime, true);
@@ -368,7 +386,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [currentSong?.id, seekTo, isVideoMode, isPlayerExpanded]);
 
-  // ── consolidated Audio & Source Control ─────────────────────────
+  // ── Consolidated Audio & Source Control (Pre-Warmed Activation) ──────
   useEffect(() => {
     if (!audioRef.current || !currentSong) return;
 
@@ -377,28 +395,29 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const resolveAndHandle = async () => {
       let targetSrc = "";
       const isYouTube = !currentSong._isOffline && !currentSong.id?.startsWith("local_");
-      const useAudioEngine = document.hidden || !isVideoMode || !isPlayerExpanded;
+      const isVisibleVideo = !document.hidden && isVideoMode && isPlayerExpanded;
 
       if (isYouTube) {
-        if (useAudioEngine) {
-          targetSrc = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
-          audioRef.current!.loop = false;
+        targetSrc = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
+        audioRef.current!.loop = false;
+
+        if (isVisibleVideo) {
+          // Pre-warm <audio> muted in foreground during user gesture
+          audioRef.current!.muted = true;
+          audioRef.current!.volume = 0;
         } else {
-          // Visible Video Mode: pause <audio>, YouTube iframe handles video + audio
-          targetSrc = "";
-          audioRef.current!.pause();
-          if (audioRef.current!.src !== "") {
-            audioRef.current!.src = "";
-          }
+          // Audio-Only / Background Mode: play unmuted
+          audioRef.current!.muted = false;
+          audioRef.current!.volume = 1;
         }
       } else {
         audioRef.current!.loop = false;
-        // For downloaded/local songs, try to load the blob from IndexedDB first
+        audioRef.current!.muted = false;
+        audioRef.current!.volume = 1;
         const blob = await getOfflineBlob(currentSong.id);
         if (blob) {
           targetSrc = URL.createObjectURL(blob);
         } else {
-          // Fallback to the known URL if fetching the blob failed
           targetSrc = currentSong.downloadUrl?.[0]?.url || "";
         }
       }
@@ -406,16 +425,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isCancelled) return;
 
       if (targetSrc) {
-        // Safety net: decode any remaining HTML entities
         if (targetSrc.includes("&amp;")) {
           targetSrc = targetSrc.replace(/&amp;/g, "&");
         }
 
-        // Only update src if it's actually different (avoid unnecessary reloads)
         if (audioRef.current!.src !== targetSrc) {
           srcJustChangedRef.current = true;
-          if (srcChangedTimerRef.current)
-            clearTimeout(srcChangedTimerRef.current);
+          if (srcChangedTimerRef.current) clearTimeout(srcChangedTimerRef.current);
           srcChangedTimerRef.current = setTimeout(() => {
             srcJustChangedRef.current = false;
             srcChangedTimerRef.current = null;
@@ -441,14 +457,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
+        // ── Synchronous Pre-Warm play() Call ──
         const currentState = usePlayerStore.getState();
         if (currentState.isPlaying && currentState.currentSong?.id === currentSong.id) {
-          audioRef.current!.play().catch(() => {});
+          audioRef.current!.play().catch((err) => {
+            if (process.env.NODE_ENV !== "production") {
+              console.debug("[AudioEngine] Pre-warm play suppressed:", err);
+            }
+          });
         } else {
           audioRef.current!.pause();
+          audioRef.current!.muted = false;
+          audioRef.current!.volume = 1;
         }
       } else {
         audioRef.current!.pause();
+        audioRef.current!.muted = false;
+        audioRef.current!.volume = 1;
         if (audioRef.current!.src !== "" && audioRef.current!.src !== window.location.href) {
           audioRef.current!.src = "";
         }
@@ -461,6 +486,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return () => {
       isCancelled = true;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.muted = false;
+        audioRef.current.volume = 1;
+      }
     };
   }, [currentSong?.id, isPlaying, isVideoMode, isPlayerExpanded]);
 
@@ -965,7 +995,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handlePause = () => {
     if (!currentSong) return;
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    if (isYouTube) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.muted = false;
+        audioRef.current.volume = 1;
+      }
+      if (ytPlayerRef.current && ytPlayerReadyRef.current) {
+        try { ytPlayerRef.current.pauseVideo(); } catch {}
+      }
+      return;
+    }
     const audio = audioRef.current;
     if (!audio) return;
     // Skip entirely during src transitions
