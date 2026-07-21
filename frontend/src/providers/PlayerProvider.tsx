@@ -295,6 +295,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ── Pre-Warmed Engine Switching Guard & Handler ─────────────────
   const isSwitchingEngineRef = useRef(false);
+  const isIntentionalIframePauseRef = useRef(false);
 
   const syncEnginePlayback = useCallback(async (toBackground: boolean) => {
     if (isSwitchingEngineRef.current || !currentSong) return;
@@ -306,14 +307,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (toBackground) {
         // ── Backgrounding: Pause YT Iframe, Unmute Pre-Warmed <audio> ──
-        // Since <audio> was ALREADY actively playing (muted) in the foreground,
-        // we simply unmute it. NO play() call is needed on backgrounding!
+        // Set intentional pause suppression flag so onStateChange ignores this pause event
+        isIntentionalIframePauseRef.current = true;
         try { ytPlayerRef.current?.pauseVideo?.(); } catch {}
 
         if (audioRef.current) {
           audioRef.current.muted = false;
           audioRef.current.volume = 1;
         }
+
+        setTimeout(() => {
+          isIntentionalIframePauseRef.current = false;
+        }, 500);
       } else {
         // ── Foreground Return: Mute <audio>, Resume YT Iframe ──
         if (state.isPlaying && state.isVideoMode && state.isPlayerExpanded) {
@@ -695,13 +700,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               if (state === 1) { // playing
                 usePlayerStore.getState().setIsPlaying(true);
               } else if (state === 2) { // paused
-                const isAutoBackgroundPause =
-                  s.isPlaying &&
-                  (document.hidden || !document.hasFocus() || isAppBackgroundedRef.current);
-
-                if (!isAutoBackgroundPause) {
-                  usePlayerStore.getState().setIsPlaying(false);
+                if (isIntentionalIframePauseRef.current) {
+                  console.log("[onStateChange] PAUSED suppressed - intentional handoff");
+                  return;
                 }
+                usePlayerStore.getState().setIsPlaying(false);
               } else if (state === 0) { // ended
                 usePlayerStore.getState().setIsPlaying(false);
                 handleEndedRef.current();
