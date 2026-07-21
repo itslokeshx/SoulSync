@@ -26,6 +26,7 @@ import { isNative } from "../utils/platform";
 import { useDuo } from "../duo/useDuo";
 import { useDuoStore } from "../duo/duoStore";
 import { getOfflineBlob } from "../utils/offlineDB";
+import { resolveClientStream } from "../utils/resolveClientStream";
 import toast from "react-hot-toast";
 
 const SILENT_MP3 = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjM2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU2LjQxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAARTMu//MUZAYAAAGkAAAAAAAAA0gAAAAAOTku//MUZAkAAAGkAAAAAAAAA0gAAAAANVVV";
@@ -905,19 +906,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsPlaying(true);
   };
 
-  const handleError = () => {
+  const handleError = async () => {
     if (!currentSong) return;
     const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
     if (!isAudioActive) return;
     console.error("[AudioEngine] Playback error for:", currentSong?.name);
+
+    // Client-side failover: attempt direct stream extraction via client network before skipping
+    if (!currentSong._isOffline && !currentSong.id?.startsWith("local_")) {
+      try {
+        console.info("[AudioEngine] Backend stream failed. Attempting client-side direct stream fallback...");
+        const clientUrl = await resolveClientStream(currentSong.id);
+        if (clientUrl && audioRef.current) {
+          audioRef.current.src = clientUrl;
+          await audioRef.current.play();
+          setIsPlaying(true);
+          return;
+        }
+      } catch (err) {
+        console.warn("[AudioEngine] Client-side stream resolution failed:", err);
+      }
+    }
+
     setIsPlaying(false);
-    // Auto-skip on error after 2s delay
+    toast.error(`"${currentSong.name}" unavailable, skipping...`, { id: "song-error" });
     setTimeout(() => {
       if (repeatMode !== "one") {
         const n = next(repeatMode);
         if (n) playSong(n);
       }
-    }, 2000);
+    }, 1000);
   };
 
   return (
