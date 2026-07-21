@@ -69,10 +69,12 @@ export function getSocket(): Socket {
 
     socket.on("disconnect", (reason) => {
       console.log("[DuoSocket] ❌ Disconnected:", reason);
+      _duoCallback?.("disconnect", reason);
     });
 
     socket.on("connect_error", (err) => {
       console.warn("[DuoSocket] ❌ Connection error:", err.message);
+      _duoCallback?.("connect_error", err);
     });
 
     socket.io.on("reconnect_attempt", (attempt) => {

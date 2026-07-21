@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,40 +29,72 @@ import { useAuth } from "../auth/AuthContext";
 import { usePlayer } from "../providers/PlayerProvider";
 import toast from "react-hot-toast";
 
+// ── Background & Pulse Animation Keyframes ──────────────────────────
+const bgAnimations = {
+  ring1: { scale: [1, 1.2, 1], opacity: [0.07, 0.12, 0.07] },
+  ring2: { scale: [1.2, 1, 1.2], opacity: [0.05, 0.1, 0.05] },
+  ring3: { scale: [1, 1.15, 1], opacity: [0.03, 0.06, 0.03] },
+};
+
+const pulseAnimations = {
+  ring1: { scale: [1, 1.8], opacity: [0.4, 0] },
+  ring2: { scale: [1, 2.2], opacity: [0.2, 0] },
+};
+
 // ── Animated background ─────────────────────────────────────────────
-const SoulLinkBG = () => (
+const SoulLinkBG = React.memo(() => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none">
     <div className="absolute inset-0 bg-[#060608]" />
     <motion.div
-      animate={{ scale: [1, 1.2, 1], opacity: [0.07, 0.12, 0.07] }}
+      animate={bgAnimations.ring1}
       transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
       className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-sp-green/30 blur-[120px]"
     />
     <motion.div
-      animate={{ scale: [1.2, 1, 1.2], opacity: [0.05, 0.1, 0.05] }}
+      animate={bgAnimations.ring2}
       transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
       className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/20 blur-[120px]"
     />
     <motion.div
-      animate={{ scale: [1, 1.15, 1], opacity: [0.03, 0.06, 0.03] }}
+      animate={bgAnimations.ring3}
       transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 4 }}
       className="absolute top-[30%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-500/20 blur-[100px]"
     />
   </div>
-);
+));
+SoulLinkBG.displayName = "SoulLinkBG";
 
 // ── Pulse ring for connection status ────────────────────────────────
-const StatusPulse = ({ connected }: { connected: boolean }) => (
-  <span className="relative flex h-2.5 w-2.5">
-    <span
-      className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${connected ? "bg-sp-green animate-ping" : "bg-amber-400 animate-pulse"}`}
-      style={{ animationDuration: "2s" }}
-    />
-    <span
-      className={`relative inline-flex rounded-full h-2.5 w-2.5 ${connected ? "bg-sp-green" : "bg-amber-400"}`}
-    />
-  </span>
-);
+const StatusPulse = ({
+  connected,
+  warning,
+}: {
+  connected: boolean;
+  warning?: boolean;
+}) => {
+  const colorClass = connected
+    ? "bg-sp-green"
+    : warning
+      ? "bg-amber-400"
+      : "bg-red-500";
+  const pingClass = connected
+    ? "bg-sp-green animate-ping"
+    : warning
+      ? "bg-amber-400 animate-pulse"
+      : "bg-red-500 animate-pulse";
+
+  return (
+    <span className="relative flex h-2.5 w-2.5">
+      <span
+        className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${pingClass}`}
+        style={{ animationDuration: "2s" }}
+      />
+      <span
+        className={`relative inline-flex rounded-full h-2.5 w-2.5 ${colorClass}`}
+      />
+    </span>
+  );
+};
 
 // ── Feature card for landing ────────────────────────────────────────
 const FeatureChip = ({
@@ -116,7 +148,7 @@ export default function SoulLinkPage() {
   const { isOnline } = useNetwork();
   const { user } = useAuth();
   const { duo } = usePlayer();
-  const { active, partnerConnected, partnerName, roomCode, myName, role } =
+  const { active, partnerConnected, partnerName, roomCode, myName, role, socketConnected } =
     useDuoStore();
 
   const [tab, setTab] = useState<"create" | "join">("create");
@@ -187,9 +219,16 @@ export default function SoulLinkPage() {
             </button>
 
             <div className="flex items-center gap-2">
-              <StatusPulse connected={partnerConnected} />
+              <StatusPulse
+                connected={socketConnected && partnerConnected}
+                warning={socketConnected && !partnerConnected}
+              />
               <span className="text-xs font-medium text-white/50">
-                {partnerConnected ? "Synced" : "Waiting…"}
+                {!socketConnected
+                  ? "Connecting…"
+                  : partnerConnected
+                    ? "Synced"
+                    : "Waiting…"}
               </span>
             </div>
 
@@ -215,12 +254,12 @@ export default function SoulLinkPage() {
                   {partnerConnected && (
                     <>
                       <motion.div
-                        animate={{ scale: [1, 1.8], opacity: [0.4, 0] }}
+                        animate={pulseAnimations.ring1}
                         transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
                         className="absolute inset-0 rounded-full border border-sp-green/30"
                       />
                       <motion.div
-                        animate={{ scale: [1, 2.2], opacity: [0.2, 0] }}
+                        animate={pulseAnimations.ring2}
                         transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", delay: 0.8 }}
                         className="absolute inset-0 rounded-full border border-sp-green/20"
                       />
@@ -324,16 +363,26 @@ export default function SoulLinkPage() {
                     </p>
                     <p className="text-[11px] text-white/30">
                       {role === "host" ? "Host" : "Guest"} •{" "}
-                      {partnerConnected ? "Both connected" : "Waiting for partner…"}
+                      {!socketConnected
+                        ? "Connecting to server…"
+                        : partnerConnected
+                          ? "Both connected"
+                          : "Waiting for partner…"}
                     </p>
                   </div>
                   <div
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${partnerConnected
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${socketConnected && partnerConnected
                       ? "bg-sp-green/10 text-sp-green"
-                      : "bg-amber-400/10 text-amber-400"
+                      : socketConnected && !partnerConnected
+                        ? "bg-amber-400/10 text-amber-400"
+                        : "bg-red-500/10 text-red-400"
                       }`}
                   >
-                    {partnerConnected ? "Live" : "Pending"}
+                    {!socketConnected
+                      ? "Offline"
+                      : partnerConnected
+                        ? "Live"
+                        : "Pending"}
                   </div>
                 </div>
               </div>

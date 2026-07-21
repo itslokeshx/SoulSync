@@ -85,6 +85,21 @@ function loadYoutubeApi(): Promise<void> {
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
+const PositionStateUpdater: React.FC = () => {
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+
+  useEffect(() => {
+    if (currentSong && isPlaying) {
+      updatePositionState(currentTime, duration);
+    }
+  }, [currentSong?.id, isPlaying, currentTime, duration]);
+
+  return null;
+};
+
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -96,26 +111,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleEndedRef = useRef<() => void>(() => {});
   // Queue a pending action when YT.Player isn't ready yet — flushed in onReady
   const pendingYtActionRef = useRef<(() => void) | null>(null);
-  const {
-    currentSong,
-    isPlaying,
-    volume,
-    isMuted,
-    repeatMode,
-    autoplay,
-    currentTime,
-    duration,
-    setCurrentTime,
-    setDuration,
-    togglePlay,
-    playSong,
-    pause,
-    resume,
-    seekTo,
-    setIsPlaying,
-    isVideoMode,
-    isPlayerExpanded,
-  } = usePlayerStore();
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const volume = usePlayerStore((s) => s.volume);
+  const isMuted = usePlayerStore((s) => s.isMuted);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const autoplay = usePlayerStore((s) => s.autoplay);
+  const isVideoMode = usePlayerStore((s) => s.isVideoMode);
+  const isPlayerExpanded = usePlayerStore((s) => s.isPlayerExpanded);
+
+  // Stable actions from store state
+  const setCurrentTime = usePlayerStore.getState().setCurrentTime;
+  const setDuration = usePlayerStore.getState().setDuration;
+  const togglePlay = usePlayerStore.getState().togglePlay;
+  const playSong = usePlayerStore.getState().playSong;
+  const pause = usePlayerStore.getState().pause;
+  const resume = usePlayerStore.getState().resume;
+  const seekTo = usePlayerStore.getState().seekTo;
+  const setIsPlaying = usePlayerStore.getState().setIsPlaying;
 
   const { next, prev, queue, queueIndex, addLast } = useQueueStore();
 
@@ -205,37 +218,39 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // ── Log play history + bust dashboard cache after 5 seconds of active playback ────────
   const loggedSongRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!currentSong) return;
+    if (!currentSong || !isPlaying) return;
     if (loggedSongRef.current === currentSong.id) return; // already logged this song
     if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
 
-    // Only log history once the song has played for at least 5 seconds
-    if (currentTime < 5) return;
+    // Start a timer to log after 5 seconds of active playback
+    const timer = setTimeout(() => {
+      loggedSongRef.current = currentSong.id;
 
-    loggedSongRef.current = currentSong.id;
+      // Log to backend — invalidates Redis dashboard cache server-side
+      logHistory({
+        songId: currentSong.id,
+        title: currentSong.name || "",
+        artist: getArtists(currentSong),
+        artistId: (Array.isArray(currentSong.artists)
+          ? currentSong.artists[0]?.id
+          : currentSong.artists?.primary?.[0]?.id) || currentSong.artist_map?.primary_artists?.[0]?.id || "",
+        albumArt: bestImg(currentSong.image) || "",
+        duration: Number(currentSong.duration) || 0,
+        source: "player",
+        language: currentSong.language || "",
+      }).catch(() => {});
 
-    // Log to backend — invalidates Redis dashboard cache server-side
-    logHistory({
-      songId: currentSong.id,
-      title: currentSong.name || "",
-      artist: getArtists(currentSong),
-      artistId: (Array.isArray(currentSong.artists)
-        ? currentSong.artists[0]?.id
-        : currentSong.artists?.primary?.[0]?.id) || currentSong.artist_map?.primary_artists?.[0]?.id || "",
-      albumArt: bestImg(currentSong.image) || "",
-      duration: Number(currentSong.duration) || 0,
-      source: "player",
-      language: currentSong.language || "",
-    }).catch(() => {});
+      // Bust frontend sessionStorage dashboard cache so HomePage re-fetches
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i);
+          if (key?.startsWith("ss_dashboard")) sessionStorage.removeItem(key);
+        }
+      } catch {}
+    }, 5000);
 
-    // Bust frontend sessionStorage dashboard cache so HomePage re-fetches
-    try {
-      for (let i = sessionStorage.length - 1; i >= 0; i--) {
-        const key = sessionStorage.key(i);
-        if (key?.startsWith("ss_dashboard")) sessionStorage.removeItem(key);
-      }
-    } catch {}
-  }, [currentSong?.id, currentTime]);
+    return () => clearTimeout(timer);
+  }, [currentSong?.id, isPlaying]);
 
   // ── Seek handler: updates BOTH audio element AND state ──────────────
   const handleSeek = useCallback(
@@ -460,11 +475,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (currentSong) {
       updateMediaMetadata(currentSong, isPlaying);
-      updatePositionState(currentTime, duration);
     } else {
       clearMediaMetadata();
     }
-  }, [currentSong?.id, isPlaying, currentTime, duration]);
+  }, [currentSong?.id, isPlaying]);
 
   useEffect(() => {
     if (!isNative()) return;
@@ -920,6 +934,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }}
     >
       {children}
+      <PositionStateUpdater />
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}

@@ -243,12 +243,13 @@ export function useDuo({
               s.emit(event, data);
             }
           })
-          .catch(() => {
-            console.warn(`[Duo] Failed to emit ${event} — socket not ready`);
+          .catch((err) => {
+            console.warn(`[Duo] Failed to emit ${event} — socket not ready`, err);
+            addToast("Sync failed: disconnected from room", "error");
           });
       }
     },
-    [],
+    [addToast],
   );
 
   const syncPlay = useCallback(
@@ -375,6 +376,7 @@ export function useDuo({
       switch (event) {
         // ── Socket connected (first connect or reconnect) ──────
         case "connect": {
+          store.getState().setSocketConnected(true);
           const saved = getPersistedSession();
           if (
             saved?.roomCode &&
@@ -400,6 +402,16 @@ export function useDuo({
               );
             }
           }
+          break;
+        }
+
+        case "disconnect": {
+          store.getState().setSocketConnected(false);
+          break;
+        }
+
+        case "connect_error": {
+          store.getState().setSocketConnected(false);
           break;
         }
 
@@ -547,13 +559,16 @@ export function useDuo({
           }
 
           if (room?.currentSong) {
-            callbackRefs.current.isRemoteActionRef.current = true;
-            callbackRefs.current.isRemoteSongChangeRef.current = true;
-            callbackRefs.current.playSongRef.current?.(
-              room.currentSong,
-              [room.currentSong],
-              true,
-            );
+            const currentSongId = callbackRefs.current.currentSongRef?.current?.id;
+            if (currentSongId !== room.currentSong.id) {
+              callbackRefs.current.isRemoteActionRef.current = true;
+              callbackRefs.current.isRemoteSongChangeRef.current = true;
+              callbackRefs.current.playSongRef.current?.(
+                room.currentSong,
+                [room.currentSong],
+                true,
+              );
+            }
           }
           break;
         }
@@ -561,20 +576,34 @@ export function useDuo({
         // ── Playback sync ──────────────────────────────────────
         case "duo:receive-play": {
           const ct = data?.currentTime;
-          callbackRefs.current.isRemoteActionRef.current = true;
-          if (ct != null) {
-            callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
+          const wasPlaying = callbackRefs.current.isPlayingRef.current;
+          if (wasPlaying) {
+            if (ct != null) {
+              callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
+            }
+          } else {
+            callbackRefs.current.isRemoteActionRef.current = true;
+            if (ct != null) {
+              callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
+            }
+            usePlayerStore.getState().resume();
           }
-          usePlayerStore.getState().resume();
           break;
         }
         case "duo:receive-pause": {
           const ct = data?.currentTime;
-          callbackRefs.current.isRemoteActionRef.current = true;
-          if (ct != null) {
-            callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
+          const wasPlaying = callbackRefs.current.isPlayingRef.current;
+          if (!wasPlaying) {
+            if (ct != null) {
+              callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
+            }
+          } else {
+            callbackRefs.current.isRemoteActionRef.current = true;
+            if (ct != null) {
+              callbackRefs.current.handleSeekRemoteRef?.current?.(ct);
+            }
+            usePlayerStore.getState().pause();
           }
-          usePlayerStore.getState().pause();
           break;
         }
         case "duo:receive-seek": {
