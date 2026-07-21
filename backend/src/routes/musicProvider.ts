@@ -30,12 +30,19 @@ async function proxyToMusicProvider(req: Request, res: Response, targetPath: str
       timeout: 15000,
     });
 
+    if (response.headers["retry-after"]) res.set("Retry-After", response.headers["retry-after"]);
+    if (response.headers["x-circuit-breaker"]) res.set("X-Circuit-Breaker", response.headers["x-circuit-breaker"]);
+    if (response.headers["x-error-type"]) res.set("X-Error-Type", response.headers["x-error-type"]);
+
     res.status(response.status).json(response.data);
   } catch (error) {
     const err = error as AxiosError;
     console.error(`[MusicProvider Proxy Error] Path: ${targetPath} | Message:`, err.message);
     
     if (err.response) {
+      if (err.response.headers["retry-after"]) res.set("Retry-After", err.response.headers["retry-after"]);
+      if (err.response.headers["x-circuit-breaker"]) res.set("X-Circuit-Breaker", err.response.headers["x-circuit-breaker"]);
+      if (err.response.headers["x-error-type"]) res.set("X-Error-Type", err.response.headers["x-error-type"]);
       res.status(err.response.status).json(err.response.data);
     } else {
       res.status(502).json({

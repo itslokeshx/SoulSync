@@ -233,17 +233,17 @@ export async function buildDashboard(
             getIndustryNewReleases(["hindi"], 20),
             getIndustryNewReleases(["telugu"], 20),
           ]),
-          10000,
+          5000,
           [[], [], [], []]
         ).then(r => { timings.guestNewReleases = performance.now() - tExternalStart; return r; }),
         withTimeout(
           getTasteProfileBatch(null, Array.from(globalExcludeIds), 50),
-          10000,
+          5000,
           []
         ).then(r => { timings.madeForYou = performance.now() - tExternalStart; return r; }),
         withTimeout(
           getPodcastRecommendations(["english", "tamil"], 12),
-          10000,
+          5000,
           []
         ).then(r => { timings.podcasts = performance.now() - tExternalStart; return r; }),
       ]);
@@ -266,17 +266,17 @@ export async function buildDashboard(
       const [rawNewReleases, rawMadeForYou, rawPodcasts] = await Promise.all([
         withTimeout(
           getIndustryNewReleases(langs, 40),
-          10000,
+          5000,
           []
         ).then(r => { timings.newReleases = performance.now() - tExternalStart; return r; }),
         withTimeout(
           getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 50),
-          10000,
+          5000,
           []
         ).then(r => { timings.madeForYou = performance.now() - tExternalStart; return r; }),
         withTimeout(
           getPodcastRecommendations(langs, 12),
-          10000,
+          5000,
           []
         ).then(r => { timings.podcasts = performance.now() - tExternalStart; return r; }),
       ]);

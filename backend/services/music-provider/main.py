@@ -67,8 +67,24 @@ async def lifespan(app: FastAPI):
 
     keep_alive_task = asyncio.create_task(ping_self_loop())
 
+    async def periodic_cookie_check():
+        await asyncio.sleep(45)
+        while True:
+            try:
+                health = check_cookies_health()
+                if health.get("status") == "expired":
+                    print(f"⚠️ [COOKIE ALERT] {health.get('message')}")
+                elif health.get("status") == "healthy":
+                    print("✅ [cookies] Health check passed — valid Netscape cookies active")
+            except Exception as e:
+                print(f"[cookies] Background health check error: {e}")
+            await asyncio.sleep(30 * 60)
+
+    cookie_check_task = asyncio.create_task(periodic_cookie_check())
+
     yield
     keep_alive_task.cancel()
+    cookie_check_task.cancel()
 
 app = FastAPI(
     title="SoulSync Music Provider",

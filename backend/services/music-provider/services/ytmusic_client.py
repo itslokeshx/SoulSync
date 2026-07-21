@@ -83,9 +83,11 @@ def reset_client_to_guest():
     logger.warning("Resetting YTMusic client to guest mode fallback due to auth/parse failure")
     try:
         session = create_session()
-        session.cookies.clear()
+        # Keep cookies loaded from create_session() — clearing them
+        # removes our only auth signal on datacenter IPs where guest
+        # mode alone is blocked by YouTube bot detection.
         _client = YTMusic(requests_session=session)
-        logger.info("YTMusic client successfully reset to clean guest mode")
+        logger.info("YTMusic client reset to guest mode (cookies preserved)")
     except Exception as e:
         logger.error(f"Failed to reset YTMusic client to guest mode: {e}")
         _client = None
@@ -222,9 +224,17 @@ def with_retry(max_retries: int = 2, base_delay: float = 0.2):
                 _yt_semaphore.release()
 
             _record_failure()
+            is_auth_issue = any(
+                kw in str(last_error).lower()
+                for kw in ["expecting value", "sign in", "bot", "unauthorized"]
+            )
             raise HTTPException(
                 status_code=503,
                 detail=f"YouTube Music service error: {str(last_error)[:200]}",
+                headers={
+                    "X-Error-Type": "auth_failure" if is_auth_issue else "service_error",
+                    "Retry-After": "30",
+                },
             )
         return wrapper
     return decorator

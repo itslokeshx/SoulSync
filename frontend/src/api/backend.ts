@@ -70,8 +70,25 @@ export async function clearNativeToken(): Promise<void> {
   }
 }
 
+// Track service degradation backoff
+let _serviceBackoffUntil = 0;
+
+export function isServiceDegraded(): boolean {
+  return Date.now() < _serviceBackoffUntil;
+}
+
 // Attach Bearer token for native requests (and web fallback)
 api.interceptors.request.use((config) => {
+  if (Date.now() < _serviceBackoffUntil) {
+    const url = config.url || "";
+    // Allow admin, health, and cookie updates during backoff
+    if (!url.includes("/cookies") && !url.includes("/health") && !url.includes("/admin")) {
+      const err = new Error("Music service temporarily degraded. Backing off for recovery.");
+      (err as any).isBackoff = true;
+      return Promise.reject(err);
+    }
+  }
+
   const isAdminRequest = config.url?.includes("/admin") || config.url?.includes("/api/feedback/admin");
   if (isAdminRequest && _adminToken) {
     if (config.headers && typeof config.headers.set === 'function') {
@@ -89,7 +106,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Intercept responses to silently handle expected 401s for guest users
+// Intercept responses to silently handle expected 401s for guest users and track 503 backoffs
 api.interceptors.response.use(
   (response) => {
     const contentType = String(response.headers?.["content-type"] || "");
@@ -102,6 +119,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.response?.status === 503) {
+      const retryAfterHeader = error.response.headers?.["retry-after"];
+      const retryAfter = parseInt(retryAfterHeader || "15", 10);
+      _serviceBackoffUntil = Date.now() + (isNaN(retryAfter) ? 15 : retryAfter) * 1000;
+      console.warn(`[API] Music service degraded (503) — backing off requests for ${retryAfter}s`);
+    }
+
     // Specifically silence 401s from /api/auth/me and /api/playlists which are expected for guests
     if (error.response?.status === 401) {
       const url = error.config?.url || "";

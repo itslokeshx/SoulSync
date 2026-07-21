@@ -221,7 +221,8 @@ def _resolve_stream_sync(video_id: str) -> dict:
     if not _stream_circuit_breaker.allow_request():
         raise HTTPException(
             status_code=503,
-            detail="YouTube streaming service is currently degraded (circuit breaker tripped)"
+            detail="YouTube streaming service is currently degraded (circuit breaker tripped)",
+            headers={"X-Circuit-Breaker": "OPEN", "Retry-After": "30"},
         )
 
     res_future = None
