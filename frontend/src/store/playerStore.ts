@@ -58,7 +58,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
 
     playSong: (song) =>
       set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 }),
-    pause: () => set({ isPlaying: false }),
+    pause: () => {
+      console.log(`[DIAG ${Date.now()}] store.pause() → isPlaying=false`, new Error().stack);
+      set({ isPlaying: false });
+    },
     resume: () => set({ isPlaying: true }),
     togglePlay: () => set((s) => ({ isPlaying: !s.isPlaying })),
     seekTo: (time) => set({ currentTime: time }),
@@ -76,7 +79,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
       })),
     setDuration: (d) => set({ duration: d }),
     setCurrentTime: (t) => set({ currentTime: t }),
-    setIsPlaying: (v) => set({ isPlaying: v }),
+    setIsPlaying: (v) => {
+      if (!v) {
+        console.log(`[DIAG ${Date.now()}] store.setIsPlaying(false)`, new Error().stack);
+      }
+      set({ isPlaying: v });
+    },
     toggleAutoplay: () => set((s) => ({ autoplay: !s.autoplay })),
     setIsVideoMode: (v) => set({ isVideoMode: v }),
     setPlayerExpanded: (v) => set({ isPlayerExpanded: v }),

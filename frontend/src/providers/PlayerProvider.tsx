@@ -298,6 +298,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const isIntentionalIframePauseRef = useRef(false);
 
   const syncEnginePlayback = useCallback(async (toBackground: boolean) => {
+    console.log(`[DIAG ${Date.now()}] syncEnginePlayback entry toBackground=${toBackground} switching=${isSwitchingEngineRef.current} song=${currentSong?.id}`);
     if (isSwitchingEngineRef.current || !currentSong) return;
     if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
 
@@ -307,26 +308,40 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (toBackground) {
         // ── Backgrounding: Pause YT Iframe, Unmute Pre-Warmed <audio> ──
+        console.log(`[DIAG ${Date.now()}] syncEnginePlayback BRANCH=toBackground isPlaying=${state.isPlaying} video=${state.isVideoMode} expanded=${state.isPlayerExpanded} audio.paused=${audioRef.current?.paused} audio.muted=${audioRef.current?.muted}`);
         // Set intentional pause suppression flag so onStateChange ignores this pause event
         isIntentionalIframePauseRef.current = true;
         try { ytPlayerRef.current?.pauseVideo?.(); } catch {}
 
         if (audioRef.current) {
+          console.log(`[DIAG ${Date.now()}] BEFORE unmute: muted=${audioRef.current.muted} volume=${audioRef.current.volume} paused=${audioRef.current.paused}`);
           audioRef.current.muted = false;
           audioRef.current.volume = 1;
+          console.log(`[DIAG ${Date.now()}] AFTER unmute: muted=${audioRef.current.muted} volume=${audioRef.current.volume} paused=${audioRef.current.paused}`);
         }
+
+        // Post-background probes: is audio still alive at t+1s / t+5s?
+        setTimeout(() => {
+          console.log(`[DIAG ${Date.now()}] t+1s after background: audio.paused=${audioRef.current?.paused} muted=${audioRef.current?.muted} vol=${audioRef.current?.volume} isPlaying=${usePlayerStore.getState().isPlaying}`);
+        }, 1000);
+        setTimeout(() => {
+          console.log(`[DIAG ${Date.now()}] t+5s after background: audio.paused=${audioRef.current?.paused} muted=${audioRef.current?.muted} vol=${audioRef.current?.volume} isPlaying=${usePlayerStore.getState().isPlaying}`);
+        }, 5000);
 
         setTimeout(() => {
           isIntentionalIframePauseRef.current = false;
         }, 500);
       } else {
         // ── Foreground Return: Mute <audio>, Resume YT Iframe ──
+        console.log(`[DIAG ${Date.now()}] syncEnginePlayback BRANCH=toForeground isPlaying=${state.isPlaying} video=${state.isVideoMode} expanded=${state.isPlayerExpanded}`);
         if (state.isPlaying && state.isVideoMode && state.isPlayerExpanded) {
           const curTime = audioRef.current?.currentTime || state.currentTime;
 
           if (audioRef.current) {
+            console.log(`[DIAG ${Date.now()}] BEFORE remute: muted=${audioRef.current.muted} volume=${audioRef.current.volume} paused=${audioRef.current.paused} curTime=${curTime}`);
             audioRef.current.muted = true;
             audioRef.current.volume = 0;
+            console.log(`[DIAG ${Date.now()}] AFTER remute: muted=${audioRef.current.muted} volume=${audioRef.current.volume} paused=${audioRef.current.paused}`);
           }
 
           if (ytPlayerRef.current && ytPlayerReadyRef.current) {
@@ -347,6 +362,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // ── Visibilitychange & AppState Listeners ───────────────────────
   useEffect(() => {
     const handleVisibilityChange = () => {
+      console.log(`[DIAG ${Date.now()}] visibilitychange document.hidden=${document.hidden}`);
       if (document.hidden) {
         syncEnginePlayback(true);
       } else {
@@ -465,12 +481,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         // ── Synchronous Pre-Warm play() Call ──
         const currentState = usePlayerStore.getState();
         if (currentState.isPlaying && currentState.currentSong?.id === currentSong.id) {
+          console.log(`[DIAG ${Date.now()}] audioResolve → play() isPlaying=true muted=${audioRef.current!.muted} vol=${audioRef.current!.volume} hidden=${document.hidden}`);
           audioRef.current!.play().catch((err) => {
             if (process.env.NODE_ENV !== "production") {
               console.debug("[AudioEngine] Pre-warm play suppressed:", err);
             }
           });
         } else {
+          console.log(`[DIAG ${Date.now()}] audioResolve → pause() because isPlaying=${currentState.isPlaying} TAG=audioResolveEffect`);
           audioRef.current!.pause();
           audioRef.current!.muted = false;
           audioRef.current!.volume = 1;
@@ -695,17 +713,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               const state = event.data;
               const s = usePlayerStore.getState();
               const isYT = s.currentSong && !s.currentSong._isOffline && !s.currentSong.id.startsWith("local_");
+              console.log(`[DIAG ${Date.now()}] ytPlayerRef onStateChange state=${state} (0=ENDED,1=PLAYING,2=PAUSED) isYT=${!!isYT} video=${s.isVideoMode} expanded=${s.isPlayerExpanded} intentionalPause=${isIntentionalIframePauseRef.current} earlyReturn=${!isYT || (s.isVideoMode && s.isPlayerExpanded)}`);
               if (!isYT || (s.isVideoMode && s.isPlayerExpanded)) return;
 
               if (state === 1) { // playing
                 usePlayerStore.getState().setIsPlaying(true);
               } else if (state === 2) { // paused
                 if (isIntentionalIframePauseRef.current) {
-                  console.log("[onStateChange] PAUSED suppressed - intentional handoff");
+                  console.log(`[DIAG ${Date.now()}] [onStateChange] PAUSED suppressed - intentional handoff`);
                   return;
                 }
+                console.log(`[DIAG ${Date.now()}] [onStateChange] PAUSED → setIsPlaying(false) TAG=ytPlayerRef.onStateChange`);
                 usePlayerStore.getState().setIsPlaying(false);
               } else if (state === 0) { // ended
+                console.log(`[DIAG ${Date.now()}] [onStateChange] ENDED → setIsPlaying(false) TAG=ytPlayerRef.onStateChange`);
                 usePlayerStore.getState().setIsPlaying(false);
                 handleEndedRef.current();
               }
@@ -996,6 +1017,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ── FIX: prevent random pauses from buffering/browser events ──────
   const handlePause = () => {
+    console.log(`[DIAG ${Date.now()}] handlePause() TAG=audio.onPause song=${currentSong?.id} audio.paused=${audioRef.current?.paused}`, new Error().stack);
     if (!currentSong) return;
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
     if (isYouTube) {
@@ -1021,6 +1043,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Only update state if the pause was intentional (not buffering/seeking)
     if (!audio.seeking && !audio.ended) {
+      console.log(`[DIAG ${Date.now()}] handlePause → setIsPlaying(false) TAG=handlePause.nonYouTube`);
       setIsPlaying(false);
     }
   };

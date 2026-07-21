@@ -301,11 +301,14 @@ export const NowPlayingView = ({
             }
           }
           if (typeof info.playerState === "number") {
+            console.log(`[DIAG ${Date.now()}] NowPlayingView postMessage playerState=${info.playerState} (0=ENDED,1=PLAYING,2=PAUSED) hidden=${document.hidden}`);
             if (info.playerState === 1) {
               setIsPlaying(true);
             } else if (info.playerState === 2) {
+              console.log(`[DIAG ${Date.now()}] NowPlayingView PAUSED → setIsPlaying(false) TAG=NowPlayingView.postMessage`);
               setIsPlaying(false);
             } else if (info.playerState === 0) {
+              console.log(`[DIAG ${Date.now()}] NowPlayingView ENDED → setIsPlaying(false) TAG=NowPlayingView.postMessage`);
               setIsPlaying(false);
               onNext(); // Trigger auto-advance to next song
             }
