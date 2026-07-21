@@ -304,16 +304,8 @@ def _resolve_stream_sync(video_id: str) -> dict:
     WRITABLE_COOKIES = "/tmp/cookies.txt"
     
     def get_cookies_path() -> Optional[str]:
-        if os.path.exists(READONLY_COOKIES):
-            try:
-                os.makedirs(os.path.dirname(WRITABLE_COOKIES), exist_ok=True)
-                shutil.copy(READONLY_COOKIES, WRITABLE_COOKIES)
-                return WRITABLE_COOKIES
-            except Exception as e:
-                logger.error(f"[song_stream] Failed to copy read-only secret cookies: {e}")
-                
         yt_cookies_env = os.getenv("YT_COOKIES")
-        if yt_cookies_env:
+        if yt_cookies_env and len(yt_cookies_env.strip()) > 50:
             try:
                 temp_cookie_path = "/tmp/soulsync_cookies.txt"
                 os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
@@ -322,7 +314,15 @@ def _resolve_stream_sync(video_id: str) -> dict:
                 return temp_cookie_path
             except Exception as e:
                 logger.error(f"[song_stream] Failed to write YT_COOKIES to temp file: {e}")
-                
+
+        if os.path.exists(READONLY_COOKIES):
+            try:
+                os.makedirs(os.path.dirname(WRITABLE_COOKIES), exist_ok=True)
+                shutil.copy(READONLY_COOKIES, WRITABLE_COOKIES)
+                return WRITABLE_COOKIES
+            except Exception as e:
+                logger.error(f"[song_stream] Failed to copy read-only secret cookies: {e}")
+
         local_cookie_path = Path(__file__).parent.parent / "cookies.txt"
         if local_cookie_path.exists():
             return str(local_cookie_path)

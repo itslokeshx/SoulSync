@@ -39,31 +39,48 @@ async def lifespan(app: FastAPI):
         os.environ["PATH"] = py_dir + os.pathsep + os.environ.get("PATH", "")
         print(f"[startup] Added python binary directory to PATH: {py_dir}")
 
-    deno_bin = os.path.expanduser("~/.deno/bin")
-    if os.path.isdir(deno_bin):
-        if deno_bin not in os.environ.get("PATH", "").split(os.pathsep):
-            os.environ["PATH"] = deno_bin + os.pathsep + os.environ.get("PATH", "")
-            print(f"[startup] Added Deno binary directory to PATH: {deno_bin}")
-        deno_path = os.path.join(deno_bin, "deno")
-        if os.path.isfile(deno_path):
-            print(f"[startup] Deno found at: {deno_path}")
-        else:
-            print(f"[startup] WARNING: Deno binary not found at {deno_path}")
-    else:
-        print(f"[startup] WARNING: Deno bin directory not found at {deno_bin}")
+    possible_deno_paths = [
+        os.path.expanduser("~/.deno/bin"),
+        "/root/.deno/bin",
+        "/home/render/.deno/bin",
+        "/opt/render/.deno/bin",
+        "/tmp/deno/bin",
+    ]
+    deno_found = False
+    for deno_dir in possible_deno_paths:
+        if os.path.isdir(deno_dir):
+            if deno_dir not in os.environ.get("PATH", "").split(os.pathsep):
+                os.environ["PATH"] = deno_dir + os.pathsep + os.environ.get("PATH", "")
+                print(f"[startup] Added Deno binary directory to PATH: {deno_dir}")
+            deno_path = os.path.join(deno_dir, "deno")
+            if os.path.isfile(deno_path):
+                print(f"[startup] Deno found at: {deno_path}")
+                deno_found = True
+                break
+    if not deno_found:
+        print("[startup] WARNING: Deno binary not found in standard paths")
 
-    import shutil
+    yt_cookies_env = os.getenv("YT_COOKIES")
     readonly_cookies = "/etc/secrets/cookies.txt"
     writable_cookies = "/tmp/cookies.txt"
-    if os.path.exists(readonly_cookies):
+    
+    if yt_cookies_env and len(yt_cookies_env.strip()) > 50:
+        try:
+            os.makedirs(os.path.dirname(writable_cookies), exist_ok=True)
+            with open(writable_cookies, "w", encoding="utf-8") as f:
+                f.write(yt_cookies_env)
+            print(f"[startup] YT_COOKIES environment variable written to writable path: {writable_cookies}")
+        except Exception as e:
+            print(f"[startup] Failed to write YT_COOKIES to writable path: {e}")
+    elif os.path.exists(readonly_cookies):
         try:
             os.makedirs(os.path.dirname(writable_cookies), exist_ok=True)
             shutil.copy(readonly_cookies, writable_cookies)
-            print(f"[startup] Cookies copied to writable path: {writable_cookies}")
+            print(f"[startup] Cookies copied from secret to writable path: {writable_cookies}")
         except Exception as e:
             print(f"[startup] Failed to copy cookies to writable path: {e}")
     else:
-        print("[startup] WARNING: cookies.txt not found at /etc/secrets/")
+        print("[startup] WARNING: cookies.txt not found at /etc/secrets/ and YT_COOKIES not set")
 
     keep_alive_task = asyncio.create_task(ping_self_loop())
 
