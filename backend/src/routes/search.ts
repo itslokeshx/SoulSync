@@ -441,7 +441,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
     
     const tCacheWrite = performance.now();
-    await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
+    if (result.total > 0) {
+      await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
+    }
     timings.cacheWrite = performance.now() - tCacheWrite;
 
     console.log(`[PerfAudit] Search: q="${q}" filter="${filter || "all"}" | redisCacheCheck=${timings.redisCacheCheck.toFixed(2)}ms parallelSearchFetch=${timings.parallelSearchFetch.toFixed(2)}ms cacheWrite=${timings.cacheWrite.toFixed(2)}ms totalTime=${timings.totalTime.toFixed(2)}ms`);

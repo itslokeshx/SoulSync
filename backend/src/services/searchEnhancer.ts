@@ -1228,8 +1228,10 @@ export async function enhancedSearch(
     displayContext: parsed.displayContext,
   };
 
-  // Cache 1 hour in Redis, 45 s in L1
-  l1Set(ck, result);
-  await redisSet(ck, JSON.stringify(result), 3600);
+  // Cache 1 hour in Redis, 45 s in L1 (only if non-empty results)
+  if (result.total > 0) {
+    l1Set(ck, result);
+    await redisSet(ck, JSON.stringify(result), 3600);
+  }
   return result;
 }
