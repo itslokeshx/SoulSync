@@ -172,6 +172,9 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       const songsVal = get("songs");
       if (songsVal) addSongs(songsVal);
 
+      const generalVal = get("general");
+      if (generalVal) addSongs(generalVal);
+
       const fallbackVal = get("fallbacks");
       if (fallbackVal) {
         for (const r of fallbackVal) {

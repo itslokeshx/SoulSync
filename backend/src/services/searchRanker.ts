@@ -90,7 +90,13 @@ export function dedupSongs<T extends RankedSong>(songs: T[]): T[] {
 }
 
 export function buildSearchQueries(q: string): { queries: string[]; knownArtist: string | null } {
-  return { queries: [q], knownArtist: null };
+  const trimmed = q.trim();
+  const queries = [trimmed];
+  const lower = trimmed.toLowerCase();
+  if (trimmed && !lower.includes("song") && !lower.includes("track") && !lower.includes("hit")) {
+    queries.push(`${trimmed} song`);
+  }
+  return { queries, knownArtist: null };
 }
 
 export function getKnownSongIds(q: string): string[] {
