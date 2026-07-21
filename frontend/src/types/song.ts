@@ -24,6 +24,7 @@ export interface Song {
   duration: number;
   language?: string;
   image: SongImage[];
+  streamUrl?: string | null;
   downloadUrl?: SongDownloadUrl[];
   download_url?: SongDownloadUrl[];
   artists?: {

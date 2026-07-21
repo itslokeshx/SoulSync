@@ -87,8 +87,11 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
     if (process.env.NODE_ENV === "development") {
       base = `http://localhost:${process.env.PORT || 4000}`;
     } else {
-      base = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:4000";
+      base = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || "https://localhost:4000";
     }
+  }
+  if (base.startsWith("http://") && !base.includes("localhost") && !base.includes("127.0.0.1")) {
+    base = base.replace("http://", "https://");
   }
   const formattedBase = base.startsWith("http") ? base : `https://${base}`;
   return `${formattedBase.replace(/\/+$/, "")}/api/search/stream?id=${id}`;
@@ -226,22 +229,24 @@ export function normalizeSongToCanonical(raw: any, reqBaseUrl?: string): Song | 
   if (
     !cleanName ||
     cleanName.toLowerCase() === "unknown" ||
-    cleanName.toLowerCase() === "null" ||
-    !cleanArtists ||
-    cleanArtists.toLowerCase() === "unknown" ||
-    cleanArtists.toLowerCase() === "null" ||
-    !image ||
-    image === "/placeholder.png" ||
-    image.includes("placeholder")
+    cleanName.toLowerCase() === "null"
   ) {
     return null;
   }
 
+  const finalArtists = cleanArtists && cleanArtists.toLowerCase() !== "unknown" && cleanArtists.toLowerCase() !== "null"
+    ? cleanArtists
+    : "Unknown Artist";
+
+  const finalArtistsList = artistsList.filter((a: any) => a.name && a.name !== "Unknown Show").length > 0
+    ? artistsList.filter((a: any) => a.name)
+    : [{ name: finalArtists, id: "" }];
+
   return {
     id,
     name: cleanName,
-    primaryArtists: cleanArtists,
-    artists: artistsList.filter((a: any) => a.name),
+    primaryArtists: finalArtists,
+    artists: finalArtistsList,
     image,
     album: decodeHtmlEntities(album || name),
     albumId,
@@ -437,10 +442,14 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
       image = sorted[0].url || image;
     }
     image = upgradeYTImageQuality(image);
+    const albumArtist = data.artists?.map((a: any) => a.name || "").filter(Boolean).join(", ") || data.artist || "";
     const songs = normalizeSongsToCanonical(data.tracks || []);
     songs.forEach((s: any) => {
       if (!s.image || s.image === "/placeholder.png" || (Array.isArray(s.image) && s.image.length === 0)) {
         s.image = image;
+      }
+      if (!s.primaryArtists || s.primaryArtists === "Unknown Artist") {
+        s.primaryArtists = albumArtist || "Unknown Artist";
       }
     });
     return {
@@ -461,7 +470,24 @@ export async function getAlbumDetails(albumId: string): Promise<any> {
 export async function getAlbumSongs(albumId: string): Promise<any[]> {
   try {
     const data = await callMusicProvider(`/album/${albumId}`);
-    return normalizeSongsToCanonical(data.tracks || []);
+    let image = "/placeholder.png";
+    const thumbContents = data.thumbnails || [];
+    if (thumbContents.length > 0) {
+      const sorted = [...thumbContents].sort((a: any, b: any) => (Number(b.width) || 0) - (Number(a.width) || 0));
+      image = sorted[0].url || image;
+    }
+    image = upgradeYTImageQuality(image);
+    const albumArtist = data.artists?.map((a: any) => a.name || "").filter(Boolean).join(", ") || data.artist || "";
+    const songs = normalizeSongsToCanonical(data.tracks || []);
+    songs.forEach((s: any) => {
+      if (!s.image || s.image === "/placeholder.png" || (Array.isArray(s.image) && s.image.length === 0)) {
+        s.image = image;
+      }
+      if (!s.primaryArtists || s.primaryArtists === "Unknown Artist") {
+        s.primaryArtists = albumArtist || "Unknown Artist";
+      }
+    });
+    return songs;
   } catch (err: any) {
     console.error(`[youtubeMusicService] getAlbumSongs failed for ${albumId}:`, err.message || err);
     return [];

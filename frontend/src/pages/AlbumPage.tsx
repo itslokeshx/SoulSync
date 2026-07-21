@@ -72,9 +72,11 @@ export const AlbumPage = () => {
   const img = bestImg(album.image) || FALLBACK_IMG;
   const artist = Array.isArray(album.artist_map?.primary_artists)
     ? album.artist_map.primary_artists.map((a: any) => a.name).join(", ")
-    : Array.isArray(album.artists?.primary)
-      ? album.artists.primary.map((a: any) => a.name).join(", ")
-      : album.primaryArtists || album.subtitle || "";
+    : Array.isArray(album.artists) && album.artists.length > 0 && typeof album.artists[0] === "object"
+      ? album.artists.map((a: any) => a.name).join(", ")
+      : Array.isArray(album.artists?.primary)
+        ? album.artists.primary.map((a: any) => a.name).join(", ")
+        : album.primaryArtists || album.subtitle || "";
   const totalDur = songs.reduce(
     (acc: number, s: any) => acc + (s.duration || 0),
     0,

@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
-import { logHistory, getAutoplaySongs, smartSearch } from "../api/backend";
+import { logHistory, getAutoplaySongs, smartSearch, api } from "../api/backend";
 import { bestImg, getArtists } from "../lib/helpers";
 import {
   registerMediaControls,
@@ -241,7 +241,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleSeek = useCallback(
     (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const isAudioActive = currentSong && (currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded);
+      if (isYouTube && !isAudioActive && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
@@ -251,13 +252,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       seekTo(time);
       duo.syncSeek(time);
     },
-    [seekTo, duo, currentSong?.id],
+    [seekTo, duo, currentSong?.id, isVideoMode, isPlayerExpanded],
   );
 
   useEffect(() => {
     handleSeekRemoteRef.current = (time: number) => {
       const isYouTube = currentSong && !currentSong._isOffline && !currentSong.id.startsWith("local_");
-      if (isYouTube && ytPlayerRef.current && ytPlayerReadyRef.current) {
+      const isAudioActive = currentSong && (currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded);
+      if (isYouTube && !isAudioActive && ytPlayerRef.current && ytPlayerReadyRef.current) {
         try {
           ytPlayerRef.current.seekTo(time, true);
         } catch {}
@@ -266,7 +268,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       seekTo(time);
     };
-  }, [currentSong?.id, seekTo]);
+  }, [currentSong?.id, seekTo, isVideoMode, isPlayerExpanded]);
 
   // ── consolidated Audio & Source Control ─────────────────────────
   // Fixes the "image only changed" race condition by ensuring play()
@@ -281,10 +283,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       const isYouTube = !currentSong._isOffline && !currentSong.id?.startsWith("local_");
 
       if (isYouTube) {
-        // Online YouTube songs are played via the client-side YouTube iframe player.
-        // We bypass HTML5 audio element entirely by playing a silent loop track.
-        targetSrc = SILENT_MP3;
-        audioRef.current!.loop = true;
+        if (isVideoMode && isPlayerExpanded) {
+          // Online YouTube songs are played via the client-side YouTube iframe player.
+          // We bypass HTML5 audio element entirely by playing a silent loop track.
+          targetSrc = SILENT_MP3;
+          audioRef.current!.loop = true;
+        } else {
+          // In audio-only mode, play the proxied stream URL directly via HTML5 audio element
+          targetSrc = currentSong.streamUrl || `${api.defaults.baseURL}/api/search/stream?id=${currentSong.id}`;
+          audioRef.current!.loop = false;
+        }
       } else {
         audioRef.current!.loop = false;
         // For downloaded/local songs, try to load the blob from IndexedDB first
@@ -657,13 +665,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
     if (!isYouTube) return;
 
-    const playYTBackground = isPlaying && (!isVideoMode || !isPlayerExpanded);
+    const playYTVideo = isPlaying && isVideoMode && isPlayerExpanded;
 
     const executeCommand = () => {
       const player = ytPlayerRef.current;
       if (!player || typeof player.getPlayerState !== "function") return;
 
-      if (playYTBackground) {
+      if (playYTVideo) {
         if (loadedYtVideoIdRef.current !== currentSong.id) {
           const startSec = Math.floor(usePlayerStore.getState().currentTime);
           loadedYtVideoIdRef.current = currentSong.id;
@@ -698,7 +706,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isPlaying || !currentSong) return;
     const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
     if (!isYouTube) return;
-    if (isVideoMode && isPlayerExpanded) return;
+    if (!isVideoMode || !isPlayerExpanded) return;
 
     const interval = setInterval(() => {
       const player = ytPlayerRef.current;
@@ -766,15 +774,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // ── Audio Element Handlers ──────────────────────────────────────
   const handleTimeUpdate = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
+    if (!isAudioActive) return;
     if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
   };
 
   const handleLoadedMetadata = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
+    if (!isAudioActive) return;
     // New src is now loaded — any future pause events are real user actions.
     srcJustChangedRef.current = false;
     if (srcChangedTimerRef.current) {
@@ -792,8 +800,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleEnded = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
+    if (!isAudioActive) return;
     const { sleepTimerActive, sleepTimerEndOnTrack } = usePlayerStore.getState();
     if (sleepTimerActive && sleepTimerEndOnTrack) {
       usePlayerStore.setState({
@@ -858,8 +866,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   // ── FIX: prevent random pauses from buffering/browser events ──────
   const handlePause = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
+    if (!isAudioActive) return;
     const audio = audioRef.current;
     if (!audio) return;
     // Skip entirely during src transitions
@@ -878,15 +886,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handlePlay = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
+    if (!isAudioActive) return;
     setIsPlaying(true);
   };
 
   const handleError = () => {
     if (!currentSong) return;
-    const isYouTube = !currentSong._isOffline && !currentSong.id.startsWith("local_");
-    if (isYouTube) return;
+    const isAudioActive = currentSong._isOffline || currentSong.id.startsWith("local_") || !isVideoMode || !isPlayerExpanded;
+    if (!isAudioActive) return;
     console.error("[AudioEngine] Playback error for:", currentSong?.name);
     setIsPlaying(false);
     // Auto-skip on error after 2s delay

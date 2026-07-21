@@ -276,6 +276,16 @@ def _resolve_stream_sync(video_id: str) -> dict:
         if browser:
             opts['cookiesfrombrowser'] = (browser,)
         
+        runtimes = {}
+        deno_path = shutil.which("deno") or os.path.expanduser("~/.deno/bin/deno")
+        if os.path.exists(deno_path):
+            runtimes['deno'] = {'path': deno_path}
+        node_path = shutil.which("node")
+        if node_path:
+            runtimes['node'] = {'path': node_path}
+        if runtimes:
+            opts['js_runtimes'] = runtimes
+
         po_token = os.getenv("YT_PO_TOKEN")
         if po_token:
             opts['extractor_args'] = {
