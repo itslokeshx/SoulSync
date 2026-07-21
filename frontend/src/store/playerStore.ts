@@ -59,6 +59,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     playSong: (song) =>
       set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 }),
     pause: () => {
+      console.log(`[DIAG ${Date.now()}] store.pause() → isPlaying=false`, new Error().stack);
       set({ isPlaying: false });
     },
     resume: () => set({ isPlaying: true }),
@@ -79,6 +80,9 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     setDuration: (d) => set({ duration: d }),
     setCurrentTime: (t) => set({ currentTime: t }),
     setIsPlaying: (v) => {
+      if (!v) {
+        console.log(`[DIAG ${Date.now()}] store.setIsPlaying(false)`, new Error().stack);
+      }
       set({ isPlaying: v });
     },
     toggleAutoplay: () => set((s) => ({ autoplay: !s.autoplay })),

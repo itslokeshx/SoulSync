@@ -147,11 +147,15 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
-  const {
-    autoplay,
-    toggleAutoplay,
-    isVideoMode,
+  const { 
+    autoplay, 
+    toggleAutoplay, 
+    isVideoMode, 
     setIsVideoMode,
+    setCurrentTime,
+    setDuration,
+    setIsPlaying,
+    isMuted,
     sleepTimerActive,
     sleepTimerSecondsLeft,
     sleepTimerEndOnTrack,
@@ -266,9 +270,58 @@ export const NowPlayingView = ({
     }
   };
 
-  // The video iframe is a muted visual follower only. The <audio> element owns
-  // playback state (time/duration/play-state/ended); this iframe is driven FROM
-  // that state, never the reverse, so it does not write back to the store.
+  // Sync YouTube playback events (Time, Duration, PlayState, EndOfVideo)
+  useEffect(() => {
+    if (!isVideoMode) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.origin.includes("youtube.com")) return;
+
+      let payload = event.data;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          return;
+        }
+      }
+
+      if (!payload || typeof payload !== "object") return;
+
+      if (payload.event === "infoDelivery" || payload.event === "initialDelivery") {
+        const info = payload.info;
+        if (info) {
+          if (typeof info.currentTime === "number" && !isSeekingRef.current) {
+            setCurrentTime(info.currentTime);
+          }
+          if (typeof info.duration === "number" && info.duration > 0) {
+            const currentDuration = usePlayerStore.getState().duration;
+            if (!currentDuration || (Math.abs(currentDuration - info.duration) > 5 && info.duration > 30)) {
+              setDuration(info.duration);
+            }
+          }
+          if (typeof info.playerState === "number") {
+            console.log(`[DIAG ${Date.now()}] NowPlayingView postMessage playerState=${info.playerState} (0=ENDED,1=PLAYING,2=PAUSED) hidden=${document.hidden}`);
+            if (info.playerState === 1) {
+              setIsPlaying(true);
+            } else if (info.playerState === 2) {
+              console.log(`[DIAG ${Date.now()}] NowPlayingView PAUSED → setIsPlaying(false) TAG=NowPlayingView.postMessage`);
+              setIsPlaying(false);
+            } else if (info.playerState === 0) {
+              console.log(`[DIAG ${Date.now()}] NowPlayingView ENDED → setIsPlaying(false) TAG=NowPlayingView.postMessage`);
+              setIsPlaying(false);
+              onNext(); // Trigger auto-advance to next song
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [isVideoMode, setCurrentTime, setDuration, setIsPlaying, onNext]);
 
   // Sync state changes from app -> YouTube player
   useEffect(() => {
@@ -280,6 +333,20 @@ export const NowPlayingView = ({
       "*"
     );
   }, [isPlaying, isVideoMode]);
+
+  useEffect(() => {
+    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow) return;
+
+    const targetVol = volume * 100;
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: "setVolume", args: [targetVol] }),
+      "*"
+    );
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: isMuted ? "mute" : "unMute", args: [] }),
+      "*"
+    );
+  }, [volume, isMuted, isVideoMode]);
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -539,7 +606,7 @@ export const NowPlayingView = ({
               >
                 <iframe
                   ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}&vq=${quality}`}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}&vq=${quality}`}
                   title={currentSong.name}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
