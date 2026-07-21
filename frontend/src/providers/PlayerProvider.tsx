@@ -134,6 +134,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const { next, prev, queue, queueIndex, addLast } = useQueueStore();
 
   // ── Refs & Synchronization Flags ──────────────────────────────────
+  const isAppBackgroundedRef = useRef(false);
   const isRemoteActionRef = useRef(false);
   // Tracks src transitions — browser fires spurious 'pause' events when src changes.
   // We must ignore those to avoid consuming isRemoteActionRef and falsely setting isPlaying=false.
@@ -142,6 +143,46 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const srcChangedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Separate flag for remote song changes so the song-sync effect doesn't echo them back.
   const isRemoteSongChangeRef = useRef(false);
+
+  // ── Safe Foreground Resume Listener ──────────────────────────────
+  useEffect(() => {
+    const handleForeground = () => {
+      isAppBackgroundedRef.current = false;
+      const s = usePlayerStore.getState();
+      const isYT = s.currentSong && !s.currentSong._isOffline && !s.currentSong.id?.startsWith("local_");
+      if (s.isPlaying && isYT && ytPlayerRef.current && ytPlayerReadyRef.current) {
+        try {
+          if (ytPlayerRef.current.getPlayerState() !== 1) {
+            ytPlayerRef.current.playVideo();
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV !== "production") {
+            console.debug("[PlayerProvider] Background resume suppressed:", err);
+          }
+        }
+      }
+    };
+
+    const handleVis = () => { if (!document.hidden) handleForeground(); };
+    document.addEventListener("visibilitychange", handleVis);
+
+    let appListenerHandle: { remove: () => void } | null = null;
+    if (isNative()) {
+      import("@capacitor/app").then(({ App }) => {
+        App.addListener("appStateChange", ({ isActive }) => {
+          isAppBackgroundedRef.current = !isActive;
+          if (isActive) handleForeground();
+        }).then((h) => {
+          appListenerHandle = h;
+        });
+      });
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVis);
+      appListenerHandle?.remove();
+    };
+  }, []);
 
   // Stable actions for useDuo to call
   const playSongRef = useRef<
@@ -588,7 +629,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               if (state === 1) { // playing
                 usePlayerStore.getState().setIsPlaying(true);
               } else if (state === 2) { // paused
-                usePlayerStore.getState().setIsPlaying(false);
+                const isAutoBackgroundPause =
+                  s.isPlaying &&
+                  (document.hidden || !document.hasFocus() || isAppBackgroundedRef.current);
+
+                if (!isAutoBackgroundPause) {
+                  usePlayerStore.getState().setIsPlaying(false);
+                }
               } else if (state === 0) { // ended
                 usePlayerStore.getState().setIsPlaying(false);
                 handleEndedRef.current();
