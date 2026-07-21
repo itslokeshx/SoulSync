@@ -393,13 +393,12 @@ function SkeletonRow() {
 }
 
 const SEARCH_FILTERS = [
-  { id: "all", label: "All" },
   { id: "songs", label: "Songs" },
-  { id: "videos", label: "Videos" },
-  { id: "podcasts", label: "Podcasts" },
   { id: "artists", label: "Artists" },
   { id: "albums", label: "Albums" },
   { id: "playlists", label: "Playlists" },
+  { id: "podcasts", label: "Podcasts" },
+  { id: "videos", label: "Videos" },
 ];
 
 const SectionHeaderWithSeeAll = ({
@@ -446,7 +445,7 @@ export function SearchPage() {
 
   // Sync URL filter with state
   useEffect(() => {
-    const urlFilter = urlParams.get("filter") || "all";
+    const urlFilter = urlParams.get("filter") || "songs";
     if (urlFilter !== filter) {
       setFilter(urlFilter);
     }
@@ -472,7 +471,7 @@ export function SearchPage() {
   const handleFilterChange = useCallback((newFilter: string) => {
     setFilter(newFilter);
     const params: Record<string, string> = { q: query };
-    if (newFilter !== "all") {
+    if (newFilter !== "songs") {
       params.filter = newFilter;
     }
     setUrlParams(params, { replace: true });
@@ -481,7 +480,7 @@ export function SearchPage() {
   const handleChange = useCallback(
     (v: string) => {
       setQuery(v);
-      setFilter("all");
+      setFilter("songs");
       setUrlParams(v.trim() ? { q: v } : {}, { replace: true });
     },
     [setQuery, setFilter, setUrlParams],
@@ -534,7 +533,7 @@ export function SearchPage() {
   const handleChipClick = useCallback(
     (q: string) => {
       setQuery(q);
-      setFilter("all");
+      setFilter("songs");
       setUrlParams({ q }, { replace: true });
       saveRecentSearch(q);
       setRecentSearches(getRecentSearches());

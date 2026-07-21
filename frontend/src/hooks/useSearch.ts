@@ -236,7 +236,7 @@ export function useSearch() {
     fetchRemoteSuggestions(q);
   }, [debouncedSuggestion, fetchRemoteSuggestions]);
 
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("songs");
 
   // ── Main search ─────────────────────────────────────────────────────────
   const doSearch = useCallback(async (q: string, activeFilter: string) => {
@@ -298,7 +298,7 @@ export function useSearch() {
 
   const reset = useCallback(() => {
     setQuery("");
-    setFilter("all");
+    setFilter("songs");
     setResult(null);
     setState("idle");
   }, []);
