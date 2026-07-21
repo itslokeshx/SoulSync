@@ -33,7 +33,6 @@ export async function initBackgroundAudio() {
   const { App } = await import("@capacitor/app");
 
   App.addListener("appStateChange", async ({ isActive }) => {
-    (window as any)._isAppBackgrounded = !isActive;
     const song = _currentSongGetter?.();
     const playing = _isPlayingGetter?.() ?? false;
 
