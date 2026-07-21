@@ -414,11 +414,11 @@ def _resolve_stream_sync(video_id: str) -> dict:
                     last_err = e
                     continue
 
-            err_msg = str(last_err).lower()
+            err_msg = str(last_err).lower() if last_err else "stream extraction failed"
             if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg:
                 logger.error("[cookies] expired — refresh needed")
             logger.error(f"[song_stream] Failed to resolve {video_id}: {last_err}")
-            exc = HTTPException(status_code=500, detail=str(last_err))
+            exc = HTTPException(status_code=503, detail=str(last_err) if last_err else "Stream resolution unavailable")
             res_future.error = exc
             _stream_circuit_breaker.record_failure()
             raise exc
@@ -442,4 +442,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
 
 @router.get("/song/{video_id}/stream")
 async def get_song_stream(video_id: str) -> dict:
-    return await run_in_threadpool(_resolve_stream_sync, video_id)
+    res = await run_in_threadpool(_resolve_stream_sync, video_id)
+    if not res or not isinstance(res, dict) or "url" not in res:
+        raise HTTPException(status_code=503, detail="Invalid stream response structure")
+    return res

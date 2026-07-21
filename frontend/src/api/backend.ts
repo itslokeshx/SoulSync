@@ -537,7 +537,7 @@ export async function getMoreRecommendations(
 export async function startRadio(
   seedSongId: string,
 ): Promise<{ songs: any[] }> {
-  const { data } = await api.post("/api/radio/start", { seedSongId });
+  const { data } = await api.post("/api/radio/start", { seedSongId }, { timeout: 5000 });
   return data;
 }
 

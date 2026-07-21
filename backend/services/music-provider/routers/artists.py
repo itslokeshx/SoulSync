@@ -47,9 +47,11 @@ def _get_artist_sync(channel_id: str) -> dict:
         result = yt.get_artist(target_id)
     except Exception as e:
         logger.warning(f"[artist] yt.get_artist failed for target_id='{target_id}' (original='{channel_id}'): {e}")
-        # Secondary fallback: search for original channel_id as artist name
+        # Secondary fallback: split multi-artist string to primary artist name before search
         try:
-            search_res = yt.search(channel_id, filter="artists")
+            parts = [p.strip() for p in re.split(r'[,&]|\band\b|\bx\b', channel_id, flags=re.IGNORECASE) if p.strip()]
+            primary_query = parts[0] if parts else channel_id
+            search_res = yt.search(primary_query, filter="artists")
             if search_res and search_res[0].get("browseId"):
                 result = yt.get_artist(search_res[0]["browseId"])
             else:
