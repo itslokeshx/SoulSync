@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
-import { OnboardingGate } from "./auth/ProtectedRoute";
+import { ProtectedRoute, OnboardingGate } from "./auth/ProtectedRoute";
 import { useNetwork } from "./providers/NetworkProvider";
 import { getOfflineSongs } from "./utils/offlineDB";
 import { useOfflineStore } from "./store/offlineStore";
@@ -100,8 +100,22 @@ function AppRouter() {
         <Route path="playlist/:id" element={<PlaylistPage />} />
         <Route path="song/:slug/:id" element={<SongSharePage />} />
         <Route path="song/:id" element={<SongSharePage />} />
-        <Route path="soullink" element={<SoulLinkPage />} />
-        <Route path="import" element={<ImportPage />} />
+        <Route
+          path="soullink"
+          element={
+            <ProtectedRoute>
+              <SoulLinkPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="import"
+          element={
+            <ProtectedRoute>
+              <ImportPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Online only — redirect to downloads if offline */}
         <Route

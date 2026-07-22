@@ -30,6 +30,18 @@ import {
   Globe,
   Compass,
   Music,
+  Wand2,
+  Users,
+  Download,
+  Layers,
+  Flame,
+  Zap,
+  Coffee,
+  Moon,
+  CloudRain,
+  Radio,
+  ArrowRight,
+  TrendingUp,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useDashboard } from "../hooks/useDashboard";
@@ -37,6 +49,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { bestImg, getArtists, fmt, onImgErr } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { useUIStore } from "../store/uiStore";
+import { useAuthGate } from "../hooks/useAuthGate";
 import { ArtistLinks } from "../components/ui/ArtistLinks";
 import { EqBars } from "../components/ui/EqBars";
 
@@ -674,11 +687,102 @@ const QuickPicksList = ({
 };
 
 /* =====================================================================
+   GUEST GLOBAL DASHBOARD DATA & HELPERS
+   ===================================================================== */
+const TOP_ARTISTS = [
+  { id: "702776", name: "Arijit Singh", role: "Top Artist", image: "https://c.saavncdn.com/artists/Arijit_Singh_002_20230323062147_500x500.jpg" },
+  { id: "3799917", name: "Taylor Swift", role: "Top Artist", image: "https://c.saavncdn.com/artists/Taylor_Swift_500x500.jpg" },
+  { id: "1433699", name: "The Weeknd", role: "Top Artist", image: "https://c.saavncdn.com/artists/The_Weeknd_500x500.jpg" },
+  { id: "596989", name: "Anirudh Ravichander", role: "Composer", image: "https://c.saavncdn.com/artists/Anirudh_Ravichander_500x500.jpg" },
+  { id: "17063328", name: "Drake", role: "Top Artist", image: "https://c.saavncdn.com/artists/Drake_500x500.jpg" },
+  { id: "929381", name: "Ed Sheeran", role: "Top Artist", image: "https://c.saavncdn.com/artists/Ed_Sheeran_500x500.jpg" },
+  { id: "16568113", name: "Shreya Ghoshal", role: "Playback Singer", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_500x500.jpg" },
+];
+
+const EDITORIAL_PICKS = [
+  { title: "Chill & Unwind", desc: "Acoustic, lofi & relaxing beats", icon: Coffee, gradient: "from-blue-600/20 to-purple-600/20", query: "chill lofi acoustic" },
+  { title: "Workout Energy", desc: "High-BPM EDM & hip-hop motivators", icon: Zap, gradient: "from-red-600/20 to-amber-600/20", query: "workout edm gym" },
+  { title: "Focus & Code", desc: "Ambient & instrumental study tunes", icon: Flame, gradient: "from-emerald-600/20 to-teal-600/20", query: "focus ambient instrumental" },
+  { title: "Party Hits", desc: "Top dance floor bangers & anthems", icon: Music, gradient: "from-pink-600/20 to-rose-600/20", query: "party dance hits" },
+  { title: "Sad Hour", desc: "Deep acoustic ballads & emotional tracks", icon: CloudRain, gradient: "from-indigo-600/20 to-slate-800/20", query: "sad acoustic emotional" },
+  { title: "Late Night Vibes", desc: "Smooth R&B & night drive synthwave", icon: Moon, gradient: "from-amber-600/20 to-orange-600/20", query: "late night synthwave" },
+];
+
+const FEATURE_SHOWCASE = [
+  {
+    key: "ai",
+    title: "AI Playlist Generator",
+    desc: "Describe any prompt, mood or vibe for a custom 25-song AI mix.",
+    icon: Wand2,
+    badge: "AI Magic",
+    actionText: "Try Generator",
+    requiresAuth: true,
+    authReason: "Sign in to generate AI playlists",
+    route: "/search",
+    gradient: "from-purple-600/20 via-purple-900/10 to-transparent border-purple-500/30",
+  },
+  {
+    key: "soullink",
+    title: "SoulLink Live Sync",
+    desc: "Listen together with friends with live chat & synchronized audio.",
+    icon: Users,
+    badge: "Duo Sync",
+    actionText: "Join Room",
+    requiresAuth: true,
+    authReason: "Sign in to use SoulLink shared listening",
+    route: "/soullink",
+    gradient: "from-sp-green/20 via-emerald-950/10 to-transparent border-sp-green/30",
+  },
+  {
+    key: "offline",
+    title: "Offline Downloads",
+    desc: "High-quality audio downloads for zero-data offline playback.",
+    icon: Download,
+    badge: "Offline Mode",
+    actionText: "Manage Downloads",
+    requiresAuth: false,
+    route: "/downloads",
+    gradient: "from-blue-600/20 via-cyan-950/10 to-transparent border-blue-500/30",
+  },
+  {
+    key: "import",
+    title: "Instant Library Import",
+    desc: "Transfer playlists seamlessly from Spotify, YouTube, or Apple Music.",
+    icon: Layers,
+    badge: "Import Tools",
+    actionText: "Import Library",
+    requiresAuth: true,
+    authReason: "Sign in to import your music library",
+    route: "/import",
+    gradient: "from-amber-600/20 via-orange-950/10 to-transparent border-amber-500/30",
+  },
+];
+
+/* =====================================================================
    HOME PAGE
    ===================================================================== */
 export const HomePage = () => {
   const navigate = useNavigate();
   const { currentSong, isPlaying, playSong: onPlay } = useApp();
+  const { gate } = useAuthGate();
+  const openAIPlaylist = useUIStore((s) => s.openAIPlaylist);
+  const [aiPrompt, setAiPrompt] = useState("");
+
+  const handleFeatureClick = (feat: (typeof FEATURE_SHOWCASE)[0]) => {
+    const action = () => {
+      if (feat.key === "ai") {
+        openAIPlaylist();
+      } else {
+        navigate(feat.route);
+      }
+    };
+
+    if (feat.requiresAuth) {
+      gate(action, feat.authReason);
+    } else {
+      action();
+    }
+  };
 
   const {
     loading: dashboardLoading,
@@ -719,22 +823,23 @@ export const HomePage = () => {
       guestNewReleases.length > 0 &&
       guestNewReleases.some((s: any) => s.songs && s.songs.length > 0)
     ) {
-      return guestNewReleases.filter((s: any) => s.songs && s.songs.length > 0);
+      const list = guestNewReleases.filter((s: any) => s.songs && s.songs.length > 0);
+      const getPriority = (title: string) => {
+        const t = (title || "").toLowerCase();
+        if (t.includes("global")) return 1;
+        if (t.includes("english") || t.includes("pop")) return 2;
+        if (t.includes("tamil")) return 3;
+        if (t.includes("hindi")) return 4;
+        return 5;
+      };
+      return [...list].sort((a: any, b: any) => getPriority(a.title) - getPriority(b.title));
     }
     if (normalizedNewReleases && normalizedNewReleases.length > 0) {
-      return [{ title: "Global Trending Hits", songs: normalizedNewReleases }];
+      return [{ title: "Global New Releases", songs: normalizedNewReleases }];
     }
     return [];
   }, [guestNewReleases, normalizedNewReleases]);
 
-  const topGuestSong = useMemo(() => {
-    if (!user) {
-      for (const sec of guestSections) {
-        if (sec.songs && sec.songs.length > 0) return sec.songs[0];
-      }
-    }
-    return null;
-  }, [user, guestSections]);
 
   const newReleasesList = normalizedNewReleases.slice(0, 24);
   const isLoading = authLoading || dashboardLoading;
@@ -743,6 +848,16 @@ export const HomePage = () => {
     if (!quickPicks.length) return;
     const shuffled = [...quickPicks].sort(() => Math.random() - 0.5);
     handleHomeSongClick(shuffled[0], shuffled);
+  };
+
+  const handleAiSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiPrompt.trim()) return;
+    navigate(`/search?q=${encodeURIComponent(aiPrompt.trim())}&ai=true`);
+  };
+
+  const handleVibeClick = (vibeText: string) => {
+    navigate(`/search?q=${encodeURIComponent(vibeText)}&ai=true`);
   };
 
   return (
@@ -893,56 +1008,14 @@ export const HomePage = () => {
         </>
       ) : (
         /* ═════════════════════════════════════════════════════════════════
-           NON-LOGGED-IN GLOBAL LANDING PAGE (Clean Global Discovery)
+           NON-LOGGED-IN GLOBAL GUEST DASHBOARD (Rich Unauthenticated Hub)
            ═════════════════════════════════════════════════════════════════ */
-        <div className="space-y-10">
-          {/* Global Header Banner */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sp-green/15 via-emerald-950/20 to-black p-6 sm:p-8 border border-white/[0.08] shadow-2xl">
-            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-sp-green/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sp-green/10 border border-sp-green/20 text-sp-green text-xs font-semibold mb-3 backdrop-blur-md">
-                  <Globe size={13} />
-                  <span>Global Music Experience</span>
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-                  Discover Music Around the World
-                </h1>
-                <p className="text-white/60 text-sm sm:text-base mt-2.5 leading-relaxed">
-                  Stream top trending hits, global charts, and brand new releases across every language and genre—free for everyone.
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <button
-                  onClick={() => navigate("/login")}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-sp-green text-black font-bold text-sm hover:scale-105 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-sp-green/25"
-                >
-                  Sign In to Personalize
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
+        <div className="space-y-12">
 
-          {/* Featured Global Spotlight */}
-          {topGuestSong && (
-            <div>
-              <HeroFeatured
-                song={topGuestSong}
-                isCurrent={currentSong?.id === topGuestSong.id}
-                isPlaying={isPlaying}
-                onPlay={() =>
-                  handleHomeSongClick(
-                    topGuestSong,
-                    guestSections[0]?.songs || [topGuestSong]
-                  )
-                }
-              />
-            </div>
-          )}
 
-          {/* Global Music Carousels */}
-          {guestSections.length > 0 ? (
+
+          {/* ── DISCOVERY ROWS (NEW RELEASES & GLOBAL SECTIONS) ── */}
+          {guestSections.length > 0 && (
             <div className="space-y-10">
               {guestSections.map((sec: any) => (
                 <HSectionInline
@@ -957,36 +1030,115 @@ export const HomePage = () => {
                 />
               ))}
             </div>
-          ) : (
-            normalizedNewReleases.length > 0 && (
-              <HSectionInline
-                title="Global Trending Hits"
-                subtitle="Top music trending right now"
-                songs={normalizedNewReleases}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={handleHomeSongClick}
-                cardSize="md"
-              />
-            )
           )}
 
-          {/* Sign In CTA Footer Card */}
-          <div className="rounded-3xl bg-white/[0.02] border border-white/[0.06] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-            <div>
-              <h3 className="text-xl font-bold text-white tracking-tight">
-                Unlock Your Personal Music Journey
-              </h3>
-              <p className="text-white/50 text-sm mt-1 max-w-xl">
-                Sign in to save liked songs, build custom playlists, get "Made For You" daily recommendations, and pick up right where you left off.
-              </p>
+          {/* ── TOP ARTISTS THIS WEEK ── */}
+          <div>
+            <SectionHeader
+              title="Top Artists This Week"
+              subtitle="Global chart-topping performers"
+            />
+            <div className="flex overflow-x-auto hide-scrollbar gap-4 pb-2 -mx-4 px-4">
+              {TOP_ARTISTS.map((artist) => (
+                <div
+                  key={artist.name}
+                  onClick={() =>
+                    artist.id
+                      ? navigate(`/artist/${artist.id}`)
+                      : navigate(`/search?q=${encodeURIComponent(artist.name)}`)
+                  }
+                  className="flex-shrink-0 w-32 p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-transparent hover:border-white/[0.06] transition-all cursor-pointer text-center group"
+                >
+                  <div className="w-24 h-24 mx-auto rounded-full overflow-hidden mb-2.5 shadow-lg group-hover:scale-105 transition-transform border border-white/10">
+                    <img
+                      src={artist.image}
+                      alt={artist.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <p className="text-xs font-bold text-white truncate group-hover:text-sp-green transition-colors">
+                    {artist.name}
+                  </p>
+                  <p className="text-[10px] text-white/40 truncate mt-0.5">
+                    {artist.role}
+                  </p>
+                </div>
+              ))}
             </div>
-            <button
-              onClick={() => navigate("/login")}
-              className="px-6 py-3 rounded-full bg-white text-black font-bold text-sm hover:bg-white/90 transition-colors flex-shrink-0"
-            >
-              Sign In Now
-            </button>
+          </div>
+
+          {/* ── EDITORIAL & STAFF PICKS ── */}
+          <div>
+            <SectionHeader
+              title="Editorial & Staff Picks"
+              subtitle="Hand-curated mood and activity playlists"
+            />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {EDITORIAL_PICKS.map((pick) => {
+                const IconComponent = pick.icon;
+                return (
+                  <div
+                    key={pick.title}
+                    onClick={() => handleVibeClick(pick.query)}
+                    className={`p-4 rounded-2xl bg-gradient-to-b ${pick.gradient} border border-white/[0.06] hover:border-white/20 transition-all cursor-pointer group flex flex-col justify-between h-36`}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-black/40 backdrop-blur-md flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                      <IconComponent size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white group-hover:text-sp-green transition-colors">
+                        {pick.title}
+                      </h4>
+                      <p className="text-[11px] text-white/50 truncate mt-0.5">
+                        {pick.desc}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── FEATURE SHOWCASE CARDS (COMPACT & CLEAN) ── */}
+          <div>
+            <SectionHeader
+              title="Experience SoulSync Features"
+              subtitle="Everything available to explore"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {FEATURE_SHOWCASE.map((feat) => {
+                const IconComponent = feat.icon;
+                return (
+                  <div
+                    key={feat.title}
+                    onClick={() => handleFeatureClick(feat)}
+                    className={`p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r ${feat.gradient} border backdrop-blur-md cursor-pointer group hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between gap-3`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center text-white border border-white/10 group-hover:scale-110 transition-transform">
+                        <IconComponent size={16} />
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-white/10 text-white/80 text-[10px] font-bold border border-white/10">
+                        {feat.badge}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white group-hover:text-sp-green transition-colors truncate">
+                        {feat.title}
+                      </h3>
+                      <p className="text-[11px] text-white/50 mt-0.5 line-clamp-2 leading-relaxed">
+                        {feat.desc}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-sp-green pt-0.5">
+                      <span>{feat.actionText}</span>
+                      <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
