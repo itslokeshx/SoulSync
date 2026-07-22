@@ -97,19 +97,44 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
   return `${formattedBase.replace(/\/+$/, "")}/api/search/stream?id=${id}`;
 }
 
+async function resolvePipedStream(id: string): Promise<string | null> {
+  const pipedInstances = [
+    "https://api.piped.video",
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.privacy.com.de",
+    "https://pipedapi.palvelu.org",
+    "https://pipedapi.lunar.icu",
+  ];
+  for (const inst of pipedInstances) {
+    try {
+      const resp = await axios.get(`${inst}/streams/${encodeURIComponent(id)}`, { timeout: 3000 });
+      if (resp.data && Array.isArray(resp.data.audioStreams) && resp.data.audioStreams.length > 0) {
+        const audio = resp.data.audioStreams.find((s: any) => s.mimeType?.includes("audio/mp4") || s.format === "M4A") || resp.data.audioStreams[0];
+        if (audio?.url) {
+          console.info(`[resolveRealStreamUrl] Resolved ${id} via Piped mirror: ${inst}`);
+          return audio.url;
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 async function resolveInvidiousStream(id: string): Promise<string | null> {
   const instances = [
-    "https://invidious.projectsegfau.lt",
     "https://invidious.nerdvpn.de",
     "https://yewtu.be",
     "https://inv.tux.pizza",
     "https://invidious.drgns.space",
+    "https://invidious.projectsegfau.lt",
   ];
   for (const inst of instances) {
     try {
       const streamUrl = `${inst}/latest_version?id=${encodeURIComponent(id)}&itag=140`;
-      const resp = await axios.head(streamUrl, { timeout: 2500 });
-      if (resp.status === 200 || resp.status === 206 || resp.status === 302) {
+      const resp = await axios.get(streamUrl, { timeout: 2500, maxRedirects: 0, validateStatus: (status) => status < 400 });
+      if (resp.status >= 200 && resp.status < 400) {
         console.info(`[resolveRealStreamUrl] Resolved ${id} via proxied stream mirror: ${inst}`);
         return streamUrl;
       }
@@ -117,7 +142,7 @@ async function resolveInvidiousStream(id: string): Promise<string | null> {
       continue;
     }
   }
-  return `https://invidious.projectsegfau.lt/latest_version?id=${encodeURIComponent(id)}&itag=140`;
+  return null;
 }
 
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
@@ -131,7 +156,11 @@ export async function resolveRealStreamUrl(id: string): Promise<string | null> {
     console.error(`[resolveRealStreamUrl] Error resolving stream via Python provider for ${id}:`, e.message || e);
   }
 
-  // Fallback: Resolve via public Invidious instances from Node backend
+  // Fallback 1: Resolve via Piped mirrors (extracts direct googlevideo stream URL)
+  const pipedUrl = await resolvePipedStream(id);
+  if (pipedUrl) return pipedUrl;
+
+  // Fallback 2: Resolve via public Invidious instances
   return await resolveInvidiousStream(id);
 }
 

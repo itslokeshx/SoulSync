@@ -645,7 +645,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           .then((searchRes: any) => {
             const songs = searchRes?.songs || [];
             const playableSong = songs.find(
-              (song: any) => song.id && song.id !== failedSong.id,
+              (song: any) => song.id && !attempted.has(song.id),
             );
 
             if (playableSong) {

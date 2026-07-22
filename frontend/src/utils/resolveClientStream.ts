@@ -6,16 +6,38 @@
 export async function resolveClientStream(songId: string): Promise<string | null> {
   if (!songId || songId.startsWith("local_")) return null;
 
+  const pipedInstances = [
+    "https://api.piped.video",
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.privacy.com.de",
+    "https://pipedapi.palvelu.org",
+  ];
+
+  for (const inst of pipedInstances) {
+    try {
+      const res = await fetch(`${inst}/streams/${encodeURIComponent(songId)}`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.audioStreams) && data.audioStreams.length > 0) {
+          const audio = data.audioStreams.find((s: any) => s.mimeType?.includes("audio/mp4") || s.format === "M4A") || data.audioStreams[0];
+          if (audio?.url) {
+            console.info(`[ClientStream] Resolved ${songId} via Piped mirror: ${inst}`);
+            return audio.url;
+          }
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+
   const publicInstances = [
-    "https://invidious.projectsegfau.lt",
     "https://invidious.nerdvpn.de",
     "https://yewtu.be",
     "https://inv.tux.pizza",
+    "https://invidious.projectsegfau.lt",
   ];
 
-  // Fast random selection across working proxy instances to distribute load
   const inst = publicInstances[Math.floor(Math.random() * publicInstances.length)];
-  const streamUrl = `${inst}/latest_version?id=${encodeURIComponent(songId)}&itag=140`;
-  console.info(`[ClientStream] Resolved ${songId} via proxied stream mirror: ${inst}`);
-  return streamUrl;
+  return `${inst}/latest_version?id=${encodeURIComponent(songId)}&itag=140`;
 }
