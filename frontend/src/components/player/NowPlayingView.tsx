@@ -147,21 +147,18 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
-  const { 
-    autoplay, 
-    toggleAutoplay, 
-    isVideoMode, 
+  const {
+    autoplay,
+    toggleAutoplay,
+    isVideoMode,
     setIsVideoMode,
-    setCurrentTime,
-    setDuration,
-    setIsPlaying,
-    isMuted,
     sleepTimerActive,
     sleepTimerSecondsLeft,
     sleepTimerEndOnTrack,
-    setSleepTimer
+    setSleepTimer,
   } = usePlayerStore();
 
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isSeekingRef = useRef(false);
 
@@ -191,16 +188,6 @@ export const NowPlayingView = ({
     setVideoStartTime(Math.floor(currentTime));
     setQuality(q);
     setShowQualityMenu(false);
-    try {
-      const yt = (window as any)._ytPlayerInstance;
-      if (yt && currentSong) {
-        yt.loadVideoById({
-          videoId: currentSong.id,
-          startSeconds: Math.floor(currentTime),
-          suggestedQuality: q,
-        });
-      }
-    } catch {}
   };
 
   // Close quality dropdown when tapping outside
@@ -208,7 +195,10 @@ export const NowPlayingView = ({
     if (!showQualityMenu) return;
     const close = (e: PointerEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest(".quality-trigger") || target.closest(".quality-menu")) {
+      if (
+        target.closest(".quality-trigger") ||
+        target.closest(".quality-menu")
+      ) {
         return;
       }
       setShowQualityMenu(false);
@@ -279,7 +269,21 @@ export const NowPlayingView = ({
     }
   };
 
-  // Single YouTube Player instance is handled via PlayerProvider portal
+  // The video iframe is a muted visual follower only. The <audio> element owns
+  // playback state (time/duration/play-state/ended); this iframe is driven FROM
+  // that state, never the reverse, so it does not write back to the store.
+
+  // Sync state changes from app -> YouTube player
+  useEffect(() => {
+    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow)
+      return;
+
+    const command = isPlaying ? "playVideo" : "pauseVideo";
+    iframeRef.current.contentWindow.postMessage(
+      JSON.stringify({ event: "command", func: command, args: [] }),
+      "*",
+    );
+  }, [isPlaying, isVideoMode]);
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -369,6 +373,12 @@ export const NowPlayingView = ({
 
   const handleSeek = (val: number) => {
     onSeek(val);
+    if (isVideoMode && iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: "seekTo", args: [val, true] }),
+        "*",
+      );
+    }
   };
 
   const handleSeekStart = () => {
@@ -380,7 +390,6 @@ export const NowPlayingView = ({
     isSeekingRef.current = false;
     onSeekEnd();
   };
-
 
   if (!currentSong) return null;
   const img = bestImg(currentSong.image) || FALLBACK_IMG;
@@ -415,7 +424,8 @@ export const NowPlayingView = ({
       <div
         className="absolute inset-0 transition-all duration-300 -z-10"
         style={{
-          background: "radial-gradient(circle at 20% 30%, #1e1e20, transparent 60%), radial-gradient(circle at 80% 70%, #101012, transparent 80%), linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
+          background:
+            "radial-gradient(circle at 20% 30%, #1e1e20, transparent 60%), radial-gradient(circle at 80% 70%, #101012, transparent 80%), linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
           transform: isOpen ? "none" : "translateY(100%)",
           opacity: isOpen ? 1 : 0,
         }}
@@ -427,7 +437,9 @@ export const NowPlayingView = ({
         style={{
           paddingTop: isOpen ? "env(safe-area-inset-top, 0px)" : "0px",
           paddingBottom: isOpen ? "env(safe-area-inset-bottom, 0px)" : "0px",
-          transform: isOpen ? `translateY(${dragOffset}px)` : "translateY(100%)",
+          transform: isOpen
+            ? `translateY(${dragOffset}px)`
+            : "translateY(100%)",
           opacity: isOpen ? 1 - Math.min(dragOffset / 500, 0.4) : 0,
           pointerEvents: isOpen ? "auto" : "none",
         }}
@@ -463,10 +475,14 @@ export const NowPlayingView = ({
               aria-label="Toggle Queue"
             >
               <ListMusic size={17} />
-              <span className="text-[12px] font-bold tracking-wide">Up Next</span>
+              <span className="text-[12px] font-bold tracking-wide">
+                Up Next
+              </span>
             </button>
             <button
-              onClick={(e) => showContextMenu(e.clientX, e.clientY, currentSong)}
+              onClick={(e) =>
+                showContextMenu(e.clientX, e.clientY, currentSong)
+              }
               className="text-white/40 hover:text-white transition-all p-2.5 rounded-xl hover:bg-white/10 active:scale-95"
             >
               <MoreHorizontal size={20} />
@@ -511,7 +527,9 @@ export const NowPlayingView = ({
                   boxShadow: `0 20px 60px ${bgColor}30, 0 0 30px ${bgColor}15`,
                 }}
               >
-                <div className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}>
+                <div
+                  className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}
+                >
                   <img
                     src={img}
                     onError={onImgErr}
@@ -531,7 +549,15 @@ export const NowPlayingView = ({
                 ref={containerRef}
                 className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center group shadow-2xl relative pointer-events-auto"
               >
-                <div id="youtube-video-player" className="w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden relative pointer-events-auto" />
+                <iframe
+                  ref={iframeRef}
+                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}&vq=${quality}`}
+                  title={currentSong.name}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
+                />
                 {!isFullscreen && (
                   <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto z-50">
                     {/* Quality Button */}
@@ -545,9 +571,21 @@ export const NowPlayingView = ({
                         title="Video Quality"
                       >
                         <Settings size={12} />
-                        <span>{quality === "default" ? "Auto" : quality === "hd1080" ? "1080p" : quality === "hd720" ? "720p" : quality === "large" ? "480p" : quality === "medium" ? "360p" : "240p"}</span>
+                        <span>
+                          {quality === "default"
+                            ? "Auto"
+                            : quality === "hd1080"
+                              ? "1080p"
+                              : quality === "hd720"
+                                ? "720p"
+                                : quality === "large"
+                                  ? "480p"
+                                  : quality === "medium"
+                                    ? "360p"
+                                    : "240p"}
+                        </span>
                       </button>
-                      
+
                       {showQualityMenu && (
                         <div className="quality-menu absolute bottom-10 right-0 bg-black/95 border border-white/15 rounded-xl p-1 z-[100] flex flex-col min-w-[110px] shadow-2xl backdrop-blur-xl">
                           {[
@@ -556,7 +594,7 @@ export const NowPlayingView = ({
                             { val: "hd720", label: "720p" },
                             { val: "large", label: "480p" },
                             { val: "medium", label: "360p" },
-                            { val: "small", label: "240p" }
+                            { val: "small", label: "240p" },
                           ].map((opt) => (
                             <button
                               key={opt.val}
@@ -565,11 +603,15 @@ export const NowPlayingView = ({
                                 handleQualityChange(opt.val);
                               }}
                               className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10 flex items-center justify-between ${
-                                quality === opt.val ? "text-sp-green" : "text-white/80"
+                                quality === opt.val
+                                  ? "text-sp-green"
+                                  : "text-white/80"
                               }`}
                             >
                               <span>{opt.label}</span>
-                              {quality === opt.val && <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />}
+                              {quality === opt.val && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />
+                              )}
                             </button>
                           ))}
                         </div>
@@ -589,12 +631,13 @@ export const NowPlayingView = ({
                 {isFullscreen && (
                   <div
                     className={`absolute inset-0 bg-transparent flex flex-col justify-end transition-opacity duration-300 pointer-events-auto ${
-                      showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                      showControls
+                        ? "opacity-100"
+                        : "opacity-0 pointer-events-none"
                     }`}
                   >
                     {/* Compact Full-Width Bottom Glass Control Bar */}
                     <div className="absolute bottom-0 left-0 right-0 bg-black/85 border-t border-white/10 backdrop-blur-xl px-6 py-2.5 flex items-center justify-between gap-6 shadow-2xl text-white pointer-events-auto">
-                      
                       {/* Top Timeline Slider */}
                       <div className="absolute top-0 left-0 right-0 -translate-y-1/2 w-full h-1 px-1">
                         <input
@@ -618,8 +661,12 @@ export const NowPlayingView = ({
 
                       {/* Left: Song Info */}
                       <div className="text-left min-w-0 flex-1">
-                        <h2 className="text-white text-xs md:text-sm font-bold truncate leading-tight">{currentSong.name}</h2>
-                        <p className="text-white/40 text-[9px] md:text-xs mt-0.5 truncate">{artists}</p>
+                        <h2 className="text-white text-xs md:text-sm font-bold truncate leading-tight">
+                          {currentSong.name}
+                        </h2>
+                        <p className="text-white/40 text-[9px] md:text-xs mt-0.5 truncate">
+                          {artists}
+                        </p>
                       </div>
 
                       {/* Right: Controls & Info */}
@@ -630,9 +677,15 @@ export const NowPlayingView = ({
                           className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg pointer-events-auto"
                         >
                           {isPlaying ? (
-                            <Pause size={14} className="text-black fill-black" />
+                            <Pause
+                              size={14}
+                              className="text-black fill-black"
+                            />
                           ) : (
-                            <Play size={14} className="text-black fill-black ml-0.5" />
+                            <Play
+                              size={14}
+                              className="text-black fill-black ml-0.5"
+                            />
                           )}
                         </button>
 
@@ -645,7 +698,9 @@ export const NowPlayingView = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              queueMicrotask(() => setShowQualityMenu(!showQualityMenu));
+                              queueMicrotask(() =>
+                                setShowQualityMenu(!showQualityMenu),
+                              );
                             }}
                             className={`quality-trigger px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all active:scale-95 pointer-events-auto flex items-center gap-1 ${
                               showQualityMenu
@@ -655,9 +710,21 @@ export const NowPlayingView = ({
                             title="Video Quality"
                           >
                             <Settings size={12} />
-                            <span>{quality === "default" ? "Auto" : quality === "hd1080" ? "1080p" : quality === "hd720" ? "720p" : quality === "large" ? "480p" : quality === "medium" ? "360p" : "240p"}</span>
+                            <span>
+                              {quality === "default"
+                                ? "Auto"
+                                : quality === "hd1080"
+                                  ? "1080p"
+                                  : quality === "hd720"
+                                    ? "720p"
+                                    : quality === "large"
+                                      ? "480p"
+                                      : quality === "medium"
+                                        ? "360p"
+                                        : "240p"}
+                            </span>
                           </button>
-                          
+
                           {showQualityMenu && (
                             <div className="quality-menu absolute bottom-10 right-0 bg-black/95 border border-white/15 rounded-xl p-1 z-[100] flex flex-col min-w-[110px] shadow-2xl backdrop-blur-xl pointer-events-auto">
                               {[
@@ -666,7 +733,7 @@ export const NowPlayingView = ({
                                 { val: "hd720", label: "720p" },
                                 { val: "large", label: "480p" },
                                 { val: "medium", label: "360p" },
-                                { val: "small", label: "240p" }
+                                { val: "small", label: "240p" },
                               ].map((opt) => (
                                 <button
                                   key={opt.val}
@@ -675,11 +742,15 @@ export const NowPlayingView = ({
                                     handleQualityChange(opt.val);
                                   }}
                                   className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10 flex items-center justify-between ${
-                                    quality === opt.val ? "text-sp-green" : "text-white/80"
+                                    quality === opt.val
+                                      ? "text-sp-green"
+                                      : "text-white/80"
                                   }`}
                                 >
                                   <span>{opt.label}</span>
-                                  {quality === opt.val && <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />}
+                                  {quality === opt.val && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -800,7 +871,8 @@ export const NowPlayingView = ({
                         boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
                       }}
                       onMouseEnter={() => {
-                        if (volTimeout.current) clearTimeout(volTimeout.current);
+                        if (volTimeout.current)
+                          clearTimeout(volTimeout.current);
                       }}
                       onMouseLeave={scheduleHideVol}
                     >
@@ -892,27 +964,36 @@ export const NowPlayingView = ({
                 onClick={onRepeat}
                 className={`transition-all duration-200 p-2 rounded-full ${repeat !== "off" ? "text-sp-green" : "text-white/40 hover:text-white"}`}
               >
-                {repeat === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
+                {repeat === "one" ? (
+                  <Repeat1 size={18} />
+                ) : (
+                  <Repeat size={18} />
+                )}
               </button>
               <button
                 onClick={() => setShowSleepTimerMenu(true)}
                 className={`transition-all duration-200 p-2 rounded-full flex items-center gap-1 ${
-                  sleepTimerActive 
-                    ? "text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full animate-pulse" 
+                  sleepTimerActive
+                    ? "text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full animate-pulse"
                     : "text-white/40 hover:text-white"
                 }`}
                 title={
-                  sleepTimerActive 
-                    ? sleepTimerEndOnTrack 
-                      ? "Sleep Timer: End of track" 
+                  sleepTimerActive
+                    ? sleepTimerEndOnTrack
+                      ? "Sleep Timer: End of track"
                       : `Sleep Timer: ${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`
                     : "Set Sleep Timer"
                 }
               >
-                <Moon size={18} className={sleepTimerActive ? "fill-indigo-400" : ""} />
+                <Moon
+                  size={18}
+                  className={sleepTimerActive ? "fill-indigo-400" : ""}
+                />
                 {sleepTimerActive && (
                   <span className="text-[10px] font-black">
-                    {sleepTimerEndOnTrack ? "End" : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m`}
+                    {sleepTimerEndOnTrack
+                      ? "End"
+                      : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m`}
                   </span>
                 )}
               </button>
@@ -967,7 +1048,8 @@ export const NowPlayingView = ({
                           Played · {played.length}
                         </p>
                         {played.map((s, i) => {
-                          const sImg = bestImg(s.image, "50x50") || FALLBACK_IMG;
+                          const sImg =
+                            bestImg(s.image, "50x50") || FALLBACK_IMG;
                           return (
                             <button
                               key={`played-${s.id}-${i}`}
@@ -1001,7 +1083,9 @@ export const NowPlayingView = ({
                     {currentSong && (
                       <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-sp-green/[0.08] border border-sp-green/15">
                         <img
-                          src={bestImg(currentSong.image, "50x50") || FALLBACK_IMG}
+                          src={
+                            bestImg(currentSong.image, "50x50") || FALLBACK_IMG
+                          }
                           onError={onImgErr}
                           className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
                         />
@@ -1041,12 +1125,13 @@ export const NowPlayingView = ({
                             onDragOver={(e) => handleDragOver(e, i)}
                             onDrop={(e) => handleDrop(e, i)}
                             onDragEnd={handleDragEnd}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${isDragging
-                              ? "opacity-30 scale-95"
-                              : isOver
-                                ? "bg-sp-green/10 border border-sp-green/20"
-                                : "hover:bg-white/[0.04] border border-transparent"
-                              }`}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-150 group cursor-default select-none ${
+                              isDragging
+                                ? "opacity-30 scale-95"
+                                : isOver
+                                  ? "bg-sp-green/10 border border-sp-green/20"
+                                  : "hover:bg-white/[0.04] border border-transparent"
+                            }`}
                           >
                             {/* Drag handle */}
                             <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-white/15 hover:text-white/40 transition-colors touch-none">
@@ -1123,8 +1208,12 @@ export const NowPlayingView = ({
                     <Moon size={20} className="fill-current" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base">Sleep Timer</h3>
-                    <p className="text-xs text-white/50">Stop music automatically</p>
+                    <h3 className="font-bold text-white text-base">
+                      Sleep Timer
+                    </h3>
+                    <p className="text-xs text-white/50">
+                      Stop music automatically
+                    </p>
                   </div>
                 </div>
                 <button
@@ -1139,7 +1228,10 @@ export const NowPlayingView = ({
               {sleepTimerActive && (
                 <div className="mb-4 p-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-between">
                   <span className="text-xs text-white/60">
-                    Active: {sleepTimerEndOnTrack ? "End of track" : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`}
+                    Active:{" "}
+                    {sleepTimerEndOnTrack
+                      ? "End of track"
+                      : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`}
                   </span>
                   <button
                     onClick={() => {
@@ -1157,7 +1249,9 @@ export const NowPlayingView = ({
               {showCustomInput ? (
                 <div className="space-y-4 py-2">
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-white/45 uppercase tracking-wider">Custom Minutes (1 - 240)</label>
+                    <label className="text-xs font-bold text-white/45 uppercase tracking-wider">
+                      Custom Minutes (1 - 240)
+                    </label>
                     <div className="flex gap-2">
                       <input
                         type="number"
@@ -1223,7 +1317,9 @@ export const NowPlayingView = ({
                       className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.06] transition-all flex items-center justify-between group"
                     >
                       <span>{opt.label}</span>
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white/40">Set →</span>
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white/40">
+                        Set →
+                      </span>
                     </button>
                   ))}
                 </div>

@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { Song } from "../types/song";
-import { unlockAudio } from "../utils/audioUnlock";
 
 interface PlayerState {
   currentSong: Song | null;
@@ -58,24 +57,37 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     sleepTimerEndOnTrack: false,
 
     playSong: (song) => {
-      unlockAudio();
-      set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 });
+      document
+        .querySelector("audio")
+        ?.play()
+        .catch(() => {});
+      set({
+        currentSong: song,
+        isPlaying: true,
+        currentTime: 0,
+        duration: Number(song.duration) || 0,
+      });
     },
     pause: () => {
-      console.log(`[DIAG ${Date.now()}] store.pause() → isPlaying=false`, new Error().stack);
       set({ isPlaying: false });
     },
     resume: () => {
-      unlockAudio();
+      document
+        .querySelector("audio")
+        ?.play()
+        .catch(() => {});
       set({ isPlaying: true });
     },
-    togglePlay: () => {
-      const currentState = get().isPlaying;
-      if (!currentState) {
-        unlockAudio();
-      }
-      set({ isPlaying: !currentState });
-    },
+    togglePlay: () =>
+      set((s) => {
+        const next = !s.isPlaying;
+        if (next)
+          document
+            .querySelector("audio")
+            ?.play()
+            .catch(() => {});
+        return { isPlaying: next };
+      }),
     seekTo: (time) => set({ currentTime: time }),
     setVolume: (vol) => set({ volume: vol, isMuted: vol === 0 }),
     toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
@@ -92,18 +104,16 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     setDuration: (d) => set({ duration: d }),
     setCurrentTime: (t) => set({ currentTime: t }),
     setIsPlaying: (v) => {
-      if (!v) {
-        console.log(`[DIAG ${Date.now()}] store.setIsPlaying(false)`, new Error().stack);
-      }
       set({ isPlaying: v });
     },
     toggleAutoplay: () => set((s) => ({ autoplay: !s.autoplay })),
     setIsVideoMode: (v) => set({ isVideoMode: v }),
     setPlayerExpanded: (v) => set({ isPlayerExpanded: v }),
-    setSleepTimer: (seconds, endOnTrack = false) => set({
-      sleepTimerActive: seconds !== null || endOnTrack,
-      sleepTimerSecondsLeft: seconds,
-      sleepTimerEndOnTrack: endOnTrack
-    }),
+    setSleepTimer: (seconds, endOnTrack = false) =>
+      set({
+        sleepTimerActive: seconds !== null || endOnTrack,
+        sleepTimerSecondsLeft: seconds,
+        sleepTimerEndOnTrack: endOnTrack,
+      }),
   }),
 );
