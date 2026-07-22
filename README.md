@@ -21,55 +21,59 @@ No ads. No subscription. Ever.</p>
 
 SoulSync is a **free, open-source music streaming platform** built for people who love music without the paywalls. It combines intelligent AI-powered playlist generation, real-time shared listening sessions, offline downloads, and a polished cross-platform experience — all at zero cost.
 
-> 🚀 **Already used by 140+ users** with 4,000+ songs streamed. This is not a tutorial project — it's a product people actually use.
+> 🚀 **Already used by 180+ users** with 8,000+ songs streamed. This is not a tutorial project — it's a product people actually use.
 
 ---
 
 ## 📥 Downloads
 
-| Platform | Link | Requirement |
-|----------|------|-------------|
-| 🌐 **Web** | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | No install |
-| 💻 **Windows** | `SoulSync_3.0.0.exe` | Windows 10+ |
-| 🐧 **Linux** | `soulsync_3.0.0.deb` | Debian / Ubuntu |
-| 📱 **Android** | `SoulSync_3.0.0.apk` | Android 7.0+ |
+| Platform       | Link                                                           | Requirement     |
+| -------------- | -------------------------------------------------------------- | --------------- |
+| 🌐 **Web**     | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | No install      |
+| 💻 **Windows** | `SoulSync_3.0.0.exe`                                           | Windows 10+     |
+| 🐧 **Linux**   | `soulsync_3.0.0.deb`                                           | Debian / Ubuntu |
+| 📱 **Android** | `SoulSync_3.0.0.apk`                                           | Android 7.0+    |
 
 ---
 
 ## 🆚 Why SoulSync?
 
-| Feature | SoulSync | Spotify Free | Spotify Premium |
-|---------|----------|------------|-----------------|
-| Ad-free | ✅ | ❌ | ✅ |
-| AI Playlists | ✅ | ❌ | ❌ |
-| Listen Together + Chat | ✅ | ❌ | ❌ |
-| Offline Downloads | ✅ | ❌ | ✅ |
-| Open Source | ✅ MIT | ❌ | ❌ |
-| **Price** | **₹0 forever** | ₹0 w/ ads | ₹119/month |
+| Feature                | SoulSync       | Spotify Free | Spotify Premium |
+| ---------------------- | -------------- | ------------ | --------------- |
+| Ad-free                | ✅             | ❌           | ✅              |
+| AI Playlists           | ✅             | ❌           | ❌              |
+| Listen Together + Chat | ✅             | ❌           | ❌              |
+| Offline Downloads      | ✅             | ❌           | ✅              |
+| Open Source            | ✅ MIT         | ❌           | ❌              |
+| **Price**              | **₹0 forever** | ₹0 w/ ads    | ₹119/month      |
 
 ---
 
 ## 🎯 Core Features
 
 ### 🔍 Intelligent Search — 7 Ranking Signals
+
 - **Originals first** — covers, karaokes, and tributes are automatically penalized
 - **7-factor ranking** — play count (dominant), title/artist match, language preference
 - **50 results** per query including artist and album sections
 - **Redis cache** — 10-min TTL, repeat searches return in under 50ms
 
 ### 🤖 AI Playlist Generator
+
 - **Mood-based** — describe a vibe, get 15 curated songs with a creative name
 - **Song matching** — paste a list, AI finds JioSaavn matches automatically
 - **Multi-key rotation** — up to 5 Groq API keys with auto-fallback
 - **Universal import** — Spotify, YouTube Music, Apple Music, Gaana, or plain text
 
 ### 🎧 SoulLink — Listen Together
+
 - **Real-time sync** — host controls (play, pause, seek, queue) sync to all guests
 - **6-character room codes** — no account needed to join
 - **Built-in chat** — message within the session
 - **Heartbeat protocol** — auto-cleanup on disconnect
 
 ### 📱 Native Android App
+
 - **Offline without login** — opens directly when offline
 - **Lock screen controls** — play / pause / skip from notification
 - **Background audio** — keeps playing when minimized
@@ -77,34 +81,36 @@ SoulSync is a **free, open-source music streaming platform** built for people wh
 - **Dynamic release resolution** — download paths resolve the latest APK release asset directly from GitHub's live API
 
 ### 📊 SoulSync Wrapped — Live Listening Story
+
 - **Responsive Viewport Deck**: A gorgeous full-screen visual modal covering the entire viewport, responsive across mobile, tablet, and desktop screens.
 - **Dynamic Stats Aggregation**: Real-time calculations of joined date milestones, total minutes listened, total play count, and liked songs directly from MongoDB.
 - **Top Songs & Vinyl Disc**: Shows the top 5 most-played songs and rotates a custom album-art styled vinyl record for the primary artist.
 - **Ticket Infographic Pass**: Renders an authentic concert ticket pass, featuring perforated edges, barcodes, cutouts, and shareable summaries.
 
 ### 🔗 Shareable Links
+
 - Song links: `soul-sync-beta.vercel.app/s/:slug`
 - Playlist links: `soul-sync-beta.vercel.app/p/:slug`
 - **Rich previews** — album art in WhatsApp, iMessage, Telegram via OG meta tags
 
 ### ✈️ Offline Mode
 
-| Scenario | Web | APK |
-|----------|-----|-----|
-| Offline + logged in | ✅ Downloads available | ✅ Downloads available |
-| Offline + not logged in | ❌ Login required | ✅ Opens directly |
+| Scenario                | Web                    | APK                    |
+| ----------------------- | ---------------------- | ---------------------- |
+| Offline + logged in     | ✅ Downloads available | ✅ Downloads available |
+| Offline + not logged in | ❌ Login required      | ✅ Opens directly      |
 
 ---
 
 ## ⚡ Performance
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Search latency (cached) | 1.2s | 45ms | **−96%** |
-| Dashboard load (cached) | 2.1s | 95ms | **−95%** |
-| Results per query | 20 | 50 | **+150%** |
-| Original song at rank #1 | Never | Always | ✅ |
-| Cache hit rate | 0% | 78% | — |
+| Metric                   | Before | After  | Improvement |
+| ------------------------ | ------ | ------ | ----------- |
+| Search latency (cached)  | 1.2s   | 45ms   | **−96%**    |
+| Dashboard load (cached)  | 2.1s   | 95ms   | **−95%**    |
+| Results per query        | 20     | 50     | **+150%**   |
+| Original song at rank #1 | Never  | Always | ✅          |
+| Cache hit rate           | 0%     | 78%    | —           |
 
 ---
 
@@ -492,29 +498,29 @@ SoulSync/
 
 ## 🛠️ Tech Stack
 
-| Layer | Technologies |
-|-------|-------------|
+| Layer        | Technologies                                                                             |
+| ------------ | ---------------------------------------------------------------------------------------- |
 | **Frontend** | React 18.3 · TypeScript 5.7 · Vite 6.1 · Tailwind CSS 3.4 · Zustand 5 · TanStack Query 5 |
-| **Mobile** | Capacitor 8.1 · Android API 24+ |
-| **Backend** | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7 |
-| **Data** | MongoDB 8.9 · Upstash Redis (90-day TTL) |
-| **AI** | Groq SDK · LLaMA 3.3 70B |
-| **Auth** | Google OAuth 2.0 · JWT RS256 · httpOnly cookies |
-| **Infra** | Vercel · Render · MongoDB Atlas |
+| **Mobile**   | Capacitor 8.1 · Android API 24+                                                          |
+| **Backend**  | Node.js 18+ · Express 4.21 · Socket.io 4.8 · TypeScript 5.7                              |
+| **Data**     | MongoDB 8.9 · Upstash Redis (90-day TTL)                                                 |
+| **AI**       | Groq SDK · LLaMA 3.3 70B                                                                 |
+| **Auth**     | Google OAuth 2.0 · JWT RS256 · httpOnly cookies                                          |
+| **Infra**    | Vercel · Render · MongoDB Atlas                                                          |
 
 ---
 
 ## 🔒 Security
 
-| Layer | Implementation |
-|-------|---------------|
-| Authentication | Google OAuth 2.0 — no passwords stored |
-| Sessions | httpOnly · Secure · SameSite cookies |
-| Headers | Helmet: CORP, COOP, CSP on all responses |
-| CORS | Exact origin validation |
-| Rate limiting | 100 req/min global · 15 req/min AI |
-| JWT | RS256, verified on every protected route |
-| Validation | Zod schemas on all REST endpoints |
+| Layer          | Implementation                           |
+| -------------- | ---------------------------------------- |
+| Authentication | Google OAuth 2.0 — no passwords stored   |
+| Sessions       | httpOnly · Secure · SameSite cookies     |
+| Headers        | Helmet: CORP, COOP, CSP on all responses |
+| CORS           | Exact origin validation                  |
+| Rate limiting  | 100 req/min global · 15 req/min AI       |
+| JWT            | RS256, verified on every protected route |
+| Validation     | Zod schemas on all REST endpoints        |
 
 ---
 
@@ -522,14 +528,14 @@ SoulSync/
 
 ### Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Node.js | ≥ 18 | Required |
-| npm | ≥ 9 | Required |
-| MongoDB Atlas | Free M0 | Required |
-| Google Cloud | OAuth 2.0 Client ID | Required |
-| Groq API | Free key | AI features only |
-| Android Studio | Latest | APK builds only |
+| Requirement    | Version             | Notes            |
+| -------------- | ------------------- | ---------------- |
+| Node.js        | ≥ 18                | Required         |
+| npm            | ≥ 9                 | Required         |
+| MongoDB Atlas  | Free M0             | Required         |
+| Google Cloud   | OAuth 2.0 Client ID | Required         |
+| Groq API       | Free key            | AI features only |
+| Android Studio | Latest              | APK builds only  |
 
 ### Setup
 
@@ -617,24 +623,24 @@ cd android && ./gradlew assembleRelease
 
 ## 📡 API Reference
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/auth/google` | Authenticate with Google ID token |
-| `GET` | `/api/search?q=...&lang=...&limit=50` | 7-factor ranked search |
-| `GET` | `/api/search/artist/:id` | Top songs by artist |
-| `GET` | `/api/search/album/:id` | Full album tracklist |
-| `POST` | `/api/share/song` | Generate shareable song slug |
-| `POST` | `/api/share/playlist` | Generate shareable playlist slug |
-| `GET` | `/api/share/s/:slug` | Get shared song (no auth) |
-| `GET` | `/api/share/p/:slug` | Get shared playlist (no auth) |
-| `POST` | `/api/import/detect` | Detect platform from URL |
-| `GET` | `/api/dashboard` | Personalized dashboard (auth) |
-| `GET` | `/api/dashboard/guest` | Guest dashboard |
-| `POST` | `/api/ai/generate` | Generate playlist from mood |
-| `POST` | `/api/ai/match` | Match songs from list |
-| `POST` | `/api/session/create` | Create SoulLink room |
-| `POST` | `/api/session/join` | Join SoulLink room |
-| `GET` | `/api/user/stats` | Get user Wrapped stats & timeline |
+| Method | Endpoint                              | Description                       |
+| ------ | ------------------------------------- | --------------------------------- |
+| `POST` | `/api/auth/google`                    | Authenticate with Google ID token |
+| `GET`  | `/api/search?q=...&lang=...&limit=50` | 7-factor ranked search            |
+| `GET`  | `/api/search/artist/:id`              | Top songs by artist               |
+| `GET`  | `/api/search/album/:id`               | Full album tracklist              |
+| `POST` | `/api/share/song`                     | Generate shareable song slug      |
+| `POST` | `/api/share/playlist`                 | Generate shareable playlist slug  |
+| `GET`  | `/api/share/s/:slug`                  | Get shared song (no auth)         |
+| `GET`  | `/api/share/p/:slug`                  | Get shared playlist (no auth)     |
+| `POST` | `/api/import/detect`                  | Detect platform from URL          |
+| `GET`  | `/api/dashboard`                      | Personalized dashboard (auth)     |
+| `GET`  | `/api/dashboard/guest`                | Guest dashboard                   |
+| `POST` | `/api/ai/generate`                    | Generate playlist from mood       |
+| `POST` | `/api/ai/match`                       | Match songs from list             |
+| `POST` | `/api/session/create`                 | Create SoulLink room              |
+| `POST` | `/api/session/join`                   | Join SoulLink room                |
+| `GET`  | `/api/user/stats`                     | Get user Wrapped stats & timeline |
 
 ---
 
@@ -750,14 +756,14 @@ We follow conventional commits:
 
 ## 🙏 Acknowledgments
 
-| Project | Role |
-|---------|------|
+| Project                                                               | Role                     |
+| --------------------------------------------------------------------- | ------------------------ |
 | [sumitkolhe/jiosaavn-api](https://github.com/sumitkolhe/jiosaavn-api) | Music streaming backbone |
-| [Groq Cloud](https://groq.com) | LLaMA 3.3 70B inference |
-| [Ionic Capacitor](https://capacitorjs.com) | Native Android bridge |
-| [Socket.io](https://socket.io) | Real-time duo sessions |
-| [Zustand](https://github.com/pmndrs/zustand) | State management |
-| [Framer Motion](https://www.framer.com/motion/) | Animations |
+| [Groq Cloud](https://groq.com)                                        | LLaMA 3.3 70B inference  |
+| [Ionic Capacitor](https://capacitorjs.com)                            | Native Android bridge    |
+| [Socket.io](https://socket.io)                                        | Real-time duo sessions   |
+| [Zustand](https://github.com/pmndrs/zustand)                          | State management         |
+| [Framer Motion](https://www.framer.com/motion/)                       | Animations               |
 
 ---
 
@@ -771,8 +777,8 @@ Distributed under the [MIT License](https://github.com/itslokeshx/SoulSync/blob/
 
 **Built with ❤️ by Loki**
 
-*No ads. No paywalls. No limits. Simply pure music.*
+_No ads. No paywalls. No limits. Simply pure music._
 
-*If SoulSync saved you ₹119/month — drop a ⭐*
+_If SoulSync saved you ₹119/month — drop a ⭐_
 
 </div>
