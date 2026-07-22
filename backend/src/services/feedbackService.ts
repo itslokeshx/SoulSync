@@ -40,7 +40,9 @@ async function sendNtfyNotification(feedback: any) {
     const title = `SoulSync Feedback [${categoryUpper}]`;
     const message = `🎵 SoulSync Feedback [${categoryUpper}]\nFrom: ${userLabel}\nPlatform: ${feedback.platform || "Web"} (v${feedback.appVersion || "1.0.0"})\n\n"${feedback.message}"`;
 
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      "User-Agent": "SoulSync-Backend/5.0 (+https://soulsync.app)",
+    };
 
     if (process.env.NTFY_TOKEN) {
       headers["Authorization"] = `Bearer ${process.env.NTFY_TOKEN.trim()}`;
@@ -128,9 +130,11 @@ export const FeedbackService = {
 
     const populated = await Feedback.findById(created._id).populate("userId", "name email username").lean();
 
-    sendNtfyNotification(populated || created).catch((err) => {
+    try {
+      await sendNtfyNotification(populated || created);
+    } catch (err) {
       console.error("[Ntfy Notification Error]", err);
-    });
+    }
 
     return created;
   },
