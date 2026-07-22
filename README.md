@@ -21,9 +21,7 @@ The project is currently used by roughly 180 users, with over 8,000 songs stream
 | Platform | Link                                                           | Requirement     |
 | -------- | -------------------------------------------------------------- | --------------- |
 | Web      | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | None            |
-| Windows  | `SoulSync_3.0.0.exe`                                           | Windows 10+     |
-| Linux    | `soulsync_3.0.0.deb`                                           | Debian / Ubuntu |
-| Android  | `SoulSync_4.0.apk`                                             | Android 7.0+    |
+| Android  | [SoulSync v5.0 APK](https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_v5.apk) | Android 7.0+    |
 
 ## Comparison
 
