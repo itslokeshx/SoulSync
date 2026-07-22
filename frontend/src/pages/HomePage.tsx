@@ -27,6 +27,9 @@ import {
   ChevronRight,
   Shuffle,
   Sparkles,
+  Globe,
+  Compass,
+  Music,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useDashboard } from "../hooks/useDashboard";
@@ -697,6 +700,7 @@ export const HomePage = () => {
   } = useDashboard(onPlay);
 
   const quickPicks = useMemo(() => {
+    if (!user) return [];
     const list: any[] = [];
     const seen = new Set<string>();
     const addToList = (s: any) => {
@@ -707,7 +711,30 @@ export const HomePage = () => {
     for (const s of normalizedRecentlyPlayed) addToList(s);
     for (const s of suggestionsSongs) addToList(s);
     return list.slice(0, 18);
-  }, [normalizedRecentlyPlayed, suggestionsSongs]);
+  }, [user, normalizedRecentlyPlayed, suggestionsSongs]);
+
+  const guestSections = useMemo(() => {
+    if (
+      guestNewReleases &&
+      guestNewReleases.length > 0 &&
+      guestNewReleases.some((s: any) => s.songs && s.songs.length > 0)
+    ) {
+      return guestNewReleases.filter((s: any) => s.songs && s.songs.length > 0);
+    }
+    if (normalizedNewReleases && normalizedNewReleases.length > 0) {
+      return [{ title: "Global Trending Hits", songs: normalizedNewReleases }];
+    }
+    return [];
+  }, [guestNewReleases, normalizedNewReleases]);
+
+  const topGuestSong = useMemo(() => {
+    if (!user) {
+      for (const sec of guestSections) {
+        if (sec.songs && sec.songs.length > 0) return sec.songs[0];
+      }
+    }
+    return null;
+  }, [user, guestSections]);
 
   const newReleasesList = normalizedNewReleases.slice(0, 24);
   const isLoading = authLoading || dashboardLoading;
@@ -720,174 +747,254 @@ export const HomePage = () => {
 
   return (
     <div className="animate-fadeIn pb-8">
-      {/* Greeting */}
-      <div className="mb-7">
-        {authLoading ? (
-          <>
+      {/* ── LOADING SKELETON STATE ── */}
+      {isLoading ? (
+        <div className="space-y-8">
+          <div className="mb-7">
             <Skeleton className="h-9 w-72 rounded-lg mb-2" />
             <Skeleton className="h-4 w-48 rounded-md" />
-          </>
-        ) : (
-          <>
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-7 w-48 rounded-lg" />
+            <div className="flex gap-4 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-[210px] w-[140px] rounded-2xl flex-shrink-0" />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-7 w-48 rounded-lg" />
+            <div className="flex gap-4 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-[210px] w-[140px] rounded-2xl flex-shrink-0" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : user ? (
+        /* ═════════════════════════════════════════════════════════════════
+           LOGGED-IN USER DASHBOARD (Continue Listening + Made For You + New Releases)
+           ═════════════════════════════════════════════════════════════════ */
+        <>
+          {/* Greeting */}
+          <div className="mb-7">
             <h1 className="text-[28px] md:text-[32px] font-black text-white tracking-tight leading-tight">
               {localGreeting}
             </h1>
             <p className="text-white/40 text-sm mt-1.5">{localSubtitle}</p>
-          </>
-        )}
-      </div>
+          </div>
 
-      {/* ── 1. TOP: CONTINUE LISTENING ── */}
-      <div className="mb-10">
-        <SectionHeader
-          title="Continue Listening"
-          subtitle="Jump back in"
-          action={
+          {/* ── 1. CONTINUE LISTENING ── */}
+          {quickPicks.length > 0 && (
+            <div className="mb-10">
+              <SectionHeader
+                title="Continue Listening"
+                subtitle="Jump back in"
+                action={
+                  <button
+                    onClick={handleShuffle}
+                    className="hidden sm:flex h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] items-center justify-center text-white/70 hover:text-white transition-colors"
+                    title="Shuffle play"
+                  >
+                    <Shuffle size={14} />
+                  </button>
+                }
+              />
+              <QuickPicksList
+                songs={quickPicks}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={(s) => handleHomeSongClick(s, quickPicks)}
+              />
+            </div>
+          )}
+
+          {/* ── 2. MADE FOR YOU ── */}
+          {madeForYouSongs && madeForYouSongs.length > 0 && (
+            <div className="mb-10">
+              <HSectionInline
+                title="Made For You"
+                subtitle="Recommended songs based on your likes, playlists & listening history"
+                songs={madeForYouSongs.slice(0, 8)}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="md"
+              />
+              {madeForYouSongs.length > 8 && (
+                <div className="-mt-8">
+                  <HSectionInline
+                    title=""
+                    hideHeader={true}
+                    songs={madeForYouSongs.slice(8, 16)}
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    onPlay={handleHomeSongClick}
+                    cardSize="md"
+                  />
+                </div>
+              )}
+              {madeForYouSongs.length > 16 && (
+                <div className="-mt-8">
+                  <HSectionInline
+                    title=""
+                    hideHeader={true}
+                    songs={madeForYouSongs.slice(16, 24)}
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    onPlay={handleHomeSongClick}
+                    cardSize="md"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 3. NEW RELEASES ── */}
+          {newReleasesList.length > 0 && (
+            <div className="mb-10">
+              <HSectionInline
+                title="New Releases"
+                subtitle="Fresh from your preferred languages"
+                songs={newReleasesList.slice(0, 8)}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="md"
+              />
+              {newReleasesList.length > 8 && (
+                <div className="-mt-8">
+                  <HSectionInline
+                    title=""
+                    hideHeader={true}
+                    songs={newReleasesList.slice(8, 16)}
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    onPlay={handleHomeSongClick}
+                    cardSize="md"
+                  />
+                </div>
+              )}
+              {newReleasesList.length > 16 && (
+                <div className="-mt-8">
+                  <HSectionInline
+                    title=""
+                    hideHeader={true}
+                    songs={newReleasesList.slice(16, 24)}
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    onPlay={handleHomeSongClick}
+                    cardSize="md"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        /* ═════════════════════════════════════════════════════════════════
+           NON-LOGGED-IN GLOBAL LANDING PAGE (Clean Global Discovery)
+           ═════════════════════════════════════════════════════════════════ */
+        <div className="space-y-10">
+          {/* Global Header Banner */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sp-green/15 via-emerald-950/20 to-black p-6 sm:p-8 border border-white/[0.08] shadow-2xl">
+            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-sp-green/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sp-green/10 border border-sp-green/20 text-sp-green text-xs font-semibold mb-3 backdrop-blur-md">
+                  <Globe size={13} />
+                  <span>Global Music Experience</span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+                  Discover Music Around the World
+                </h1>
+                <p className="text-white/60 text-sm sm:text-base mt-2.5 leading-relaxed">
+                  Stream top trending hits, global charts, and brand new releases across every language and genre—free for everyone.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <button
+                  onClick={() => navigate("/login")}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-sp-green text-black font-bold text-sm hover:scale-105 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-sp-green/25"
+                >
+                  Sign In to Personalize
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Featured Global Spotlight */}
+          {topGuestSong && (
+            <div>
+              <HeroFeatured
+                song={topGuestSong}
+                isCurrent={currentSong?.id === topGuestSong.id}
+                isPlaying={isPlaying}
+                onPlay={() =>
+                  handleHomeSongClick(
+                    topGuestSong,
+                    guestSections[0]?.songs || [topGuestSong]
+                  )
+                }
+              />
+            </div>
+          )}
+
+          {/* Global Music Carousels */}
+          {guestSections.length > 0 ? (
+            <div className="space-y-10">
+              {guestSections.map((sec: any) => (
+                <HSectionInline
+                  key={sec.title}
+                  title={sec.title}
+                  subtitle="Popular music loved around the globe"
+                  songs={sec.songs}
+                  currentSong={currentSong}
+                  isPlaying={isPlaying}
+                  onPlay={(song) => handleHomeSongClick(song, sec.songs)}
+                  cardSize="md"
+                />
+              ))}
+            </div>
+          ) : (
+            normalizedNewReleases.length > 0 && (
+              <HSectionInline
+                title="Global Trending Hits"
+                subtitle="Top music trending right now"
+                songs={normalizedNewReleases}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="md"
+              />
+            )
+          )}
+
+          {/* Sign In CTA Footer Card */}
+          <div className="rounded-3xl bg-white/[0.02] border border-white/[0.06] p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+            <div>
+              <h3 className="text-xl font-bold text-white tracking-tight">
+                Unlock Your Personal Music Journey
+              </h3>
+              <p className="text-white/50 text-sm mt-1 max-w-xl">
+                Sign in to save liked songs, build custom playlists, get "Made For You" daily recommendations, and pick up right where you left off.
+              </p>
+            </div>
             <button
-              onClick={handleShuffle}
-              className="hidden sm:flex h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] items-center justify-center text-white/70 hover:text-white transition-colors"
-              title="Shuffle play"
+              onClick={() => navigate("/login")}
+              className="px-6 py-3 rounded-full bg-white text-black font-bold text-sm hover:bg-white/90 transition-colors flex-shrink-0"
             >
-              <Shuffle size={14} />
+              Sign In Now
             </button>
-          }
-        />
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-xl" />
-            ))}
-          </div>
-        ) : (
-          quickPicks.length > 0 && (
-            <QuickPicksList
-              songs={quickPicks}
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              onPlay={(s) => handleHomeSongClick(s, quickPicks)}
-            />
-          )
-        )}
-      </div>
-
-      {/* ── 2. MIDDLE: MADE FOR YOU ── */}
-      {isLoading ? (
-        <div className="mb-10 space-y-4">
-          <Skeleton className="h-7 w-48 rounded-lg" />
-          <div className="flex gap-4 overflow-hidden">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[210px] w-[140px] rounded-2xl flex-shrink-0" />
-            ))}
           </div>
         </div>
-      ) : madeForYouSongs && madeForYouSongs.length > 0 ? (
-        <div className="mb-10">
-          <HSectionInline
-            title="Made For You"
-            subtitle="Recommended songs based on your likes, playlists & listening history"
-            songs={madeForYouSongs.slice(0, 8)}
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlay={handleHomeSongClick}
-            cardSize="md"
-          />
-          {madeForYouSongs.length > 8 && (
-            <div className="-mt-8">
-              <HSectionInline
-                title=""
-                hideHeader={true}
-                songs={madeForYouSongs.slice(8, 16)}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={handleHomeSongClick}
-                cardSize="md"
-              />
-            </div>
-          )}
-          {madeForYouSongs.length > 16 && (
-            <div className="-mt-8">
-              <HSectionInline
-                title=""
-                hideHeader={true}
-                songs={madeForYouSongs.slice(16, 24)}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={handleHomeSongClick}
-                cardSize="md"
-              />
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {/* ── 3. BOTTOM: NEW RELEASES ── */}
-      {isLoading ? (
-        <div className="mb-10 space-y-4">
-          <Skeleton className="h-7 w-48 rounded-lg" />
-          <div className="flex gap-4 overflow-hidden">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[210px] w-[140px] rounded-2xl flex-shrink-0" />
-            ))}
-          </div>
-        </div>
-      ) : !user && guestNewReleases.length > 0 ? (
-        <div className="space-y-8">
-          {guestNewReleases.map((sec: any) => (
-            <HSectionInline
-              key={sec.title}
-              title={sec.title}
-              songs={sec.songs}
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              onPlay={(song) => handleHomeSongClick(song, sec.songs)}
-              cardSize="md"
-            />
-          ))}
-        </div>
-      ) : newReleasesList.length > 0 ? (
-        <div className="mb-10">
-          <HSectionInline
-            title="New Releases"
-            subtitle="Fresh from your preferred languages"
-            songs={newReleasesList.slice(0, 8)}
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            onPlay={handleHomeSongClick}
-            cardSize="md"
-          />
-          {newReleasesList.length > 8 && (
-            <div className="-mt-8">
-              <HSectionInline
-                title=""
-                hideHeader={true}
-                songs={newReleasesList.slice(8, 16)}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={handleHomeSongClick}
-                cardSize="md"
-              />
-            </div>
-          )}
-          {newReleasesList.length > 16 && (
-            <div className="-mt-8">
-              <HSectionInline
-                title=""
-                hideHeader={true}
-                songs={newReleasesList.slice(16, 24)}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={handleHomeSongClick}
-                cardSize="md"
-              />
-            </div>
-          )}
-        </div>
-      ) : null}
+      )}
 
       {/* ── Error fallback ── */}
       {error && !dashboard && (
         <div className="text-center py-16">
-          <p className="text-white/40 text-sm">Couldn't load your dashboard.</p>
+          <p className="text-white/40 text-sm">Couldn't load global music.</p>
           <button
             onClick={refetch}
             className="mt-3 px-4 py-2 rounded-full text-sm bg-white/[0.06] text-white hover:bg-white/[0.1] transition-colors"

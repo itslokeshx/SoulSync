@@ -380,6 +380,24 @@ async function searchOneSong(
   }
 }
 
+function deduplicateSearchAIResults(results: any[]): any[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  return results.filter((r) => {
+    if (!r.song || !r.song.id) return true;
+    const id = r.song.id;
+    const normTitle = (r.song.name || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    const normArtist = (r.song.primaryArtists || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    const normKey = `${normTitle}:${normArtist.slice(0, 10)}`;
+    if (seenIds.has(id) || (normTitle.length > 2 && seenTitles.has(normKey))) {
+      return false;
+    }
+    seenIds.add(id);
+    if (normTitle.length > 2) seenTitles.add(normKey);
+    return true;
+  });
+}
+
 // ─── Process one chunk via Groq (IMPROVED with language awareness) ──────────
 async function processChunkWithGroq(
   songList: string[],
@@ -642,11 +660,13 @@ router.post(
           });
         }
 
-        // Sort: high-confidence first, then partial. Trim to target count.
-        const allFound = [
+        // Deduplicate found songs by ID and normalized title/artist
+        const deduplicated = deduplicateSearchAIResults([
           ...filteredResults.filter((r) => r.confidence === "high"),
           ...filteredResults.filter((r) => r.confidence === "partial"),
-        ].slice(0, maxSongs);
+        ]);
+
+        const allFound = deduplicated.slice(0, maxSongs);
         const matched = allFound.filter((r) => r.confidence === "high");
         const partial = allFound.filter((r) => r.confidence === "partial");
         const unmatched = filteredResults
@@ -772,12 +792,13 @@ router.post(
         MAX_SEARCH_CONCURRENT,
       );
 
-      // Sort: high-confidence first, then partial. Trim to the user's requested
-      // count so the final playlist always has exactly maxSongs songs.
-      const allFound = [
+      // Deduplicate found songs by ID and normalized title/artist
+      const deduplicated = deduplicateSearchAIResults([
         ...allResults.filter((r) => r.confidence === "high"),
         ...allResults.filter((r) => r.confidence === "partial"),
-      ].slice(0, maxSongs);
+      ]);
+
+      const allFound = deduplicated.slice(0, maxSongs);
       const matched = allFound.filter((r) => r.confidence === "high");
       const partial = allFound.filter((r) => r.confidence === "partial");
       const unmatched = allResults

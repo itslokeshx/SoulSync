@@ -122,6 +122,17 @@ function computeScore(
     else score -= 150; // wrong artist for a known song — buried
   }
 
+  // ── 10. RECENCY BONUS (0–15 pts) ───────────────────────────
+  const currentYear = new Date().getFullYear();
+  const songYear = parseInt(song.year || "0", 10);
+  if (songYear >= currentYear) {
+    score += 15; // Brand-new release (current year)
+  } else if (songYear >= currentYear - 1) {
+    score += 10; // Recent release (last 1 year)
+  } else if (songYear >= currentYear - 2) {
+    score += 5;
+  }
+
   return score;
 }
 

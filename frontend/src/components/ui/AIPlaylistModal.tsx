@@ -79,12 +79,18 @@ export function AIPlaylistModal() {
     }
   }, [aiPlaylistOpen]);
 
-  const allSongs: any[] = [
+  const allSongs: any[] = [];
+  const seenIds = new Set<string>();
+  for (const item of [
     ...(results?.matched || []),
     ...(results?.partial || []),
-  ]
-    .map((m: any) => m.song)
-    .filter(Boolean);
+  ]) {
+    const song = item?.song;
+    if (song?.id && !seenIds.has(song.id)) {
+      seenIds.add(song.id);
+      allSongs.push(song);
+    }
+  }
 
   const handleGenerate = async () => {
     if (mode === "mood" && !mood.trim()) return;
