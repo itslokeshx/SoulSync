@@ -390,6 +390,34 @@ def _resolve_stream_sync(video_id: str) -> dict:
             if cookie_file_path:
                 ydl_opts = build_ydl_opts(cookies_path=cookie_file_path)
                 try:
+                    exists = os.path.exists(cookie_file_path)
+                    size = os.path.getsize(cookie_file_path) if exists else 0
+                    cookie_count = 0
+                    sample_masked = []
+                    if exists and size > 0:
+                        with open(cookie_file_path, "r", encoding="utf-8", errors="ignore") as cf:
+                            lines = cf.readlines()
+                            for line in lines:
+                                stripped = line.strip()
+                                if stripped and not stripped.startswith("#"):
+                                    cookie_count += 1
+                            for line in lines[:5]:
+                                parts = line.strip().split("\t")
+                                if len(parts) >= 7:
+                                    domain, name, val = parts[0], parts[5], parts[6]
+                                    masked_val = val[:4] + "..." if len(val) > 4 else "***"
+                                    sample_masked.append(f"{domain} | {name}={masked_val}")
+                                else:
+                                    sample_masked.append(line[:30].strip())
+                    logger.info(
+                        f"[cookies/debug] path={cookie_file_path} | exists={exists} | size={size}B | "
+                        f"valid_cookies={cookie_count} | ydl_cookiefile={ydl_opts.get('cookiefile')} | "
+                        f"sample={sample_masked}"
+                    )
+                except Exception as dbg_err:
+                    logger.warning(f"[cookies/debug] Failed to log cookie metadata: {dbg_err}")
+
+                try:
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=False)
                         stream_url = info.get('url')
