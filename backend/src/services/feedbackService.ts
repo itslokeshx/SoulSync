@@ -25,9 +25,6 @@ async function sendNtfyNotification(feedback: any) {
       }
     }
 
-    // Standard ntfy publish URL endpoint: https://domain.com/topic
-    const publishUrl = `${urlObj.origin}/${topic}`;
-
     const categoryUpper = (feedback.category || "feedback").toUpperCase();
     const iconTag = feedback.category === "bug" ? "bug" : feedback.category === "suggestion" ? "bulb" : "speech_balloon";
     
@@ -43,9 +40,7 @@ async function sendNtfyNotification(feedback: any) {
     const title = `SoulSync Feedback [${categoryUpper}]`;
     const message = `🎵 SoulSync Feedback [${categoryUpper}]\nFrom: ${userLabel}\nPlatform: ${feedback.platform || "Web"} (v${feedback.appVersion || "1.0.0"})\n\n"${feedback.message}"`;
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+    const headers: Record<string, string> = {};
 
     if (process.env.NTFY_TOKEN) {
       headers["Authorization"] = `Bearer ${process.env.NTFY_TOKEN.trim()}`;
@@ -56,6 +51,8 @@ async function sendNtfyNotification(feedback: any) {
         : `Basic ${Buffer.from(auth).toString("base64")}`;
     }
 
+    // JSON Publishing endpoint on ntfy (e.g. https://ntfy.sh/) requires root server URL
+    const jsonServerUrl = `${urlObj.protocol}//${urlObj.host}/`;
     const payload = {
       topic: topic,
       title: title,
@@ -64,17 +61,50 @@ async function sendNtfyNotification(feedback: any) {
       tags: ["incoming_envelope", iconTag],
     };
 
-    const resp = await fetch(publishUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
+    let sent = false;
 
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      console.error(`[Ntfy] Failed to send feedback notification to ${publishUrl} (Status ${resp.status}): ${errText}`);
-    } else {
-      console.log(`[Ntfy] Feedback notification successfully sent to topic '${topic}' (${publishUrl})`);
+    // Method 1: JSON Publishing to ntfy server root
+    try {
+      const resp = await fetch(jsonServerUrl, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (resp.ok) {
+        sent = true;
+        console.log(`[Ntfy] Feedback notification successfully sent to topic '${topic}' via JSON API (${jsonServerUrl})`);
+      } else {
+        const errText = await resp.text().catch(() => "");
+        console.warn(`[Ntfy] JSON publish to ${jsonServerUrl} returned status ${resp.status}: ${errText}. Retrying with topic header POST...`);
+      }
+    } catch (e) {
+      console.warn(`[Ntfy] JSON publish to ${jsonServerUrl} failed:`, e);
+    }
+
+    // Method 2: Header-based POST directly to topic URL if Method 1 didn't succeed
+    if (!sent) {
+      const topicUrl = `${urlObj.protocol}//${urlObj.host}/${topic}`;
+      const respFallback = await fetch(topicUrl, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Title": title,
+          "Priority": feedback.category === "bug" ? "high" : "default",
+          "Tags": `incoming_envelope,${iconTag}`,
+        },
+        body: message,
+      });
+
+      if (!respFallback.ok) {
+        const errFallback = await respFallback.text().catch(() => "");
+        console.error(`[Ntfy] Fallback publish to ${topicUrl} failed (Status ${respFallback.status}): ${errFallback}`);
+      } else {
+        console.log(`[Ntfy] Feedback notification successfully sent to topic '${topic}' via Topic URL (${topicUrl})`);
+      }
     }
   } catch (err) {
     console.error("[Ntfy] Exception while sending feedback notification:", err);
