@@ -1,6 +1,6 @@
 {
   "name": "soulsync-backend",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "type": "module",
   "private": true,
   "scripts": {

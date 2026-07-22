@@ -75,7 +75,7 @@ export function FeedbackModal({ isOpen, onClose, onRefreshUnread }: FeedbackModa
       const rawPlatform = getPlatform();
       const platformMapped = rawPlatform === "android" ? "android" : rawPlatform === "electron" ? "desktop" : "web";
 
-      let version = "4.0.0";
+      let version = "5.0.0";
       try {
         const { App } = await import("@capacitor/app");
         const info = await App.getInfo();
