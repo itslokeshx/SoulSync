@@ -23,6 +23,7 @@ import {
   Minus,
   Plus,
   Infinity,
+  Moon,
 } from "lucide-react";
 import {
   bestImg,
@@ -145,7 +146,25 @@ export const NowPlayingView = ({
   const dlProgress = useDownloadStore(
     (s) => s.active.find((d) => d.id === currentSong?.id)?.progress ?? 0,
   );
-  const { autoplay, toggleAutoplay } = usePlayerStore();
+  const {
+    autoplay,
+    toggleAutoplay,
+    sleepTimerActive,
+    sleepTimerSecondsLeft,
+    sleepTimerEndOnTrack,
+    setSleepTimer,
+  } = usePlayerStore();
+
+  const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState("");
+
+  useEffect(() => {
+    if (!showSleepTimerMenu) {
+      setShowCustomInput(false);
+      setCustomMinutes("");
+    }
+  }, [showSleepTimerMenu]);
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -281,6 +300,33 @@ export const NowPlayingView = ({
           </p>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowSleepTimerMenu(true)}
+            className={`transition-all duration-200 p-2.5 rounded-xl flex items-center gap-1.5 active:scale-95 ${
+              sleepTimerActive
+                ? "text-indigo-400 bg-indigo-500/10 border border-indigo-500/20"
+                : "text-white/40 hover:text-white hover:bg-white/10"
+            }`}
+            title={
+              sleepTimerActive
+                ? sleepTimerEndOnTrack
+                  ? "Sleep Timer: End of track"
+                  : `Sleep Timer: ${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`
+                : "Set Sleep Timer"
+            }
+          >
+            <Moon
+              size={18}
+              className={sleepTimerActive ? "fill-indigo-400" : ""}
+            />
+            {sleepTimerActive && (
+              <span className="text-[10px] font-bold">
+                {sleepTimerEndOnTrack
+                  ? "End"
+                  : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m`}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setShowQueue((q) => !q)}
             className={`flex items-center gap-1.5 transition-all px-3 py-2 rounded-xl active:scale-95 ${showQueue ? "text-sp-green bg-sp-green/10 border border-sp-green/20" : "text-white/40 hover:text-white hover:bg-white/10 border border-transparent"}`}
@@ -701,6 +747,154 @@ export const NowPlayingView = ({
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Sleep Timer Picker Modal */}
+      <AnimatePresence>
+        {showSleepTimerMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-4"
+            onClick={() => setShowSleepTimerMenu(false)}
+          >
+            <motion.div
+              initial={{ y: 50, scale: 0.95 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 50, scale: 0.95 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="w-full max-w-sm bg-zinc-900/95 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+                    <Moon size={20} className="fill-current" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">
+                      Sleep Timer
+                    </h3>
+                    <p className="text-xs text-white/50">
+                      Stop music automatically
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSleepTimerMenu(false)}
+                  className="text-white/40 hover:text-white/80 transition-colors p-1"
+                >
+                  <ChevronDown size={20} />
+                </button>
+              </div>
+
+              {/* Current status */}
+              {sleepTimerActive && (
+                <div className="mb-4 p-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-between">
+                  <span className="text-xs text-white/60">
+                    Active:{" "}
+                    {sleepTimerEndOnTrack
+                      ? "End of track"
+                      : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSleepTimer(null);
+                      setShowSleepTimerMenu(false);
+                    }}
+                    className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors px-2.5 py-1 bg-red-500/10 rounded-lg border border-red-500/20"
+                  >
+                    Turn Off
+                  </button>
+                </div>
+              )}
+
+              {/* Options List */}
+              {showCustomInput ? (
+                <div className="space-y-4 py-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-white/45 uppercase tracking-wider">
+                      Custom Minutes (1 - 240)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="240"
+                        placeholder="Minutes before bed"
+                        value={customMinutes}
+                        onChange={(e) => setCustomMinutes(e.target.value)}
+                        className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-indigo-500/40 rounded-2xl px-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none transition-colors"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const mins = parseInt(customMinutes, 10);
+                            if (mins > 0 && mins <= 240) {
+                              setSleepTimer(mins * 60);
+                              setShowSleepTimerMenu(false);
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const mins = parseInt(customMinutes, 10);
+                          if (mins > 0 && mins <= 240) {
+                            setSleepTimer(mins * 60);
+                            setShowSleepTimerMenu(false);
+                          }
+                        }}
+                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95"
+                      >
+                        Set
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowCustomInput(false)}
+                    className="w-full text-center text-xs text-white/40 hover:text-white/70 transition-colors py-2 mt-2 font-medium"
+                  >
+                    ← Back to presets
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
+                  {[
+                    { label: "5 minutes", value: 5 * 60 },
+                    { label: "15 minutes", value: 15 * 60 },
+                    { label: "30 minutes", value: 30 * 60 },
+                    { label: "45 minutes", value: 45 * 60 },
+                    { label: "1 hour", value: 60 * 60 },
+                    { label: "End of track", value: "track" },
+                    { label: "Custom...", value: "custom" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={() => {
+                        if (opt.value === "custom") {
+                          setShowCustomInput(true);
+                        } else if (opt.value === "track") {
+                          setSleepTimer(null, true);
+                          setShowSleepTimerMenu(false);
+                        } else {
+                          setSleepTimer(opt.value as number);
+                          setShowSleepTimerMenu(false);
+                        }
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.06] transition-all flex items-center justify-between group"
+                    >
+                      <span>{opt.label}</span>
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white/40">
+                        Set →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

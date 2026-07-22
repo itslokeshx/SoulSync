@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export interface IFeedbackAuditLog {
+  action: "reply" | "edit_reply" | "delete_reply" | "close";
+  performedBy: string;
+  timestamp: Date;
+  details?: string;
+}
+
 export interface IFeedback extends Document {
   message: string;
   category: "bug" | "suggestion" | "other";
@@ -7,9 +14,28 @@ export interface IFeedback extends Document {
   isAnonymous: boolean;
   appVersion: string;
   platform: "web" | "android" | "desktop";
-  status: "new" | "seen" | "resolved" | "wontfix";
+  status: "pending" | "replied" | "closed" | "new" | "seen" | "resolved" | "wontfix";
+  reply?: string;
+  replyAt?: Date;
+  repliedBy?: string;
+  replySeen?: boolean;
+  auditLogs?: IFeedbackAuditLog[];
   createdAt: Date;
 }
+
+const FeedbackAuditLogSchema = new Schema<IFeedbackAuditLog>(
+  {
+    action: {
+      type: String,
+      required: true,
+      enum: ["reply", "edit_reply", "delete_reply", "close"],
+    },
+    performedBy: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    details: String,
+  },
+  { _id: false }
+);
 
 const FeedbackSchema = new Schema<IFeedback>(
   {
@@ -30,13 +56,19 @@ const FeedbackSchema = new Schema<IFeedback>(
     status: {
       type: String,
       required: true,
-      enum: ["new", "seen", "resolved", "wontfix"],
-      default: "new",
+      enum: ["pending", "replied", "closed", "new", "seen", "resolved", "wontfix"],
+      default: "pending",
     },
+    reply: { type: String, trim: true, maxlength: 2000 },
+    replyAt: Date,
+    repliedBy: String,
+    replySeen: { type: Boolean, default: false },
+    auditLogs: { type: [FeedbackAuditLogSchema], default: [] },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
 FeedbackSchema.index({ status: 1, createdAt: -1 });
+FeedbackSchema.index({ userId: 1, createdAt: -1 });
 
 export const Feedback = mongoose.model<IFeedback>("Feedback", FeedbackSchema);

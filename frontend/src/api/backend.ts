@@ -579,10 +579,40 @@ export async function adminLogout(): Promise<{ success: boolean }> {
   return data;
 }
 
-export async function getFeedback(status?: string, category?: string): Promise<{ feedback: any[] }> {
+export async function getFeedback(status?: string, category?: string, search?: string, sort?: string): Promise<{ feedback: any[] }> {
   const { data } = await api.get("/api/feedback/admin", {
-    params: { status, category },
+    params: { status, category, search, sort },
   });
+  return data;
+}
+
+export async function sendAdminReply(id: string, reply: string): Promise<{ success: boolean; feedback: any }> {
+  const { data } = await api.post(`/api/feedback/admin/${id}/reply`, { reply });
+  return data;
+}
+
+export async function updateAdminReply(id: string, reply: string): Promise<{ success: boolean; feedback: any }> {
+  const { data } = await api.put(`/api/feedback/admin/${id}/reply`, { reply });
+  return data;
+}
+
+export async function deleteAdminReply(id: string): Promise<{ success: boolean; message: string; feedback: any }> {
+  const { data } = await api.delete(`/api/feedback/admin/${id}/reply`);
+  return data;
+}
+
+export async function closeAdminFeedback(id: string): Promise<{ success: boolean; feedback: any }> {
+  const { data } = await api.patch(`/api/feedback/admin/${id}/close`);
+  return data;
+}
+
+export async function getUserFeedbackHistory(): Promise<{ success: boolean; history: any[] }> {
+  const { data } = await api.get("/api/feedback/history");
+  return data;
+}
+
+export async function markFeedbackRead(id: string): Promise<{ success: boolean; feedback: any }> {
+  const { data } = await api.patch(`/api/feedback/${id}/read`);
   return data;
 }
 
