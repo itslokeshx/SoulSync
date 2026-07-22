@@ -25,6 +25,7 @@ import { isNative } from "../utils/platform";
 import { useDuo } from "../duo/useDuo";
 import { useDuoStore } from "../duo/duoStore";
 import { getOfflineBlob } from "../utils/offlineDB";
+import { resolveClientStream } from "../utils/resolveClientStream";
 
 import toast from "react-hot-toast";
 
@@ -616,7 +617,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsPlaying(true);
   };
 
-  const handleError = (e?: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+  const handleError = async (e?: React.SyntheticEvent<HTMLAudioElement, Event>) => {
     if (!currentSong) return;
     const mediaError = audioRef.current?.error;
     console.error("[AudioEngine] Playback error for:", currentSong?.name, {
@@ -633,6 +634,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       !failedSong._isOffline &&
       !failedSong.id?.startsWith("local_")
     ) {
+      // Step 1: Attempt direct client stream resolution (Piped/mirrors)
+      const clientAttempted =
+        (window as any)._attemptedClientStreams || new Set<string>();
+      (window as any)._attemptedClientStreams = clientAttempted;
+
+      if (!clientAttempted.has(failedSong.id)) {
+        clientAttempted.add(failedSong.id);
+        console.log(`[AudioEngine] Attempting direct client stream failover for: ${failedSong.id}`);
+        try {
+          const directUrl = await resolveClientStream(failedSong.id);
+          if (directUrl && audioRef.current) {
+            console.log(`[AudioEngine] Direct client stream resolved for ${failedSong.id}: ${directUrl}`);
+            audioRef.current.src = directUrl;
+            audioRef.current.play().catch((playErr) => {
+              console.error("[AudioEngine] Direct stream autoplay failed:", playErr);
+            });
+            return;
+          }
+        } catch (err) {
+          console.warn("[AudioEngine] Direct client stream resolution failed:", err);
+        }
+      }
+
+      // Step 2: Search for alternative song version if direct stream failover failed
       const attempted =
         (window as any)._attemptedFallbacks || new Set<string>();
       (window as any)._attemptedFallbacks = attempted;
