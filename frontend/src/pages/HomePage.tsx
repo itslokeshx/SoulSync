@@ -683,23 +683,18 @@ export const HomePage = () => {
     mixesLoading,
     error,
     dashboard,
-    row1,
-    row2,
-    row3,
     suggestionsSongs,
-    mobileGridSongs,
     normalizedRecentlyPlayed,
     guestNewReleases,
     normalizedNewReleases,
+    madeForYouSongs,
     localGreeting,
     localSubtitle,
     handleHomeSongClick,
     mixSet,
     user,
     refetch,
-    podcasts,
   } = useDashboard(onPlay);
-
 
   const quickPicks = useMemo(() => {
     const list: any[] = [];
@@ -715,7 +710,6 @@ export const HomePage = () => {
   }, [normalizedRecentlyPlayed, suggestionsSongs]);
 
   const newReleasesList = normalizedNewReleases.slice(0, 24);
-
   const isLoading = authLoading || dashboardLoading;
 
   const handleShuffle = () => {
@@ -743,9 +737,7 @@ export const HomePage = () => {
         )}
       </div>
 
-
-
-      {/* ── CONTINUE LISTENING ── */}
+      {/* ── 1. TOP: CONTINUE LISTENING ── */}
       <div className="mb-10">
         <SectionHeader
           title="Continue Listening"
@@ -778,65 +770,57 @@ export const HomePage = () => {
         )}
       </div>
 
-
-
-      {/* ── MADE FOR YOU (WEEKLY MIXES) ── */}
-      {mixSet?.mixes && mixSet.mixes.length > 0 && (
+      {/* ── 2. MIDDLE: MADE FOR YOU ── */}
+      {isLoading ? (
+        <div className="mb-10 space-y-4">
+          <Skeleton className="h-7 w-48 rounded-lg" />
+          <div className="flex gap-4 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[210px] w-[140px] rounded-2xl flex-shrink-0" />
+            ))}
+          </div>
+        </div>
+      ) : madeForYouSongs && madeForYouSongs.length > 0 ? (
         <div className="mb-10">
-          {mixesLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-7 w-48 rounded-md mb-5" />
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-xl" />
-              ))}
+          <HSectionInline
+            title="Made For You"
+            subtitle="Recommended songs based on your likes, playlists & listening history"
+            songs={madeForYouSongs.slice(0, 8)}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={handleHomeSongClick}
+            cardSize="md"
+          />
+          {madeForYouSongs.length > 8 && (
+            <div className="-mt-8">
+              <HSectionInline
+                title=""
+                hideHeader={true}
+                songs={madeForYouSongs.slice(8, 16)}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="md"
+              />
             </div>
-          ) : (
-            mixSet.mixes
-              .filter((m: any) => (m.songs || []).length > 0)
-              .map((mix: any) => (
-                <div key={mix.key} className="mb-10">
-                  <HSectionInline
-                    title={mix.title}
-                    subtitle={mix.description}
-                    songs={mix.songs.slice(0, 8)}
-                    currentSong={currentSong}
-                    isPlaying={isPlaying}
-                    onPlay={handleHomeSongClick}
-                    cardSize="md"
-                  />
-                  {mix.songs.length > 8 && (
-                    <div className="-mt-8">
-                      <HSectionInline
-                        title=""
-                        hideHeader={true}
-                        songs={mix.songs.slice(8, 16)}
-                        currentSong={currentSong}
-                        isPlaying={isPlaying}
-                        onPlay={handleHomeSongClick}
-                        cardSize="md"
-                      />
-                    </div>
-                  )}
-                  {mix.songs.length > 16 && (
-                    <div className="-mt-8">
-                      <HSectionInline
-                        title=""
-                        hideHeader={true}
-                        songs={mix.songs.slice(16, 24)}
-                        currentSong={currentSong}
-                        isPlaying={isPlaying}
-                        onPlay={handleHomeSongClick}
-                        cardSize="md"
-                      />
-                    </div>
-                  )}
-                </div>
-              ))
+          )}
+          {madeForYouSongs.length > 16 && (
+            <div className="-mt-8">
+              <HSectionInline
+                title=""
+                hideHeader={true}
+                songs={madeForYouSongs.slice(16, 24)}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPlay={handleHomeSongClick}
+                cardSize="md"
+              />
+            </div>
           )}
         </div>
-      )}
+      ) : null}
 
-      {/* ── NEW RELEASES ── */}
+      {/* ── 3. BOTTOM: NEW RELEASES ── */}
       {isLoading ? (
         <div className="mb-10 space-y-4">
           <Skeleton className="h-7 w-48 rounded-lg" />
@@ -864,7 +848,7 @@ export const HomePage = () => {
         <div className="mb-10">
           <HSectionInline
             title="New Releases"
-            subtitle="Fresh from your languages"
+            subtitle="Fresh from your preferred languages"
             songs={newReleasesList.slice(0, 8)}
             currentSong={currentSong}
             isPlaying={isPlaying}
@@ -899,19 +883,6 @@ export const HomePage = () => {
           )}
         </div>
       ) : null}
-
-      {/* ── RECOMMENDED PODCASTS ── */}
-      {podcasts && podcasts.length > 0 && (
-        <HSectionInline
-          title="Trending Podcasts"
-          subtitle="Popular shows in your languages"
-          albums={podcasts}
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPlay={handleHomeSongClick}
-          cardSize="md"
-        />
-      )}
 
       {/* ── Error fallback ── */}
       {error && !dashboard && (

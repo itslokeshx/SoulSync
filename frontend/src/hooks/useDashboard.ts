@@ -280,6 +280,46 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     mobileSavedPages.push(mobileGridSongs.slice(i, i + 9));
   }
 
+  // Made For You: Recommended songs dynamically generated from Liked Songs, Playlist Songs, Listening History, and Recs
+  const madeForYouSongs = (() => {
+    const list: any[] = [];
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+
+    const cleanName = (name: string) =>
+      (name || "").toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]/g, "").trim();
+
+    const addSong = (s: any) => {
+      if (!s || !s.id || seenIds.has(s.id)) return;
+      const cn = cleanName(s.name);
+      if (cn && seenNames.has(cn)) return;
+      seenIds.add(s.id);
+      if (cn) seenNames.add(cn);
+      list.push(s);
+    };
+
+    // 1. Backend personalized recommendation engine outputs
+    for (const s of normalizedMadeForYou) addSong(s);
+
+    // 2. Mixes (Weekly Mix Set)
+    if (mixSet?.mixes) {
+      for (const mix of mixSet.mixes) {
+        for (const s of mix.songs || []) addSong(s);
+      }
+    }
+
+    // 3. User's Liked Songs
+    for (const s of normalizedLikedSongs) addSong(s);
+
+    // 4. User's Playlist Songs
+    for (const s of normalizedPlaylistSongs) addSong(s);
+
+    // 5. User's Listening History / Suggestions
+    for (const s of normalizedRecentlyPlayed) addSong(s);
+
+    return list;
+  })();
+
   return {
     loading,
     authLoading,
@@ -293,6 +333,10 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     mobileGridSongs,
     mobileSavedPages,
     normalizedRecentlyPlayed,
+    normalizedLikedSongs,
+    normalizedPlaylistSongs,
+    normalizedMadeForYou,
+    madeForYouSongs,
     guestNewReleases,
     normalizedNewReleases,
     podcasts: dashboard?.podcasts || [],
