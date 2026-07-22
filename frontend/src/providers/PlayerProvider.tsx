@@ -60,6 +60,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     resume,
     seekTo,
     setIsPlaying,
+    sleepTimerActive,
+    sleepTimerSecondsLeft,
+    sleepTimerEndOnTrack,
+    setSleepTimer,
   } = usePlayerStore();
 
   const { next, prev, queue, queueIndex, addLast } = useQueueStore();
@@ -392,6 +396,35 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [autoplay, currentSong?.id, queue, queueIndex, addLast]);
 
+  // ── Sleep Timer Countdown Logic ────────────────────────────────────
+  useEffect(() => {
+    if (!sleepTimerActive || sleepTimerEndOnTrack || sleepTimerSecondsLeft === null) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const {
+        sleepTimerActive: active,
+        sleepTimerSecondsLeft: seconds,
+        sleepTimerEndOnTrack: endOnTrack,
+        setSleepTimer: updateTimer,
+        pause: pausePlayer,
+      } = usePlayerStore.getState();
+
+      if (!active || endOnTrack || seconds === null) return;
+
+      if (seconds <= 1) {
+        pausePlayer();
+        updateTimer(null);
+        toast("Sleep timer finished — playback stopped 🌙");
+      } else {
+        updateTimer(seconds - 1, false);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [sleepTimerActive, sleepTimerEndOnTrack, sleepTimerSecondsLeft === null]);
+
   // ── Audio Element Handlers ──────────────────────────────────────
   const handleTimeUpdate = () => {
     if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
@@ -411,6 +444,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handleEnded = () => {
+    const {
+      sleepTimerActive: timerActive,
+      sleepTimerEndOnTrack: endTrack,
+      setSleepTimer: updateTimer,
+    } = usePlayerStore.getState();
+
+    if (timerActive && endTrack) {
+      pause();
+      updateTimer(null);
+      toast("Sleep timer finished — playback stopped 🌙");
+      return;
+    }
+
     if (repeatMode === "one") {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;

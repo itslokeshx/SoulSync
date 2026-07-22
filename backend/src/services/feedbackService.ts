@@ -3,7 +3,31 @@ import mongoose from "mongoose";
 
 async function sendNtfyNotification(feedback: any) {
   try {
-    const url = process.env.NTFY_URL || "https://ntfy.sh/soulsync";
+    const rawUrl = process.env.NTFY_URL || "https://ntfy.sh";
+    const rawTopic = process.env.NTFY_TOPIC;
+    
+    // Extract topic and endpoint URL cleanly
+    let topic = rawTopic;
+    let targetUrl = rawUrl.trim();
+
+    if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+      targetUrl = `https://${targetUrl}`;
+    }
+
+    const urlObj = new URL(targetUrl);
+    const pathSegments = urlObj.pathname.split("/").filter(Boolean);
+
+    if (!topic) {
+      if (pathSegments.length > 0) {
+        topic = pathSegments[pathSegments.length - 1];
+      } else {
+        topic = "soulsync";
+      }
+    }
+
+    // Standard ntfy publish URL endpoint: https://domain.com/topic
+    const publishUrl = `${urlObj.origin}/${topic}`;
+
     const categoryUpper = (feedback.category || "feedback").toUpperCase();
     const iconTag = feedback.category === "bug" ? "bug" : feedback.category === "suggestion" ? "bulb" : "speech_balloon";
     
@@ -17,19 +41,43 @@ async function sendNtfyNotification(feedback: any) {
     }
 
     const title = `SoulSync Feedback [${categoryUpper}]`;
-    const message = `🎵 SoulSync Feedback [${categoryUpper}]\nFrom: ${userLabel}\nPlatform: ${feedback.platform} (v${feedback.appVersion})\n\n"${feedback.message}"`;
+    const message = `🎵 SoulSync Feedback [${categoryUpper}]\nFrom: ${userLabel}\nPlatform: ${feedback.platform || "Web"} (v${feedback.appVersion || "1.0.0"})\n\n"${feedback.message}"`;
 
-    await fetch(url, {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (process.env.NTFY_TOKEN) {
+      headers["Authorization"] = `Bearer ${process.env.NTFY_TOKEN.trim()}`;
+    } else if (process.env.NTFY_AUTH) {
+      const auth = process.env.NTFY_AUTH.trim();
+      headers["Authorization"] = auth.startsWith("Basic ") || auth.startsWith("Bearer ")
+        ? auth
+        : `Basic ${Buffer.from(auth).toString("base64")}`;
+    }
+
+    const payload = {
+      topic: topic,
+      title: title,
+      message: message,
+      priority: feedback.category === "bug" ? 4 : 3,
+      tags: ["incoming_envelope", iconTag],
+    };
+
+    const resp = await fetch(publishUrl, {
       method: "POST",
-      headers: {
-        "Title": title,
-        "Priority": feedback.category === "bug" ? "high" : "default",
-        "Tags": `incoming_envelope,${iconTag}`,
-      },
-      body: message,
+      headers,
+      body: JSON.stringify(payload),
     });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      console.error(`[Ntfy] Failed to send feedback notification to ${publishUrl} (Status ${resp.status}): ${errText}`);
+    } else {
+      console.log(`[Ntfy] Feedback notification successfully sent to topic '${topic}' (${publishUrl})`);
+    }
   } catch (err) {
-    console.error("[Ntfy] Failed to send feedback notification to ntfy.sh:", err);
+    console.error("[Ntfy] Exception while sending feedback notification:", err);
   }
 }
 
