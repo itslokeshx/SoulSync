@@ -114,7 +114,7 @@ class GroqKeyManager {
 
       try {
         const completion = await client.chat.completions.create({
-          model: process.env.GROQ_MODEL || "gpt-oss-120b",
+          model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -127,11 +127,31 @@ class GroqKeyManager {
         this.reportSuccess(ks.key);
         ks.uses++;
 
-        // Strip markdown fences
-        const cleaned = content
-          .replace(/```json\s*/g, "")
+        // Strip markdown fences & extract JSON substring (object or array)
+        let cleaned = content
+          .replace(/```json\s*/gi, "")
           .replace(/```\s*/g, "")
           .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        const firstBracket = cleaned.indexOf("[");
+        const lastBracket = cleaned.lastIndexOf("]");
+
+        if (
+          firstBrace !== -1 &&
+          lastBrace !== -1 &&
+          lastBrace > firstBrace &&
+          (firstBracket === -1 || firstBrace < firstBracket)
+        ) {
+          cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+        } else if (
+          firstBracket !== -1 &&
+          lastBracket !== -1 &&
+          lastBracket > firstBracket
+        ) {
+          cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+        }
 
         return cleaned;
       } catch (err) {

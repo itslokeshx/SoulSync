@@ -519,22 +519,72 @@ router.post(
         let playlistName = "AI Generated Mix";
 
         try {
-          const parsed = JSON.parse(moodResult);
-          songList = (parsed.songs || []).slice(0, requestCount);
-          playlistName = parsed.playlistName || playlistName;
-        } catch (err) {
-          console.error(
-            "[AI] Mood suggestion parsing failed:",
-            err,
-            moodResult,
-          );
-          if (res.headersSent) {
-            sseEvent(res, "error", { error: "AI response parsing failed" });
-            res.end();
-          } else {
-            res.status(500).json({ error: "AI response parsing failed" });
+          let parsed: any;
+          try {
+            parsed = JSON.parse(moodResult);
+          } catch {
+            const objMatch = moodResult.match(/\{[\s\S]*\}/);
+            const arrMatch = moodResult.match(/\[[\s\S]*\]/);
+            if (objMatch) {
+              parsed = JSON.parse(objMatch[0]);
+            } else if (arrMatch) {
+              parsed = JSON.parse(arrMatch[0]);
+            } else {
+              throw new Error("Could not parse JSON structure");
+            }
           }
-          return;
+
+          if (Array.isArray(parsed)) {
+            songList = parsed.slice(0, requestCount);
+          } else if (parsed && typeof parsed === "object") {
+            songList = (
+              parsed.songs ||
+              parsed.tracks ||
+              parsed.playlist ||
+              []
+            ).slice(0, requestCount);
+            playlistName = parsed.playlistName || parsed.title || playlistName;
+          }
+        } catch (err) {
+          // Fallback 1: Extract quoted song strings if JSON parse fails
+          const extractedFromQuotes = Array.from(
+            moodResult.matchAll(/"([^"]{3,80})"/g),
+            (m) => m[1]
+          ).filter(
+            (s) =>
+              !s.toLowerCase().includes("playlistname") &&
+              !s.toLowerCase().includes("songs") &&
+              !s.toLowerCase().includes("description")
+          );
+
+          if (extractedFromQuotes.length > 0) {
+            songList = extractedFromQuotes.slice(0, requestCount);
+          } else {
+            // Fallback 2: Extract plain text line items (e.g. 1. Song - Artist)
+            const lineItems = moodResult
+              .split("\n")
+              .map((l) =>
+                l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-*]\s*/, "").trim()
+              )
+              .filter((l) => l.length > 3 && l.includes("-"));
+
+            if (lineItems.length > 0) {
+              songList = lineItems.slice(0, requestCount);
+            } else {
+              console.error(
+                "[AI] Mood suggestion parsing failed:",
+                err,
+                moodResult
+              );
+              if (res.headersSent) {
+                sseEvent(res, "error", { error: "AI response parsing failed" });
+                res.end();
+              } else {
+                res.status(500).json({ error: "AI response parsing failed" });
+              }
+              return;
+            }
+          }
         }
 
         if (songList.length === 0) {

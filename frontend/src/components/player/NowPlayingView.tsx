@@ -865,6 +865,7 @@ export const NowPlayingView = ({
                     { label: "15 minutes", value: 15 * 60 },
                     { label: "30 minutes", value: 30 * 60 },
                     { label: "Custom...", value: "custom" },
+                    { label: "End of track", value: "track" },
                   ].map((opt) => (
                     <button
                       key={opt.label}
