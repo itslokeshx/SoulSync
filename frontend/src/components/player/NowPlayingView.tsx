@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   Minus,
   Plus,
-  Infinity,
   Moon,
 } from "lucide-react";
 import {
@@ -301,33 +300,6 @@ export const NowPlayingView = ({
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setShowSleepTimerMenu(true)}
-            className={`transition-all duration-200 p-2.5 rounded-xl flex items-center gap-1.5 active:scale-95 ${
-              sleepTimerActive
-                ? "text-indigo-400 bg-indigo-500/10 border border-indigo-500/20"
-                : "text-white/40 hover:text-white hover:bg-white/10"
-            }`}
-            title={
-              sleepTimerActive
-                ? sleepTimerEndOnTrack
-                  ? "Sleep Timer: End of track"
-                  : `Sleep Timer: ${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`
-                : "Set Sleep Timer"
-            }
-          >
-            <Moon
-              size={18}
-              className={sleepTimerActive ? "fill-indigo-400" : ""}
-            />
-            {sleepTimerActive && (
-              <span className="text-[10px] font-bold">
-                {sleepTimerEndOnTrack
-                  ? "End"
-                  : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m`}
-              </span>
-            )}
-          </button>
-          <button
             onClick={() => setShowQueue((q) => !q)}
             className={`flex items-center gap-1.5 transition-all px-3 py-2 rounded-xl active:scale-95 ${showQueue ? "text-sp-green bg-sp-green/10 border border-sp-green/20" : "text-white/40 hover:text-white hover:bg-white/10 border border-transparent"}`}
             aria-label="Toggle Queue"
@@ -559,12 +531,31 @@ export const NowPlayingView = ({
               {repeat === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
             </button>
             <button
-              onClick={toggleAutoplay}
-              className={`transition-all duration-200 p-2 rounded-full ${autoplay ? "text-sp-green" : "text-sp-sub hover:text-white"}`}
-              aria-label={autoplay ? "Autoplay on" : "Autoplay off"}
-              title={autoplay ? "Autoplay: On" : "Autoplay: Off"}
+              onClick={() => setShowSleepTimerMenu(true)}
+              className={`transition-all duration-200 p-2 rounded-full flex items-center gap-1 ${
+                sleepTimerActive
+                  ? "text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full animate-pulse"
+                  : "text-white/40 hover:text-white"
+              }`}
+              title={
+                sleepTimerActive
+                  ? sleepTimerEndOnTrack
+                    ? "Sleep Timer: End of track"
+                    : `Sleep Timer: ${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`
+                  : "Set Sleep Timer"
+              }
             >
-              <Infinity size={18} />
+              <Moon
+                size={18}
+                className={sleepTimerActive ? "fill-indigo-400" : ""}
+              />
+              {sleepTimerActive && (
+                <span className="text-[10px] font-black">
+                  {sleepTimerEndOnTrack
+                    ? "End"
+                    : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m`}
+                </span>
+              )}
             </button>
           </div>
 
@@ -860,12 +851,9 @@ export const NowPlayingView = ({
               ) : (
                 <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
                   {[
-                    { label: "5 minutes", value: 5 * 60 },
                     { label: "15 minutes", value: 15 * 60 },
                     { label: "30 minutes", value: 30 * 60 },
                     { label: "45 minutes", value: 45 * 60 },
-                    { label: "1 hour", value: 60 * 60 },
-                    { label: "End of track", value: "track" },
                     { label: "Custom...", value: "custom" },
                   ].map((opt) => (
                     <button
