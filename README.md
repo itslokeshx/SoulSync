@@ -63,7 +63,7 @@ SoulSync is a **free, open-source music streaming platform** built for people wh
 - **Mood-based** — describe a vibe, get 15 curated songs with a creative name
 - **Song matching** — paste a list, AI finds JioSaavn matches automatically
 - **Multi-key rotation** — up to 5 Groq API keys with auto-fallback
-- **Universal import** — Spotify, YouTube Music, Apple Music, Gaana, or plain text
+- **Universal import** — Spotify, YouTube Music, or plain text
 
 ### 🎧 SoulLink — Listen Together
 
@@ -314,8 +314,6 @@ SoulSync/
 │       │       ├── types.ts              # Importer interface & types
 │       │       ├── spotifyImporter.ts    # Spotify playlist importer
 │       │       ├── youtubeMusicImporter.ts # YouTube Music importer
-│       │       ├── appleMusicImporter.ts # Apple Music importer
-│       │       ├── gaanaImporter.ts      # Gaana importer
 │       │       └── textImporter.ts       # Plain text song list importer
 │       │
 │       └── socket/
