@@ -2,8 +2,6 @@ import { Router, Request, Response } from "express";
 import { detectPlatform } from "../services/importDetector.js";
 import { importSpotifyPlaylist } from "../services/importers/spotifyImporter.js";
 import { importYoutubeMusicPlaylist } from "../services/importers/youtubeMusicImporter.js";
-import { importAppleMusicPlaylist } from "../services/importers/appleMusicImporter.js";
-import { importGaanaPlaylist } from "../services/importers/gaanaImporter.js";
 import {
     importFromText,
     importFromCSV,
@@ -61,14 +59,6 @@ router.post(
                         detected.url!,
                         detected.playlistId,
                     );
-                    break;
-
-                case "apple_music":
-                    result = await importAppleMusicPlaylist(detected.url!);
-                    break;
-
-                case "gaana":
-                    result = await importGaanaPlaylist(detected.url!);
                     break;
 
                 case "csv":

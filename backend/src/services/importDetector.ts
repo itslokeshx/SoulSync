@@ -1,8 +1,6 @@
 export type Platform =
     | "spotify"
     | "youtube_music"
-    | "apple_music"
-    | "gaana"
     | "jiosaavn"
     | "text"
     | "csv"
@@ -32,16 +30,6 @@ export function detectPlatform(input: string): DetectedInput {
     ) {
         const match = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/);
         return { platform: "youtube_music", url: trimmed, playlistId: match?.[1] };
-    }
-
-    // ── Apple Music ────────────────────────────────────────────
-    if (trimmed.includes("music.apple.com")) {
-        return { platform: "apple_music", url: trimmed };
-    }
-
-    // ── Gaana ──────────────────────────────────────────────────
-    if (trimmed.includes("gaana.com")) {
-        return { platform: "gaana", url: trimmed };
     }
 
     // ── JioSaavn ──────────────────────────────────────────────
