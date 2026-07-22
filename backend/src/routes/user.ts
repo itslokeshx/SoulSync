@@ -93,6 +93,20 @@ router.post(
 
       const cleanDuration = typeof duration === "number" ? duration : parseInt(String(duration), 10) || 0;
 
+      const validSources = [
+        "search",
+        "recommendation",
+        "playlist",
+        "duo",
+        "library",
+        "player",
+        "app",
+      ];
+      const cleanSource =
+        typeof source === "string" && validSources.includes(source)
+          ? source
+          : "app";
+
       await ListeningHistory.create({
         userId: req.userId,
         songId: cleanSongId,
@@ -102,7 +116,7 @@ router.post(
         albumArt: cleanAlbumArt,
         duration: cleanDuration,
         language: typeof language === "string" ? language : "",
-        source: typeof source === "string" ? source : "search",
+        source: cleanSource,
       });
 
       // Update total listening time

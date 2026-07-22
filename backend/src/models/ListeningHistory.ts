@@ -15,7 +15,8 @@ export interface IListeningHistory extends Document {
     | "playlist"
     | "duo"
     | "library"
-    | "player";
+    | "player"
+    | "app";
   completionPercent?: number; // percentage of song played (0 to 100)
   playedAt: Date;
 }
@@ -31,7 +32,15 @@ const ListeningHistorySchema = new Schema<IListeningHistory>({
   language: { type: String, default: "" },
   source: {
     type: String,
-    enum: ["search", "recommendation", "playlist", "duo", "library", "player"],
+    enum: [
+      "search",
+      "recommendation",
+      "playlist",
+      "duo",
+      "library",
+      "player",
+      "app",
+    ],
     default: "search",
   },
   completionPercent: { type: Number, default: 100 },

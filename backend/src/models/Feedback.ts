@@ -45,7 +45,7 @@ const FeedbackSchema = new Schema<IFeedback>(
       required: true,
       enum: ["bug", "suggestion", "other"],
     },
-    userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
     isAnonymous: { type: Boolean, required: true, default: false },
     appVersion: { type: String, required: true },
     platform: {

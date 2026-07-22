@@ -746,18 +746,27 @@ export const NowPlayingView = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-3 sm:p-6 overflow-y-auto overscroll-contain"
             onClick={() => setShowSleepTimerMenu(false)}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
           >
             <motion.div
-              initial={{ y: 50, scale: 0.95 }}
+              initial={{ y: "100%", scale: 0.95 }}
               animate={{ y: 0, scale: 1 }}
-              exit={{ y: 50, scale: 0.95 }}
+              exit={{ y: "100%", scale: 0.95 }}
               transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className="w-full max-w-sm bg-zinc-900/95 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl"
+              className="w-full max-w-sm max-h-[85vh] sm:max-h-[80vh] flex flex-col bg-zinc-900/95 border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl my-0 sm:my-auto overflow-hidden select-none"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
+              {/* Header handle for mobile bottom sheet look */}
+              <div className="sm:hidden flex justify-center pb-3 -mt-2">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
                     <Moon size={20} className="fill-current" />
@@ -773,7 +782,7 @@ export const NowPlayingView = ({
                 </div>
                 <button
                   onClick={() => setShowSleepTimerMenu(false)}
-                  className="text-white/40 hover:text-white/80 transition-colors p-1"
+                  className="text-white/40 hover:text-white/80 transition-colors p-1.5 rounded-full hover:bg-white/10"
                 >
                   <ChevronDown size={20} />
                 </button>
@@ -781,28 +790,30 @@ export const NowPlayingView = ({
 
               {/* Current status */}
               {sleepTimerActive && (
-                <div className="mb-4 p-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-between">
-                  <span className="text-xs text-white/60">
+                <div className="mb-4 p-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-between flex-shrink-0">
+                  <span className="text-xs text-white/70 font-medium">
                     Active:{" "}
-                    {sleepTimerEndOnTrack
-                      ? "End of track"
-                      : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`}
+                    <span className="text-indigo-400 font-bold">
+                      {sleepTimerEndOnTrack
+                        ? "End of track"
+                        : `${Math.ceil((sleepTimerSecondsLeft || 0) / 60)}m left`}
+                    </span>
                   </span>
                   <button
                     onClick={() => {
                       setSleepTimer(null);
                       setShowSleepTimerMenu(false);
                     }}
-                    className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors px-2.5 py-1 bg-red-500/10 rounded-lg border border-red-500/20"
+                    className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors px-2.5 py-1 bg-red-500/10 rounded-lg border border-red-500/20 active:scale-95"
                   >
                     Turn Off
                   </button>
                 </div>
               )}
 
-              {/* Options List */}
+              {/* Options List / Custom Input */}
               {showCustomInput ? (
-                <div className="space-y-4 py-2">
+                <div className="space-y-4 py-2 flex-1 overflow-y-auto pr-1 scrollbar-thin touch-pan-y">
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-white/45 uppercase tracking-wider">
                       Custom Minutes (1 - 240)
@@ -835,7 +846,7 @@ export const NowPlayingView = ({
                             setShowSleepTimerMenu(false);
                           }
                         }}
-                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95"
+                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-indigo-600/10 active:scale-95 flex-shrink-0"
                       >
                         Set
                       </button>
@@ -849,11 +860,11 @@ export const NowPlayingView = ({
                   </button>
                 </div>
               ) : (
-                <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
+                <div className="space-y-1.5 flex-1 overflow-y-auto pr-1 max-h-[50vh] sm:max-h-[300px] scrollbar-thin touch-pan-y overscroll-contain">
                   {[
                     { label: "15 minutes", value: 15 * 60 },
                     { label: "30 minutes", value: 30 * 60 },
-                    { label: "45 minutes", value: 45 * 60 },
+                    { label: "1 hour", value: 60 * 60 },
                     { label: "Custom...", value: "custom" },
                   ].map((opt) => (
                     <button
@@ -869,7 +880,7 @@ export const NowPlayingView = ({
                           setShowSleepTimerMenu(false);
                         }
                       }}
-                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.06] transition-all flex items-center justify-between group"
+                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.06] active:bg-white/10 transition-all flex items-center justify-between group"
                     >
                       <span>{opt.label}</span>
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white/40">
