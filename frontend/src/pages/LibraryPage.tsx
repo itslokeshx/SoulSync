@@ -75,7 +75,7 @@ export default function LibraryPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate("/import")}
+            onClick={() => gate(() => navigate("/import"), "Sign in to import your Spotify playlists")}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-all border border-[#1DB954]/30 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 hover:border-[#1DB954]/50 text-white/70 hover:text-white active:scale-95 group"
           >
             <svg

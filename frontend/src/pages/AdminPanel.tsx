@@ -1,25 +1,38 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Lock,
   MessageSquare,
   Megaphone,
   CheckCircle2,
-  XCircle,
   Clock,
   Sparkles,
-  ShieldAlert,
   ChevronDown,
   ChevronUp,
-  Plus,
   Edit3,
   LogOut,
   Trash2,
+  Search,
+  Send,
+  X,
+  ShieldCheck,
+  History,
+  CornerDownRight,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as api from "../api/backend";
 import { Feedback } from "../types/feedback";
 
 type Tab = "feedback" | "announcements";
+
+const QUICK_REPLY_TEMPLATES = [
+  "Thanks for reporting this!",
+  "This issue has been fixed.",
+  "We're investigating this.",
+  "Can you provide more details?",
+  "Feature request noted.",
+];
 
 export default function AdminPanel() {
   const [password, setPassword] = useState("");
@@ -35,10 +48,20 @@ export default function AdminPanel() {
 
   // Expanded feedback IDs
   const [expandedFeedback, setExpandedFeedback] = useState<Set<string>>(new Set());
+  const [expandedAuditLogs, setExpandedAuditLogs] = useState<Set<string>>(new Set());
 
-  // Feedback filters
+  // Feedback filters & search
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<string>("newest");
+
+  // Reply Modal State
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [isEditingReply, setIsEditingReply] = useState(false);
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   // Announcement Form State
   const [annForm, setAnnForm] = useState({
@@ -56,7 +79,7 @@ export default function AdminPanel() {
   const [editingAnnId, setEditingAnnId] = useState<string | null>(null);
   const [submittingAnn, setSubmittingAnn] = useState(false);
 
-  // Initial check on mount to see if token exists in memory/session
+  // Initial check on mount
   useEffect(() => {
     const token = api.getAdminToken();
     if (token) {
@@ -108,7 +131,12 @@ export default function AdminPanel() {
     setLoadingList(true);
     setCheckingAuth(false);
     try {
-      const fbData = await api.getFeedback();
+      const fbData = await api.getFeedback(
+        filterStatus === "all" ? undefined : filterStatus,
+        filterCategory === "all" ? undefined : filterCategory,
+        searchQuery || undefined,
+        sortOrder
+      );
       setFeedbackList(fbData.feedback || []);
 
       const annData = await api.getAdminAnnouncements();
@@ -126,37 +154,106 @@ export default function AdminPanel() {
     }
   };
 
-  // Re-fetch when active tab, filters change
+  // Re-fetch when active tab, filters, search, or sort change
   useEffect(() => {
     if (isAuthenticated) {
       if (activeTab === "feedback") {
+        setLoadingList(true);
         api.getFeedback(
           filterStatus === "all" ? undefined : filterStatus,
-          filterCategory === "all" ? undefined : filterCategory
+          filterCategory === "all" ? undefined : filterCategory,
+          searchQuery || undefined,
+          sortOrder
         )
           .then((data) => setFeedbackList(data.feedback || []))
-          .catch((err) => console.error("Feedback fetch error:", err));
+          .catch((err) => console.error("Feedback fetch error:", err))
+          .finally(() => setLoadingList(false));
       } else {
         api.getAdminAnnouncements()
           .then((data) => setAnnouncementsList(data.announcements || []))
           .catch((err) => console.error("Announcement fetch error:", err));
       }
     }
-  }, [activeTab, filterStatus, filterCategory, isAuthenticated]);
+  }, [activeTab, filterStatus, filterCategory, searchQuery, sortOrder, isAuthenticated]);
 
-  // Feedback Handlers
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
+  // Open Reply Modal
+  const openReplyModal = (fb: Feedback) => {
+    setSelectedFeedback(fb);
+    setReplyInput(fb.reply || "");
+    setIsEditingReply(!!fb.reply);
+    setReplyModalOpen(true);
+  };
+
+  // Submit Reply (Send / Edit)
+  const handleSendReply = async () => {
+    if (!selectedFeedback) return;
+    if (!replyInput.trim()) {
+      toast.error("Reply message cannot be empty.");
+      return;
+    }
+    if (replyInput.trim().length > 2000) {
+      toast.error("Reply message exceeds maximum limit of 2000 characters.");
+      return;
+    }
+
+    setSubmittingReply(true);
     try {
-      const res = await api.updateFeedbackStatus(id, newStatus);
-      if (res.success) {
+      let res;
+      if (isEditingReply) {
+        res = await api.updateAdminReply(selectedFeedback._id, replyInput.trim());
+      } else {
+        res = await api.sendAdminReply(selectedFeedback._id, replyInput.trim());
+      }
+
+      if (res.success && res.feedback) {
         setFeedbackList((prev) =>
-          prev.map((item) => (item._id === id ? { ...item, status: newStatus as any } : item))
+          prev.map((item) => (item._id === selectedFeedback._id ? res.feedback : item))
         );
-        toast.success(`Feedback updated to ${newStatus}`);
+        toast.success(isEditingReply ? "Reply updated successfully!" : "Reply sent to user!");
+        setReplyModalOpen(false);
+        setSelectedFeedback(null);
+        setReplyInput("");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Failed to send reply.");
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  // Delete Reply
+  const handleDeleteReply = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this reply? The feedback will revert to Pending status.")) {
+      return;
+    }
+    try {
+      const res = await api.deleteAdminReply(id);
+      if (res.success && res.feedback) {
+        setFeedbackList((prev) =>
+          prev.map((item) => (item._id === id ? res.feedback : item))
+        );
+        toast.success("Reply deleted successfully.");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update status.");
+      toast.error("Failed to delete reply.");
+    }
+  };
+
+  // Mark Feedback Closed
+  const handleCloseFeedback = async (id: string) => {
+    try {
+      const res = await api.closeAdminFeedback(id);
+      if (res.success && res.feedback) {
+        setFeedbackList((prev) =>
+          prev.map((item) => (item._id === id ? res.feedback : item))
+        );
+        toast.success("Feedback marked as closed.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to close feedback.");
     }
   };
 
@@ -176,70 +273,54 @@ export default function AdminPanel() {
     }
   };
 
-  const toggleExpandFeedback = async (id: string) => {
-    const isExpanding = !expandedFeedback.has(id);
+  const toggleExpandFeedback = (id: string) => {
     setExpandedFeedback((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-
-    if (isExpanding) {
-      const item = feedbackList.find((fb) => fb._id === id);
-      if (item && item.status === "new") {
-        try {
-          const res = await api.updateFeedbackStatus(id, "seen");
-          if (res.success) {
-            setFeedbackList((prevList) =>
-              prevList.map((f) => (f._id === id ? { ...f, status: "seen" } : f))
-            );
-            toast.success("Feedback marked as seen");
-          }
-        } catch (err) {
-          console.error("Failed to mark feedback seen on expand:", err);
-        }
-      }
-    }
   };
 
-  // Announcement Form Handlers
-  const handleAnnSubmit = async (e: React.FormEvent) => {
+  const toggleExpandAuditLogs = (id: string) => {
+    setExpandedAuditLogs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Announcement Handlers
+  const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!annForm.title.trim() || !annForm.body.trim()) {
-      toast.error("Title and Body are required.");
+      toast.error("Title and body are required.");
       return;
     }
-    if (annForm.type === "whats_new" && !annForm.version.trim()) {
-      toast.error("Version is required for 'What's New' type.");
-      return;
-    }
-
     setSubmittingAnn(true);
     try {
-      const formattedData = {
+      const payload = {
         ...annForm,
-        priority: Number(annForm.priority) || 0,
         expiresAt: annForm.expiresAt ? new Date(annForm.expiresAt).toISOString() : undefined,
       };
 
       if (editingAnnId) {
-        const res = await api.updateAnnouncement(editingAnnId, formattedData);
+        const res = await api.updateAnnouncement(editingAnnId, payload);
         if (res.success) {
           toast.success("Announcement updated!");
           setAnnouncementsList((prev) =>
             prev.map((item) => (item._id === editingAnnId ? res.announcement : item))
           );
-          resetAnnForm();
         }
       } else {
-        const res = await api.createAnnouncement(formattedData);
+        const res = await api.createAnnouncement(payload);
         if (res.success) {
-          toast.success("Announcement published!");
+          toast.success("Announcement created!");
           setAnnouncementsList((prev) => [res.announcement, ...prev]);
-          resetAnnForm();
         }
       }
+      resetAnnForm();
     } catch (err) {
       console.error(err);
       toast.error("Failed to save announcement.");
@@ -248,7 +329,38 @@ export default function AdminPanel() {
     }
   };
 
+  const handleEditAnnouncement = (ann: any) => {
+    setEditingAnnId(ann._id);
+    setAnnForm({
+      type: ann.type || "whats_new",
+      title: ann.title || "",
+      body: ann.body || "",
+      version: ann.version || "",
+      ctaText: ann.ctaText || "",
+      ctaRoute: ann.ctaRoute || "",
+      imageUrl: ann.imageUrl || "",
+      active: ann.active ?? true,
+      priority: ann.priority || 0,
+      expiresAt: ann.expiresAt ? new Date(ann.expiresAt).toISOString().substring(0, 16) : "",
+    });
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this announcement?")) return;
+    try {
+      const res = await api.deleteAnnouncement(id);
+      if (res.success) {
+        setAnnouncementsList((prev) => prev.filter((item) => item._id !== id));
+        toast.success("Announcement deleted.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete announcement.");
+    }
+  };
+
   const resetAnnForm = () => {
+    setEditingAnnId(null);
     setAnnForm({
       type: "whats_new",
       title: "",
@@ -261,147 +373,99 @@ export default function AdminPanel() {
       priority: 0,
       expiresAt: "",
     });
-    setEditingAnnId(null);
   };
-
-  const handleEditAnn = (ann: any) => {
-    setEditingAnnId(ann._id);
-    setAnnForm({
-      type: ann.type || "whats_new",
-      title: ann.title || "",
-      body: ann.body || "",
-      version: ann.version || "",
-      ctaText: ann.ctaText || "",
-      ctaRoute: ann.ctaRoute || "",
-      imageUrl: ann.imageUrl || "",
-      active: ann.active !== undefined ? ann.active : true,
-      priority: ann.priority || 0,
-      expiresAt: ann.expiresAt ? new Date(ann.expiresAt).toISOString().split("T")[0] : "",
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleToggleAnnActive = async (id: string, currentActive: boolean) => {
-    try {
-      const res = await api.updateAnnouncement(id, { active: !currentActive });
-      if (res.success) {
-        setAnnouncementsList((prev) =>
-          prev.map((item) => (item._id === id ? { ...item, active: !currentActive } : item))
-        );
-        toast.success(`Announcement ${!currentActive ? "activated" : "deactivated"}`);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to toggle active state.");
-    }
-  };
-
-  const handleDeleteAnn = async (id: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this announcement?")) {
-      return;
-    }
-    try {
-      const res = await api.deleteAnnouncement(id);
-      if (res.success) {
-        setAnnouncementsList((prev) => prev.filter((item) => item._id !== id));
-        toast.success("Announcement deleted successfully!");
-        if (editingAnnId === id) {
-          resetAnnForm();
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete announcement.");
-    }
-  };
-
-  // Get count of 'new' feedback items
-  const newFeedbackCount = feedbackList.filter((fb) => fb.status === "new").length;
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-sp-dark flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-sp-green border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <span className="w-8 h-8 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  // ─── RENDER ────────────────────────────────────────────────────────────────
-  return (
-    <div className="fixed inset-0 overflow-y-auto bg-sp-dark scrollbar-thin">
-      {!isAuthenticated ? (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <form
-            onSubmit={handleLogin}
-            className="w-full max-w-sm bg-sp-card border border-white/10 rounded-[28px] p-8 shadow-2xl flex flex-col items-center gap-6"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-sp-green/10 flex items-center justify-center text-sp-green">
-              <Lock size={22} />
+  // Password Gate
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white/[0.02] border border-white/[0.06] p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center text-sp-green mb-4 shadow-[0_0_30px_rgba(29,185,84,0.15)]">
+              <Lock size={26} />
             </div>
-            <div className="text-center">
-              <h2 className="text-xl font-black text-white">Admin Gate</h2>
-              <p className="text-xs text-white/40 mt-1">
-                Enter password to access admin console
-              </p>
+            <h1 className="text-2xl font-black text-white tracking-tight">SoulSync Admin</h1>
+            <p className="text-xs text-white/40 mt-1">Enter master passcode to access feedback portal</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Admin Passcode..."
+                className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-sp-green transition-colors"
+                autoFocus
+              />
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Secret Key"
-              className="w-full bg-white/[0.03] border border-white/5 focus:border-sp-green/50 rounded-xl p-3 text-center text-sm text-white placeholder-white/20 focus:outline-none transition-all duration-200"
-              autoFocus
-            />
             <button
               type="submit"
-              disabled={loggingIn || !password.trim()}
-              className="w-full py-3 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-100 transition-all duration-200 flex justify-center items-center"
+              disabled={loggingIn}
+              className="w-full py-3.5 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider hover:bg-white transition-colors duration-200 shadow-lg shadow-sp-green/20 disabled:opacity-50"
             >
-              {loggingIn ? (
-                <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "Access Console"
-              )}
+              {loggingIn ? "Authenticating..." : "Unlock Dashboard"}
             </button>
           </form>
         </div>
-      ) : (
-        <div className="min-h-screen text-white p-4 sm:p-6 max-w-5xl mx-auto pb-32 overflow-x-hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Admin Console</h1>
-          <p className="text-xs text-white/40 mt-0.5 font-mono">SoulSync Hidden System Panel</p>
+      </div>
+    );
+  }
+
+  const pendingCount = feedbackList.filter((fb) => fb.status === "pending" || fb.status === "new" || fb.status === "seen").length;
+
+  return (
+    <div className="fixed inset-0 w-screen h-screen overflow-y-auto bg-[#050505] text-white z-[500] scrollbar-thin">
+      <div className="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto animate-fadeIn pb-28">
+      {/* Responsive Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 border-b border-white/[0.06] pb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center text-sp-green shrink-0">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-xl font-black tracking-tight text-white">Admin Operations Panel</h1>
+            <p className="text-xs text-white/40">Manage Feedback Replies & System Announcements</p>
+          </div>
         </div>
+
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-red-500/10 hover:border-red-500/20 text-white/60 hover:text-red-400 text-xs font-bold transition-all duration-200 w-fit"
+          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-sp-rose/20 text-white/60 hover:text-sp-rose border border-white/[0.06] hover:border-sp-rose/30 text-xs font-bold transition-all duration-200"
         >
           <LogOut size={13} /> Log Out
         </button>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="flex gap-2 mb-6 border-b border-white/[0.04] pb-px overflow-x-auto whitespace-nowrap scrollbar-thin max-w-full shrink-0">
+      {/* Touch-Scrollable Navigation Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-white/[0.04] pb-px overflow-x-auto whitespace-nowrap scrollbar-none max-w-full shrink-0">
         <button
           onClick={() => setActiveTab("feedback")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 shrink-0 ${
             activeTab === "feedback"
               ? "border-sp-green text-sp-green"
               : "border-transparent text-white/40 hover:text-white/80"
           }`}
         >
           <MessageSquare size={14} />
-          Feedback
-          {newFeedbackCount > 0 && (
-            <span className="ml-1 bg-sp-rose text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-              {newFeedbackCount}
+          Feedback & Replies
+          {pendingCount > 0 && (
+            <span className="ml-1 bg-amber-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded-full">
+              {pendingCount}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab("announcements")}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-200 shrink-0 ${
             activeTab === "announcements"
               ? "border-sp-green text-sp-green"
               : "border-transparent text-white/40 hover:text-white/80"
@@ -412,21 +476,59 @@ export default function AdminPanel() {
         </button>
       </div>
 
-      {/* ─── TAB 1: FEEDBACK LIST ────────────────────────────────────────────── */}
+      {/* ─── TAB 1: FEEDBACK & REPLIES ────────────────────────────────────────── */}
       {activeTab === "feedback" && (
         <div className="space-y-6">
-          {/* Filters Bar */}
-          <div className="flex flex-col gap-4 bg-white/[0.01] border border-white/[0.04] p-5 rounded-2xl">
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono block">Filter By Status</span>
-              <div className="flex flex-wrap gap-2">
+          {/* Controls Bar: Filters, Search, Sort */}
+          <div className="bg-[#0c0c0e]/90 border border-white/[0.06] p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-4 shadow-xl">
+            
+            {/* Search and Sort row */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Search Box */}
+              <div className="flex-1 relative">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by email, username, or message text..."
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-sp-green transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-2 shrink-0">
+                <ArrowUpDown size={13} className="text-white/30 shrink-0" />
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="w-full sm:w-auto bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-sp-green"
+                >
+                  <option value="newest" className="bg-[#111]">Newest First</option>
+                  <option value="oldest" className="bg-[#111]">Oldest First</option>
+                  <option value="pending_first" className="bg-[#111]">Pending First</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-3 border-t border-white/[0.04]">
+              {/* Status Filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono mr-1">Status:</span>
                 {[
-                  { value: "all", label: "All Statuses" },
-                  { value: "new", label: "New" },
-                  { value: "seen", label: "Seen" },
-                  { value: "resolved", label: "Resolved" },
-                  { value: "wontfix", label: "Wontfix" },
+                  { value: "all", label: "All" },
+                  { value: "pending", label: "Pending" },
+                  { value: "replied", label: "Replied" },
+                  { value: "closed", label: "Closed" },
                 ].map((opt) => {
                   const active = filterStatus === opt.value;
                   return (
@@ -434,9 +536,9 @@ export default function AdminPanel() {
                       key={opt.value}
                       type="button"
                       onClick={() => setFilterStatus(opt.value)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      className={`px-3 py-1.5 sm:py-1 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 ${
                         active
-                          ? "bg-sp-green text-black shadow-lg shadow-sp-green/10"
+                          ? "bg-sp-green text-black shadow-md shadow-sp-green/10"
                           : "bg-white/[0.03] text-white/60 hover:bg-white/[0.06] hover:text-white"
                       }`}
                     >
@@ -445,14 +547,12 @@ export default function AdminPanel() {
                   );
                 })}
               </div>
-            </div>
 
-            {/* Category Filter */}
-            <div className="space-y-2">
-              <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono block">Filter By Category</span>
-              <div className="flex flex-wrap gap-2">
+              {/* Category Filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-white/30 tracking-wider font-mono mr-1">Category:</span>
                 {[
-                  { value: "all", label: "All Categories" },
+                  { value: "all", label: "All" },
                   { value: "bug", label: "Bugs" },
                   { value: "suggestion", label: "Suggestions" },
                   { value: "other", label: "Other" },
@@ -463,9 +563,9 @@ export default function AdminPanel() {
                       key={opt.value}
                       type="button"
                       onClick={() => setFilterCategory(opt.value)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      className={`px-3 py-1.5 sm:py-1 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 ${
                         active
-                          ? "bg-sp-green text-black shadow-lg shadow-sp-green/10"
+                          ? "bg-sp-green text-black shadow-md shadow-sp-green/10"
                           : "bg-white/[0.03] text-white/60 hover:bg-white/[0.06] hover:text-white"
                       }`}
                     >
@@ -477,28 +577,36 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {/* List content */}
+          {/* Feedback List Content */}
           {loadingList ? (
             <div className="py-20 flex justify-center">
-              <span className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <span className="w-7 h-7 border-2 border-sp-green border-t-transparent rounded-full animate-spin" />
             </div>
           ) : feedbackList.length === 0 ? (
-            <div className="py-20 text-center text-xs text-white/20 italic border border-dashed border-white/10 rounded-2xl">
+            <div className="py-16 text-center text-xs text-white/30 italic border border-dashed border-white/10 rounded-2xl p-6">
               No feedback submissions found matching active filters.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {feedbackList.map((fb) => {
                 const isExpanded = expandedFeedback.has(fb._id);
+                const isAuditOpen = expandedAuditLogs.has(fb._id);
+                const isReplied = fb.reply || fb.status === "replied";
+                const isClosed = fb.status === "closed" || fb.status === "resolved" || fb.status === "wontfix";
+
                 return (
                   <div
                     key={fb._id}
-                    className={`p-5 rounded-2xl bg-white/[0.01] border transition-all duration-200 ${
-                      fb.status === "new" ? "border-sp-rose/25 bg-sp-rose/[0.005]" : "border-white/[0.04]"
+                    className={`p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#0a0a0c] border transition-all duration-200 shadow-lg ${
+                      isReplied
+                        ? "border-violet-500/25 bg-violet-500/[0.015]"
+                        : isClosed
+                        ? "border-white/[0.05]"
+                        : "border-amber-500/25 bg-amber-500/[0.01]"
                     }`}
                   >
-                    {/* Top Row: Meta & Badges */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    {/* Top Meta Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Category Badge */}
                         <span
@@ -513,7 +621,22 @@ export default function AdminPanel() {
                           {fb.category}
                         </span>
 
-                        {/* Date */}
+                        {/* Status Badge */}
+                        {isClosed ? (
+                          <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/10 text-white/50 flex items-center gap-1">
+                            <CheckCircle2 size={10} /> Closed
+                          </span>
+                        ) : isReplied ? (
+                          <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center gap-1">
+                            <ShieldCheck size={10} /> Replied
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                            <Clock size={10} /> Pending
+                          </span>
+                        )}
+
+                        {/* Submission Date */}
                         <span className="text-[10px] text-white/30 flex items-center gap-1">
                           <Clock size={10} />
                           {new Date(fb.createdAt).toLocaleDateString()} at{" "}
@@ -524,72 +647,87 @@ export default function AdminPanel() {
                         </span>
                       </div>
 
-                      {/* Interactive Triage & Actions */}
-                      <div className="flex items-center gap-2 max-w-full shrink-0">
-                        <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] p-1 rounded-xl max-w-full overflow-x-auto scrollbar-thin shrink-0">
-                          {(["new", "seen", "resolved", "wontfix"] as const).map((statusOption) => {
-                            const isCurrent = fb.status === statusOption;
-                            return (
-                              <button
-                                key={statusOption}
-                                type="button"
-                                onClick={() => handleUpdateStatus(fb._id, statusOption)}
-                                className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 ${
-                                  isCurrent
-                                    ? statusOption === "new"
-                                      ? "bg-sp-rose text-white shadow-lg shadow-sp-rose/20"
-                                      : statusOption === "seen"
-                                      ? "bg-sp-amber text-black shadow-lg shadow-sp-amber/20"
-                                      : statusOption === "resolved"
-                                      ? "bg-sp-green text-black shadow-lg shadow-sp-green/20"
-                                      : "bg-white/30 text-white"
-                                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
-                                }`}
-                              >
-                                {statusOption}
-                              </button>
-                            );
-                          })}
-                        </div>
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
+                        {/* Reply / Edit Reply button */}
+                        <button
+                          type="button"
+                          onClick={() => openReplyModal(fb)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 ${
+                            isReplied
+                              ? "bg-violet-500/20 hover:bg-violet-500 text-violet-300 hover:text-white border border-violet-500/30"
+                              : "bg-sp-green text-black hover:bg-white shadow-md shadow-sp-green/10"
+                          }`}
+                        >
+                          <Edit3 size={12} />
+                          {isReplied ? "Edit Reply" : "Reply"}
+                        </button>
 
+                        {/* Delete Reply button */}
+                        {isReplied && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReply(fb._id)}
+                            className="px-3 py-1.5 rounded-xl bg-sp-rose/10 hover:bg-sp-rose text-sp-rose hover:text-white border border-sp-rose/25 text-[10px] font-extrabold uppercase tracking-wider transition-all"
+                            title="Delete reply"
+                          >
+                            Delete Reply
+                          </button>
+                        )}
+
+                        {/* Mark Closed button */}
+                        {!isClosed && (
+                          <button
+                            type="button"
+                            onClick={() => handleCloseFeedback(fb._id)}
+                            className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/10 text-white/60 hover:text-white border border-white/10 text-[10px] font-extrabold uppercase tracking-wider transition-all"
+                          >
+                            Mark Closed
+                          </button>
+                        )}
+
+                        {/* Permanent Delete */}
                         <button
                           type="button"
                           onClick={() => handleDeleteFeedback(fb._id)}
-                          className="p-1.5 rounded-lg bg-sp-rose/10 hover:bg-sp-rose text-sp-rose hover:text-white border border-sp-rose/25 hover:border-transparent transition-all duration-200 active:scale-95 flex items-center justify-center shrink-0"
-                          title="Delete permanently"
+                          className="p-2 rounded-xl bg-sp-rose/10 hover:bg-sp-rose text-sp-rose hover:text-white border border-sp-rose/25 transition-all"
+                          title="Delete feedback permanently"
                         >
                           <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
 
-                    {/* Submitter details */}
-                    <div className="text-[11px] text-white/50 mb-3 flex flex-wrap gap-x-3 gap-y-1 bg-white/[0.01] p-2 rounded-lg w-fit border border-white/[0.02]">
-                      <span className="font-semibold text-white/70">
-                        {fb.isAnonymous ? "Anonymous User" : fb.userId?.name || "Registered User"}
+                    {/* Submitter details pill */}
+                    <div className="text-[11px] text-white/50 mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 bg-white/[0.015] p-3 rounded-xl border border-white/[0.03]">
+                      <span className="font-bold text-white/80">
+                        User: {fb.isAnonymous ? "Anonymous User" : fb.userId?.name || "Registered User"}
                       </span>
                       {!fb.isAnonymous && fb.userId?.email && (
-                        <span className="text-white/30">{fb.userId.email}</span>
+                        <span className="text-white/40">Email: {fb.userId.email}</span>
+                      )}
+                      {!fb.isAnonymous && fb.userId?.username && (
+                        <span className="text-white/40">@{fb.userId.username}</span>
                       )}
                       <span className="text-white/30 font-mono">
-                        Platform: {fb.platform} • Version: {fb.appVersion}
+                        Platform: {fb.platform} • v{fb.appVersion}
                       </span>
                     </div>
 
                     {/* Message Body */}
-                    <div className="relative">
+                    <div className="relative mb-3">
                       <p
                         onClick={() => toggleExpandFeedback(fb._id)}
-                        className={`text-xs text-white/80 leading-relaxed cursor-pointer select-text ${
+                        className={`text-xs sm:text-sm text-white/90 leading-relaxed cursor-pointer select-text ${
                           isExpanded ? "" : "line-clamp-3"
                         }`}
                       >
                         {fb.message}
                       </p>
-                      {fb.message.length > 200 && (
+                      {fb.message.length > 180 && (
                         <button
                           onClick={() => toggleExpandFeedback(fb._id)}
-                          className="mt-2 text-[10px] font-black text-sp-green hover:underline flex items-center gap-0.5"
+                          className="mt-1 text-[10px] font-black text-sp-green hover:underline flex items-center gap-0.5"
                         >
                           {isExpanded ? (
                             <>
@@ -603,6 +741,54 @@ export default function AdminPanel() {
                         </button>
                       )}
                     </div>
+
+                    {/* Admin Reply Support Bubble */}
+                    {fb.reply && (
+                      <div className="mt-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border border-violet-500/25 shadow-inner">
+                        <div className="flex items-center justify-between text-[10px] text-violet-300 font-bold mb-1.5">
+                          <span className="flex items-center gap-1.5">
+                            <ShieldCheck size={13} className="text-sp-green" />
+                            SoulSync Support ({fb.repliedBy || "Admin"})
+                          </span>
+                          <span>
+                            {fb.replyAt ? new Date(fb.replyAt).toLocaleDateString() : ""}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{fb.reply}</p>
+                      </div>
+                    )}
+
+                    {/* Audit Log Accordion */}
+                    {fb.auditLogs && fb.auditLogs.length > 0 && (
+                      <div className="mt-3 border-t border-white/[0.04] pt-2.5">
+                        <button
+                          onClick={() => toggleExpandAuditLogs(fb._id)}
+                          className="text-[10px] font-bold text-white/40 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                          <History size={10} />
+                          Audit Trail ({fb.auditLogs.length} events)
+                          {isAuditOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                        </button>
+
+                        {isAuditOpen && (
+                          <div className="mt-2 space-y-1.5 bg-black/50 p-3 rounded-xl border border-white/[0.03] max-h-48 overflow-y-auto scrollbar-thin">
+                            {fb.auditLogs.map((log, idx) => (
+                              <div key={idx} className="text-[10px] text-white/50 flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <CornerDownRight size={9} className="text-sp-green shrink-0" />
+                                  <strong className="text-white/70 uppercase shrink-0">{log.action}:</strong> 
+                                  <span className="truncate">{log.details || log.action} by {log.performedBy}</span>
+                                </span>
+                                <span className="font-mono text-white/30 shrink-0">
+                                  {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 );
               })}
@@ -611,257 +797,308 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* ─── TAB 2: ANNOUNCEMENTS MANAGEMENT ───────────────────────────────── */}
+      {/* ─── TAB 2: ANNOUNCEMENTS ────────────────────────────────────────────── */}
       {activeTab === "announcements" && (
-        <div className="space-y-8">
-          {/* Creator Form */}
-          <form
-            onSubmit={handleAnnSubmit}
-            className="p-6 rounded-[28px] bg-white/[0.01] border border-white/[0.04] space-y-4"
-          >
-            <h3 className="text-sm font-black text-white/80 uppercase tracking-widest flex items-center gap-1.5 mb-2 font-mono">
-              <Plus size={14} />
-              {editingAnnId ? "Edit Announcement" : "Create Announcement"}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Announcement Form */}
+          <div className="lg:col-span-1 bg-[#0c0c0e]/90 border border-white/[0.06] p-5 sm:p-6 rounded-3xl h-fit shadow-xl">
+            <h3 className="text-base font-black text-white mb-4 flex items-center gap-2">
+              <Megaphone size={16} className="text-sp-green" />
+              {editingAnnId ? "Edit Announcement" : "New Announcement"}
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Type Chip Selection */}
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Announcement Type</label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: "whats_new", label: "What's New" },
-                    { value: "feature", label: "New Feature" },
-                    { value: "general", label: "General Notification" },
-                    { value: "maintenance", label: "Maintenance Alert" },
-                  ].map((opt) => {
-                    const active = annForm.type === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setAnnForm({ ...annForm, type: opt.value })}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
-                          active
-                            ? "bg-sp-green text-black shadow-lg shadow-sp-green/10"
-                            : "bg-white/[0.04] border border-white/5 text-white/60 hover:bg-white/[0.08] hover:text-white"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
+            <form onSubmit={handleSaveAnnouncement} className="space-y-4">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                  Type
+                </label>
+                <select
+                  value={annForm.type}
+                  onChange={(e) => setAnnForm({ ...annForm, type: e.target.value })}
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-sp-green"
+                >
+                  <option value="whats_new" className="bg-[#111]">What's New</option>
+                  <option value="feature_spotlight" className="bg-[#111]">Feature Spotlight</option>
+                  <option value="maintenance" className="bg-[#111]">Maintenance</option>
+                  <option value="general" className="bg-[#111]">General</option>
+                </select>
               </div>
 
-              {/* Version (Visible only if whats_new) */}
-              {annForm.type === "whats_new" && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">App Version</label>
-                  <input
-                    type="text"
-                    value={annForm.version}
-                    onChange={(e) => setAnnForm({ ...annForm, version: e.target.value })}
-                    placeholder="e.g. 3.1.0"
-                    className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                  />
-                </div>
-              )}
-
-              {/* Title */}
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Title</label>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                  Title *
+                </label>
                 <input
                   type="text"
                   value={annForm.title}
                   onChange={(e) => setAnnForm({ ...annForm, title: e.target.value })}
-                  placeholder="Announcement Title"
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
+                  placeholder="Release headline..."
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-sp-green"
                 />
               </div>
 
-              {/* Body */}
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Body</label>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                  Body *
+                </label>
                 <textarea
-                  rows={4}
                   value={annForm.body}
                   onChange={(e) => setAnnForm({ ...annForm, body: e.target.value })}
-                  placeholder="Detail text..."
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30 resize-none"
+                  placeholder="Details about what's new..."
+                  rows={4}
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-sp-green"
                 />
               </div>
 
-              {/* Image URL */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Image URL (Optional)</label>
-                <input
-                  type="text"
-                  value={annForm.imageUrl}
-                  onChange={(e) => setAnnForm({ ...annForm, imageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                    Version
+                  </label>
+                  <input
+                    type="text"
+                    value={annForm.version}
+                    onChange={(e) => setAnnForm({ ...annForm, version: e.target.value })}
+                    placeholder="v2.5.0"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-sp-green font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                    Priority
+                  </label>
+                  <input
+                    type="number"
+                    value={annForm.priority}
+                    onChange={(e) => setAnnForm({ ...annForm, priority: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sp-green"
+                  />
+                </div>
               </div>
 
-              {/* Priority */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Priority (Higher = First)</label>
-                <input
-                  type="number"
-                  value={annForm.priority}
-                  onChange={(e) => setAnnForm({ ...annForm, priority: Number(e.target.value) })}
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                    CTA Button Text
+                  </label>
+                  <input
+                    type="text"
+                    value={annForm.ctaText}
+                    onChange={(e) => setAnnForm({ ...annForm, ctaText: e.target.value })}
+                    placeholder="Explore Now"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-sp-green"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider block mb-1">
+                    CTA Route
+                  </label>
+                  <input
+                    type="text"
+                    value={annForm.ctaRoute}
+                    onChange={(e) => setAnnForm({ ...annForm, ctaRoute: e.target.value })}
+                    placeholder="/settings"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-sp-green"
+                  />
+                </div>
               </div>
 
-              {/* CTA Text */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">CTA Button Text (Optional)</label>
-                <input
-                  type="text"
-                  value={annForm.ctaText}
-                  onChange={(e) => setAnnForm({ ...annForm, ctaText: e.target.value })}
-                  placeholder="e.g. Try Now"
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                />
-              </div>
-
-              {/* CTA Route */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">CTA Client Route (Optional)</label>
-                <input
-                  type="text"
-                  value={annForm.ctaRoute}
-                  onChange={(e) => setAnnForm({ ...annForm, ctaRoute: e.target.value })}
-                  placeholder="e.g. /library"
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                />
-              </div>
-
-              {/* Expiry Date */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Expires At (Optional)</label>
-                <input
-                  type="date"
-                  value={annForm.expiresAt}
-                  onChange={(e) => setAnnForm({ ...annForm, expiresAt: e.target.value })}
-                  className="bg-white/[0.04] border border-white/5 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sp-green/30"
-                />
-              </div>
-
-              {/* Active Checkbox */}
-              <div className="flex items-center gap-3 pt-4">
+              <div className="flex items-center gap-3 pt-2">
                 <input
                   type="checkbox"
-                  id="active"
+                  id="ann-active"
                   checked={annForm.active}
                   onChange={(e) => setAnnForm({ ...annForm, active: e.target.checked })}
-                  className="w-4 h-4 rounded accent-sp-green bg-white/5 border-white/10"
+                  className="rounded accent-sp-green"
                 />
-                <label htmlFor="active" className="text-xs font-bold text-white/80 cursor-pointer">
-                  Active (Show to clients)
+                <label htmlFor="ann-active" className="text-xs text-white/70 font-semibold cursor-pointer">
+                  Active immediately
                 </label>
               </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 justify-end pt-3">
-              {editingAnnId && (
+              <div className="flex gap-2 pt-3">
                 <button
-                  type="button"
-                  onClick={resetAnnForm}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white/50 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-all"
+                  type="submit"
+                  disabled={submittingAnn}
+                  className="flex-1 py-3 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider hover:bg-white transition-colors shadow-lg shadow-sp-green/20"
                 >
-                  Cancel Edit
+                  {submittingAnn ? "Saving..." : editingAnnId ? "Update" : "Publish"}
                 </button>
-              )}
-              <button
-                type="submit"
-                disabled={submittingAnn}
-                className="px-6 py-2.5 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-100 transition-all duration-200"
+                {editingAnnId && (
+                  <button
+                    type="button"
+                    onClick={resetAnnForm}
+                    className="px-4 py-3 rounded-xl bg-white/10 text-white font-bold text-xs hover:bg-white/20"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Announcements List */}
+          <div className="lg:col-span-2 space-y-4">
+            <h3 className="text-base font-black text-white mb-4">Published Announcements ({announcementsList.length})</h3>
+            {announcementsList.map((ann) => (
+              <div
+                key={ann._id}
+                className="p-5 rounded-2xl bg-[#0a0a0c] border border-white/[0.06] flex items-start justify-between gap-4 shadow-lg"
               >
-                {submittingAnn ? "Saving..." : editingAnnId ? "Update" : "Publish"}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-sp-green/10 text-sp-green">
+                      {ann.type}
+                    </span>
+                    {ann.version && (
+                      <span className="text-[10px] text-white/40 font-mono">{ann.version}</span>
+                    )}
+                    <span className={`text-[10px] font-bold ${ann.active ? "text-sp-green" : "text-white/30"}`}>
+                      • {ann.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-white">{ann.title}</h4>
+                  <p className="text-xs text-white/60 leading-relaxed">{ann.body}</p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleEditAnnouncement(ann)}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteAnnouncement(ann._id)}
+                    className="p-2 rounded-xl bg-sp-rose/10 hover:bg-sp-rose text-sp-rose hover:text-white border border-sp-rose/20"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── SCROLLABLE RESPONSIVE REPLY MODAL ───────────────────────────────── */}
+      {replyModalOpen && selectedFeedback && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-2xl bg-[#0c0c0e] border border-white/10 rounded-[28px] p-5 sm:p-6 shadow-2xl space-y-4 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-300 shrink-0">
+                  <Send size={16} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    {isEditingReply ? "Edit Support Reply" : "Reply to Feedback"}
+                  </h3>
+                  <p className="text-xs text-white/40">The user will receive this reply inside SoulSync</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setReplyModalOpen(false)}
+                className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+              >
+                <X size={18} />
               </button>
             </div>
-          </form>
 
-          {/* List of existing */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-white/40 uppercase tracking-widest font-mono">
-              Published Announcements
-            </h3>
-
-            {announcementsList.length === 0 ? (
-              <p className="text-xs text-white/30 italic">No announcements published yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {announcementsList.map((ann) => {
-                  return (
-                    <div
-                      key={ann._id}
-                      className={`p-5 rounded-2xl bg-white/[0.01] border flex flex-col sm:flex-row sm:items-start justify-between gap-4 transition-all duration-200 ${
-                        ann.active ? "border-white/[0.05]" : "border-white/5 opacity-60"
-                      }`}
-                    >
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-full bg-white/[0.04] text-[9px] uppercase tracking-wider text-white/60 font-black font-mono">
-                            {ann.type}
-                          </span>
-                          {!ann.active && (
-                            <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] uppercase tracking-wider text-white/40 font-mono">
-                              Inactive
-                            </span>
-                          )}
-                          {ann.version && (
-                            <span className="text-[10px] text-sp-green font-mono">v{ann.version}</span>
-                          )}
-                        </div>
-                        <h4 className="text-sm font-bold text-white leading-tight">{ann.title}</h4>
-                        <p className="text-xs text-white/60 leading-relaxed font-sans">{ann.body}</p>
-                      </div>
-
-                      {/* Side Actions */}
-                      <div className="flex sm:flex-col gap-2 items-center sm:items-end w-full sm:w-auto shrink-0 justify-end flex-wrap">
-                        {/* Toggle Active Button */}
-                        <button
-                          onClick={() => handleToggleAnnActive(ann._id, ann.active)}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${
-                            ann.active
-                              ? "bg-red-500/10 text-red-400 hover:bg-red-500/15"
-                              : "bg-green-500/10 text-green-400 hover:bg-green-500/15"
-                          }`}
-                        >
-                          {ann.active ? "Deactivate" : "Activate"}
-                        </button>
-
-                        {/* Edit Button */}
-                        <button
-                          onClick={() => handleEditAnn(ann)}
-                          className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-white/70 hover:text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all duration-200"
-                        >
-                          <Edit3 size={10} /> Edit
-                        </button>
-
-                        {/* Delete Button */}
-                        <button
-                          onClick={() => handleDeleteAnn(ann._id)}
-                          className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all duration-200"
-                        >
-                          <Trash2 size={10} /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* Scrollable Modal Content Body */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+              {/* Context Feedback Snippet */}
+              <div className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-2xl space-y-2">
+                <div className="flex flex-wrap items-center justify-between text-[10px] text-white/40 gap-2">
+                  <span className="font-bold text-white/80">
+                    From: {selectedFeedback.isAnonymous ? "Anonymous User" : selectedFeedback.userId?.email || selectedFeedback.userId?.name || "Registered User"}
+                  </span>
+                  <span>{new Date(selectedFeedback.createdAt).toLocaleDateString()}</span>
+                </div>
+                <p className="text-xs text-white/80 line-clamp-3">{selectedFeedback.message}</p>
               </div>
-            )}
+
+              {/* Quick Reply Templates */}
+              <div>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block mb-1.5">
+                  ⚡ Quick Reply Templates
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_REPLY_TEMPLATES.map((tmpl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setReplyInput(tmpl)}
+                      className="px-2.5 py-1.5 rounded-xl bg-white/[0.03] hover:bg-violet-500/20 text-white/70 hover:text-violet-200 border border-white/[0.06] hover:border-violet-500/30 text-[11px] font-medium transition-all"
+                    >
+                      + {tmpl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Textarea Input */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                  <span>Support Response *</span>
+                  <span className={replyInput.length > 2000 ? "text-sp-rose font-bold" : "text-white/40 font-mono"}>
+                    {replyInput.length} / 2000 chars
+                  </span>
+                </div>
+                <textarea
+                  value={replyInput}
+                  onChange={(e) => setReplyInput(e.target.value)}
+                  placeholder="Type your response to the user..."
+                  rows={4}
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-3.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-colors"
+                />
+              </div>
+
+              {/* Live Preview */}
+              <div>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block mb-1.5">
+                  👁️ Live Preview (User Support Bubble)
+                </label>
+                <div className="bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 p-4 rounded-2xl border border-violet-500/25 shadow-inner">
+                  <div className="flex items-center justify-between text-[10px] text-violet-300 font-bold mb-1">
+                    <span className="flex items-center gap-1.5 text-violet-200">
+                      <ShieldCheck size={13} className="text-sp-green" />
+                      SoulSync Support
+                    </span>
+                    <span>Just now</span>
+                  </div>
+                  <p className="text-xs text-white/90 leading-relaxed whitespace-pre-wrap">
+                    {replyInput.trim() || <span className="italic text-white/30">Your response preview will appear here...</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.08] shrink-0">
+              <button
+                type="button"
+                onClick={() => setReplyModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendReply}
+                disabled={submittingReply || !replyInput.trim() || replyInput.length > 2000}
+                className="px-6 py-2.5 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider hover:bg-white transition-colors shadow-lg shadow-sp-green/20 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Send size={13} />
+                {submittingReply ? "Sending..." : isEditingReply ? "Update Reply" : "Send Reply"}
+              </button>
+            </div>
           </div>
         </div>
       )}
       </div>
-      )}
     </div>
   );
 }

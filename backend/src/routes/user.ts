@@ -76,22 +76,53 @@ router.post(
       const { songId, title, artist, artistId, albumArt, duration, source, language } =
         req.body;
 
+      const cleanSongId = typeof songId === "string" ? songId : String(songId || "");
+      const cleanTitle = typeof title === "string" ? title : String(title || "");
+      const cleanArtist = typeof artist === "string" ? artist : typeof artist === "object" ? ((artist as any)?.name || String(artist)) : String(artist || "");
+      const cleanArtistId = typeof artistId === "string" ? artistId : String(artistId || "");
+
+      let cleanAlbumArt = "";
+      if (typeof albumArt === "string") {
+        cleanAlbumArt = albumArt;
+      } else if (Array.isArray(albumArt)) {
+        const lastImg = albumArt[albumArt.length - 1];
+        cleanAlbumArt = typeof lastImg === "string" ? lastImg : lastImg?.url || "";
+      } else if (albumArt && typeof albumArt === "object") {
+        cleanAlbumArt = (albumArt as any).url || String(albumArt);
+      }
+
+      const cleanDuration = typeof duration === "number" ? duration : parseInt(String(duration), 10) || 0;
+
+      const validSources = [
+        "search",
+        "recommendation",
+        "playlist",
+        "duo",
+        "library",
+        "player",
+        "app",
+      ];
+      const cleanSource =
+        typeof source === "string" && validSources.includes(source)
+          ? source
+          : "app";
+
       await ListeningHistory.create({
         userId: req.userId,
-        songId,
-        title,
-        artist,
-        artistId: artistId || "",
-        albumArt,
-        duration,
-        language: language || "",
-        source: source || "search",
+        songId: cleanSongId,
+        title: cleanTitle,
+        artist: cleanArtist,
+        artistId: cleanArtistId,
+        albumArt: cleanAlbumArt,
+        duration: cleanDuration,
+        language: typeof language === "string" ? language : "",
+        source: cleanSource,
       });
 
       // Update total listening time
-      if (duration) {
+      if (cleanDuration) {
         await User.findByIdAndUpdate(req.userId, {
-          $inc: { totalListeningTime: duration },
+          $inc: { totalListeningTime: cleanDuration },
         });
       }
 
@@ -102,9 +133,12 @@ router.post(
       // These run async — don't block the response
       maybeRecomputeTaste(req.userId!).catch(() => {});
       recordCooccurrence(req.userId!, {
-        songId, title, artist,
-        artistId: artistId || "",
-        albumArt, language: language || "",
+        songId: cleanSongId,
+        title: cleanTitle,
+        artist: cleanArtist,
+        artistId: cleanArtistId,
+        albumArt: cleanAlbumArt,
+        language: typeof language === "string" ? language : "",
       }).catch(() => {});
 
       res.json({ success: true });

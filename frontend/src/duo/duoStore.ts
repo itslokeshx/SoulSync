@@ -44,6 +44,7 @@ interface DuoState {
   myName: string;
   partnerName: string;
   partnerConnected: boolean;
+  socketConnected: boolean;
   modalOpen: boolean;
   panelOpen: boolean;
   endCardOpen: boolean;
@@ -54,6 +55,7 @@ interface DuoState {
   setModalOpen: (open: boolean) => void;
   setPanelOpen: (open: boolean) => void;
   setEndCardOpen: (open: boolean) => void;
+  setSocketConnected: (connected: boolean) => void;
   startSession: (opts: {
     role: string;
     roomCode: string;
@@ -76,6 +78,7 @@ export const useDuoStore = create<DuoState>((set, get) => ({
   myName: saved?.myName || "",
   partnerName: saved?.partnerName || "",
   partnerConnected: false,
+  socketConnected: false,
   modalOpen: false,
   panelOpen: false,
   endCardOpen: false,
@@ -86,6 +89,7 @@ export const useDuoStore = create<DuoState>((set, get) => ({
   setModalOpen: (open) => set({ modalOpen: open }),
   setPanelOpen: (open) => set({ panelOpen: open }),
   setEndCardOpen: (open) => set({ endCardOpen: open }),
+  setSocketConnected: (connected) => set({ socketConnected: connected }),
 
   startSession: ({ role, roomCode, myName }) => {
     persistSession({ role, roomCode, myName });
@@ -94,9 +98,8 @@ export const useDuoStore = create<DuoState>((set, get) => ({
       role,
       roomCode,
       myName,
-      // Don't set modalOpen here — let the caller decide.
-      // Create flow keeps modal open for room code; join flow closes it via handleJoin.
       partnerConnected: false,
+      socketConnected: true,
       partnerName: "",
       songHistory: [],
       messages: [],
@@ -140,6 +143,7 @@ export const useDuoStore = create<DuoState>((set, get) => ({
     set({
       active: false,
       partnerConnected: false,
+      socketConnected: false,
       endCardOpen: true,
       songHistory: songHistory.length ? songHistory : get().songHistory,
     });
@@ -154,6 +158,7 @@ export const useDuoStore = create<DuoState>((set, get) => ({
       myName: "",
       partnerName: "",
       partnerConnected: false,
+      socketConnected: false,
       modalOpen: false,
       panelOpen: false,
       endCardOpen: false,

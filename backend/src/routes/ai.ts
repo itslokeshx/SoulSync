@@ -380,6 +380,24 @@ async function searchOneSong(
   }
 }
 
+function deduplicateSearchAIResults(results: any[]): any[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  return results.filter((r) => {
+    if (!r.song || !r.song.id) return true;
+    const id = r.song.id;
+    const normTitle = (r.song.name || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    const normArtist = (r.song.primaryArtists || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+    const normKey = `${normTitle}:${normArtist.slice(0, 10)}`;
+    if (seenIds.has(id) || (normTitle.length > 2 && seenTitles.has(normKey))) {
+      return false;
+    }
+    seenIds.add(id);
+    if (normTitle.length > 2) seenTitles.add(normKey);
+    return true;
+  });
+}
+
 // ─── Process one chunk via Groq (IMPROVED with language awareness) ──────────
 async function processChunkWithGroq(
   songList: string[],
@@ -519,22 +537,72 @@ router.post(
         let playlistName = "AI Generated Mix";
 
         try {
-          const parsed = JSON.parse(moodResult);
-          songList = (parsed.songs || []).slice(0, requestCount);
-          playlistName = parsed.playlistName || playlistName;
-        } catch (err) {
-          console.error(
-            "[AI] Mood suggestion parsing failed:",
-            err,
-            moodResult,
-          );
-          if (res.headersSent) {
-            sseEvent(res, "error", { error: "AI response parsing failed" });
-            res.end();
-          } else {
-            res.status(500).json({ error: "AI response parsing failed" });
+          let parsed: any;
+          try {
+            parsed = JSON.parse(moodResult);
+          } catch {
+            const objMatch = moodResult.match(/\{[\s\S]*\}/);
+            const arrMatch = moodResult.match(/\[[\s\S]*\]/);
+            if (objMatch) {
+              parsed = JSON.parse(objMatch[0]);
+            } else if (arrMatch) {
+              parsed = JSON.parse(arrMatch[0]);
+            } else {
+              throw new Error("Could not parse JSON structure");
+            }
           }
-          return;
+
+          if (Array.isArray(parsed)) {
+            songList = parsed.slice(0, requestCount);
+          } else if (parsed && typeof parsed === "object") {
+            songList = (
+              parsed.songs ||
+              parsed.tracks ||
+              parsed.playlist ||
+              []
+            ).slice(0, requestCount);
+            playlistName = parsed.playlistName || parsed.title || playlistName;
+          }
+        } catch (err) {
+          // Fallback 1: Extract quoted song strings if JSON parse fails
+          const extractedFromQuotes = Array.from(
+            moodResult.matchAll(/"([^"]{3,80})"/g),
+            (m) => m[1]
+          ).filter(
+            (s) =>
+              !s.toLowerCase().includes("playlistname") &&
+              !s.toLowerCase().includes("songs") &&
+              !s.toLowerCase().includes("description")
+          );
+
+          if (extractedFromQuotes.length > 0) {
+            songList = extractedFromQuotes.slice(0, requestCount);
+          } else {
+            // Fallback 2: Extract plain text line items (e.g. 1. Song - Artist)
+            const lineItems = moodResult
+              .split("\n")
+              .map((l) =>
+                l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-*]\s*/, "").trim()
+              )
+              .filter((l) => l.length > 3 && l.includes("-"));
+
+            if (lineItems.length > 0) {
+              songList = lineItems.slice(0, requestCount);
+            } else {
+              console.error(
+                "[AI] Mood suggestion parsing failed:",
+                err,
+                moodResult
+              );
+              if (res.headersSent) {
+                sseEvent(res, "error", { error: "AI response parsing failed" });
+                res.end();
+              } else {
+                res.status(500).json({ error: "AI response parsing failed" });
+              }
+              return;
+            }
+          }
         }
 
         if (songList.length === 0) {
@@ -592,11 +660,13 @@ router.post(
           });
         }
 
-        // Sort: high-confidence first, then partial. Trim to target count.
-        const allFound = [
+        // Deduplicate found songs by ID and normalized title/artist
+        const deduplicated = deduplicateSearchAIResults([
           ...filteredResults.filter((r) => r.confidence === "high"),
           ...filteredResults.filter((r) => r.confidence === "partial"),
-        ].slice(0, maxSongs);
+        ]);
+
+        const allFound = deduplicated.slice(0, maxSongs);
         const matched = allFound.filter((r) => r.confidence === "high");
         const partial = allFound.filter((r) => r.confidence === "partial");
         const unmatched = filteredResults
@@ -722,12 +792,13 @@ router.post(
         MAX_SEARCH_CONCURRENT,
       );
 
-      // Sort: high-confidence first, then partial. Trim to the user's requested
-      // count so the final playlist always has exactly maxSongs songs.
-      const allFound = [
+      // Deduplicate found songs by ID and normalized title/artist
+      const deduplicated = deduplicateSearchAIResults([
         ...allResults.filter((r) => r.confidence === "high"),
         ...allResults.filter((r) => r.confidence === "partial"),
-      ].slice(0, maxSongs);
+      ]);
+
+      const allFound = deduplicated.slice(0, maxSongs);
       const matched = allFound.filter((r) => r.confidence === "high");
       const partial = allFound.filter((r) => r.confidence === "partial");
       const unmatched = allResults

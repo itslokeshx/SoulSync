@@ -1,7 +1,7 @@
 /**
- * Normalizes any JioSaavn song shape into a consistent format.
- * Handles both saavn.sumit.co wrapper format (downloadUrl[i].url)
- * and the older raw JioSaavn API format (downloadUrl[i].link).
+ * Normalizes any raw song shape into a consistent format.
+ * Handles both wrapper format (downloadUrl[i].url)
+ * and the older raw API format (downloadUrl[i].link).
  *
  * Call this on EVERY song before passing it to playSong() when
  * the source is external (liked songs from DB, playlists, etc.)
@@ -11,8 +11,8 @@ export interface NormalizedSong {
   id: string;
   name: string;
   primaryArtists: string;
-  image: Array<{ quality: string; url: string }> | string;
-  album: { name?: string } | string;
+  image: Array<{ quality: string; url: string }>;
+  album: { id: string; name: string; url?: string };
   albumId?: string;
   duration: number;
   language: string;
@@ -75,7 +75,7 @@ export function normalizeSong(raw: any): NormalizedSong | null {
   }
 
   // -- Image: normalize to array format --------------------------------
-  let image: Array<{ quality: string; url: string }> | string = [];
+  let image: Array<{ quality: string; url: string }> = [];
   if (typeof raw.image === "string" && raw.image) {
     image = [
       {
@@ -112,17 +112,40 @@ export function normalizeSong(raw: any): NormalizedSong | null {
   // -- Album -----------------------------------------------------------
   const album =
     raw.album && typeof raw.album === "object"
-      ? raw.album
-      : { name: raw.album || "" };
-  const albumId =
-    typeof raw.album === "object"
-      ? raw.album?.id || raw.albumId || ""
-      : raw.albumId || "";
+      ? {
+          id: String(raw.album.id || raw.albumId || ""),
+          name: String(raw.album.name || raw.album.title || ""),
+          url: String(raw.album.url || ""),
+        }
+      : {
+          id: String(raw.albumId || ""),
+          name: String(raw.album || ""),
+        };
+  const albumId = album.id;
+
+  const name = raw.name || raw.title || raw.song || "";
+  const cleanName = String(name).trim();
+  const cleanArtists = String(primaryArtists).trim();
+
+  if (
+    !cleanName ||
+    cleanName.toLowerCase() === "unknown" ||
+    cleanName.toLowerCase() === "unknown song" ||
+    cleanName.toLowerCase() === "null" ||
+    !cleanArtists ||
+    cleanArtists.toLowerCase() === "unknown" ||
+    cleanArtists.toLowerCase() === "null" ||
+    image.length === 0 ||
+    !image[0]?.url ||
+    image[0].url.includes("placeholder")
+  ) {
+    return null;
+  }
 
   return {
     id,
-    name: raw.name || raw.title || raw.song || "Unknown Song",
-    primaryArtists: String(primaryArtists).trim(),
+    name: cleanName,
+    primaryArtists: cleanArtists,
     image,
     album,
     albumId,

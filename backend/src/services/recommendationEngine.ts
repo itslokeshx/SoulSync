@@ -1401,15 +1401,22 @@ export async function getIndustryNewReleases(
     targetLangs.map((l) => fetchCuratedNewReleases(l))
   );
 
+  const songLists: Song[][] = fetchResults
+    .filter((res): res is PromiseFulfilledResult<Song[]> => res.status === "fulfilled")
+    .map((res) => res.value);
+
   const candidates: Song[] = [];
   const seen = new Set<string>();
+  const maxLen = Math.max(...songLists.map((l) => l.length), 0);
 
-  for (const res of fetchResults) {
-    if (res.status !== "fulfilled") continue;
-    for (const s of res.value) {
-      if (!seen.has(s.id)) {
-        seen.add(s.id);
-        candidates.push(s);
+  for (let i = 0; i < maxLen; i++) {
+    for (const list of songLists) {
+      if (i < list.length) {
+        const s = list[i];
+        if (s && s.id && !seen.has(s.id)) {
+          seen.add(s.id);
+          candidates.push(s);
+        }
       }
     }
   }

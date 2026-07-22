@@ -1,11 +1,12 @@
 {
-    "version": "4.0.0",
-    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v4.0/SoulSync_4.0.apk",
+    "version": "5.0.0",
+    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_5.0.apk",
     "force": false,
     "changelog": [
-        "Auto Song Suggestion (Infinite Playback)",
-        "Active Announcements Engine with Auto-Popup",
-        "Feedback Portal & Admin Panel",
-        "70/30 Balanced Recommendation Engine"
+        "Groq GPT OSS 120B Resilient AI Music Curator",
+        "Pure International Global New Releases & Multi-Language Categorization",
+        "Direct Artist Page Navigation with 50 Top Popular Songs",
+        "Compact Feature Showcase & Authentication Gating",
+        "Sleep Timer Presets & Touch Scroll Improvements"
     ]
 }

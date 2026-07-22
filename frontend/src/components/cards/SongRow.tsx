@@ -4,6 +4,8 @@ import { EqBars } from "../ui/EqBars";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import { useUIStore } from "../../store/uiStore";
+import { ArtistLinks } from "../ui/ArtistLinks";
+import { usePlayerStore } from "../../store/playerStore";
 
 interface SongRowProps {
   song: any;
@@ -73,11 +75,14 @@ export const SongRow = ({
         >
           {song.name}
         </p>
-        <p className="text-xs text-sp-sub/70 truncate">{getArtists(song)}</p>
+        <p className="text-xs text-sp-sub/70 truncate">
+          <ArtistLinks song={song} />
+        </p>
       </div>
       <p className="hidden lg:block text-xs text-sp-muted truncate w-36 text-center">
         {song.album?.name || ""}
       </p>
+
       {onLike && (
         <button
           onClick={(e) => {

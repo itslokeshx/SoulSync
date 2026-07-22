@@ -70,9 +70,6 @@ const UserTasteProfileSchema = new Schema<IUserTasteProfile>(
   { timestamps: true },
 );
 
-// Index for fast lookup by userId
-UserTasteProfileSchema.index({ userId: 1 });
-
 export const UserTasteProfile = mongoose.model<IUserTasteProfile>(
   "UserTasteProfile",
   UserTasteProfileSchema,

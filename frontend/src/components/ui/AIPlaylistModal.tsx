@@ -79,12 +79,18 @@ export function AIPlaylistModal() {
     }
   }, [aiPlaylistOpen]);
 
-  const allSongs: any[] = [
+  const allSongs: any[] = [];
+  const seenIds = new Set<string>();
+  for (const item of [
     ...(results?.matched || []),
     ...(results?.partial || []),
-  ]
-    .map((m: any) => m.song)
-    .filter(Boolean);
+  ]) {
+    const song = item?.song;
+    if (song?.id && !seenIds.has(song.id)) {
+      seenIds.add(song.id);
+      allSongs.push(song);
+    }
+  }
 
   const handleGenerate = async () => {
     if (mode === "mood" && !mood.trim()) return;
@@ -199,7 +205,7 @@ export function AIPlaylistModal() {
     gate(async () => {
       setSaving(true);
       try {
-        // Map JioSaavn objects → PlaylistSong schema { songId, title, artist, albumArt, duration, downloadUrl }
+        // Map song objects → PlaylistSong schema { songId, title, artist, albumArt, duration, downloadUrl }
         const songs = allSongs
           .filter((s: any) => s?.id && selected.has(s.id))
           .map((s: any) => ({
@@ -277,7 +283,7 @@ export function AIPlaylistModal() {
                   <p className="text-white font-bold text-[15px]">
                     AI Playlist Builder
                   </p>
-                  <p className="text-white/35 text-[11px]">Powered by Groq</p>
+                  <p className="text-white/35 text-[11px]">Powered by GPT</p>
                 </div>
               </div>
               <button

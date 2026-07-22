@@ -1,0 +1,62 @@
+import { logHistory } from "../api/backend";
+import { getArtists, bestImg } from "../lib/helpers";
+
+const RECENTLY_PLAYED_KEY = "ss_recently_played";
+const MAX_RECENT_ITEMS = 30;
+
+export function getRecentlyPlayedFromStorage(): any[] {
+  try {
+    const raw = localStorage.getItem(RECENTLY_PLAYED_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("Failed to parse local recently played:", err);
+    return [];
+  }
+}
+
+export function recordRecentlyPlayed(song: any) {
+  if (!song || !song.id) return;
+
+  try {
+    const existing = getRecentlyPlayedFromStorage();
+    // Deduplicate by song ID or clean song name
+    const cleanCurrentName = (song.name || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+    const filtered = existing.filter((item: any) => {
+      if (item.id === song.id) return false;
+      const cleanItemName = (item.name || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      if (cleanCurrentName && cleanCurrentName === cleanItemName) return false;
+      return true;
+    });
+
+    const updated = [song, ...filtered].slice(0, MAX_RECENT_ITEMS);
+    localStorage.setItem(RECENTLY_PLAYED_KEY, JSON.stringify(updated));
+
+    // Dispatch event so UI hooks/components can update in real-time
+    window.dispatchEvent(
+      new CustomEvent("soulsync:recently_played_updated", {
+        detail: { song, updated },
+      })
+    );
+  } catch (err) {
+    console.error("Failed to save local recently played:", err);
+  }
+
+  // Fire-and-forget backend history logging
+  if (!song._isOffline && !song.id?.startsWith("local_")) {
+    logHistory({
+      songId: song.id,
+      title: song.name || "Unknown Track",
+      artist: getArtists(song) || "Unknown Artist",
+      albumArt: bestImg(song.image) || "",
+      duration: Number(song.duration) || 0,
+      source: "app",
+      language: song.language || "",
+    }).catch(() => {});
+  }
+}

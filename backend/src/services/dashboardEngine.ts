@@ -25,6 +25,36 @@ export interface DashboardResponse {
   guestNewReleases?: { title: string; songs: Song[] }[];
 }
 
+const INDIAN_LANGS = new Set([
+  "hindi",
+  "tamil",
+  "telugu",
+  "punjabi",
+  "malayalam",
+  "kannada",
+  "marathi",
+  "bengali",
+  "bhojpuri",
+  "gujarati",
+  "assamese",
+  "rajasthani",
+  "haryanvi",
+  "harianvi",
+  "odiya",
+]);
+
+function isIndianSong(song: Song): boolean {
+  if (!song) return false;
+  const lang = (song.language || "").toLowerCase().trim();
+  if (INDIAN_LANGS.has(lang)) return true;
+
+  const text = `${song.name || ""} ${song.primaryArtists || ""} ${song.album || ""}`;
+  if (/[\u0900-\u097F\u0B80-\u0BFF\u0C00-\u0C7F\u0A00-\u0A7F\u0D00-\u0D7F]/.test(text)) {
+    return true;
+  }
+  return false;
+}
+
 // ─── TIME-AWARE GREETING ─────────────────────────────────────────────────────
 function getGreeting(name: string): {
   greeting: string;
@@ -169,18 +199,64 @@ export async function buildDashboard(
 
   try {
     if (isGuest) {
-      const [english, tamil, hindi, telugu] = await Promise.all([
+      // Aggregate top global songs across all users from ListeningHistory
+      let trendingWorldwide: Song[] = [];
+      try {
+        const topHistory = await ListeningHistory.aggregate([
+          {
+            $group: {
+              _id: "$songId",
+              playCount: { $sum: 1 },
+              title: { $first: "$title" },
+              artist: { $first: "$artist" },
+              albumArt: { $first: "$albumArt" },
+              duration: { $first: "$duration" },
+              language: { $first: "$language" },
+            },
+          },
+          { $sort: { playCount: -1 } },
+          { $limit: 20 },
+        ]);
+
+        if (topHistory.length > 0) {
+          trendingWorldwide = topHistory.map((h: any) => ({
+            id: h._id,
+            name: h.title,
+            primaryArtists: h.artist || "Unknown Artist",
+            image: h.albumArt || "",
+            album: "",
+            albumId: "",
+            duration: h.duration || 0,
+            language: h.language || "",
+            year: "",
+            streamUrl: null,
+            downloadUrl: [],
+            playCount: h.playCount,
+            url: "",
+          }));
+        }
+      } catch (e) {
+        console.error("[Dashboard] Guest aggregate error:", e);
+      }
+
+      const [rawGlobal, english, tamil, hindi] = await Promise.all([
+        getIndustryNewReleases(["english", "pop", "french", "spanish", "latin"], 35),
         getIndustryNewReleases(["english"], 20),
         getIndustryNewReleases(["tamil"], 20),
         getIndustryNewReleases(["hindi"], 20),
-        getIndustryNewReleases(["telugu"], 20),
       ]);
+
+      const pureGlobal = rawGlobal.filter((s) => !isIndianSong(s));
+
       guestNewReleases = [
-        { title: "New English Releases", songs: english },
-        { title: "New Tamil Releases", songs: tamil },
-        { title: "New Hindi Releases", songs: hindi },
-        { title: "New Telugu Releases", songs: telugu },
-      ];
+        {
+          title: "Global New Releases",
+          songs: pureGlobal.length > 0 ? pureGlobal : english.filter((s) => !isIndianSong(s)),
+        },
+        { title: "Trending English Hits", songs: english },
+        { title: "Tamil Chartbusters", songs: tamil },
+        { title: "Hindi Hits & Releases", songs: hindi },
+      ].filter((sec) => sec.songs && sec.songs.length > 0);
     } else {
       newReleasesTitle = `New ${langs.map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" & ")} Releases`;
     }
