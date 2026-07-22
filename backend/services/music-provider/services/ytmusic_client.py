@@ -112,7 +112,7 @@ def get_client() -> YTMusic:
 
 from threading import Semaphore, Lock
 
-_yt_semaphore = Semaphore(10)
+_yt_semaphore = Semaphore(5)  # Concurrency limit capped at 5 upstream requests
 _throttle_lock = Lock()
 _last_request_time: float = 0.0
 
@@ -122,6 +122,25 @@ _breaker_tripped_until: float = 0.0
 _BREAKER_THRESHOLD = 5
 _BREAKER_COOLDOWN_SECONDS = 10.0
 
+# Problem 4: 10-Minute Failed ID Cache to prevent repeated retries on failing IDs
+_FAILED_ID_CACHE = {}  # id -> expiry timestamp
+_FAILED_ID_TTL = 600.0  # 10 minutes in seconds
+
+def is_id_blacklisted(item_id: str) -> bool:
+    if not item_id:
+        return False
+    now = time.time()
+    exp = _FAILED_ID_CACHE.get(item_id)
+    if exp and exp > now:
+        return True
+    if exp:
+        del _FAILED_ID_CACHE[item_id]
+    return False
+
+def record_failed_id(item_id: str):
+    if item_id:
+        _FAILED_ID_CACHE[item_id] = time.time() + _FAILED_ID_TTL
+        logger.warning(f"[failed_id_cache] Blacklisted ID '{item_id}' for 10 minutes")
 
 def _record_failure():
     global _consecutive_failures, _breaker_tripped_until
@@ -156,8 +175,17 @@ def with_retry(max_retries: int = 2, base_delay: float = 0.2):
                     detail="YouTube Music service temporarily degraded — failing fast, retry shortly",
                 )
 
+            # Check if primary argument ID is blacklisted
+            target_id = args[0] if args and isinstance(args[0], str) else kwargs.get("video_id") or kwargs.get("id")
+            if target_id and is_id_blacklisted(str(target_id)):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Resource '{target_id}' temporarily unavailable (cached failure)",
+                )
+
             last_error = None
-            acquired = _yt_semaphore.acquire(timeout=3)
+            # Problem 3: Queue up to 8s under concurrency ceiling of 5
+            acquired = _yt_semaphore.acquire(timeout=8)
             if not acquired:
                 raise HTTPException(
                     status_code=503,
@@ -191,18 +219,22 @@ def with_retry(max_retries: int = 2, base_delay: float = 0.2):
                         if is_auth_or_parse_fail:
                             raw_snippet = ""
                             title_tag = ""
+                            content_type = "unknown"
                             status_code = getattr(e, "response", None) and getattr(e.response, "status_code", "unknown")
-                            if hasattr(e, "response") and getattr(e.response, "text", None):
-                                body_text = e.response.text
+                            if hasattr(e, "response") and e.response is not None:
+                                content_type = e.response.headers.get("Content-Type", "unknown")
+                                body_text = getattr(e.response, "text", "")
                                 import re
                                 match = re.search(r"<title>(.*?)</title>", body_text, re.IGNORECASE)
                                 if match:
                                     title_tag = match.group(1)
                                 raw_snippet = body_text[:300].replace("\n", " ").strip()
+                            
+                            # Problem 2: Log HTTP status, Content-Type, title, and raw response snippet
                             logger.warning(
-                                f"[{func.__name__}] Auth/Parse failure detected: {e} | "
-                                f"status={status_code} | title='{title_tag}' | "
-                                f"snippet='{raw_snippet[:150]}...'. Resetting to guest mode."
+                                f"[{func.__name__}] Raw HTTP Response Audit | status={status_code} | "
+                                f"content_type='{content_type}' | title='{title_tag}' | "
+                                f"first_300_bytes='{raw_snippet[:150]}...'. Resetting client to guest."
                             )
                             reset_client_to_guest()
 
@@ -220,6 +252,8 @@ def with_retry(max_retries: int = 2, base_delay: float = 0.2):
                             logger.error(
                                 f"[{func.__name__}] All {max_retries} attempts failed: {e}"
                             )
+                            if target_id:
+                                record_failed_id(str(target_id))
             finally:
                 _yt_semaphore.release()
 

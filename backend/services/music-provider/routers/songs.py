@@ -361,6 +361,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
                     size = os.path.getsize(cookie_file_path) if exists else 0
                     cookie_count = 0
                     sample_masked = []
+                    found_cookies = set()
                     if exists and size > 0:
                         with open(cookie_file_path, "r", encoding="utf-8", errors="ignore") as cf:
                             lines = cf.readlines()
@@ -368,6 +369,9 @@ def _resolve_stream_sync(video_id: str) -> dict:
                                 stripped = line.strip()
                                 if stripped and not stripped.startswith("#"):
                                     cookie_count += 1
+                                    parts = stripped.split("\t")
+                                    if len(parts) >= 6:
+                                        found_cookies.add(parts[5].strip())
                             for line in lines[:5]:
                                 parts = line.strip().split("\t")
                                 if len(parts) >= 7:
@@ -376,10 +380,22 @@ def _resolve_stream_sync(video_id: str) -> dict:
                                     sample_masked.append(f"{domain} | {name}={masked_val}")
                                 else:
                                     sample_masked.append(line[:30].strip())
+                    
+                    auth_cookies_check = {
+                        "SID": "SID" in found_cookies,
+                        "HSID": "HSID" in found_cookies,
+                        "SSID": "SSID" in found_cookies,
+                        "APISID": "APISID" in found_cookies,
+                        "SAPISID": "SAPISID" in found_cookies,
+                        "__Secure-1PSID": "__Secure-1PSID" in found_cookies,
+                        "__Secure-3PSID": "__Secure-3PSID" in found_cookies,
+                        "__Secure-1PAPISID": "__Secure-1PAPISID" in found_cookies,
+                        "__Secure-3PAPISID": "__Secure-3PAPISID" in found_cookies,
+                    }
                     logger.info(
-                        f"[cookies/debug] path={cookie_file_path} | exists={exists} | size={size}B | "
+                        f"[cookies/auth_verification] path={cookie_file_path} | exists={exists} | size={size}B | "
                         f"valid_cookies={cookie_count} | ydl_cookiefile={ydl_opts.get('cookiefile')} | "
-                        f"sample={sample_masked}"
+                        f"auth_cookies={auth_cookies_check}"
                     )
                 except Exception as dbg_err:
                     logger.warning(f"[cookies/debug] Failed to log cookie metadata: {dbg_err}")
@@ -397,9 +413,9 @@ def _resolve_stream_sync(video_id: str) -> dict:
                             return result
                 except Exception as e:
                     err_msg = str(e).lower()
+                    logger.error(f"[yt-dlp/stderr] Extraction failed for {video_id}: exception_type={type(e).__name__} | message='{e}'")
                     if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg or "no longer valid" in err_msg:
                         logger.error("[cookies] expired or flagged — refresh may be needed")
-                    logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
                     last_err = e
         
             is_render = os.getenv("RENDER") == "true"
