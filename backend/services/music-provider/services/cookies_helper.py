@@ -4,7 +4,37 @@ import http.cookiejar
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("music-provider.cookies")
+SOULSYNC_COOKIE_PATH = "/tmp/soulsync_cookies.txt"
+READONLY_COOKIES = "/etc/secrets/cookies.txt"
+LOCAL_COOKIES_PATH = str(Path(__file__).parent.parent / "cookies.txt")
+
+def get_shared_cookies_path() -> Optional[str]:
+    """
+    Returns the single unified cookie file path used across all microservice components
+    (songs.py, ytmusic_client.py, yt-dlp, and ytmusicapi).
+    """
+    if os.path.exists(SOULSYNC_COOKIE_PATH) and os.path.getsize(SOULSYNC_COOKIE_PATH) > 50:
+        return SOULSYNC_COOKIE_PATH
+
+    yt_cookies_env = os.getenv("YT_COOKIES")
+    if yt_cookies_env and len(yt_cookies_env.strip()) > 50:
+        try:
+            cookie_content = yt_cookies_env.strip().replace("\\n", "\n")
+            os.makedirs(os.path.dirname(SOULSYNC_COOKIE_PATH), exist_ok=True)
+            with open(SOULSYNC_COOKIE_PATH, "w", encoding="utf-8") as f:
+                f.write(cookie_content)
+            logger.info(f"[cookies_helper] Written YT_COOKIES to shared path: {SOULSYNC_COOKIE_PATH}")
+            return SOULSYNC_COOKIE_PATH
+        except Exception as e:
+            logger.error(f"[cookies_helper] Failed to write YT_COOKIES to {SOULSYNC_COOKIE_PATH}: {e}")
+
+    if os.path.exists(READONLY_COOKIES) and os.path.getsize(READONLY_COOKIES) > 50:
+        return READONLY_COOKIES
+
+    if os.path.exists(LOCAL_COOKIES_PATH) and os.path.getsize(LOCAL_COOKIES_PATH) > 50:
+        return LOCAL_COOKIES_PATH
+
+    return None
 
 def auto_extract_and_save_cookies(force_refresh: bool = False) -> Optional[str]:
     """

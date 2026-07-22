@@ -42,28 +42,17 @@ def create_session() -> requests.Session:
     })
     
     import http.cookiejar
-    from pathlib import Path
+    from services.cookies_helper import get_shared_cookies_path
     
-    readonly_cookies = "/etc/secrets/cookies.txt"
-    writable_cookies = "/tmp/cookies.txt"
-    local_cookies = Path(__file__).parent.parent / "cookies.txt"
-    
-    cookies_path = None
-    if os.path.exists(readonly_cookies):
-        cookies_path = readonly_cookies
-    elif os.path.exists(writable_cookies):
-        cookies_path = writable_cookies
-    elif local_cookies.exists():
-        cookies_path = str(local_cookies)
-        
+    cookies_path = get_shared_cookies_path()
     if cookies_path:
         try:
             cj = http.cookiejar.MozillaCookieJar(cookies_path)
             cj.load(ignore_discard=True, ignore_expires=True)
             session.cookies.update(cj)
-            logger.info(f"Successfully loaded Netscape cookies from {cookies_path} into YTMusic session")
+            logger.info(f"[ytmusic_client/cookies] Successfully loaded Netscape cookies from shared path '{cookies_path}' into YTMusic session")
         except Exception as e:
-            logger.error(f"Failed to load Netscape cookies into YTMusic session: {e}")
+            logger.error(f"[ytmusic_client/cookies] Failed to load Netscape cookies from '{cookies_path}': {e}")
             
     return session
 
@@ -200,9 +189,20 @@ def with_retry(max_retries: int = 2, base_delay: float = 0.2):
                             "json" in err_str
                         )
                         if is_auth_or_parse_fail:
+                            raw_snippet = ""
+                            title_tag = ""
+                            status_code = getattr(e, "response", None) and getattr(e.response, "status_code", "unknown")
+                            if hasattr(e, "response") and getattr(e.response, "text", None):
+                                body_text = e.response.text
+                                import re
+                                match = re.search(r"<title>(.*?)</title>", body_text, re.IGNORECASE)
+                                if match:
+                                    title_tag = match.group(1)
+                                raw_snippet = body_text[:300].replace("\n", " ").strip()
                             logger.warning(
-                                f"[{func.__name__}] Auth/Parse failure detected: {e}. "
-                                f"Attempting immediate guest mode fallback."
+                                f"[{func.__name__}] Auth/Parse failure detected: {e} | "
+                                f"status={status_code} | title='{title_tag}' | "
+                                f"snippet='{raw_snippet[:150]}...'. Resetting to guest mode."
                             )
                             reset_client_to_guest()
 

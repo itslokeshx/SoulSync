@@ -341,41 +341,8 @@ def _resolve_stream_sync(video_id: str) -> dict:
 
         return opts
 
-    READONLY_COOKIES = "/etc/secrets/cookies.txt"
-    WRITABLE_COOKIES = "/tmp/cookies.txt"
-    
-    def get_cookies_path() -> Optional[str]:
-        temp_cookie_path = "/tmp/soulsync_cookies.txt"
-        if os.path.exists(temp_cookie_path) and os.path.getsize(temp_cookie_path) > 50:
-            return temp_cookie_path
-
-        yt_cookies_env = os.getenv("YT_COOKIES")
-        if yt_cookies_env and len(yt_cookies_env.strip()) > 50:
-            try:
-                # Convert literal \n strings to actual newlines from Render env input
-                cookie_content = yt_cookies_env.strip().replace("\\n", "\n")
-                os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
-                with open(temp_cookie_path, "w", encoding="utf-8") as f:
-                    f.write(cookie_content)
-                return temp_cookie_path
-            except Exception as e:
-                logger.error(f"[song_stream] Failed to write YT_COOKIES to temp file: {e}")
-
-        if os.path.exists(READONLY_COOKIES):
-            try:
-                os.makedirs(os.path.dirname(WRITABLE_COOKIES), exist_ok=True)
-                shutil.copy(READONLY_COOKIES, WRITABLE_COOKIES)
-                return WRITABLE_COOKIES
-            except Exception as e:
-                logger.error(f"[song_stream] Failed to copy read-only secret cookies: {e}")
-
-        local_cookie_path = Path(__file__).parent.parent / "cookies.txt"
-        if local_cookie_path.exists():
-            return str(local_cookie_path)
-            
-        return None
-
-    cookie_file_path = get_cookies_path()
+    from services.cookies_helper import get_shared_cookies_path
+    cookie_file_path = get_shared_cookies_path()
 
     try:
         acquired = _stream_semaphore.acquire(timeout=5)
