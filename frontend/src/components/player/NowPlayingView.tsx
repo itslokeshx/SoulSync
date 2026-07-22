@@ -860,11 +860,10 @@ export const NowPlayingView = ({
                   </button>
                 </div>
               ) : (
-                <div className="space-y-1.5 flex-1 overflow-y-auto pr-1 max-h-[50vh] sm:max-h-[300px] scrollbar-thin touch-pan-y overscroll-contain">
+                <div className="space-y-1 flex-1 overflow-y-auto pr-1 max-h-[55vh] sm:max-h-[360px] scrollbar-thin touch-pan-y overscroll-contain pb-2">
                   {[
                     { label: "15 minutes", value: 15 * 60 },
                     { label: "30 minutes", value: 30 * 60 },
-                    { label: "1 hour", value: 60 * 60 },
                     { label: "Custom...", value: "custom" },
                   ].map((opt) => (
                     <button
@@ -880,7 +879,7 @@ export const NowPlayingView = ({
                           setShowSleepTimerMenu(false);
                         }
                       }}
-                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.06] active:bg-white/10 transition-all flex items-center justify-between group"
+                      className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/[0.06] active:bg-white/10 transition-all flex items-center justify-between group"
                     >
                       <span>{opt.label}</span>
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white/40">

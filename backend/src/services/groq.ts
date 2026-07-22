@@ -114,7 +114,7 @@ class GroqKeyManager {
 
       try {
         const completion = await client.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
+          model: process.env.GROQ_MODEL || "gpt-oss-120b",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
