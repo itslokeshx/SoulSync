@@ -616,9 +616,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsPlaying(true);
   };
 
-  const handleError = () => {
+  const handleError = (e?: React.SyntheticEvent<HTMLAudioElement, Event>) => {
     if (!currentSong) return;
-    console.error("[AudioEngine] Playback error for:", currentSong?.name);
+    const mediaError = audioRef.current?.error;
+    console.error("[AudioEngine] Playback error for:", currentSong?.name, {
+      code: mediaError?.code,
+      message: mediaError?.message,
+      error: mediaError,
+      event: e,
+    });
 
     const failedSong = usePlayerStore.getState().currentSong;
     // For YouTube songs, try to find an alternative playable version before skipping.
