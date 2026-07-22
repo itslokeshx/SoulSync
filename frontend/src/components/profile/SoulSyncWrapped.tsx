@@ -281,9 +281,9 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
   return (
     <div className="mb-10">
       {/* ── Dashboard Widget Card (Eye-catching & Premium) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="w-full">
         {/* Main CTA Widget Card */}
-        <div className="col-span-1 md:col-span-2 relative overflow-hidden rounded-3xl p-7 flex flex-col justify-between border border-white/[0.06] bg-[#09090b] group">
+        <div className="w-full relative overflow-hidden rounded-3xl p-7 flex flex-col justify-between border border-white/[0.06] bg-[#09090b] group">
           {/* Dynamic colorful border light */}
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-sp-green transition-all" />
           
@@ -334,38 +334,6 @@ export default function SoulSyncWrapped({ stats, user, loading }: SoulSyncWrappe
                 Days Joined
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* Profile Identity Card */}
-        <div className="col-span-1 relative overflow-hidden rounded-3xl p-7 border border-white/[0.06] bg-[#09090b] flex flex-col justify-between group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-white/[0.01] to-transparent pointer-events-none rounded-full blur-xl" />
-          
-          <div className="flex justify-between items-start mb-4">
-            <span className="text-[10px] font-bold text-white/35 uppercase tracking-widest">
-              My Vibe
-            </span>
-            <span className="text-2xl" role="img" aria-label="badge">
-              {soul.badge}
-            </span>
-          </div>
-
-          <div>
-            <h4 className={`text-lg font-black bg-clip-text text-transparent bg-gradient-to-r ${soul.gradient} mb-1.5`}>
-              {hasHistory ? soul.title : "The Listener"}
-            </h4>
-            <p className="text-xs text-white/40 leading-relaxed line-clamp-3">
-              {hasHistory
-                ? soul.desc
-                : "Your musical character will write itself as you listen to more tracks. We're tuning in!"}
-            </p>
-          </div>
-
-          <div className="mt-4 pt-3.5 border-t border-white/[0.04] flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${soul.gradient}`} />
-            <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider">
-              {soul.tagline}
-            </span>
           </div>
         </div>
       </div>
