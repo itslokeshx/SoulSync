@@ -746,39 +746,39 @@ export const HomePage = () => {
 
 
       {/* ── CONTINUE LISTENING ── */}
-      {user && (
-        <div className="mb-10">
-          <SectionHeader
-            title="Continue Listening"
-            subtitle="Jump back in"
-            action={
-              <button
-                onClick={handleShuffle}
-                className="hidden sm:flex h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] items-center justify-center text-white/70 hover:text-white transition-colors"
-                title="Shuffle play"
-              >
-                <Shuffle size={14} />
-              </button>
-            }
-          />
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : (
-            quickPicks.length > 0 && (
-              <QuickPicksList
-                songs={quickPicks}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPlay={(s) => handleHomeSongClick(s, quickPicks)}
-              />
-            )
-          )}
-        </div>
-      )}
+      <div className="mb-10">
+        <SectionHeader
+          title="Continue Listening"
+          subtitle="Jump back in"
+          action={
+            <button
+              onClick={handleShuffle}
+              className="hidden sm:flex h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] items-center justify-center text-white/70 hover:text-white transition-colors"
+              title="Shuffle play"
+            >
+              <Shuffle size={14} />
+            </button>
+          }
+        />
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          quickPicks.length > 0 && (
+            <QuickPicksList
+              songs={quickPicks}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              onPlay={(s) => handleHomeSongClick(s, quickPicks)}
+            />
+          )
+        )}
+      </div>
+
+
 
       {/* ── MADE FOR YOU (WEEKLY MIXES) ── */}
       {mixSet?.mixes && mixSet.mixes.length > 0 && (

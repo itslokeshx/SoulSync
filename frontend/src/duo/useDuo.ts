@@ -281,10 +281,8 @@ export function useDuo({
   );
 
   const syncVideoMode = useCallback(
-    (isVideoMode: boolean) => {
-      emitWhenReady("duo:sync-video-mode", { isVideoMode });
-    },
-    [emitWhenReady],
+    (_isVideoMode: boolean) => {},
+    [],
   );
 
   // ═══ MESSAGES ═════════════════════════════════════════════════════
@@ -641,13 +639,7 @@ export function useDuo({
           break;
         }
 
-        // ── Video mode sync ────────────────────────────────────
-        case "duo:receive-video-mode": {
-          if (data && typeof data.isVideoMode === "boolean") {
-            usePlayerStore.getState().setIsVideoMode(data.isVideoMode);
-          }
-          break;
-        }
+
 
         // ── Messages ───────────────────────────────────────────
         case "duo:receive-message": {

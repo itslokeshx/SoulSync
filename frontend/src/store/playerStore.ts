@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Song } from "../types/song";
+import { recordRecentlyPlayed } from "../utils/recentHistory";
 
 interface PlayerState {
   currentSong: Song | null;
@@ -11,7 +12,6 @@ interface PlayerState {
   isShuffle: boolean;
   repeatMode: "off" | "one" | "all";
   autoplay: boolean;
-  isVideoMode: boolean;
   isPlayerExpanded: boolean;
   // Sleep Timer
   sleepTimerActive: boolean;
@@ -33,7 +33,6 @@ interface PlayerActions {
   setCurrentTime: (t: number) => void;
   setIsPlaying: (v: boolean) => void;
   toggleAutoplay: () => void;
-  setIsVideoMode: (v: boolean) => void;
   setPlayerExpanded: (v: boolean) => void;
   setSleepTimer: (seconds: number | null, endOnTrack?: boolean) => void;
 }
@@ -49,7 +48,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     isShuffle: false,
     repeatMode: "off",
     autoplay: true,
-    isVideoMode: false,
     isPlayerExpanded: false,
     // Sleep Timer
     sleepTimerActive: false,
@@ -57,37 +55,44 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     sleepTimerEndOnTrack: false,
 
     playSong: (song) => {
-      document
-        .querySelector("audio")
-        ?.play()
-        .catch(() => {});
+      recordRecentlyPlayed(song);
       set({
         currentSong: song,
         isPlaying: true,
         currentTime: 0,
         duration: Number(song.duration) || 0,
       });
+      const audio = document.querySelector("audio");
+      if (audio) {
+        audio.play().catch(() => {});
+      }
     },
     pause: () => {
+      const audio = document.querySelector("audio");
+      if (audio) {
+        audio.pause();
+      }
       set({ isPlaying: false });
     },
     resume: () => {
-      document
-        .querySelector("audio")
-        ?.play()
-        .catch(() => {});
+      const audio = document.querySelector("audio");
+      if (audio) {
+        audio.play().catch(() => {});
+      }
       set({ isPlaying: true });
     },
-    togglePlay: () =>
-      set((s) => {
-        const next = !s.isPlaying;
-        if (next)
-          document
-            .querySelector("audio")
-            ?.play()
-            .catch(() => {});
-        return { isPlaying: next };
-      }),
+    togglePlay: () => {
+      const audio = document.querySelector("audio");
+      const nextIsPlaying = !get().isPlaying;
+      if (audio) {
+        if (nextIsPlaying) {
+          audio.play().catch(() => {});
+        } else {
+          audio.pause();
+        }
+      }
+      set({ isPlaying: nextIsPlaying });
+    },
     seekTo: (time) => set({ currentTime: time }),
     setVolume: (vol) => set({ volume: vol, isMuted: vol === 0 }),
     toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
@@ -103,11 +108,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
       })),
     setDuration: (d) => set({ duration: d }),
     setCurrentTime: (t) => set({ currentTime: t }),
-    setIsPlaying: (v) => {
-      set({ isPlaying: v });
-    },
+    setIsPlaying: (v) => set({ isPlaying: v }),
     toggleAutoplay: () => set((s) => ({ autoplay: !s.autoplay })),
-    setIsVideoMode: (v) => set({ isVideoMode: v }),
     setPlayerExpanded: (v) => set({ isPlayerExpanded: v }),
     setSleepTimer: (seconds, endOnTrack = false) =>
       set({
@@ -117,3 +119,4 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
       }),
   }),
 );
+

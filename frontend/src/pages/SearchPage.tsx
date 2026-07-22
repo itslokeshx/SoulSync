@@ -25,7 +25,6 @@ import {
   Radio,
   Headphones,
   MoreVertical,
-  Video,
 } from "lucide-react";
 import {
   useSearch,
@@ -398,7 +397,6 @@ const SEARCH_FILTERS = [
   { id: "albums", label: "Albums" },
   { id: "playlists", label: "Playlists" },
   { id: "podcasts", label: "Podcasts" },
-  { id: "videos", label: "Videos" },
 ];
 
 const SectionHeaderWithSeeAll = ({
@@ -803,39 +801,7 @@ export function SearchPage() {
                   </div>
                 </div>
 
-                {/* Videos */}
-                {result.videos && result.videos.length > 0 && (
-                  <div>
-                    <SectionHeaderWithSeeAll
-                      title="Videos"
-                      icon={Play}
-                      onSeeAll={() => handleFilterChange("videos")}
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      {result.videos.slice(0, 4).map((v: any) => {
-                        const img = bestImg(v.image) || FALLBACK_IMG;
-                        return (
-                          <div
-                            key={v.id}
-                            onClick={() => handlePlay(v)}
-                            className="flex flex-col gap-2 p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer"
-                          >
-                            <div className="relative aspect-video rounded-lg overflow-hidden bg-white/[0.04]">
-                              <img src={img} className="w-full h-full object-cover" alt="" />
-                              <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[10px] text-white font-mono">
-                                {v.duration ? fmt(v.duration) : "Video"}
-                              </div>
-                            </div>
-                            <div className="min-w-0 px-0.5">
-                              <p className="text-[12.5px] font-semibold text-white truncate">{v.name}</p>
-                              <p className="text-[11px] text-white/40 truncate">{v.primaryArtists || "YouTube Video"}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Artists */}
                 {result.artists?.length > 0 && (
@@ -906,7 +872,7 @@ export function SearchPage() {
                   <div>
                     <SectionHeaderWithSeeAll
                       title="Podcast Episodes"
-                      icon={Video}
+                      icon={Radio}
                       onSeeAll={() => handleFilterChange("podcasts")}
                     />
                     <div className="space-y-0.5">
@@ -945,35 +911,7 @@ export function SearchPage() {
               </div>
             )}
 
-            {/* ── FILTERED VIEW: VIDEOS ── */}
-            {filter === "videos" && result.videos && result.videos.length > 0 && (
-              <div>
-                <SectionHeaderWithSeeAll title="Videos" icon={Play} />
-                <div className="grid grid-cols-2 gap-3">
-                  {result.videos.map((v: any) => {
-                    const img = bestImg(v.image) || FALLBACK_IMG;
-                    return (
-                      <div
-                        key={v.id}
-                        onClick={() => handlePlay(v)}
-                        className="flex flex-col gap-2 p-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer"
-                      >
-                        <div className="relative aspect-video rounded-lg overflow-hidden bg-white/[0.04]">
-                          <img src={img} className="w-full h-full object-cover" alt="" />
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[10px] text-white font-mono">
-                            {v.duration ? fmt(v.duration) : "Video"}
-                          </div>
-                        </div>
-                        <div className="min-w-0 px-0.5">
-                          <p className="text-[12.5px] font-semibold text-white truncate">{v.name}</p>
-                          <p className="text-[11px] text-white/40 truncate">{v.primaryArtists || "YouTube Video"}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+
 
             {/* ── FILTERED VIEW: ARTISTS ── */}
             {filter === "artists" && result.artists?.length > 0 && (
@@ -1028,7 +966,7 @@ export function SearchPage() {
                 )}
                 {result.episodes && result.episodes.length > 0 && (
                   <div>
-                    <SectionHeaderWithSeeAll title="Podcast Episodes" icon={Video} />
+                    <SectionHeaderWithSeeAll title="Podcast Episodes" icon={Radio} />
                     <div className="space-y-0.5">
                       {result.episodes.map((episode: any, i: number) => (
                         <SongRow

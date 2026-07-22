@@ -23,7 +23,6 @@ import {
   Minus,
   Plus,
   Moon,
-  Video,
   Maximize2,
   Minimize2,
   Settings,
@@ -150,28 +149,13 @@ export const NowPlayingView = ({
   const {
     autoplay,
     toggleAutoplay,
-    isVideoMode,
-    setIsVideoMode,
     sleepTimerActive,
     sleepTimerSecondsLeft,
     sleepTimerEndOnTrack,
     setSleepTimer,
   } = usePlayerStore();
 
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const isSeekingRef = useRef(false);
-
-  const [videoStartTime, setVideoStartTime] = useState(0);
-  const prevVideoMode = useRef(isVideoMode);
-  const prevSongId = useRef(currentSong?.id);
-  const prevIsOpen = useRef(isOpen);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [quality, setQuality] = useState("default");
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customMinutes, setCustomMinutes] = useState("");
@@ -182,108 +166,6 @@ export const NowPlayingView = ({
       setCustomMinutes("");
     }
   }, [showSleepTimerMenu]);
-
-  const handleQualityChange = (q: string) => {
-    // Capture current playing time so the video resumes from the exact spot after reload
-    setVideoStartTime(Math.floor(currentTime));
-    setQuality(q);
-    setShowQualityMenu(false);
-  };
-
-  // Close quality dropdown when tapping outside
-  useEffect(() => {
-    if (!showQualityMenu) return;
-    const close = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.closest(".quality-trigger") ||
-        target.closest(".quality-menu")
-      ) {
-        return;
-      }
-      setShowQualityMenu(false);
-    };
-    const timer = setTimeout(() => {
-      document.addEventListener("pointerdown", close);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("pointerdown", close);
-    };
-  }, [showQualityMenu]);
-
-  useEffect(() => {
-    const becameOpen = isOpen && !prevIsOpen.current;
-    const switchedToVideo = isVideoMode && !prevVideoMode.current;
-    const songChanged = prevSongId.current !== currentSong?.id;
-
-    if (isVideoMode && (becameOpen || switchedToVideo || songChanged)) {
-      setVideoStartTime(Math.floor(currentTime));
-    }
-    prevVideoMode.current = isVideoMode;
-    prevSongId.current = currentSong?.id;
-    prevIsOpen.current = isOpen;
-  }, [isVideoMode, isOpen, currentSong?.id, currentTime]);
-
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFsChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFsChange);
-    };
-  }, []);
-
-  const handleMouseMove = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = setTimeout(() => {
-      setShowControls(false);
-    }, 3000);
-  };
-
-  useEffect(() => {
-    if (isFullscreen) {
-      setShowControls(true);
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("pointerdown", handleMouseMove);
-    } else {
-      setShowControls(true);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("pointerdown", handleMouseMove);
-    }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("pointerdown", handleMouseMove);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    };
-  }, [isFullscreen]);
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    } else {
-      containerRef.current.requestFullscreen().catch(() => {});
-    }
-  };
-
-  // The video iframe is a muted visual follower only. The <audio> element owns
-  // playback state (time/duration/play-state/ended); this iframe is driven FROM
-  // that state, never the reverse, so it does not write back to the store.
-
-  // Sync state changes from app -> YouTube player
-  useEffect(() => {
-    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow)
-      return;
-
-    const command = isPlaying ? "playVideo" : "pauseVideo";
-    iframeRef.current.contentWindow.postMessage(
-      JSON.stringify({ event: "command", func: command, args: [] }),
-      "*",
-    );
-  }, [isPlaying, isVideoMode]);
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -373,12 +255,6 @@ export const NowPlayingView = ({
 
   const handleSeek = (val: number) => {
     onSeek(val);
-    if (isVideoMode && iframeRef.current && iframeRef.current.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: "command", func: "seekTo", args: [val, true] }),
-        "*",
-      );
-    }
   };
 
   const handleSeekStart = () => {
@@ -491,285 +367,28 @@ export const NowPlayingView = ({
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row items-center justify-center px-4 sm:px-8 lg:px-0 gap-4 sm:gap-6 lg:gap-0 min-h-0 relative overflow-y-auto lg:overflow-hidden thin-scrollbar py-2 sm:pb-8 lg:py-0">
-          {/* Left Column (Switcher + optional Vinyl) */}
+          {/* Left Column (Album Art / Vinyl) */}
           <div className="flex-shrink-0 flex flex-col items-center justify-center lg:w-1/2 lg:justify-center gap-4">
-            {/* Audio / Video Switcher Pills */}
-            <div className="flex items-center gap-1 bg-white/[0.04] border border-white/[0.06] p-0.5 rounded-full z-10">
-              <button
-                onClick={() => setIsVideoMode(false)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                  !isVideoMode
-                    ? "bg-white/10 text-white shadow-md font-semibold"
-                    : "text-white/40 hover:text-white/70"
-                }`}
-              >
-                <Music size={12} />
-                <span>Audio</span>
-              </button>
-              <button
-                onClick={() => setIsVideoMode(true)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                  isVideoMode
-                    ? "bg-white/10 text-white shadow-md font-semibold"
-                    : "text-white/40 hover:text-white/70"
-                }`}
-              >
-                <Video size={12} />
-                <span>Video</span>
-              </button>
-            </div>
-
-            {/* Vinyl record container - only shown in audio mode! */}
-            {!isVideoMode && (
+            <div
+              className={`transition-all duration-500 ease-out relative rounded-2xl sm:rounded-3xl overflow-hidden`}
+              style={{
+                boxShadow: `0 20px 60px ${bgColor}30, 0 0 30px ${bgColor}15`,
+              }}
+            >
               <div
-                className={`transition-all duration-500 ease-out relative rounded-2xl sm:rounded-3xl overflow-hidden`}
-                style={{
-                  boxShadow: `0 20px 60px ${bgColor}30, 0 0 30px ${bgColor}15`,
-                }}
+                className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}
               >
-                <div
-                  className={`relative vinyl-ring rounded-2xl sm:rounded-3xl ${isPlaying ? "scale-100" : "scale-[0.9] opacity-70"} transition-all duration-700`}
-                >
-                  <img
-                    src={img}
-                    onError={onImgErr}
-                    className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-2xl sm:rounded-3xl object-cover"
-                    style={{ boxShadow: "0 16px 50px rgba(0,0,0,0.8)" }}
-                  />
-                  {isPlaying && (
-                    <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.04] animate-breathe pointer-events-none" />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Video container - only rendered and mounted when open! */}
-            {isVideoMode && isOpen && (
-              <div
-                ref={containerRef}
-                className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center group shadow-2xl relative pointer-events-auto"
-              >
-                <iframe
-                  ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}&vq=${quality}`}
-                  title={currentSong.name}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
+                <img
+                  src={img}
+                  onError={onImgErr}
+                  className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-2xl sm:rounded-3xl object-cover"
+                  style={{ boxShadow: "0 16px 50px rgba(0,0,0,0.8)" }}
                 />
-                {!isFullscreen && (
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto z-50">
-                    {/* Quality Button */}
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowQualityMenu(!showQualityMenu);
-                        }}
-                        className="quality-trigger bg-black/60 hover:bg-black/80 border border-white/10 text-white px-2 py-1.5 rounded-xl backdrop-blur-md transition-all active:scale-95 flex items-center gap-1 shadow-lg text-[9px] sm:text-[10px] font-bold"
-                        title="Video Quality"
-                      >
-                        <Settings size={12} />
-                        <span>
-                          {quality === "default"
-                            ? "Auto"
-                            : quality === "hd1080"
-                              ? "1080p"
-                              : quality === "hd720"
-                                ? "720p"
-                                : quality === "large"
-                                  ? "480p"
-                                  : quality === "medium"
-                                    ? "360p"
-                                    : "240p"}
-                        </span>
-                      </button>
-
-                      {showQualityMenu && (
-                        <div className="quality-menu absolute bottom-10 right-0 bg-black/95 border border-white/15 rounded-xl p-1 z-[100] flex flex-col min-w-[110px] shadow-2xl backdrop-blur-xl">
-                          {[
-                            { val: "default", label: "Auto" },
-                            { val: "hd1080", label: "1080p" },
-                            { val: "hd720", label: "720p" },
-                            { val: "large", label: "480p" },
-                            { val: "medium", label: "360p" },
-                            { val: "small", label: "240p" },
-                          ].map((opt) => (
-                            <button
-                              key={opt.val}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQualityChange(opt.val);
-                              }}
-                              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10 flex items-center justify-between ${
-                                quality === opt.val
-                                  ? "text-sp-green"
-                                  : "text-white/80"
-                              }`}
-                            >
-                              <span>{opt.label}</span>
-                              {quality === opt.val && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Fullscreen Button */}
-                    <button
-                      onClick={toggleFullscreen}
-                      className="bg-black/60 hover:bg-black/80 border border-white/10 text-white p-2.5 rounded-xl backdrop-blur-md transition-all active:scale-95 flex items-center justify-center shadow-lg"
-                      title="Toggle Fullscreen"
-                    >
-                      <Maximize2 size={14} className="text-white/80" />
-                    </button>
-                  </div>
-                )}
-                {isFullscreen && (
-                  <div
-                    className={`absolute inset-0 bg-transparent flex flex-col justify-end transition-opacity duration-300 pointer-events-auto ${
-                      showControls
-                        ? "opacity-100"
-                        : "opacity-0 pointer-events-none"
-                    }`}
-                  >
-                    {/* Compact Full-Width Bottom Glass Control Bar */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/85 border-t border-white/10 backdrop-blur-xl px-6 py-2.5 flex items-center justify-between gap-6 shadow-2xl text-white pointer-events-auto">
-                      {/* Top Timeline Slider */}
-                      <div className="absolute top-0 left-0 right-0 -translate-y-1/2 w-full h-1 px-1">
-                        <input
-                          type="range"
-                          min={0}
-                          max={duration || 0}
-                          step="any"
-                          value={currentTime}
-                          onChange={(e) => handleSeek(+e.target.value)}
-                          onPointerDown={handleSeekStart}
-                          onPointerUp={handleSeekEnd}
-                          className="w-full h-1 cursor-pointer accent-sp-green"
-                          style={{
-                            background: `linear-gradient(to right, #1db954 0%, #1db954 ${duration ? (currentTime / duration) * 100 : 0}%, rgba(255,255,255,0.2) ${duration ? (currentTime / duration) * 100 : 0}%, rgba(255,255,255,0.2) 100%)`,
-                            appearance: "none",
-                            outline: "none",
-                            borderRadius: "9999px",
-                          }}
-                        />
-                      </div>
-
-                      {/* Left: Song Info */}
-                      <div className="text-left min-w-0 flex-1">
-                        <h2 className="text-white text-xs md:text-sm font-bold truncate leading-tight">
-                          {currentSong.name}
-                        </h2>
-                        <p className="text-white/40 text-[9px] md:text-xs mt-0.5 truncate">
-                          {artists}
-                        </p>
-                      </div>
-
-                      {/* Right: Controls & Info */}
-                      <div className="flex items-center gap-4 justify-end flex-shrink-0 relative">
-                        {/* Play/Pause Button */}
-                        <button
-                          onClick={onPlayPause}
-                          className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg pointer-events-auto"
-                        >
-                          {isPlaying ? (
-                            <Pause
-                              size={14}
-                              className="text-black fill-black"
-                            />
-                          ) : (
-                            <Play
-                              size={14}
-                              className="text-black fill-black ml-0.5"
-                            />
-                          )}
-                        </button>
-
-                        <span className="text-[10px] text-white/50 tabular-nums font-semibold">
-                          {fmt(currentTime)} / {fmt(duration)}
-                        </span>
-
-                        {/* Quality Controller */}
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              queueMicrotask(() =>
-                                setShowQualityMenu(!showQualityMenu),
-                              );
-                            }}
-                            className={`quality-trigger px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all active:scale-95 pointer-events-auto flex items-center gap-1 ${
-                              showQualityMenu
-                                ? "bg-white text-black border-white"
-                                : "bg-white/10 hover:bg-white/20 text-white/90 border-white/10"
-                            }`}
-                            title="Video Quality"
-                          >
-                            <Settings size={12} />
-                            <span>
-                              {quality === "default"
-                                ? "Auto"
-                                : quality === "hd1080"
-                                  ? "1080p"
-                                  : quality === "hd720"
-                                    ? "720p"
-                                    : quality === "large"
-                                      ? "480p"
-                                      : quality === "medium"
-                                        ? "360p"
-                                        : "240p"}
-                            </span>
-                          </button>
-
-                          {showQualityMenu && (
-                            <div className="quality-menu absolute bottom-10 right-0 bg-black/95 border border-white/15 rounded-xl p-1 z-[100] flex flex-col min-w-[110px] shadow-2xl backdrop-blur-xl pointer-events-auto">
-                              {[
-                                { val: "default", label: "Auto" },
-                                { val: "hd1080", label: "1080p" },
-                                { val: "hd720", label: "720p" },
-                                { val: "large", label: "480p" },
-                                { val: "medium", label: "360p" },
-                                { val: "small", label: "240p" },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.val}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleQualityChange(opt.val);
-                                  }}
-                                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10 flex items-center justify-between ${
-                                    quality === opt.val
-                                      ? "text-sp-green"
-                                      : "text-white/80"
-                                  }`}
-                                >
-                                  <span>{opt.label}</span>
-                                  {quality === opt.val && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-sp-green" />
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={toggleFullscreen}
-                          className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-all active:scale-95 flex items-center justify-center border border-white/10 pointer-events-auto"
-                          title="Exit Fullscreen"
-                        >
-                          <Minimize2 size={16} className="text-white/85" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                {isPlaying && (
+                  <div className="absolute -inset-1 rounded-2xl sm:rounded-3xl border border-white/[0.04] animate-breathe pointer-events-none" />
                 )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Controls column — right half on desktop */}

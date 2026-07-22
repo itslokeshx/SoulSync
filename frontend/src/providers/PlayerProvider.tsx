@@ -67,7 +67,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const isMuted = usePlayerStore((s) => s.isMuted);
   const repeatMode = usePlayerStore((s) => s.repeatMode);
   const autoplay = usePlayerStore((s) => s.autoplay);
-  const isVideoMode = usePlayerStore((s) => s.isVideoMode);
   const isPlayerExpanded = usePlayerStore((s) => s.isPlayerExpanded);
 
   // Stable actions from store state
@@ -247,9 +246,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [seekTo]);
 
   // ── Consolidated Audio & Source Control ──────
-  // Same path for foreground and background — no visibility branch, no engine swap.
+  // 1. Song Source Resolution — runs ONLY when currentSong changes
+  const lastLoadedSongIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!audioRef.current || !currentSong) return;
+    if (lastLoadedSongIdRef.current === currentSong.id) return;
+    lastLoadedSongIdRef.current = currentSong.id;
 
     let isCancelled = false;
 
@@ -278,40 +281,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           targetSrc = targetSrc.replace(/&amp;/g, "&");
         }
 
-        if (audioRef.current!.src !== targetSrc) {
-          srcJustChangedRef.current = true;
-          if (srcChangedTimerRef.current)
-            clearTimeout(srcChangedTimerRef.current);
-          srcChangedTimerRef.current = setTimeout(() => {
-            srcJustChangedRef.current = false;
-            srcChangedTimerRef.current = null;
-          }, 3000);
-
-          if (
-            targetSrc.startsWith("blob:") ||
-            targetSrc.startsWith("file:") ||
-            targetSrc.startsWith("ms-appdata:") ||
-            targetSrc.includes("_capacitor_file_") ||
-            targetSrc.startsWith("data:")
-          ) {
-            audioRef.current!.removeAttribute("crossOrigin");
-          } else {
-            audioRef.current!.crossOrigin = "anonymous";
-          }
-          audioRef.current!.src = targetSrc;
-        } else {
+        srcJustChangedRef.current = true;
+        if (srcChangedTimerRef.current)
+          clearTimeout(srcChangedTimerRef.current);
+        srcChangedTimerRef.current = setTimeout(() => {
           srcJustChangedRef.current = false;
-          if (srcChangedTimerRef.current) {
-            clearTimeout(srcChangedTimerRef.current);
-            srcChangedTimerRef.current = null;
-          }
+          srcChangedTimerRef.current = null;
+        }, 3000);
+
+        if (
+          targetSrc.startsWith("blob:") ||
+          targetSrc.startsWith("file:") ||
+          targetSrc.startsWith("ms-appdata:") ||
+          targetSrc.includes("_capacitor_file_") ||
+          targetSrc.startsWith("data:")
+        ) {
+          audioRef.current!.removeAttribute("crossOrigin");
+        } else {
+          audioRef.current!.crossOrigin = "anonymous";
         }
 
+        audioRef.current!.src = targetSrc;
+
         const currentState = usePlayerStore.getState();
-        if (
-          currentState.isPlaying &&
-          currentState.currentSong?.id === currentSong.id
-        ) {
+        if (currentState.isPlaying) {
           audioRef.current!.play().catch(() => {});
         } else {
           audioRef.current!.pause();
@@ -333,11 +326,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return () => {
       isCancelled = true;
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
     };
-  }, [currentSong?.id, isPlaying]);
+  }, [currentSong?.id]);
+
+  // 2. Play/Pause State Sync — runs when isPlaying changes without re-setting src
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentSong) return;
+
+    if (isPlaying) {
+      if (audio.paused && audio.src) {
+        audio.play().catch(() => {});
+      }
+    } else {
+      if (!audio.paused) {
+        audio.pause();
+      }
+    }
+  }, [isPlaying, currentSong?.id]);
 
   // ── Consolidated SoulLink Sync ────────────────────────────────────
 
@@ -364,13 +370,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       duo.syncSongChange(currentSong, fullQueue, idx);
     }
   }, [currentSong?.id, duo]);
-
-  // 2. Sync video mode changes
-  useEffect(() => {
-    const isDuoActive = useDuoStore.getState().active;
-    if (!isDuoActive || !hasEverLoadedRef.current) return;
-    duo.syncVideoMode?.(isVideoMode);
-  }, [isVideoMode, duo]);
 
   // ── Volume ──────────────────────────────────────────────────────
   useEffect(() => {

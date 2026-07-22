@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useMixes } from "./useMixes";
 import { getDashboard, getGuestDashboard, startRadio } from "../api/backend";
 import { normalizeSongs } from "../utils/normalizeSong";
+import { getRecentlyPlayedFromStorage } from "../utils/recentHistory";
 
 const CACHE_TTL = import.meta.env.DEV ? 0 : 5 * 60_000; // 5 minutes (disabled in dev)
 const REFETCH_COOLDOWN = 2 * 60_000; // 2 minutes
@@ -14,6 +15,19 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const [localRecents, setLocalRecents] = useState<any[]>(() =>
+    getRecentlyPlayedFromStorage()
+  );
+
+  useEffect(() => {
+    const handleRecentsUpdated = () => {
+      setLocalRecents(getRecentlyPlayedFromStorage());
+    };
+    window.addEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
+    return () =>
+      window.removeEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
+  }, []);
 
   const fetched = useRef(false);
   const fetchingRef = useRef(false);
@@ -153,7 +167,11 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   })();
 
   // Data processing / transformations
-  const normalizedRecentlyPlayed = normalizeSongs(dashboard?.recentlyPlayed || []);
+  const rawRecentlyPlayed = [
+    ...localRecents,
+    ...(dashboard?.recentlyPlayed || []),
+  ];
+  const normalizedRecentlyPlayed = normalizeSongs(rawRecentlyPlayed);
   const normalizedNewReleases = normalizeSongs(dashboard?.newReleases?.songs || []);
   const normalizedLikedSongs = normalizeSongs(dashboard?.likedSongs || []);
   const normalizedMadeForYou = normalizeSongs(dashboard?.madeForYou?.songs || []);
