@@ -58,7 +58,10 @@ class InFlightResolution:
 
 _inflight_resolutions = {}
 _inflight_lock = threading.Lock()
-_stream_semaphore = threading.Semaphore(5)
+# Step 9: Maximum 3 concurrent stream resolutions
+_stream_semaphore = threading.Semaphore(3)
+_stream_launch_lock = threading.Lock()
+_last_stream_launch_time: float = 0.0
 
 
 
@@ -309,15 +312,26 @@ def _resolve_stream_sync(video_id: str) -> dict:
         if browser:
             opts['cookiesfrombrowser'] = (browser,)
         
+        # Step 3: Preferred JS runtime detection (Deno -> Node -> QuickJS)
         runtimes = {}
-        deno_path = shutil.which("deno") or os.path.expanduser("~/.deno/bin/deno")
-        if os.path.exists(deno_path):
-            runtimes['deno'] = {'path': deno_path}
-        node_path = shutil.which("node")
-        if node_path:
-            runtimes['node'] = {'path': node_path}
+        deno_bin = shutil.which("deno") or os.path.expanduser("~/.deno/bin/deno")
+        if os.path.exists(deno_bin):
+            runtimes['deno'] = {'path': deno_bin}
+        node_bin = shutil.which("node")
+        if node_bin:
+            runtimes['node'] = {'path': node_bin}
+        quickjs_bin = shutil.which("quickjs")
+        if quickjs_bin:
+            runtimes['quickjs'] = {'path': quickjs_bin}
+            
         if runtimes:
             opts['js_runtimes'] = runtimes
+
+        # Step 4: Configure remote EJS challenge solver
+        if 'deno' in runtimes:
+            opts['remote_components'] = ['ejs:npm']
+        else:
+            opts['remote_components'] = ['ejs:github']
 
         yt_args = {}
         if client_override:
@@ -325,11 +339,12 @@ def _resolve_stream_sync(video_id: str) -> dict:
         else:
             yt_args['player_client'] = ['android', 'ios']
 
-        po_token = os.getenv("YT_PO_TOKEN")
+        # Step 8: PO Token & Visitor Data support
+        po_token = os.getenv("YOUTUBE_PO_TOKEN") or os.getenv("YT_PO_TOKEN")
         if po_token:
             yt_args['po_token'] = [po_token]
 
-        visitor_data = os.getenv("YT_VISITOR_DATA")
+        visitor_data = os.getenv("YOUTUBE_VISITOR_DATA") or os.getenv("YT_VISITOR_DATA")
         if visitor_data:
             yt_args['visitor_data'] = [visitor_data]
 
@@ -345,14 +360,21 @@ def _resolve_stream_sync(video_id: str) -> dict:
     cookie_file_path = get_shared_cookies_path()
 
     try:
-        acquired = _stream_semaphore.acquire(timeout=5)
+        acquired = _stream_semaphore.acquire(timeout=8)
         if not acquired:
             exc = HTTPException(status_code=503, detail="Too many concurrent stream resolutions")
             res_future.error = exc
             raise exc
 
         try:
-            time.sleep(random.uniform(0.05, 0.2))
+            # Step 9: Enforce 2.5s minimum delay between launches to prevent rate limits
+            global _last_stream_launch_time
+            with _stream_launch_lock:
+                now = time.monotonic()
+                diff = now - _last_stream_launch_time
+                if diff < 2.5:
+                    time.sleep(2.5 - diff)
+                _last_stream_launch_time = time.monotonic()
             
             if cookie_file_path:
                 ydl_opts = build_ydl_opts(cookies_path=cookie_file_path)
@@ -413,9 +435,23 @@ def _resolve_stream_sync(video_id: str) -> dict:
                             return result
                 except Exception as e:
                     err_msg = str(e).lower()
-                    logger.error(f"[yt-dlp/stderr] Extraction failed for {video_id}: exception_type={type(e).__name__} | message='{e}'")
-                    if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg or "no longer valid" in err_msg:
-                        logger.error("[cookies] expired or flagged — refresh may be needed")
+                    has_js = 'js_runtimes' in ydl_opts
+                    has_po = 'po_token' in ydl_opts.get('extractor_args', {}).get('youtube', {})
+                    
+                    detected_cause = "UNKNOWN"
+                    if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg:
+                        if not cookie_file_path:
+                            detected_cause = "MISSING_COOKIES"
+                        elif not has_js:
+                            detected_cause = "MISSING_JS_RUNTIME"
+                        elif not has_po:
+                            detected_cause = "PO_TOKEN_REQUIRED_OR_EXPIRED_COOKIES"
+                        else:
+                            detected_cause = "EXPIRED_OR_REVOKED_COOKIES"
+                            
+                        logger.error(f"[yt-dlp/stderr] Stream extraction rejected by YouTube | cookies_expired=true | detected_cause={detected_cause} | message='{e}'")
+                    else:
+                        logger.error(f"[yt-dlp/stderr] Extraction failed for {video_id}: exception_type={type(e).__name__} | message='{e}'")
                     last_err = e
         
             is_render = os.getenv("RENDER") == "true"
