@@ -72,18 +72,18 @@ export const HSection = ({
             </div>
           ))
         : songs.length > 0
-          ? songs.map((s) => (
+          ? songs.map((s, idx) => (
               <SongCard
-                key={s.id}
+                key={`${s.id}-${idx}`}
                 song={s}
                 isCurrent={currentSong?.id === s.id}
                 isPlaying={isPlaying}
                 onPlay={() => onPlay(s, songs)}
               />
             ))
-          : albums.map((a) => (
+          : albums.map((a, idx) => (
               <AlbumCard
-                key={a.id}
+                key={`${a.id}-${idx}`}
                 album={a}
                 onClick={() => onAlbumClick?.(a)}
               />

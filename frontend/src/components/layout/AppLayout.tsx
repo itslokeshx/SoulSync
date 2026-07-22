@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { Search, Music2, ChevronLeft, WifiOff, Download } from "lucide-react";
 import { useNetwork } from "../../providers/NetworkProvider";
 import { usePlayerStore } from "../../store/playerStore";
@@ -24,6 +25,7 @@ import {
   getArtists,
 } from "../../lib/helpers";
 import * as api from "../../api/backend";
+import { normalizeSongs } from "../../utils/normalizeSong";
 import toast from "react-hot-toast";
 import { useAnnouncements } from "../../hooks/useAnnouncements";
 
@@ -64,9 +66,15 @@ export function AppLayout() {
     playSong,
     seekTo,
     pause,
+    setPlayerExpanded,
   } = usePlayerStore();
 
-  const { queue, queueIndex, next, prev, move, remove, shuffle, setQueue } =
+  // Sync local npOpen to store isPlayerExpanded
+  useEffect(() => {
+    setPlayerExpanded(npOpen);
+  }, [npOpen, setPlayerExpanded]);
+
+  const { queue, queueIndex, next, prev, move, remove, shuffle, setQueue, addLast } =
     useQueueStore();
 
   const [likedSongs, toggleLike, setAllLiked] = useLikedSongs(isAuthenticated);
@@ -130,6 +138,44 @@ export function AppLayout() {
     },
     [likedSongs, toggleLike, gate],
   );
+
+  const handleNext = useCallback(() => {
+    const n = next(repeatMode);
+    if (n) {
+      playSong(n);
+    } else {
+      const { autoplay: ap, currentSong: song } = usePlayerStore.getState();
+      if (ap && song && !song._isOffline && !song.id?.startsWith("local_")) {
+        toast("Finding up next...");
+        api.getAutoplaySongs(song.id)
+          .then((data) => {
+            const songs: any[] = data?.songs ?? [];
+            if (!songs.length) {
+              pause();
+              return;
+            }
+            const normalized = normalizeSongs(songs);
+            if (!normalized.length) {
+              pause();
+              return;
+            }
+            normalized.forEach((s) => addLast(s));
+            const nextSong = useQueueStore.getState().next(repeatMode);
+            if (nextSong) {
+              playSong(nextSong);
+            } else {
+              pause();
+            }
+          })
+          .catch((err) => {
+            console.error("[Player] Autoplay fetch failed:", err);
+            pause();
+          });
+      } else {
+        pause();
+      }
+    }
+  }, [next, repeatMode, playSong, addLast, pause]);
 
   const appContextValue = {
     currentSong,
@@ -301,10 +347,7 @@ export function AppLayout() {
             const p = prev();
             if (p) playSong(p);
           }}
-          onNext={() => {
-            const n = next(repeatMode);
-            if (n) playSong(n);
-          }}
+          onNext={handleNext}
           onShuffle={toggleShuffle}
           onRepeat={cycleRepeat}
           onLike={handleLike}
@@ -313,48 +356,49 @@ export function AppLayout() {
           queueOpen={queueOpen}
         />
 
-        {npOpen && currentSong && (
-          <NowPlayingView
-            currentSong={currentSong}
-            isPlaying={isPlaying}
-            currentTime={currentTime}
-            duration={duration}
-            volume={volume}
-            shuffle={isShuffle}
-            repeat={repeatMode}
-            liked={!!likedSongs[currentSong.id]}
-            onClose={() => setNpOpen(false)}
-            onPlayPause={togglePlay}
-            onSeek={handleSeek}
-            onSeekStart={() => {}}
-            onSeekEnd={() => {}}
-            onVolume={setVolume}
-            onPrev={() => {
-              const p = prev();
-              if (p) playSong(p);
-            }}
-            onNext={() => {
-              const n = next(repeatMode);
-              if (n) playSong(n);
-            }}
-            onShuffle={toggleShuffle}
-            onRepeat={cycleRepeat}
-            onLike={handleLike}
-            onPlaySong={(song) => playSong(song)}
-            queue={queue}
-            queueIndex={queueIndex}
-            onJump={(idx) => {
-              const s = queue[idx];
-              if (s) {
-                setQueue(queue, idx);
-                playSong(s);
-              }
-            }}
-            onMove={move}
-            onRemove={remove}
-            onShuffleQueue={shuffle}
-          />
-        )}
+        <AnimatePresence>
+          {currentSong && npOpen && (
+            <NowPlayingView
+              isOpen={npOpen}
+              onOpen={() => setNpOpen(true)}
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              volume={volume}
+              shuffle={isShuffle}
+              repeat={repeatMode}
+              liked={!!likedSongs[currentSong.id]}
+              onClose={() => setNpOpen(false)}
+              onPlayPause={togglePlay}
+              onSeek={handleSeek}
+              onSeekStart={() => {}}
+              onSeekEnd={() => {}}
+              onVolume={setVolume}
+              onPrev={() => {
+                const p = prev();
+                if (p) playSong(p);
+              }}
+              onNext={handleNext}
+              onShuffle={toggleShuffle}
+              onRepeat={cycleRepeat}
+              onLike={handleLike}
+              onPlaySong={(song) => playSong(song)}
+              queue={queue}
+              queueIndex={queueIndex}
+              onJump={(idx) => {
+                const s = queue[idx];
+                if (s) {
+                  setQueue(queue, idx);
+                  playSong(s);
+                }
+              }}
+              onMove={move}
+              onRemove={remove}
+              onShuffleQueue={shuffle}
+            />
+          )}
+        </AnimatePresence>
 
         <MobileNav />
         <ContextMenu />

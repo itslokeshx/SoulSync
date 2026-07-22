@@ -6,6 +6,7 @@ import { FALLBACK_IMG } from "../../lib/constants";
 import { usePlayerStore } from "../../store/playerStore";
 import { useQueueStore } from "../../store/queueStore";
 import { getAutoplaySongs } from "../../api/backend";
+import { ArtistLinks } from "../ui/ArtistLinks";
 
 interface QueuePanelProps {
   queue: any[];
@@ -47,6 +48,7 @@ export const QueuePanel = ({
   const { addLast } = useQueueStore();
   const [autoplaySongs, setAutoplaySongs] = useState<any[]>([]);
   const [autoplayLoading, setAutoplayLoading] = useState(false);
+  const [autoplayFilter, setAutoplayFilter] = useState<"similar" | "popular" | "discover">("similar");
 
   useEffect(() => {
     if (!autoplay || !currentSong?.id || currentSong?._isOffline) {
@@ -55,7 +57,7 @@ export const QueuePanel = ({
     }
     let cancelled = false;
     setAutoplayLoading(true);
-    getAutoplaySongs(currentSong.id)
+    getAutoplaySongs(currentSong.id, autoplayFilter)
       .then((data) => {
         if (cancelled) return;
         const inQueue = new Set(queue.map((s: any) => s.id));
@@ -66,7 +68,7 @@ export const QueuePanel = ({
       .catch(() => !cancelled && setAutoplaySongs([]))
       .finally(() => !cancelled && setAutoplayLoading(false));
     return () => { cancelled = true; };
-  }, [currentSong?.id, autoplay]);
+  }, [currentSong?.id, autoplay, autoplayFilter, queue]);
 
   // Drag handlers operate on upcoming items only (relative index in upcoming array)
   const toAbsolute = (relIdx: number) => queueIndex + 1 + relIdx;
@@ -156,7 +158,7 @@ export const QueuePanel = ({
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-white/70 truncate">{s.name}</p>
                   <p className="text-[11px] text-white/30 truncate">
-                    {getArtists(s)}
+                    <ArtistLinks song={s} />
                   </p>
                 </div>
                 <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
@@ -184,7 +186,7 @@ export const QueuePanel = ({
                   {currentSong.name}
                 </p>
                 <p className="text-[11px] text-sp-sub/60 truncate">
-                  {getArtists(currentSong)}
+                  <ArtistLinks song={currentSong} />
                 </p>
               </div>
               <EqBars />
@@ -238,7 +240,7 @@ export const QueuePanel = ({
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-white truncate">{s.name}</p>
                   <p className="text-[11px] text-sp-sub/50 truncate">
-                    {getArtists(s)}
+                    <ArtistLinks song={s} />
                   </p>
                 </div>
               </button>
@@ -267,6 +269,28 @@ export const QueuePanel = ({
             <p className="text-[10px] font-bold text-sp-muted uppercase tracking-widest px-5 py-3">
               Up next · Autoplay
             </p>
+            <div className="flex gap-1.5 px-5 pb-2 overflow-x-auto thin-scrollbar">
+              {[
+                { id: "similar", label: "Similar" },
+                { id: "popular", label: "Popular" },
+                { id: "discover", label: "Discover New" },
+              ].map((chip) => {
+                const active = autoplayFilter === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    onClick={() => setAutoplayFilter(chip.id as any)}
+                    className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-150 ${
+                      active
+                        ? "bg-white text-black"
+                        : "bg-white/[0.04] text-white/50 border border-white/[0.06] hover:bg-white/[0.08] hover:text-white"
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
             {autoplayLoading && (
               <p className="text-sp-muted text-xs px-5 py-2 text-center opacity-50">
                 Loading…
@@ -287,7 +311,7 @@ export const QueuePanel = ({
                     {s.name}
                   </p>
                   <p className="text-[11px] text-sp-sub/40 truncate">
-                    {getArtists(s)}
+                    <ArtistLinks song={s} />
                   </p>
                 </div>
                 <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">

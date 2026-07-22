@@ -10,6 +10,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import * as api from "../api/backend";
+import { getArtists, bestImg } from "../lib/helpers";
 
 const PLATFORMS = [
   {
@@ -107,26 +108,28 @@ export default function ImportPage() {
     }
   };
 
-  // Convert JioSaavn song object to playlist song format
+  // Convert JioSaavn/YT Music song object to playlist song format
   const toSongEmbed = (song: any) => {
     if (!song) return null;
-    const artists = song.artists?.primary || song.artists?.all || [];
-    const artistName =
-      artists.map((a: any) => a.name).join(", ") || song.subtitle || "";
-    const images = Array.isArray(song.image) ? song.image : [];
-    const albumArt =
-      images.find((i: any) => i.quality === "500x500")?.url ||
-      images.find((i: any) => i.quality === "150x150")?.url ||
-      images[images.length - 1]?.url ||
-      "";
-    const dlUrls = Array.isArray(song.downloadUrl) ? song.downloadUrl : [];
+    const artistName = getArtists(song);
+    const albumArt = bestImg(song.image) || "";
+    
+    // Process download URLs from downloadUrl or download_url
+    let dlUrls = Array.isArray(song.downloadUrl) ? song.downloadUrl : [];
+    if (dlUrls.length === 0 && song.download_url) {
+      dlUrls = Array.isArray(song.download_url) ? song.download_url : [];
+    }
+    
     return {
       songId: song.id,
-      title: song.name || "",
+      title: song.name || song.title || "",
       artist: artistName,
       albumArt,
       duration: Number(song.duration) || 0,
-      downloadUrl: dlUrls.map((d: any) => ({ quality: d.quality, url: d.url })),
+      downloadUrl: dlUrls.map((d: any) => ({
+        quality: d.quality || "",
+        url: d.link || d.url || "",
+      })),
     };
   };
 
@@ -160,7 +163,7 @@ export default function ImportPage() {
       } else {
         setMatchResult(res);
         setError(
-          "No songs could be matched on JioSaavn. Try pasting names manually.",
+          "No songs could be matched. Try pasting names manually.",
         );
       }
     } catch (err: any) {
@@ -248,7 +251,7 @@ export default function ImportPage() {
 
             {matchResult.stats?.notFound > 0 && (
               <p className="text-white/30 text-xs mb-4">
-                {matchResult.stats.notFound} songs couldn't be found on JioSaavn
+                {matchResult.stats.notFound} songs couldn't be found
               </p>
             )}
 
@@ -412,7 +415,7 @@ export default function ImportPage() {
               {[
                 "Paste any public playlist URL or song names",
                 "We extract all song names (no login needed)",
-                "AI finds each song on JioSaavn",
+                "AI finds each song on YouTube Music",
                 "Playlist saved to your SoulSync library",
               ].map((step, i) => (
                 <div key={i} className="flex items-start gap-3">

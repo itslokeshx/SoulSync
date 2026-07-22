@@ -24,13 +24,14 @@ export interface Song {
   duration: number;
   language?: string;
   image: SongImage[];
+  streamUrl?: string | null;
   downloadUrl?: SongDownloadUrl[];
   download_url?: SongDownloadUrl[];
   artists?: {
     primary: SongArtist[];
     featured?: SongArtist[];
     all?: SongArtist[];
-  };
+  } | Array<{ name: string; id: string }>;
   artist_map?: {
     primary_artists: SongArtist[];
   };

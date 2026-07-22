@@ -135,7 +135,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       songId: currentSong.id,
       title: currentSong.name || "",
       artist: getArtists(currentSong),
-      artistId: currentSong.artists?.primary?.[0]?.id || currentSong.artist_map?.primary_artists?.[0]?.id || "",
+      artistId: (currentSong.artists as any)?.primary?.[0]?.id || currentSong.artist_map?.primary_artists?.[0]?.id || "",
       albumArt: bestImg(currentSong.image) || "",
       duration: Number(currentSong.duration) || 0,
       source: "player",

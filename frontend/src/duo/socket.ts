@@ -31,6 +31,7 @@ const DUO_EVENTS = [
   "duo:receive-pause",
   "duo:receive-seek",
   "duo:receive-song-change",
+  "duo:receive-video-mode",
   "duo:receive-message",
   "duo:session-ended",
   "duo:error",
@@ -46,7 +47,7 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20_000,
-      transports: ["polling", "websocket"],
+      transports: ["websocket"],
       upgrade: true,
       auth: (cb) => {
         const token = getNativeToken();
@@ -68,10 +69,12 @@ export function getSocket(): Socket {
 
     socket.on("disconnect", (reason) => {
       console.log("[DuoSocket] ❌ Disconnected:", reason);
+      _duoCallback?.("disconnect", reason);
     });
 
     socket.on("connect_error", (err) => {
       console.warn("[DuoSocket] ❌ Connection error:", err.message);
+      _duoCallback?.("connect_error", err);
     });
 
     socket.io.on("reconnect_attempt", (attempt) => {

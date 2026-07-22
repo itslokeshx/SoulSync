@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
+import { ArtistLinks } from "../ui/ArtistLinks";
 
 interface PlayerBarProps {
   currentSong: any;
@@ -163,7 +164,7 @@ export const PlayerBar = ({
                   {currentSong.name}
                 </p>
                 <p className="text-[11px] text-white/35 truncate mt-0.5">
-                  {getArtists(currentSong)}
+                  <ArtistLinks song={currentSong} />
                 </p>
               </div>
               <button

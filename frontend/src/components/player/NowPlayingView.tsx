@@ -43,6 +43,8 @@ const API =
   import.meta.env.VITE_JIOSAAVN_API || "https://jiosaavn.rajputhemant.dev";
 
 interface NowPlayingViewProps {
+  isOpen?: boolean;
+  onOpen?: () => void;
   currentSong: any;
   isPlaying: boolean;
   currentTime: number;
@@ -79,6 +81,8 @@ const VolumeIcon = ({ volume }: { volume: number }) => {
 };
 
 export const NowPlayingView = ({
+  isOpen = false,
+  onOpen,
   currentSong,
   isPlaying,
   currentTime,
@@ -230,23 +234,24 @@ export const NowPlayingView = ({
   }, [currentSong?.id]);
 
 
-  if (!currentSong) return null;
+  if (!currentSong || !isOpen) return null;
   const img = bestImg(currentSong.image) || FALLBACK_IMG;
   const artists = getArtists(currentSong);
   const progress = duration ? (currentTime / duration) * 100 : 0;
   const volPct = Math.round(volume * 100);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: "100%" }}
+      animate={{ opacity: 1, y: dragOffset }}
+      exit={{ opacity: 0, y: "100%" }}
+      transition={{ duration: 0.25, ease: "easeInOut" }}
       className="fixed inset-0 z-50 flex flex-col touch-pan-x"
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         background:
           "radial-gradient(circle at 20% 30%, #1e1e20, transparent 60%),\n           radial-gradient(circle at 80% 70%, #101012, transparent 80%),\n           linear-gradient(135deg, #18181a 0%, #101012 60%, #000 100%)",
-        transform: `translateY(${dragOffset}px)`,
-        transition: isDragging.current ? "none" : "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
-        opacity: 1 - Math.min(dragOffset / 500, 0.4),
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -696,6 +701,6 @@ export const NowPlayingView = ({
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
