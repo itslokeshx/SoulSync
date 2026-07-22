@@ -46,7 +46,7 @@ async function callMusicProvider(endpoint: string, params: Record<string, any> =
     const { data } = await axios.get(`${MUSIC_PROVIDER_URL}/api/music${endpoint}`, {
       params,
       headers,
-      timeout: 35000,
+      timeout: 8000,
     });
     return data;
   } catch (err: any) {
@@ -97,88 +97,6 @@ export function getStreamProxyUrl(id: string, reqBaseUrl?: string): string {
   return `${formattedBase.replace(/\/+$/, "")}/api/search/stream?id=${id}`;
 }
 
-async function resolveCobaltStreamBackend(id: string): Promise<string | null> {
-  const cobaltInstances = [
-    "https://api.cobalt.tools",
-    "https://cobalt-api.kwippy.com",
-  ];
-  for (const inst of cobaltInstances) {
-    try {
-      const resp = await axios.post(
-        `${inst}/api/json`,
-        {
-          url: `https://www.youtube.com/watch?v=${id}`,
-          downloadMode: "audio",
-          audioFormat: "mp3",
-        },
-        {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          timeout: 2500,
-        }
-      );
-      if (resp.data && (resp.data.status === "redirect" || resp.data.status === "tunnel" || resp.data.status === "picker") && resp.data.url) {
-        console.info(`[resolveRealStreamUrl] Resolved ${id} via Cobalt (${inst})`);
-        return resp.data.url;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
-async function resolvePipedStream(id: string): Promise<string | null> {
-  const pipedInstances = [
-    "https://pipedapi.tokhmi.xyz",
-    "https://pipedapi.moomoo.me",
-    "https://pipedapi.syncflix.org",
-    "https://pipedapi.adminforge.de",
-    "https://pipedapi.mha.fi",
-    "https://piped-api.lunar.icu",
-  ];
-  for (const inst of pipedInstances) {
-    try {
-      const resp = await axios.get(`${inst}/streams/${encodeURIComponent(id)}`, { timeout: 2500 });
-      if (resp.data && Array.isArray(resp.data.audioStreams) && resp.data.audioStreams.length > 0) {
-        const audio = resp.data.audioStreams.find((s: any) => s.mimeType?.includes("audio/mp4") || s.format === "M4A") || resp.data.audioStreams[0];
-        if (audio?.url) {
-          console.info(`[resolveRealStreamUrl] Resolved ${id} via Piped mirror: ${inst}`);
-          return audio.url;
-        }
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
-async function resolveInvidiousStream(id: string): Promise<string | null> {
-  const instances = [
-    "https://invidious.flokinet.to",
-    "https://invidious.privacydev.net",
-    "https://iv.melmac.space",
-    "https://invidious.fdn.fr",
-    "https://invidious.nerdvpn.de",
-  ];
-  for (const inst of instances) {
-    try {
-      const streamUrl = `${inst}/latest_version?id=${encodeURIComponent(id)}&itag=140`;
-      const resp = await axios.get(streamUrl, { timeout: 2500, maxRedirects: 0, validateStatus: (status) => status < 400 });
-      if (resp.status >= 200 && resp.status < 400) {
-        console.info(`[resolveRealStreamUrl] Resolved ${id} via proxied stream mirror: ${inst}`);
-        return streamUrl;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
 export async function resolveRealStreamUrl(id: string): Promise<string | null> {
   if (!isYouTubeId(id)) {
     return null;
@@ -190,16 +108,7 @@ export async function resolveRealStreamUrl(id: string): Promise<string | null> {
     console.error(`[resolveRealStreamUrl] Error resolving stream via Python provider for ${id}:`, e.message || e);
   }
 
-  // Fallback 1: Resolve via Cobalt API
-  const cobaltUrl = await resolveCobaltStreamBackend(id);
-  if (cobaltUrl) return cobaltUrl;
-
-  // Fallback 2: Resolve via Piped mirrors (extracts direct googlevideo stream URL)
-  const pipedUrl = await resolvePipedStream(id);
-  if (pipedUrl) return pipedUrl;
-
-  // Fallback 3: Resolve via public Invidious instances
-  return await resolveInvidiousStream(id);
+  return null;
 }
 
 function parseViews(viewsStr: any): number {

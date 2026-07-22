@@ -48,7 +48,7 @@ class CircuitBreaker:
                 return False
             return True
 
-_stream_circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
+_stream_circuit_breaker = CircuitBreaker(failure_threshold=15, recovery_timeout=10)
 
 class InFlightResolution:
     def __init__(self):
@@ -265,7 +265,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
             is_initiator = True
 
     if not is_initiator:
-        res_future.event.wait(timeout=15)
+        res_future.event.wait(timeout=8)
         if res_future.error:
             raise res_future.error
         if res_future.result:
@@ -299,7 +299,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
-            'socket_timeout': 8,
+            'socket_timeout': 4,
             'extractor_retries': 1,
             'retries': 1,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -322,15 +322,22 @@ def _resolve_stream_sync(video_id: str) -> dict:
         yt_args = {}
         if client_override:
             yt_args['player_client'] = [client_override]
-        elif is_fallback:
-            yt_args['player_client'] = ['android']
+        else:
+            yt_args['player_client'] = ['android', 'ios']
 
         po_token = os.getenv("YT_PO_TOKEN")
         if po_token:
             yt_args['po_token'] = [po_token]
 
+        visitor_data = os.getenv("YT_VISITOR_DATA")
+        if visitor_data:
+            yt_args['visitor_data'] = [visitor_data]
+
         if yt_args:
             opts['extractor_args'] = {'youtube': yt_args}
+
+        if 'android' in yt_args.get('player_client', []):
+            opts['user_agent'] = 'com.google.android.youtube/19.29.37 (Linux; U; Android 11; US)'
 
         return opts
 
@@ -338,13 +345,18 @@ def _resolve_stream_sync(video_id: str) -> dict:
     WRITABLE_COOKIES = "/tmp/cookies.txt"
     
     def get_cookies_path() -> Optional[str]:
+        temp_cookie_path = "/tmp/soulsync_cookies.txt"
+        if os.path.exists(temp_cookie_path) and os.path.getsize(temp_cookie_path) > 50:
+            return temp_cookie_path
+
         yt_cookies_env = os.getenv("YT_COOKIES")
         if yt_cookies_env and len(yt_cookies_env.strip()) > 50:
             try:
-                temp_cookie_path = "/tmp/soulsync_cookies.txt"
+                # Convert literal \n strings to actual newlines from Render env input
+                cookie_content = yt_cookies_env.strip().replace("\\n", "\n")
                 os.makedirs(os.path.dirname(temp_cookie_path), exist_ok=True)
                 with open(temp_cookie_path, "w", encoding="utf-8") as f:
-                    f.write(yt_cookies_env)
+                    f.write(cookie_content)
                 return temp_cookie_path
             except Exception as e:
                 logger.error(f"[song_stream] Failed to write YT_COOKIES to temp file: {e}")
@@ -391,13 +403,7 @@ def _resolve_stream_sync(video_id: str) -> dict:
                 except Exception as e:
                     err_msg = str(e).lower()
                     if "confirm you are not a bot" in err_msg or "sign in to confirm" in err_msg or "bot" in err_msg or "no longer valid" in err_msg:
-                        logger.error("[cookies] expired — refresh needed")
-                        if cookie_file_path.startswith("/tmp/"):
-                            try:
-                                os.remove(cookie_file_path)
-                                logger.warning(f"[cookies] Cleaned up stale temp cookie file: {cookie_file_path}")
-                            except Exception:
-                                pass
+                        logger.error("[cookies] expired or flagged — refresh may be needed")
                     logger.warning(f"[song_stream] Failed to resolve with cookies file: {e}")
                     last_err = e
         
