@@ -646,10 +646,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           const directUrl = await resolveClientStream(failedSong.id);
           if (directUrl && audioRef.current) {
             console.log(`[AudioEngine] Direct client stream resolved for ${failedSong.id}: ${directUrl}`);
+            srcJustChangedRef.current = true;
+            if (srcChangedTimerRef.current) clearTimeout(srcChangedTimerRef.current);
+            srcChangedTimerRef.current = setTimeout(() => {
+              srcJustChangedRef.current = false;
+              srcChangedTimerRef.current = null;
+            }, 3000);
             audioRef.current.src = directUrl;
-            audioRef.current.play().catch((playErr) => {
-              console.error("[AudioEngine] Direct stream autoplay failed:", playErr);
-            });
+            usePlayerStore.getState().setIsPlaying(true);
+            try {
+              await audioRef.current.play();
+            } catch (playErr: any) {
+              if (playErr.name !== "AbortError") {
+                console.error("[AudioEngine] Direct stream autoplay failed:", playErr);
+              }
+            }
             return;
           }
         } catch (err) {
