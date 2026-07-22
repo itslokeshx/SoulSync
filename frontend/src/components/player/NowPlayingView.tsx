@@ -162,7 +162,6 @@ export const NowPlayingView = ({
     setSleepTimer
   } = usePlayerStore();
 
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isSeekingRef = useRef(false);
 
@@ -192,6 +191,16 @@ export const NowPlayingView = ({
     setVideoStartTime(Math.floor(currentTime));
     setQuality(q);
     setShowQualityMenu(false);
+    try {
+      const yt = (window as any)._ytPlayerInstance;
+      if (yt && currentSong) {
+        yt.loadVideoById({
+          videoId: currentSong.id,
+          startSeconds: Math.floor(currentTime),
+          suggestedQuality: q,
+        });
+      }
+    } catch {}
   };
 
   // Close quality dropdown when tapping outside
@@ -270,83 +279,7 @@ export const NowPlayingView = ({
     }
   };
 
-  // Sync YouTube playback events (Time, Duration, PlayState, EndOfVideo)
-  useEffect(() => {
-    if (!isVideoMode) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.includes("youtube.com")) return;
-
-      let payload = event.data;
-      if (typeof payload === "string") {
-        try {
-          payload = JSON.parse(payload);
-        } catch {
-          return;
-        }
-      }
-
-      if (!payload || typeof payload !== "object") return;
-
-      if (payload.event === "infoDelivery" || payload.event === "initialDelivery") {
-        const info = payload.info;
-        if (info) {
-          if (typeof info.currentTime === "number" && !isSeekingRef.current) {
-            setCurrentTime(info.currentTime);
-          }
-          if (typeof info.duration === "number" && info.duration > 0) {
-            const currentDuration = usePlayerStore.getState().duration;
-            if (!currentDuration || (Math.abs(currentDuration - info.duration) > 5 && info.duration > 30)) {
-              setDuration(info.duration);
-            }
-          }
-          if (typeof info.playerState === "number") {
-            console.log(`[DIAG ${Date.now()}] NowPlayingView postMessage playerState=${info.playerState} (0=ENDED,1=PLAYING,2=PAUSED) hidden=${document.hidden}`);
-            if (info.playerState === 1) {
-              setIsPlaying(true);
-            } else if (info.playerState === 2) {
-              console.log(`[DIAG ${Date.now()}] NowPlayingView PAUSED → setIsPlaying(false) TAG=NowPlayingView.postMessage`);
-              setIsPlaying(false);
-            } else if (info.playerState === 0) {
-              console.log(`[DIAG ${Date.now()}] NowPlayingView ENDED → setIsPlaying(false) TAG=NowPlayingView.postMessage`);
-              setIsPlaying(false);
-              onNext(); // Trigger auto-advance to next song
-            }
-          }
-        }
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [isVideoMode, setCurrentTime, setDuration, setIsPlaying, onNext]);
-
-  // Sync state changes from app -> YouTube player
-  useEffect(() => {
-    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow) return;
-
-    const command = isPlaying ? "playVideo" : "pauseVideo";
-    iframeRef.current.contentWindow.postMessage(
-      JSON.stringify({ event: "command", func: command, args: [] }),
-      "*"
-    );
-  }, [isPlaying, isVideoMode]);
-
-  useEffect(() => {
-    if (!isVideoMode || !iframeRef.current || !iframeRef.current.contentWindow) return;
-
-    const targetVol = volume * 100;
-    iframeRef.current.contentWindow.postMessage(
-      JSON.stringify({ event: "command", func: "setVolume", args: [targetVol] }),
-      "*"
-    );
-    iframeRef.current.contentWindow.postMessage(
-      JSON.stringify({ event: "command", func: isMuted ? "mute" : "unMute", args: [] }),
-      "*"
-    );
-  }, [volume, isMuted, isVideoMode]);
+  // Single YouTube Player instance is handled via PlayerProvider portal
 
   // Queue drag state
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -436,12 +369,6 @@ export const NowPlayingView = ({
 
   const handleSeek = (val: number) => {
     onSeek(val);
-    if (isVideoMode && iframeRef.current && iframeRef.current.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: "command", func: "seekTo", args: [val, true] }),
-        "*"
-      );
-    }
   };
 
   const handleSeekStart = () => {
@@ -604,15 +531,7 @@ export const NowPlayingView = ({
                 ref={containerRef}
                 className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] bg-black rounded-2xl sm:rounded-3xl overflow-hidden flex items-center justify-center group shadow-2xl relative pointer-events-auto"
               >
-                <iframe
-                  ref={iframeRef}
-                  src={`https://www.youtube.com/embed/${currentSong.id}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&start=${videoStartTime}&vq=${quality}`}
-                  title={currentSong.name}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full rounded-2xl sm:rounded-3xl pointer-events-none"
-                />
+                <div id="youtube-video-player" className="w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden relative pointer-events-auto" />
                 {!isFullscreen && (
                   <div className="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-auto z-50">
                     {/* Quality Button */}

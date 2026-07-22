@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Song } from "../types/song";
+import { unlockAudio } from "../utils/audioUnlock";
 
 interface PlayerState {
   currentSong: Song | null;
@@ -56,14 +57,25 @@ export const usePlayerStore = create<PlayerState & PlayerActions>(
     sleepTimerSecondsLeft: null,
     sleepTimerEndOnTrack: false,
 
-    playSong: (song) =>
-      set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 }),
+    playSong: (song) => {
+      unlockAudio();
+      set({ currentSong: song, isPlaying: true, currentTime: 0, duration: Number(song.duration) || 0 });
+    },
     pause: () => {
       console.log(`[DIAG ${Date.now()}] store.pause() → isPlaying=false`, new Error().stack);
       set({ isPlaying: false });
     },
-    resume: () => set({ isPlaying: true }),
-    togglePlay: () => set((s) => ({ isPlaying: !s.isPlaying })),
+    resume: () => {
+      unlockAudio();
+      set({ isPlaying: true });
+    },
+    togglePlay: () => {
+      const currentState = get().isPlaying;
+      if (!currentState) {
+        unlockAudio();
+      }
+      set({ isPlaying: !currentState });
+    },
     seekTo: (time) => set({ currentTime: time }),
     setVolume: (vol) => set({ volume: vol, isMuted: vol === 0 }),
     toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
