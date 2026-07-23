@@ -73,11 +73,14 @@ export async function generateCandidatePool(
     }
   };
 
+  const primaryLang = Array.from(highConfidenceLangs)[0] || tasteProfile?.topLanguage || "";
+  const langSuffix = primaryLang && primaryLang !== "english" ? ` ${primaryLang}` : "";
+
   // Source 1: Top Artists Deep Cuts (60 candidates)
   if (tasteProfile && tasteProfile.artists && tasteProfile.artists.length > 0) {
     const topArtists = tasteProfile.artists.slice(0, 10);
     const artistResults = await Promise.allSettled(
-      topArtists.map((a) => searchSongs(`${a.artistName} hits`, 15))
+      topArtists.map((a) => searchSongs(`${a.artistName}${langSuffix}`, 15))
     );
     for (const res of artistResults) {
       if (res.status === "fulfilled") {
@@ -92,7 +95,7 @@ export async function generateCandidatePool(
     for (const a of topArtists.slice(0, 5)) {
       const related = await getRelatedArtists(a.artistName, 3);
       for (const rel of related) {
-        relatedQueries.push(`${rel} hits`);
+        relatedQueries.push(`${rel}${langSuffix}`);
       }
     }
     if (relatedQueries.length > 0) {
@@ -109,21 +112,13 @@ export async function generateCandidatePool(
     }
   }
 
-  // Source 3 (user_top_history) REMOVED.
-  // Previously fetched the user's most-played songs and added them as candidates.
-  // That meant Made For You was recommending songs they already replay constantly.
-  // Made For You is a discovery surface. The full listening history is already
-  // excluded by the heardBeforeIds set built in getTasteProfileBatch.
-  // Songs they love and replay belong in a dedicated "Replay Mix", not here.
+  // Source 3 (user_top_history) REMOVED — discovery surface.
 
-  // Source 4: Suggestions seeded from Liked Songs (discovery, not the liked songs themselves)
-  // Uses liked songs as taste signals to find SIMILAR undiscovered songs.
-  // The liked songs themselves are blocked by the heardBeforeIds excludeSet.
+  // Source 4: Suggestions seeded from Liked Songs
   if (userId && userId !== "guest") {
     try {
       const userDoc = await User.findById(userId).select("likedSongs").lean();
       if (userDoc?.likedSongs && userDoc.likedSongs.length > 0) {
-        // Seed from most recently liked (recency matters — taste evolves)
         const recentLiked = [...userDoc.likedSongs].reverse().slice(0, 8);
         const likedRecs = await Promise.allSettled(
           recentLiked.map((l) => getSuggestions(l.songId, 15))
@@ -144,7 +139,7 @@ export async function generateCandidatePool(
     try {
       const ecosystemArtists = Array.from(getEcosystemArtists(sessionArtist));
       const ecoResults = await Promise.allSettled(
-        ecosystemArtists.slice(0, 5).map((a) => searchSongs(`${a} hits`, 10))
+        ecosystemArtists.slice(0, 5).map((a) => searchSongs(`${a}${langSuffix}`, 10))
       );
       for (const res of ecoResults) {
         if (res.status === "fulfilled") {
