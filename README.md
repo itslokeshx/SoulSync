@@ -23,18 +23,6 @@ The project is currently used by roughly 180 users, with over 8,000 songs stream
 | Web      | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app)                                     | None         |
 | Android  | [SoulSync v5.0 APK](https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_v5.apk) | Android 7.0+ |
 
-## Comparison
-
-| Feature                      | SoulSync  | Spotify Free    | Spotify Premium |
-| ---------------------------- | --------- | --------------- | --------------- |
-| Ad-free                      | Yes       | No              | Yes             |
-| AI playlist generation       | Yes       | No              | No              |
-| Synchronized group listening | Yes       | No              | No              |
-| Offline downloads            | Yes       | No              | Yes             |
-| Listening analytics          | Yes       | Annual only     | Annual only     |
-| Open source                  | Yes (MIT) | No              | No              |
-| Price                        | Free      | Free (with ads) | ₹119/month      |
-
 ## Features
 
 ### AI Playlist Generation
