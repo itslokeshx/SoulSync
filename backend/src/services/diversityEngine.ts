@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════
 // DIVERSITY & DISCOVERY ENGINE — Step 10, Step 11, Step 12
-// Repetition removal, freshness penalties, and 80/20 controlled discovery
+// Strict deduplication, max 1 per album, max 2 per artist, 80/20 discovery
 // ════════════════════════════════════════════════════════════════
 
 import { Song } from "./jiosaavn.js";
@@ -10,7 +10,7 @@ import { SessionState } from "./sessionEngine.js";
 
 export interface DiversityOptions {
   maxPerArtist?: number;        // Default: 2
-  maxPerAlbum?: number;         // Default: 2
+  maxPerAlbum?: number;         // Default: 1 (Strictly prevent album monopolization!)
   targetCount?: number;         // Default: 24
   discoveryRatio?: number;      // Default: 0.20 (20% discovery)
 }
@@ -23,11 +23,15 @@ function cleanSongNameForDeduplication(name: string): string {
     .replace(/\s*\(remastered(?: \d+)?\)/i, "")
     .replace(/\s*\(live(?: version)?\)/i, "")
     .replace(/\s*\(lofi\)/i, "")
+    .replace(/\(.*?\)/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/[^a-z0-9]/g, "")
     .trim();
 }
 
 /**
- * Apply Diversity Capping, Freshness Penalties, and 80/20 Controlled Discovery Injection
+ * Apply Diversity Capping, Freshness Penalties, and Controlled Discovery Injection.
+ * STRICTLY ENFORCED: Max 1 per album, Max 2 per artist, 0 duplicate names.
  */
 export function applyDiversityAndDiscovery(
   scoredCandidates: ScoredSong[],
@@ -36,7 +40,7 @@ export function applyDiversityAndDiscovery(
   options: DiversityOptions = {},
 ): Song[] {
   const maxPerArtist = options.maxPerArtist ?? 2;
-  const maxPerAlbum = options.maxPerAlbum ?? 2;
+  const maxPerAlbum = options.maxPerAlbum ?? 1; // Strict 1 track per album default!
   const targetCount = options.targetCount ?? 24;
   const discoveryRatio = options.discoveryRatio ?? 0.20;
 
@@ -61,9 +65,11 @@ export function applyDiversityAndDiscovery(
     const primaryArtist = (song.primaryArtists || "").split(/[,/&]+/)[0].trim().toLowerCase();
     const albumName = (song.album || "").trim().toLowerCase();
 
+    // Check artist cap
     const currArtCount = artistCount.get(primaryArtist) || 0;
     if (currArtCount >= maxPerArtist) continue;
 
+    // Check album cap
     if (albumName) {
       const currAlbCount = albumCount.get(albumName) || 0;
       if (currAlbCount >= maxPerAlbum) continue;
@@ -83,7 +89,7 @@ export function applyDiversityAndDiscovery(
     }
   }
 
-  // Inject Discovery Candidates (up to discoveryQuota)
+  // Inject Discovery Candidates (strictly respecting artist, album, & deduplication limits)
   const finalSelection: Song[] = [...mainSelection];
 
   for (const discSong of discoveryCandidates) {
@@ -93,22 +99,46 @@ export function applyDiversityAndDiscovery(
     if (cleanName && seenSongNames.has(cleanName)) continue;
 
     const primaryArtist = (discSong.primaryArtists || "").split(/[,/&]+/)[0].trim().toLowerCase();
+    const albumName = (discSong.album || "").trim().toLowerCase();
+
     const currArtCount = artistCount.get(primaryArtist) || 0;
     if (currArtCount >= maxPerArtist) continue;
 
+    if (albumName) {
+      const currAlbCount = albumCount.get(albumName) || 0;
+      if (currAlbCount >= maxPerAlbum) continue;
+    }
+
     artistCount.set(primaryArtist, currArtCount + 1);
+    if (albumName) albumCount.set(albumName, (albumCount.get(albumName) || 0) + 1);
     if (cleanName) seenSongNames.add(cleanName);
     (discSong as any).reason = "Discovered for your taste";
     finalSelection.push(discSong);
   }
 
-  // Fill up remaining slots
+  // Safety fill-up (STRICTLY respecting deduplication, artist caps, and album caps!)
   if (finalSelection.length < targetCount) {
     for (const song of scoredCandidates) {
       if (finalSelection.length >= targetCount) break;
-      if (!finalSelection.some((s) => s.id === song.id)) {
-        finalSelection.push(song);
+
+      const cleanName = cleanSongNameForDeduplication(song.name);
+      if (cleanName && seenSongNames.has(cleanName)) continue;
+
+      const primaryArtist = (song.primaryArtists || "").split(/[,/&]+/)[0].trim().toLowerCase();
+      const albumName = (song.album || "").trim().toLowerCase();
+
+      const currArtCount = artistCount.get(primaryArtist) || 0;
+      if (currArtCount >= maxPerArtist) continue;
+
+      if (albumName) {
+        const currAlbCount = albumCount.get(albumName) || 0;
+        if (currAlbCount >= maxPerAlbum) continue;
       }
+
+      artistCount.set(primaryArtist, currArtCount + 1);
+      if (albumName) albumCount.set(albumName, (albumCount.get(albumName) || 0) + 1);
+      if (cleanName) seenSongNames.add(cleanName);
+      finalSelection.push(song);
     }
   }
 

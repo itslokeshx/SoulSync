@@ -378,15 +378,19 @@ export function filterByLanguages(
   const allowedSet = new Set(allowedLanguages.map((l) => l.toLowerCase().trim()));
 
   return candidates.filter((song) => {
+    const rawLang = (song.language || "").toLowerCase().trim();
+    if (rawLang && rawLang !== "unknown" && rawLang !== "null" && rawLang !== "undefined") {
+      if (allowedSet.has(rawLang)) return true;
+    }
     const detectedLang = detectSongLanguage(song);
     if (detectedLang) {
       return allowedSet.has(detectedLang);
     }
-    const hasEnglishOnly = allowedSet.has("english") && !allowedSet.has("hindi") && !allowedSet.has("tamil") && !allowedSet.has("telugu") && !allowedSet.has("punjabi");
-    if (hasEnglishOnly) {
-      const combined = `${song.name} ${song.primaryArtists} ${song.album}`.toLowerCase();
-      const isIndian = /\b(aashiqui|raees|chalisa|dhurandhar|coke studio|dude|the paradise|peddi|jana nayagan|saiyaara|barbaad|fanniyar|apna bana le)\b/i.test(combined);
-      if (isIndian) return false;
+    // If language is undetected/unknown and user context is regional (e.g. Tamil, Hindi),
+    // strictly reject to prevent random English leakage
+    const isPurelyRegional = !allowedSet.has("english");
+    if (isPurelyRegional) {
+      return false;
     }
     return true;
   });

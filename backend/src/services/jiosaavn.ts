@@ -1,9 +1,14 @@
 // ════════════════════════════════════════════════════════════════
 // JIOSAAVN SERVICE — Ultra-fast parallel fetching (Rich Results)
 // ════════════════════════════════════════════════════════════════
+// jiosavan-api2.vercel.app and saavn.sumit.co are the two working mirrors.
+// Both support /songs/:id, /search/songs, etc.
+// /songs/:id/suggestions returns success:false from JioSaavn's own backend for many
+// songs — this is a JioSaavn source-level issue, not fixable by switching wrappers.
+// Override via JIOSAAVN_API env variable if you have a private mirror.
 const JIOSAAVN_BASE =
   process.env.JIOSAAVN_API || "https://jiosavan-api2.vercel.app/api";
-const REQUEST_TIMEOUT = 3500; // 3.5 seconds max
+const REQUEST_TIMEOUT = 5000; // 5 seconds
 
 // JioSaavnSong definition used by other files that import it
 export interface JioSaavnSong {
@@ -123,65 +128,36 @@ async function fetchWithRetry(
   }
 }
 
-// Shared fetchSafe wrapper that extracts the subpath and attempts all configured wrappers sequentially
+// Single-API fetchSafe — calls JIOSAAVN_BASE directly.
+// No more multi-wrapper loop that wastes time on broken APIs.
+// JIOSAAVN_BASE defaults to jiosaavn.rajputhemant.dev which is the
+// only wrapper that supports ALL endpoints including /suggestions.
 const fetchSafe = async (urlOrPath: string, attempts = 2): Promise<any> => {
+  // Normalize to a subpath — strip any known base prefix if the caller
+  // passed a full URL instead of a path
   let subpath = urlOrPath;
   const knownBases = [
     "https://jiosavan-api2.vercel.app/api",
     "https://saavn.sumit.co/api",
-    JIOSAAVN_BASE
+    JIOSAAVN_BASE,
   ];
-
   for (const base of knownBases) {
     if (subpath.startsWith(base)) {
       subpath = subpath.slice(base.length);
       break;
     }
   }
+  if (!subpath.startsWith("/")) subpath = "/" + subpath;
 
-  // Ensure subpath starts with a slash
-  if (!subpath.startsWith("/")) {
-    subpath = "/" + subpath;
+  const fullUrl = `${JIOSAAVN_BASE}${subpath}`;
+  try {
+    const res = await fetchWithRetry(fullUrl, attempts);
+    if (res && res.success !== false) return res;
+    if (res) console.warn(`[JioSaavn] API returned error for ${subpath}: ${res.message || "unknown"}`);
+  } catch (err: any) {
+    console.error(`[JioSaavn] Request failed for ${subpath}: ${err.message}`);
   }
 
-  // Define candidate wrappers in order of priority (filtering duplicates and falsy entries)
-  const wrappers = Array.from(
-    new Set(
-      [
-        process.env.JIOSAAVN_API,
-        process.env.JIOSAAVN_API_PRIMARY,
-        process.env.JIOSAAVN_API_FALLBACK,
-        "https://jiosavan-api2.vercel.app/api",
-        "https://saavn.sumit.co/api",
-      ]
-        .filter(Boolean)
-        .map((w) => w!.replace(/\/$/, ""))
-    )
-  );
-
-  // Attempt each wrapper until one yields a successful response
-  for (let w = 0; w < wrappers.length; w++) {
-    const wrapperBase = wrappers[w];
-    const fullUrl = `${wrapperBase}${subpath}`;
-
-    try {
-      const res = await fetchWithRetry(fullUrl, attempts);
-      if (res) {
-        if (res.success !== false) {
-          return res;
-        }
-        console.warn(
-          `[JioSaavn Wrapper] Wrapper ${wrapperBase} returned error payload for ${subpath}: ${res.message || "Unknown error"}`
-        );
-      }
-    } catch (err: any) {
-      console.error(
-        `[JioSaavn Wrapper] Error requesting ${subpath} from wrapper ${wrapperBase}: ${err.message}`
-      );
-    }
-  }
-
-  console.error(`[JioSaavn API Failure] All JioSaavn wrappers failed for subpath: ${subpath}`);
   return null;
 };
 

@@ -5,10 +5,9 @@
 
 import { IUserTasteProfile } from "../models/UserTasteProfile.js";
 import { SessionState } from "./sessionEngine.js";
-import { Song, searchSongs, fetchSongById, getSuggestions, normalizeSongsToCanonical } from "./jiosaavn.js";
+import { Song, searchSongs, getSuggestions, normalizeSongsToCanonical } from "./jiosaavn.js";
 import { getRelatedArtists } from "./artistGraphService.js";
 import { User } from "../models/User.js";
-import { ListeningHistory } from "../models/ListeningHistory.js";
 import { getNegativeAffinityProfile } from "./negativeAffinity.js";
 import { computeLanguageConfidence, evaluateCandidateEligibility, EligibilityContext } from "./eligibilityFilter.js";
 import { detectActiveEcosystemCluster, getEcosystemArtists } from "./tasteClusters.js";
@@ -110,41 +109,29 @@ export async function generateCandidatePool(
     }
   }
 
-  // Source 3: User's Top Replayed Tracks from History (30 candidates)
-  if (userId && userId !== "guest") {
-    try {
-      const userObjId = new mongoose.Types.ObjectId(userId);
-      const topHistory = await ListeningHistory.aggregate([
-        { $match: { userId: userObjId } },
-        { $group: { _id: "$songId", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 15 },
-      ]);
+  // Source 3 (user_top_history) REMOVED.
+  // Previously fetched the user's most-played songs and added them as candidates.
+  // That meant Made For You was recommending songs they already replay constantly.
+  // Made For You is a discovery surface. The full listening history is already
+  // excluded by the heardBeforeIds set built in getTasteProfileBatch.
+  // Songs they love and replay belong in a dedicated "Replay Mix", not here.
 
-      const historyFetchResults = await Promise.allSettled(
-        topHistory.map((h) => fetchSongById(h._id))
-      );
-      for (const res of historyFetchResults) {
-        if (res.status === "fulfilled" && res.value) {
-          addCandidate(res.value, "user_top_history");
-        }
-      }
-    } catch {}
-  }
-
-  // Source 4: Liked Songs Co-occurrences & Vector Suggestions (30 candidates)
+  // Source 4: Suggestions seeded from Liked Songs (discovery, not the liked songs themselves)
+  // Uses liked songs as taste signals to find SIMILAR undiscovered songs.
+  // The liked songs themselves are blocked by the heardBeforeIds excludeSet.
   if (userId && userId !== "guest") {
     try {
       const userDoc = await User.findById(userId).select("likedSongs").lean();
       if (userDoc?.likedSongs && userDoc.likedSongs.length > 0) {
-        const topLiked = userDoc.likedSongs.slice(0, 10);
+        // Seed from most recently liked (recency matters — taste evolves)
+        const recentLiked = [...userDoc.likedSongs].reverse().slice(0, 8);
         const likedRecs = await Promise.allSettled(
-          topLiked.map((l) => getSuggestions(l.songId, 15))
+          recentLiked.map((l) => getSuggestions(l.songId, 15))
         );
         for (const res of likedRecs) {
           if (res.status === "fulfilled") {
             for (const s of normalizeSongsToCanonical(res.value)) {
-              addCandidate(s, "liked_songs");
+              addCandidate(s, "liked_seeds");
             }
           }
         }

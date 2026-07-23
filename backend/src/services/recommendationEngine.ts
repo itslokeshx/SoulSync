@@ -9,6 +9,7 @@ import { ListeningHistory } from "../models/ListeningHistory.js";
 import { UserTasteProfile, IUserTasteProfile, IArtistAffinity } from "../models/UserTasteProfile.js";
 import { SongCooccurrence } from "../models/SongCooccurrence.js";
 import { User } from "../models/User.js";
+import { Playlist } from "../models/Playlist.js";
 import {
   getSuggestions,
   fetchArtistSongs,
@@ -329,15 +330,17 @@ export async function getCandidates(
   }
 
   if (profile && profile.artists.length > 0) {
-    const topArtists = profile.artists.slice(0, 5);
-    const shuffled = topArtists.sort(() => Math.random() - 0.5).slice(0, 3);
+    // Sort by score descending — highest-affinity artists first. No Math.random().
+    const topArtists = [...profile.artists]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
 
     const artistResults = await Promise.allSettled(
-      shuffled.map((a) => {
+      topArtists.map((a) => {
         if (a.artistId && /^\d+$/.test(a.artistId)) {
           return fetchArtistSongs(a.artistId, 0, 1);
         }
-        return searchSongs(`${a.artistName} hits`, 15);
+        return searchSongs(`${a.artistName}`, 15);
       }),
     );
 
@@ -345,26 +348,17 @@ export async function getCandidates(
       const res = artistResults[i];
       if (res.status !== "fulfilled") continue;
       const songs = Array.isArray(res.value) ? normalizeSongsToCanonical(res.value) : (res.value as Song[]);
-      const artistName = shuffled[i].artistName;
+      const artistName = topArtists[i].artistName;
       for (const s of songs.slice(0, 8)) {
         addCandidate(s, `Because you like ${artistName}`);
       }
     }
   }
 
-  if (mode === "home") {
-    const langResults = await Promise.allSettled(
-      allowedLangs.map((l) =>
-        searchSongs(`trending ${l} songs ${new Date().getFullYear()}`, 15),
-      ),
-    );
-    for (const res of langResults) {
-      if (res.status !== "fulfilled") continue;
-      for (const s of normalizeSongsToCanonical(res.value).slice(0, 10)) {
-        addCandidate(s, "Trending in your taste");
-      }
-    }
-  }
+  // NOTE: Generic trending search injection removed.
+  // It added language chart noise with no personalization signal.
+  // Made For You uses getTasteProfileBatch() which has proper sourcing.
+  // Home mode additional candidates come from liked songs and ecosystem peers.
 
   const langFiltered = filterByLanguages(candidates, allowedLangs);
   return langFiltered.slice(0, limit * 2);
@@ -433,16 +427,10 @@ export function rankCandidates(
 
     if (!song.streamUrl) score -= 30;
 
-    const currentYear = new Date().getFullYear();
-    const songYear = parseInt(song.year, 10);
-    if (!isNaN(songYear)) {
-      const age = currentYear - songYear;
-      if (age > 4) {
-        score -= Math.min(100, age * 15);
-      } else if (age === 0) {
-        score += 20;
-      }
-    }
+    // Age penalty removed: release year does not determine whether a user
+    // will enjoy a song. Behavior (replay, completion, likes) does.
+    // A user who replays A.R. Rahman's 2004 track daily should get more of it,
+    // not less, because of its age.
 
     return { ...song, _recScore: score };
   });
@@ -702,17 +690,11 @@ export async function generateSeedAnchoredBatch(
   // Hard filter candidates by allowedLangs
   const langFiltered = filterByLanguages(candidates, allowedLangs);
 
-  if (langFiltered.length < 10) {
-    try {
-      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize * 2, allowedLangs);
-      for (const s of fallbacks) {
-        if (!excludeSet.has(s.id)) {
-          langFiltered.push(s);
-          excludeSet.add(s.id);
-        }
-      }
-    } catch {}
-  }
+  // REMOVED: getColdStartBatch fallback here.
+  // Previously: when pool < 10, this pulled random songs from TOP_ARTISTS_BY_LANGUAGE —
+  // the root cause of "random old Tamil songs in Up Next".
+  // Now: if the pool is thin, the caller (upNextEngine) handles it via the
+  // ecosystem tier instead. Cold-start is only valid for the Home surface.
 
   if (langFiltered.length === 0) return [];
 
@@ -930,8 +912,20 @@ export async function getColdStartBatch(
 }
 
 /**
- * Made For You surface: Multi-seed generation from top artists, liked songs, history.
- * HARD language filter + 7-day cooldown (relaxed to 2-day if pool is small, language never relaxed).
+ * Made For You — The addictive blend.
+ *
+ * Split into three intentional buckets:
+ *   70% DISCOVERY   — Songs from your taste profile you have never heard.
+ *                     Feeds curiosity. Expands your world.
+ *   20% FORGOTTEN   — Liked songs you haven't played in 30+ days.
+ *                     Feels like rediscovery. "I forgot how good this is."
+ *   10% PLAYLIST    — Songs from your playlists you haven't heard recently.
+ *                     Rewards curation. Makes playlists feel alive.
+ *
+ * The blend is what makes it addictive:
+ *   Pure discovery = cold and unfamiliar.
+ *   Pure familiarity = boring, no excitement.
+ *   This ratio = feels personally crafted.
  */
 export async function getTasteProfileBatch(
   tasteProfile: IUserTasteProfile | null,
@@ -945,21 +939,85 @@ export async function getTasteProfileBatch(
 
   const sessionState = await getActiveSessionContext(undefined, userId);
   const recentlySurfaced7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
-  const currentExclude = new Set([...excludeIds, ...recentlySurfaced7d]);
+
+  // Build the recent-played set (last 30 days) for "forgotten favorites" logic
+  const recentlyPlayedIds = new Set<string>(recentlySurfaced7d);
+  let likedSongs: { songId: string; title: string; artist: string; albumArt: string; duration: number; downloadUrl: { quality: string; url: string }[] }[] = [];
+  let playlistSongs: { songId: string; title: string; artist: string; albumArt: string; duration: number; downloadUrl: { quality: string; url: string }[] }[] = [];
+
+  // ── Collect data needed for all three buckets in parallel ──────
+  const heardBeforeIds = new Set<string>([...excludeIds, ...recentlySurfaced7d]);
+
+  if (userId && userId !== "guest") {
+    const userObjId = new mongoose.Types.ObjectId(userId);
+
+    // Liked songs + recent history + playlist songs — all in parallel
+    const [userDoc, historyEntries, playlistDocs, recentHistory30d] = await Promise.allSettled([
+      User.findById(userId).select("likedSongs").lean(),
+      ListeningHistory.find({ userId: userObjId })
+        .sort({ playedAt: -1 })
+        .limit(300)
+        .select("songId")
+        .lean(),
+      Playlist.find({ userId: userObjId })
+        .select("songs")
+        .lean(),
+      // Last 30 days of play for "forgotten favorites" check
+      ListeningHistory.find({
+        userId: userObjId,
+        playedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      })
+        .select("songId")
+        .lean(),
+    ]);
+
+    // Populate heardBeforeIds (for discovery exclusion)
+    if (userDoc.status === "fulfilled" && userDoc.value?.likedSongs) {
+      likedSongs = userDoc.value.likedSongs as typeof likedSongs;
+      for (const l of likedSongs) {
+        if (l.songId) heardBeforeIds.add(l.songId);
+      }
+    }
+    if (historyEntries.status === "fulfilled") {
+      for (const h of historyEntries.value) {
+        if (h.songId) heardBeforeIds.add(h.songId);
+      }
+    }
+
+    // Build recent-30d set for forgotten favorites
+    if (recentHistory30d.status === "fulfilled") {
+      for (const h of recentHistory30d.value) {
+        if (h.songId) recentlyPlayedIds.add(h.songId);
+      }
+    }
+
+    // Collect playlist songs
+    if (playlistDocs.status === "fulfilled") {
+      for (const pl of playlistDocs.value) {
+        for (const s of (pl.songs || [])) {
+          playlistSongs.push(s as typeof playlistSongs[0]);
+        }
+      }
+    }
+  }
 
   const adaptive = computeAdaptiveWeights(tasteProfile);
 
-  // Step 7: Candidate Generation (~200 candidates across 10 sources)
+  // ════════════════════════════════════════════════════════════════
+  // BUCKET 1 — DISCOVERY (70% of limit)
+  // Songs from taste profile the user has never heard.
+  // ════════════════════════════════════════════════════════════════
+  const discoveryLimit = Math.ceil(limit * 0.70);
+
   const { candidates, candidateSourcesMap } = await generateCandidatePool(
     tasteProfile,
     sessionState,
     allowedLangs,
-    currentExclude,
+    heardBeforeIds, // blocks liked + history + recently recommended
     userId,
     200,
   );
 
-  // Step 9: 15-Signal Adaptive Weighted Vector Ranking Engine
   const scoredCandidates = rankWithWeightedEngine(
     candidates,
     candidateSourcesMap,
@@ -968,20 +1026,129 @@ export async function getTasteProfileBatch(
     adaptive.weights,
   );
 
-  // Step 10, 11, 12: Repetition Removal, Freshness & Adaptive Discovery Injection
-  const finalSongs = applyDiversityAndDiscovery(
+  const discoverySongs = applyDiversityAndDiscovery(
     scoredCandidates,
     tasteProfile,
     sessionState,
-    { targetCount: limit, maxPerArtist: adaptive.maxPerArtist, discoveryRatio: adaptive.discoveryRatio }
-  );
-
-  // Step 16: Explanation Rationale Attachment
-  return finalSongs.map((song) => {
+    { targetCount: discoveryLimit, maxPerArtist: 2, maxPerAlbum: 1, discoveryRatio: adaptive.discoveryRatio }
+  ).map((song) => {
     const sources = candidateSourcesMap.get(song.id) || [];
     const reason = attachRecommendationExplanation(song, sources, tasteProfile, sessionState);
     return { ...song, reason };
   });
+
+  const usedIds = new Set<string>(discoverySongs.map((s) => s.id));
+
+  // ════════════════════════════════════════════════════════════════
+  // BUCKET 2 — FORGOTTEN FAVORITES (20% of limit)
+  // Liked songs not played in the last 30 days.
+  // ════════════════════════════════════════════════════════════════
+  const forgottenLimit = Math.ceil(limit * 0.20);
+  const forgottenFavorites: Song[] = [];
+
+  if (likedSongs.length > 0) {
+    const forgotten = likedSongs
+      .filter((l) => l.songId && !recentlyPlayedIds.has(l.songId) && !usedIds.has(l.songId))
+      .sort((a, b) => a.songId.localeCompare(b.songId))
+      .slice(0, forgottenLimit * 3);
+
+    const fetched = await Promise.allSettled(
+      forgotten.slice(0, forgottenLimit * 2).map((l) => fetchSongById(l.songId))
+    );
+
+    for (const res of fetched) {
+      if (res.status === "fulfilled" && res.value && !usedIds.has(res.value.id)) {
+        if (allowedLangs.length === 0 || filterByLanguages([res.value], allowedLangs).length > 0) {
+          forgottenFavorites.push({ ...res.value, reason: "Liked · A while back" } as Song);
+          usedIds.add(res.value.id);
+          if (forgottenFavorites.length >= forgottenLimit) break;
+        }
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // BUCKET 3 — PLAYLIST DEEP CUTS (10% of limit)
+  // Songs from user's own playlists not heard recently.
+  // ════════════════════════════════════════════════════════════════
+  const playlistLimit = Math.max(1, limit - discoveryLimit - forgottenLimit);
+  const playlistDeepCuts: Song[] = [];
+
+  if (playlistSongs.length > 0) {
+    const freshPlaylistSongs = playlistSongs
+      .filter((s) => s.songId && !recentlyPlayedIds.has(s.songId) && !usedIds.has(s.songId))
+      .sort((a, b) => a.songId.localeCompare(b.songId))
+      .slice(0, playlistLimit * 3);
+
+    const fetched = await Promise.allSettled(
+      freshPlaylistSongs.slice(0, playlistLimit * 2).map((s) => fetchSongById(s.songId))
+    );
+
+    for (const res of fetched) {
+      if (res.status === "fulfilled" && res.value && !usedIds.has(res.value.id)) {
+        if (allowedLangs.length === 0 || filterByLanguages([res.value], allowedLangs).length > 0) {
+          playlistDeepCuts.push({ ...res.value, reason: "From your playlist" } as Song);
+          usedIds.add(res.value.id);
+          if (playlistDeepCuts.length >= playlistLimit) break;
+        }
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // BLEND & STRICT DIVERSITY (Max 1 per album across the entire output)
+  // ════════════════════════════════════════════════════════════════
+  const rawBlended: Song[] = [];
+  let di = 0, fi = 0, pi = 0, position = 0;
+
+  while (rawBlended.length < limit * 2) {
+    const slot = position % 5;
+    if (slot === 3 && fi < forgottenFavorites.length) {
+      rawBlended.push(forgottenFavorites[fi++]);
+    } else if (slot === 4 && pi < playlistDeepCuts.length) {
+      rawBlended.push(playlistDeepCuts[pi++]);
+    } else if (di < discoverySongs.length) {
+      rawBlended.push(discoverySongs[di++]);
+    } else if (fi < forgottenFavorites.length) {
+      rawBlended.push(forgottenFavorites[fi++]);
+    } else if (pi < playlistDeepCuts.length) {
+      rawBlended.push(playlistDeepCuts[pi++]);
+    } else {
+      break;
+    }
+    position++;
+  }
+
+  // Final Pass: Enforce max 1 song per album and max 2 per artist on blended output
+  const finalOutput: Song[] = [];
+  const finalAlbumCount = new Map<string, number>();
+  const finalArtistCount = new Map<string, number>();
+  const finalSeenNames = new Set<string>();
+
+  for (const song of rawBlended) {
+    if (finalOutput.length >= limit) break;
+
+    const album = (song.album || "").trim().toLowerCase();
+    const artist = (song.primaryArtists || "").split(/[,/&]+/)[0].trim().toLowerCase();
+    const cleanName = (song.name || "")
+      .toLowerCase()
+      .replace(/\(.*?\)/g, "")
+      .replace(/\[.*?\]/g, "")
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
+
+    if (cleanName && finalSeenNames.has(cleanName)) continue;
+    if (album && (finalAlbumCount.get(album) || 0) >= 1) continue; // STRICT max 1 per album!
+    if (artist && (finalArtistCount.get(artist) || 0) >= 2) continue; // MAX 2 per artist!
+
+    if (cleanName) finalSeenNames.add(cleanName);
+    if (album) finalAlbumCount.set(album, (finalAlbumCount.get(album) || 0) + 1);
+    if (artist) finalArtistCount.set(artist, (finalArtistCount.get(artist) || 0) + 1);
+
+    finalOutput.push(song);
+  }
+
+  return filterByLanguages(finalOutput, allowedLangs);
 }
 
 export async function getLanguageAwareNewReleases(
