@@ -18,10 +18,10 @@ The project is currently used by roughly 180 users, with over 8,000 songs stream
 
 ## Downloads
 
-| Platform | Link                                                           | Requirement     |
-| -------- | -------------------------------------------------------------- | --------------- |
-| Web      | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | None            |
-| Android  | [SoulSync v5.0 APK](https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_v5.apk) | Android 7.0+    |
+| Platform | Link                                                                                               | Requirement  |
+| -------- | -------------------------------------------------------------------------------------------------- | ------------ |
+| Web      | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app)                                     | None         |
+| Android  | [SoulSync v5.0 APK](https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_v5.apk) | Android 7.0+ |
 
 ## Comparison
 
@@ -64,15 +64,6 @@ Configurable playback timer with preset durations (5–60 minutes), custom minut
 ### Feedback
 
 In-app feedback submission with a history view and read-status tracking for staff replies.
-
-## Performance
-
-| Metric                  | Before | After | Change |
-| ----------------------- | ------ | ----- | ------ |
-| Search latency (cached) | 1.2s   | 45ms  | −96%   |
-| Dashboard load (cached) | 2.1s   | 95ms  | −95%   |
-| Results per query       | 20     | 50    | +150%  |
-| Cache hit rate          | 0%     | 78%   | —      |
 
 ## Architecture
 
@@ -133,7 +124,7 @@ SoulSync consists of a React frontend (web and Android, via Capacitor), an Expre
 | Mobile   | Capacitor 8.1, Android API 24+                                    |
 | Backend  | Node.js 18+, Express 4.21, Socket.io 4.8, TypeScript 5.7          |
 | Database | MongoDB 8.9 (Mongoose), Upstash Redis                             |
-| AI       | Open-weight 120B LLM via Groq Cloud SDK, 5-key failover rotation  |
+| AI       | GPT OSS 120B LLM via Groq Cloud SDK, 5-key failover rotation      |
 | Auth     | Google OAuth 2.0, JWT (RS256), httpOnly secure cookies            |
 | Hosting  | Vercel (frontend), Render (backend), MongoDB Atlas (database)     |
 
