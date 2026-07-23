@@ -47,24 +47,39 @@ export const Sidebar = () => {
     >
       {/* Logo + Collapse toggle */}
       <div
-        className={`flex items-center gap-3 cursor-pointer active:scale-95 transition-transform flex-shrink-0 ${collapsed ? "px-0 pt-4 pb-3 justify-center" : "px-5 pt-4 pb-3"
+        className={`flex items-center justify-between flex-shrink-0 ${collapsed ? "px-0 pt-4 pb-3 flex-col gap-3" : "px-5 pt-4 pb-3"
           }`}
-        onClick={() => !collapsed && navigate("/")}
       >
         <div
-          className="w-9 h-9 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0 animate-breathe"
-          style={{ boxShadow: "0 0 24px rgba(29,185,84,0.3)" }}
+          className="flex items-center gap-3 cursor-pointer active:scale-95 transition-transform"
+          onClick={() => navigate("/")}
         >
-          <Music2 size={16} className="text-black" strokeWidth={2.5} />
-        </div>
-        {!collapsed && (
-          <span className="text-[17px] font-extrabold tracking-tight text-white flex-1">
-            Soul
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sp-green to-emerald-300">
-              Sync
+          <div
+            className="w-9 h-9 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0 animate-breathe"
+            style={{ boxShadow: "0 0 24px rgba(29,185,84,0.3)" }}
+          >
+            <Music2 size={16} className="text-black" strokeWidth={2.5} />
+          </div>
+          {!collapsed && (
+            <span className="text-[17px] font-extrabold tracking-tight text-white">
+              Soul
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sp-green to-emerald-300">
+                Sync
+              </span>
             </span>
-          </span>
-        )}
+          )}
+        </div>
+
+        <button
+          onClick={toggleSidebar}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="p-1.5 rounded-xl text-sp-sub hover:text-white hover:bg-white/[0.08] transition-all duration-200"
+        >
+          <PanelLeft
+            size={18}
+            className={`transition-transform duration-300 ${collapsed ? "rotate-180 text-sp-green" : ""}`}
+          />
+        </button>
       </div>
 
       {/* Navigation — scrollable if needed */}
@@ -115,25 +130,11 @@ export const Sidebar = () => {
         ))}
       </nav>
  
-      {/* Duo + Collapse — always visible at bottom */}
+      {/* Duo — always visible at bottom */}
       <div
         className={`flex-shrink-0 pb-2 pt-2 border-t border-white/[0.04] ${collapsed ? "px-1.5" : "px-3"}`}
       >
         <DuoButton variant={collapsed ? "mobile-nav" : "sidebar"} />
-        <button
-          onClick={toggleSidebar}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className={`w-full flex items-center gap-3 rounded-xl text-sp-sub hover:text-white hover:bg-white/[0.04] transition-all duration-200 ${collapsed ? "justify-center px-0 py-2.5" : "px-3.5 py-2.5"
-            }`}
-        >
-          <PanelLeft
-            size={17}
-            className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}
-          />
-          {!collapsed && (
-            <span className="text-[13px] font-semibold">Collapse</span>
-          )}
-        </button>
       </div>
     </aside>
   );
