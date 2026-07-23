@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════
 // SOULSYNC RECOMMENDATION ENGINE
-// Taste-aware, cover-filtered, diversity-capped recommendations.
+// Taste-aware, explicit-language filtered, cooldown-excluded recs.
 // Reuses searchRanker's cover/popularity logic, adds behavioral signals.
 // ════════════════════════════════════════════════════════════════
 
@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { UserTasteProfile, IUserTasteProfile, IArtistAffinity } from "../models/UserTasteProfile.js";
 import { SongCooccurrence } from "../models/SongCooccurrence.js";
+import { User } from "../models/User.js";
 import {
   getSuggestions,
   fetchArtistSongs,
@@ -25,6 +26,10 @@ import {
   BLACKLISTED_LABELS,
   ORIGINAL_MARKERS,
   POPULAR_ARTISTS,
+  resolveLanguageFilter,
+  filterByLanguages,
+  getRecentlyRecommendedSongIds,
+  recordRecentlyRecommended,
 } from "./scoringUtils.js";
 
 // ════════════════════════════════════════════════════════════════
@@ -42,7 +47,7 @@ const W = {
   LOW_PLAYCOUNT_PENALTY: -20,// Penalty for songs with < 1K plays
   BLACKLISTED_LABEL: -120,   // Instant burial for known cover labels
   // Diversity caps
-  MAX_PER_ARTIST: 3,         // Max songs from same artist in one recommendation set
+  MAX_PER_ARTIST: 2,         // Max songs from same artist in one recommendation set
   // Taste profile computation
   RECENCY_HALF_LIFE_DAYS: 14,// Half-life for exponential decay
   RECOMPUTE_AFTER_N_PLAYS: 5,// Rebuild profile after this many new plays
@@ -50,10 +55,7 @@ const W = {
   RESULT_CACHE_TTL: 300,     // Redis cache TTL for recommendation results (seconds)
 } as const;
 
-// ── Cover/junk detection keywords ───────────────────────────────
-// These are kept local (not imported from scoringUtils) because the
-// rec engine's coverPenalty() uses STRICTER thresholds than search
-// (no "user asked for it" bypass — covers are always penalized in recs).
+// Cover/junk keywords
 const HARD_COVER_KW = [
   "cover", "recreation", "recreated", "remake", "tribute", "karaoke",
   "fan made", "fan-made", "unofficial", "piano cover", "guitar cover",
@@ -65,12 +67,23 @@ const SOFT_COVER_KW = [
   "lofi", "slowed", "reverb", "8d audio", "nightcore", "sped up",
   "bass boosted", "remix", "mashup", "medley",
 ];
-// POPULAR_ARTISTS, BLACKLISTED_LABELS and ORIGINAL_MARKERS imported from scoringUtils.ts
+
+async function resolveUserPrefs(
+  userId?: string,
+  userPrefs?: { languages?: string[] } | null,
+): Promise<{ languages?: string[] } | null> {
+  if (userPrefs && userPrefs.languages) return userPrefs;
+  if (!userId || userId === "guest") return null;
+  try {
+    const user = await User.findById(userId).select("preferences").lean();
+    return user?.preferences || null;
+  } catch {
+    return null;
+  }
+}
 
 // ════════════════════════════════════════════════════════════════
 // 1. BUILD TASTE PROFILE
-// Reads ListeningHistory, computes weighted distributions,
-// writes to UserTasteProfile + Redis cache.
 // ════════════════════════════════════════════════════════════════
 export async function buildTasteProfile(
   userId: string,
@@ -78,14 +91,12 @@ export async function buildTasteProfile(
   const userObjId = new mongoose.Types.ObjectId(userId);
   const now = Date.now();
 
-  // Fetch last 500 history entries (covers ~2-3 weeks of active use)
   const history = await ListeningHistory.find({ userId: userObjId })
     .sort({ playedAt: -1 })
     .limit(500)
     .lean();
 
   if (history.length === 0) {
-    // No history — return empty profile
     const empty = await UserTasteProfile.findOneAndUpdate(
       { userId: userObjId },
       {
@@ -103,11 +114,9 @@ export async function buildTasteProfile(
     return empty;
   }
 
-  // ── Artist affinity (recency-weighted) ────────────────────────
   const artistMap = new Map<string, { name: string; score: number; count: number }>();
 
   for (const h of history) {
-    // Prefer artistId; fall back to artist name as key
     const key = h.artistId || h.artist || "Unknown";
     const name = h.artist || "Unknown";
     const ageMs = now - new Date(h.playedAt).getTime();
@@ -131,9 +140,8 @@ export async function buildTasteProfile(
       playCount: count,
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, 50); // Keep top 50
+    .slice(0, 50);
 
-  // ── Language distribution ─────────────────────────────────────
   const langMap = new Map<string, number>();
   let langTotal = 0;
   for (const h of history) {
@@ -151,10 +159,8 @@ export async function buildTasteProfile(
     }))
     .sort((a, b) => b.weight - a.weight);
 
-  // ── Recent song IDs (for dedup) ───────────────────────────────
   const recentSongIds = [...new Set(history.slice(0, 100).map((h) => h.songId))];
 
-  // ── Persist ───────────────────────────────────────────────────
   const profile = await UserTasteProfile.findOneAndUpdate(
     { userId: userObjId },
     {
@@ -170,50 +176,39 @@ export async function buildTasteProfile(
     { upsert: true, new: true },
   );
 
-  // Cache in Redis
   await redisSet(
     `taste:${userId}`,
     JSON.stringify(profile),
     W.PROFILE_CACHE_TTL,
   ).catch(() => {});
 
-  // Invalidate dashboard cache immediately
   await redisDel(`dashboard:${userId}`).catch(() => {});
 
   return profile;
 }
 
-// ── Get or compute taste profile ────────────────────────────────
 export async function getTasteProfile(
   userId: string,
 ): Promise<IUserTasteProfile | null> {
-  // Try Redis first
   try {
     const cached = await redisGet(`taste:${userId}`);
     if (cached) return JSON.parse(cached);
   } catch {}
 
-  // Try MongoDB
   const existing = await UserTasteProfile.findOne({
     userId: new mongoose.Types.ObjectId(userId),
   }).lean() as IUserTasteProfile | null;
 
   if (existing) {
-    // Check if recomputation is needed asynchronously (fire-and-forget) to not block the request
     ListeningHistory.countDocuments({
       userId: new mongoose.Types.ObjectId(userId),
     }).then((currentCount) => {
       const delta = currentCount - (existing.lastPlayCountAtCompute || 0);
       if (delta >= W.RECOMPUTE_AFTER_N_PLAYS) {
-        buildTasteProfile(userId).catch((err) => {
-          console.error("[TasteProfile] Async recomputation error:", err);
-        });
+        buildTasteProfile(userId).catch(() => {});
       }
-    }).catch((err) => {
-      console.warn("[TasteProfile] Failed to count history documents for async taste check:", err);
-    });
+    }).catch(() => {});
 
-    // Re-cache in Redis
     await redisSet(
       `taste:${userId}`,
       JSON.stringify(existing),
@@ -222,14 +217,9 @@ export async function getTasteProfile(
     return existing;
   }
 
-  // No profile exists — build from scratch
   return buildTasteProfile(userId);
 }
 
-// ════════════════════════════════════════════════════════════════
-// 2. CO-OCCURRENCE TRACKING
-// Called after each history write to record sequential plays.
-// ════════════════════════════════════════════════════════════════
 export async function recordCooccurrence(
   userId: string,
   currentEntry: {
@@ -242,7 +232,6 @@ export async function recordCooccurrence(
   },
 ): Promise<void> {
   try {
-    // Find the previous song this user played
     const prev = await ListeningHistory.findOne({
       userId: new mongoose.Types.ObjectId(userId),
       songId: { $ne: currentEntry.songId },
@@ -252,52 +241,24 @@ export async function recordCooccurrence(
 
     if (!prev) return;
 
-    // Record A→B co-occurrence (bidirectional)
-    const pairs = [
-      { a: prev.songId, b: currentEntry },
-      {
-        a: currentEntry.songId,
-        b: {
-          songId: prev.songId,
-          title: prev.title,
-          artist: prev.artist,
-          artistId: prev.artistId || "",
-          albumArt: prev.albumArt,
-          language: prev.language || "",
-        },
-      },
-    ];
+    const [songA, songB] =
+      prev.songId < currentEntry.songId
+        ? [prev.songId, currentEntry.songId]
+        : [currentEntry.songId, prev.songId];
 
-    for (const { a, b } of pairs) {
-      await SongCooccurrence.findOneAndUpdate(
-        { songIdA: a, songIdB: b.songId },
-        {
-          $inc: { count: 1, decayedScore: 1 },
-          $set: {
-            songBName: b.title,
-            songBArtist: b.artist,
-            songBArtistId: b.artistId,
-            songBImage: b.albumArt,
-            songBLanguage: b.language,
-            lastSeenAt: new Date(),
-          },
-        },
-        { upsert: true },
-      );
-    }
+    await SongCooccurrence.findOneAndUpdate(
+      { songIdA: songA, songIdB: songB },
+      {
+        $inc: { cooccurCount: 1, rawScore: 1, decayedScore: 1 },
+        $set: { lastPlayedAt: new Date() },
+      },
+      { upsert: true },
+    );
   } catch (err) {
-    // Non-fatal — don't break history logging
-    console.error("[RecEngine] Co-occurrence tracking error:", err);
+    console.error("[RecEngine] recordCooccurrence error:", err);
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-// 3. GET CANDIDATES
-// Multi-source candidate generation:
-//   - Co-occurrence (strongest signal)
-//   - JioSaavn suggestions endpoint
-//   - Artist-ID-based fetching (songs by user's fav artists)
-// ════════════════════════════════════════════════════════════════
 interface RecommendedSong extends Song {
   _recScore?: number;
   reason?: string;
@@ -309,11 +270,16 @@ export async function getCandidates(
     currentSongId?: string;
     profile: IUserTasteProfile | null;
     limit?: number;
+    userPrefs?: { languages?: string[] } | null;
+    userId?: string;
   },
 ): Promise<RecommendedSong[]> {
-  const { currentSongId, profile, limit = 30 } = params;
+  const { currentSongId, profile, limit = 30, userPrefs, userId } = params;
   const candidates: RecommendedSong[] = [];
   const seenIds = new Set<string>(profile?.recentSongIds?.slice(0, 30) || []);
+
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, profile);
 
   const addCandidate = (song: Song, reason: string) => {
     if (seenIds.has(song.id)) return;
@@ -322,22 +288,21 @@ export async function getCandidates(
   };
 
   if (mode === "next" && currentSongId) {
-    // ── Source 1: Co-occurrence (most personalized) ──────────────
-    const cooccurrences = await SongCooccurrence.find({ songIdA: currentSongId })
-      .sort({ decayedScore: -1 })
-      .limit(20)
-      .lean();
+    try {
+      const cooccurrences = await SongCooccurrence.find({ songIdA: currentSongId })
+        .sort({ decayedScore: -1 })
+        .limit(20)
+        .lean();
 
-    for (const co of cooccurrences) {
-      if (seenIds.has(co.songIdB)) continue;
-      // Fetch full song details for co-occurred songs
-      try {
-        const song = await fetchSongById(co.songIdB);
-        if (song) addCandidate(song, "Frequently played together");
-      } catch {}
-    }
+      for (const co of cooccurrences) {
+        if (seenIds.has(co.songIdB)) continue;
+        try {
+          const song = await fetchSongById(co.songIdB);
+          if (song) addCandidate(song, "Frequently played together");
+        } catch {}
+      }
+    } catch {}
 
-    // ── Source 2: JioSaavn suggestions (their built-in recs) ────
     try {
       const raw = await getSuggestions(currentSongId, 30);
       const normalized = normalizeSongsToCanonical(raw);
@@ -347,15 +312,12 @@ export async function getCandidates(
     } catch {}
   }
 
-  // ── Source 3: Songs by user's top artists ──────────────────────
   if (profile && profile.artists.length > 0) {
     const topArtists = profile.artists.slice(0, 5);
-    // Pick 2-3 random artists from top 5 for variety
     const shuffled = topArtists.sort(() => Math.random() - 0.5).slice(0, 3);
 
     const artistResults = await Promise.allSettled(
       shuffled.map((a) => {
-        // If we have a JioSaavn artist ID, fetch by ID; else search by name
         if (a.artistId && /^\d+$/.test(a.artistId)) {
           return fetchArtistSongs(a.artistId, 0, 1);
         }
@@ -366,7 +328,7 @@ export async function getCandidates(
     for (let i = 0; i < artistResults.length; i++) {
       const res = artistResults[i];
       if (res.status !== "fulfilled") continue;
-      const songs = Array.isArray(res.value) ? normalizeSongsToCanonical(res.value) : res.value as Song[];
+      const songs = Array.isArray(res.value) ? normalizeSongsToCanonical(res.value) : (res.value as Song[]);
       const artistName = shuffled[i].artistName;
       for (const s of songs.slice(0, 8)) {
         addCandidate(s, `Because you like ${artistName}`);
@@ -374,12 +336,10 @@ export async function getCandidates(
     }
   }
 
-  // ── Source 4 (home mode): Language-based discovery ─────────────
-  if (mode === "home" && profile && profile.languages.length > 0) {
-    const topLangs = profile.languages.slice(0, 2);
+  if (mode === "home") {
     const langResults = await Promise.allSettled(
-      topLangs.map((l) =>
-        searchSongs(`trending ${l.language} songs ${new Date().getFullYear()}`, 15),
+      allowedLangs.map((l) =>
+        searchSongs(`trending ${l} songs ${new Date().getFullYear()}`, 15),
       ),
     );
     for (const res of langResults) {
@@ -390,14 +350,10 @@ export async function getCandidates(
     }
   }
 
-  return candidates.slice(0, limit * 2); // Over-fetch for ranking headroom
+  const langFiltered = filterByLanguages(candidates, allowedLangs);
+  return langFiltered.slice(0, limit * 2);
 }
 
-// ════════════════════════════════════════════════════════════════
-// 4. RANK CANDIDATES
-// Adapted from searchRanker.ts — cover penalty, popularity,
-// taste affinity, diversity caps.
-// ════════════════════════════════════════════════════════════════
 export function rankCandidates(
   candidates: RecommendedSong[],
   profile: IUserTasteProfile | null,
@@ -405,7 +361,6 @@ export function rankCandidates(
 ): RecommendedSong[] {
   if (!candidates.length) return [];
 
-  // Build lookup sets from profile for fast scoring
   const artistScoreMap = new Map<string, number>();
   const artistNameSet = new Set<string>();
   const langWeightMap = new Map<string, number>();
@@ -420,7 +375,6 @@ export function rankCandidates(
     }
   }
 
-  // Score each candidate
   const scored = candidates.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
@@ -428,18 +382,13 @@ export function rankCandidates(
     const lang = (song.language || "").toLowerCase();
     const label = ((song as any).label || "").toLowerCase();
 
-    // ── Popularity (0–60 pts) ───────────────────────────────────
     score += popularityScore(song.playCount);
-
-    // ── Cover penalty (always applied — no query bypass in recs) ─
     score += coverPenalty(title);
 
-    // ── Blacklisted label check ─────────────────────────────────
     if (label && BLACKLISTED_LABELS.some((bl) => label.includes(bl))) {
       score += W.BLACKLISTED_LABEL;
     }
 
-    // ── Original indicator bonus ────────────────────────────────
     for (const marker of ORIGINAL_MARKERS) {
       if (title.includes(marker)) {
         score += W.ORIGINAL_BONUS;
@@ -447,15 +396,12 @@ export function rankCandidates(
       }
     }
 
-    // ── Taste: artist match ─────────────────────────────────────
-    // Check by artist name since we may not have IDs on all songs
     const songArtists = artist.split(",").map((a) => a.trim().toLowerCase());
     for (const sa of songArtists) {
       if (artistNameSet.has(sa)) {
         score += W.TASTE_ARTIST_MATCH;
         break;
       }
-      // Partial match: check if any profile artist name is contained
       for (const profileArtist of artistNameSet) {
         if (sa.includes(profileArtist) || profileArtist.includes(sa)) {
           score += W.TASTE_ARTIST_MATCH * 0.6;
@@ -464,25 +410,20 @@ export function rankCandidates(
       }
     }
 
-    // ── Taste: language match ───────────────────────────────────
     if (lang && langWeightMap.has(lang)) {
       const langWeight = langWeightMap.get(lang)!;
       score += Math.round(W.TASTE_LANG_MATCH * langWeight);
     }
 
-    // ── Stream URL presence ─────────────────────────────────────
     if (!song.streamUrl) score -= 30;
 
-    // ── Age / Release Year Penalty ──────────────────────────────
     const currentYear = new Date().getFullYear();
     const songYear = parseInt(song.year, 10);
     if (!isNaN(songYear)) {
       const age = currentYear - songYear;
       if (age > 4) {
-        // Penalize older catalog items progressively
         score -= Math.min(100, age * 15);
       } else if (age === 0) {
-        // Minor boost for current year releases
         score += 20;
       }
     }
@@ -490,10 +431,8 @@ export function rankCandidates(
     return { ...song, _recScore: score };
   });
 
-  // Sort by score descending
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  // ── Diversity cap: max N per artist & unique song titles ──────
   const artistCount = new Map<string, number>();
   const seenSongNames = new Set<string>();
   const diversified: RecommendedSong[] = [];
@@ -502,43 +441,19 @@ export function rankCandidates(
     const cleanName = cleanSongNameForDeduplication(song.name);
     if (cleanName && seenSongNames.has(cleanName)) continue;
 
-    const firstArtist = (song.primaryArtists || "").split(",")[0].trim().toLowerCase();
+    const firstArtist = (song.primaryArtists || "")
+      .split(",")[0]
+      .trim()
+      .toLowerCase();
+
     const count = artistCount.get(firstArtist) || 0;
     if (count >= W.MAX_PER_ARTIST) continue;
 
     artistCount.set(firstArtist, count + 1);
     if (cleanName) seenSongNames.add(cleanName);
     diversified.push(song);
+
     if (diversified.length >= limit) break;
-  }
-
-  // ── Language diversity: ensure mix matches user's real distribution ─
-  // If user listens 70% Tamil 30% English, don't return 100% Tamil
-  if (profile && profile.languages.length > 1) {
-    const topLang = profile.languages[0].language;
-    const topLangCount = diversified.filter(
-      (s) => (s.language || "").toLowerCase() === topLang,
-    ).length;
-    const topLangRatio = topLangCount / diversified.length;
-    const targetRatio = Math.min(profile.languages[0].weight + 0.1, 0.8); // Cap at 80%
-
-    if (topLangRatio > targetRatio) {
-      // Too many of the top language — swap some out for other-language songs from scored
-      const excess = Math.floor((topLangRatio - targetRatio) * diversified.length);
-      const otherLangSongs = scored.filter(
-        (s) =>
-          (s.language || "").toLowerCase() !== topLang &&
-          !diversified.some((d) => d.id === s.id),
-      );
-      // Replace last N top-lang songs with other-lang songs
-      let swapped = 0;
-      for (let i = diversified.length - 1; i >= 0 && swapped < excess; i--) {
-        if ((diversified[i].language || "").toLowerCase() === topLang && otherLangSongs.length > 0) {
-          diversified[i] = otherLangSongs.shift()!;
-          swapped++;
-        }
-      }
-    }
   }
 
   return diversified;
@@ -569,11 +484,10 @@ function popularityScore(playCount: number): number {
   if (p >= 100_000) return 10;
   if (p >= 10_000) return 4;
   if (p >= 1_000) return 0;
-  return W.LOW_PLAYCOUNT_PENALTY; // < 1K plays — almost certainly fake/cover
+  return W.LOW_PLAYCOUNT_PENALTY;
 }
 
 function coverPenalty(title: string): number {
-  // In recommendation context: ALWAYS penalize covers (no "user asked for it" bypass)
   for (const kw of HARD_COVER_KW) {
     if (title.includes(kw)) return W.COVER_PENALTY_HARD;
   }
@@ -583,19 +497,20 @@ function coverPenalty(title: string): number {
   return 0;
 }
 
-// ════════════════════════════════════════════════════════════════
-// 5. ATTACH REASON — explainable tag per song
-// ════════════════════════════════════════════════════════════════
 export function attachReason(
-  songs: RecommendedSong[],
+  candidates: RecommendedSong[],
   profile: IUserTasteProfile | null,
 ): RecommendedSong[] {
-  if (!profile) return songs.map((s) => ({ ...s, reason: s.reason || "Popular right now" }));
+  if (!profile) {
+    return candidates.map((s) => ({
+      ...s,
+      reason: s.reason || "Popular right now",
+    }));
+  }
 
-  const artistNames = new Set(profile.artists.slice(0, 15).map((a) => a.artistName.toLowerCase()));
+  const artistNames = profile.artists.map((a) => a.artistName.toLowerCase());
 
-  return songs.map((song) => {
-    // Keep reason if already set (from candidate generation)
+  return candidates.map((song) => {
     if (song.reason) return song;
 
     const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
@@ -621,13 +536,13 @@ export function attachReason(
 }
 
 // ════════════════════════════════════════════════════════════════
-// 6. PUBLIC API — High-level functions used by routes
+// PUBLIC RECOMMENDATION SURFACES
 // ════════════════════════════════════════════════════════════════
 
 export async function getHomeRecommendations(
   userId: string,
+  userPrefs?: { languages?: string[] } | null,
 ): Promise<RecommendedSong[]> {
-  // Check cache
   const cacheKey = `rec:home:${userId}`;
   try {
     const cached = await redisGet(cacheKey);
@@ -635,11 +550,14 @@ export async function getHomeRecommendations(
   } catch {}
 
   const profile = await getTasteProfile(userId);
-  const candidates = await getCandidates("home", { profile, limit: 25 });
-  const ranked = rankCandidates(candidates, profile, 20);
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, profile);
+
+  const candidates = await getCandidates("home", { profile, limit: 25, userPrefs: prefs, userId });
+  const langFiltered = filterByLanguages(candidates, allowedLangs);
+  const ranked = rankCandidates(langFiltered, profile, 20);
   const withReasons = attachReason(ranked, profile);
 
-  // Strip internal scoring fields
   const result = withReasons.map(({ _recScore, ...rest }) => rest);
 
   await redisSet(cacheKey, JSON.stringify(result), W.RESULT_CACHE_TTL).catch(() => {});
@@ -650,55 +568,34 @@ export async function getNextRecommendations(
   currentSongId: string,
   userId?: string,
   excludeIds: string[] = [],
+  userPrefs?: { languages?: string[] } | null,
 ): Promise<RecommendedSong[]> {
-  const cacheKey = userId
-    ? `rec:next:${userId}:${currentSongId}`
-    : `rec:next:guest:${currentSongId}`;
-
-  // Bypass Redis cache when dynamic exclusions are provided
-  if (excludeIds.length === 0) {
-    try {
-      const cached = await redisGet(cacheKey);
-      if (cached) return JSON.parse(cached);
-    } catch {}
-  }
-
-  // Fetch seed song metadata first
   const seedSong = await fetchSongById(currentSongId);
-  if (!seedSong) {
-    return [];
-  }
+  if (!seedSong) return [];
 
   const profile = userId ? await getTasteProfile(userId) : null;
+  const prefs = await resolveUserPrefs(userId, userPrefs);
 
-  // Generate seed-anchored, taste-aware recommendations
+  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  const combinedExclusions = Array.from(new Set([...excludeIds, ...recent7d]));
+
   const recommendedSongs = await generateSeedAnchoredBatch(
     seedSong,
     profile,
-    excludeIds,
+    combinedExclusions,
     20,
+    prefs,
+    userId,
   );
 
-  // Map to RecommendedSong format with reasons
   const result: RecommendedSong[] = recommendedSongs.map((song) => ({
     ...song,
     reason: (song as any).reason || `Similar to ${seedSong.name}`,
   }));
 
-  // Only cache when there are no dynamic exclusions
-  if (excludeIds.length === 0) {
-    await redisSet(cacheKey, JSON.stringify(result), W.RESULT_CACHE_TTL).catch(() => {});
-  }
-
   return result;
 }
 
-
-// ════════════════════════════════════════════════════════════════
-// 7. TASTE PROFILE RECOMPUTE TRIGGER
-// Called from the history-write route after each play event.
-// Only rebuilds if N new plays have accumulated.
-// ════════════════════════════════════════════════════════════════
 export async function maybeRecomputeTaste(userId: string): Promise<void> {
   try {
     const existing = await UserTasteProfile.findOne({
@@ -713,10 +610,7 @@ export async function maybeRecomputeTaste(userId: string): Promise<void> {
 
     const lastCount = (existing as any)?.lastPlayCountAtCompute || 0;
     if (currentCount - lastCount >= W.RECOMPUTE_AFTER_N_PLAYS) {
-      // Fire and forget — don't block the history write response
-      buildTasteProfile(userId).catch((err) =>
-        console.error("[RecEngine] Taste recompute error:", err),
-      );
+      buildTasteProfile(userId).catch(() => {});
     }
   } catch (err) {
     console.error("[RecEngine] maybeRecomputeTaste error:", err);
@@ -724,7 +618,7 @@ export async function maybeRecomputeTaste(userId: string): Promise<void> {
 }
 
 // ════════════════════════════════════════════════════════════════
-// 8. TASTE REDESIGN HELPER FUNCTIONS
+// 6 SURFACE GENERATORS (HARD LANGUAGE FILTER + 7D COOLDOWN EXCLUSIONS)
 // ════════════════════════════════════════════════════════════════
 
 export async function generateSeedAnchoredBatch(
@@ -732,7 +626,12 @@ export async function generateSeedAnchoredBatch(
   tasteProfile: IUserTasteProfile | null,
   excludeIds: string[],
   batchSize: number = 8,
+  userPrefs?: { languages?: string[] } | null,
+  userId?: string,
 ): Promise<Song[]> {
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
+
   const seedId = seed.id;
   const seedArtist = (seed.primaryArtists || "").split(",")[0].trim();
   const seedLang = (seed.language || "").toLowerCase().trim();
@@ -746,45 +645,30 @@ export async function generateSeedAnchoredBatch(
     candidates.push(song);
   };
 
-  // Source 1: Co-occurrence
-  let cooccurCount = 0;
-  const coOccurrenceCandidatesList: Song[] = [];
   try {
     const cooccurrences = await SongCooccurrence.find({ songIdA: seedId })
       .sort({ decayedScore: -1 })
       .limit(20)
       .lean();
-    cooccurCount = cooccurrences.length;
     for (const co of cooccurrences) {
       try {
         const song = await fetchSongById(co.songIdB);
-        if (song) {
-          coOccurrenceCandidatesList.push(song);
-          addCandidate(song);
-        }
+        if (song) addCandidate(song);
       } catch {}
     }
   } catch {}
 
-  // Source 2: JioSaavn suggestions
-  let suggestionsCount = 0;
-  const jiosaavnCandidatesList: Song[] = [];
   try {
     const raw = await getSuggestions(seedId, 30);
-    suggestionsCount = raw.length;
     const normalized = normalizeSongsToCanonical(raw);
     for (const s of normalized) {
-      jiosaavnCandidatesList.push(s);
       addCandidate(s);
     }
   } catch {}
 
-  // Source 3: Hits from primary artist of the seed
-  let artistHitsCount = 0;
   if (seedArtist) {
     try {
       const artistSongs = await searchSongs(`${seedArtist} hits`, 15);
-      artistHitsCount = artistSongs.length;
       const normalized = normalizeSongsToCanonical(artistSongs);
       for (const s of normalized) {
         addCandidate(s);
@@ -792,41 +676,37 @@ export async function generateSeedAnchoredBatch(
     } catch {}
   }
 
-  // Sanity check: if candidate pool is too small, supplement with cold start/popular songs
-  let fallbackCount = 0;
-  if (candidates.length < 10) {
+  // Hard filter candidates by allowedLangs
+  const langFiltered = filterByLanguages(candidates, allowedLangs);
+
+  if (langFiltered.length < 10) {
     try {
-      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize);
-      fallbackCount = fallbacks.length;
+      const fallbacks = await getColdStartBatch(Array.from(excludeSet), batchSize * 2, allowedLangs);
       for (const s of fallbacks) {
-        addCandidate(s);
+        if (!excludeSet.has(s.id)) {
+          langFiltered.push(s);
+          excludeSet.add(s.id);
+        }
       }
     } catch {}
   }
-  if (candidates.length === 0) {
-    return [];
-  }
 
-  // Score candidates with seed-weighted ranking (seed weight close to 1.0)
-  const scored = candidates.map((song) => {
+  if (langFiltered.length === 0) return [];
+
+  const scored = langFiltered.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
     const artist = (song.primaryArtists || "").toLowerCase();
     const lang = (song.language || "").toLowerCase();
     const label = ((song as any).label || "").toLowerCase();
 
-    // Base popularity (0–60 pts)
     score += popularityScore(song.playCount);
-
-    // Full cover penalty (applied unconditionally)
     score += coverPenalty(title);
 
-    // Blacklisted label check
     if (label && BLACKLISTED_LABELS.some((bl) => label.includes(bl))) {
       score += W.BLACKLISTED_LABEL;
     }
 
-    // Original indicator bonus
     for (const marker of ORIGINAL_MARKERS) {
       if (title.includes(marker)) {
         score += W.ORIGINAL_BONUS;
@@ -834,51 +714,22 @@ export async function generateSeedAnchoredBatch(
       }
     }
 
-    // Seed-anchored similarity (heavy weights, close to 1.0)
     const songArtists = artist.split(",").map((a) => a.trim().toLowerCase());
     const isSameArtist = songArtists.some(
       (sa) =>
         sa.includes(seedArtist.toLowerCase()) ||
         seedArtist.toLowerCase().includes(sa),
     );
-    if (isSameArtist) {
-      score += 60; // Extra heavy seed artist similarity
-    }
-
-    if (lang === seedLang) {
-      score += 40; // Heavy seed language similarity
-    }
-
-    // Overall taste profile score (if present)
-    if (tasteProfile) {
-      const artistNameSet = new Set(
-        tasteProfile.artists.map((a) => a.artistName.toLowerCase()),
-      );
-      const langWeightMap = new Map(
-        tasteProfile.languages.map((l) => [l.language, l.weight]),
-      );
-
-      for (const sa of songArtists) {
-        if (artistNameSet.has(sa)) {
-          score += 20;
-          break;
-        }
-      }
-
-      if (lang && langWeightMap.has(lang)) {
-        score += Math.round(15 * langWeightMap.get(lang)!);
-      }
-    }
+    if (isSameArtist) score += 60;
+    if (lang === seedLang) score += 40;
 
     if (!song.streamUrl) score -= 30;
 
     return { ...song, _recScore: score };
   });
 
-  // Sort candidates
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  // Diversity: max 2 songs per artist
   const artistCount = new Map<string, number>();
   const diversified: Song[] = [];
 
@@ -888,10 +739,9 @@ export async function generateSeedAnchoredBatch(
       .trim()
       .toLowerCase();
     const count = artistCount.get(firstArtist) || 0;
-    if (count >= 2) continue; // max 2 per artist
+    if (count >= 2) continue;
     artistCount.set(firstArtist, count + 1);
 
-    // Attach reason
     const cleanSong = { ...song };
     delete (cleanSong as any)._recScore;
     (cleanSong as any).reason = `Similar to ${seed.name}`;
@@ -903,35 +753,125 @@ export async function generateSeedAnchoredBatch(
   return diversified;
 }
 
+const TOP_ARTISTS_BY_LANGUAGE: Record<string, string[]> = {
+  english: [
+    "Ed Sheeran", "Taylor Swift", "The Weeknd", "Drake", "Billie Eilish",
+    "Ariana Grande", "Dua Lipa", "Bruno Mars", "Coldplay", "Justin Bieber",
+    "Post Malone", "Eminem", "Rihanna", "Beyonce", "Harry Styles", "Olivia Rodrigo",
+    "Sabrina Carpenter", "Charlie Puth", "Selena Gomez", "Imagine Dragons"
+  ],
+  spanish: [
+    "Bad Bunny", "Rosalía", "J Balvin", "Karol G", "Rauw Alejandro",
+    "Daddy Yankee", "Maluma", "Ozuna", "Luis Fonsi", "Enrique Iglesias",
+    "Peso Pluma", "Shakira", "Camilo", "Sebastian Yatra"
+  ],
+  korean: [
+    "BTS", "BLACKPINK", "Stray Kids", "TWICE", "NewJeans", "SEVENTEEN",
+    "EXO", "IU", "TXT", "ENHYPEN", "Red Velvet", "LE SSERAFIM", "aespa",
+    "ITZY", "Jungkook"
+  ],
+  japanese: [
+    "YOASOBI", "Kenshi Yonezu", "Fujii Kaze", "ONE OK ROCK", "Ado",
+    "LiSA", "Official HIGE DANdism", "Hikaru Utada", "RADWIMPS", "Vaundy"
+  ],
+  french: [
+    "Stromae", "Indila", "Gims", "Aya Nakamura", "JUL", "Ninho",
+    "Soolking", "Angèle", "ZAZ", "David Guetta", "Daft Punk"
+  ],
+  german: [
+    "Rammstein", "Apache 207", "Bonez MC", "Peter Fox", "CRO",
+    "Robin Schulz", "Zedd", "Scorpions", "Tokio Hotel"
+  ],
+  portuguese: [
+    "Anitta", "Alok", "Marília Mendonça", "Gusttavo Lima", "Ludmilla",
+    "Roberto Carlos", "Jão", "Luísa Sonza"
+  ],
+  arabic: [
+    "Amr Diab", "Nancy Ajram", "Elissa", "Sherine", "Saad Lamjarred",
+    "Mohamed Hamaki", "Tamer Hosny", "Fairouz", "Assala"
+  ],
+  italian: [
+    "Måneskin", "Andrea Bocelli", "Laura Pausini", "Mahmood", "Blanco", "Sfera Ebbasta"
+  ],
+  russian: [
+    "Miyagi & Andy Panda", "Zivert", "Scriptonite", "Jony", "HammAli & Navai"
+  ],
+  turkish: [
+    "Tarkan", "Zeynep Bastık", "Ezhel", "Edis", "Duman", "Sefo"
+  ],
+  tamil: [
+    "Anirudh Ravichander", "A.R. Rahman", "Sid Sriram", "Yuvan Shankar Raja",
+    "Harris Jayaraj", "G.V. Prakash", "Hiphop Tamizha", "Santhosh Narayanan",
+    "Ilaiyaraaja", "Vijay Antony", "D. Imman", "Sai Abhyankkar"
+  ],
+  hindi: [
+    "Arijit Singh", "Pritam", "Shreya Ghoshal", "A.R. Rahman", "Jubin Nautiyal",
+    "Vishal-Shekhar", "Amit Trivedi", "Sachin-Jigar", "Badshah", "Atif Aslam",
+    "Sonu Nigam", "Sunidhi Chauhan", "KK", "Mohit Chauhan"
+  ],
+  telugu: [
+    "Devi Sri Prasad", "S. Thaman", "M.M. Keeravani", "Sid Sriram", "Anirudh Ravichander",
+    "A.R. Rahman", "Hesham Abdul Wahab", "Gopi Sundar"
+  ],
+  punjabi: [
+    "Diljit Dosanjh", "Karan Aujla", "Sidhu Moose Wala", "AP Dhillon", "B Praak",
+    "Guru Randhawa", "Ammy Virk", "Harrdy Sandhu", "Honey Singh", "Jass Manak"
+  ],
+  malayalam: [
+    "Sushin Shyam", "Jakes Bejoy", "Gopi Sundar", "Hesham Abdul Wahab", "Vineeth Sreenivasan"
+  ],
+  kannada: [
+    "Arjun Janya", "V. Harikrishna", "B. Ajaneesh Loknath", "Ravi Basrur", "Vijay Prakash"
+  ],
+  marathi: [
+    "Ajay-Atul", "Avadhoot Gupte", "Swapnil Bandodkar", "Adarsh Shinde"
+  ],
+  bengali: [
+    "Anupam Roy", "Jeet Gannguli", "Indraadip Dasgupta", "Shreya Ghoshal", "Arijit Singh"
+  ]
+};
+
 export async function getColdStartBatch(
   excludeIds: string[],
-  limit: number = 20,
+  limit: number = 36,
+  allowedLangs?: string[],
 ): Promise<Song[]> {
   const excludeSet = new Set(excludeIds);
-  const fallbacks = [
-    "best hindi songs",
-    "best tamil songs",
-    "best telugu songs",
-    "best english songs",
-  ];
-  
+  const targetLangs = allowedLangs && allowedLangs.length > 0
+    ? allowedLangs
+    : ["english", "hindi", "tamil", "punjabi", "telugu"];
+
+  const searchQueries: string[] = [];
+  for (const lang of targetLangs) {
+    const topArts = TOP_ARTISTS_BY_LANGUAGE[lang.toLowerCase()] || [];
+    const shuffledArts = [...topArts].sort(() => Math.random() - 0.5).slice(0, 4);
+    for (const art of shuffledArts) {
+      searchQueries.push(`${art} hits`);
+    }
+    searchQueries.push(`best ${lang} songs`);
+    searchQueries.push(`trending ${lang} hits`);
+  }
+
   const searchResults = await Promise.allSettled(
-    fallbacks.map((q) => searchSongs(q, 15)),
+    searchQueries.map((q) => searchSongs(q, 15)),
   );
 
   const candidates: Song[] = [];
+  const seenIds = new Set<string>();
+
   for (const res of searchResults) {
     if (res.status !== "fulfilled") continue;
     const normalized = normalizeSongsToCanonical(res.value);
-    for (const s of normalized) {
-      if (!excludeSet.has(s.id)) {
+    const filtered = filterByLanguages(normalized, targetLangs);
+    for (const s of filtered) {
+      if (!excludeSet.has(s.id) && !seenIds.has(s.id)) {
+        seenIds.add(s.id);
         candidates.push(s);
         excludeSet.add(s.id);
       }
     }
   }
 
-  // Score only based on cover penalties and popularity
   const scored = candidates.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
@@ -943,161 +883,193 @@ export async function getColdStartBatch(
 
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  return scored.slice(0, limit).map((s) => {
-    const clean = { ...s };
+  const artistCount = new Map<string, number>();
+  const diversified: Song[] = [];
+
+  for (const song of scored) {
+    const firstArtist = (song.primaryArtists || "")
+      .split(",")[0]
+      .trim()
+      .toLowerCase();
+    const count = artistCount.get(firstArtist) || 0;
+    if (count >= 2) continue;
+    artistCount.set(firstArtist, count + 1);
+
+    const clean = { ...song };
     delete (clean as any)._recScore;
-    (clean as any).reason = "Popular right now";
-    return clean;
-  });
+    (clean as any).reason = `Top ${song.language || "Hits"} Track`;
+    diversified.push(clean);
+
+    if (diversified.length >= limit) break;
+  }
+
+  return diversified;
 }
 
+/**
+ * Made For You surface: Multi-seed generation from top artists, liked songs, history.
+ * HARD language filter + 7-day cooldown (relaxed to 2-day if pool is small, language never relaxed).
+ */
 export async function getTasteProfileBatch(
   tasteProfile: IUserTasteProfile | null,
   excludeIds: string[],
-  limit: number = 20,
+  limit: number = 36,
+  userPrefs?: { languages?: string[] } | null,
+  userId?: string,
 ): Promise<Song[]> {
-  if (!tasteProfile || tasteProfile.artists.length === 0) {
-    return getColdStartBatch(excludeIds, limit);
-  }
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
-  const excludeSet = new Set(excludeIds);
-  const candidates: Song[] = [];
+  const recentlySurfaced7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  let currentExclude = new Set([...excludeIds, ...recentlySurfaced7d]);
 
-  const addCandidate = (song: Song) => {
-    if (excludeSet.has(song.id)) return;
-    excludeSet.add(song.id);
-    candidates.push(song);
-  };
+  const seeds: Song[] = [];
+  const seedIds = new Set<string>();
 
-  // Rotating query modifiers for variety on every reload
-  const ARTIST_QUERY_VARIANTS = [
-    "best of", "top songs", "popular", "hits", "essentials",
-    "greatest", "playlist", "latest", "new", "trending",
-  ];
-  const LANG_QUERY_VARIANTS = [
-    "trending", "popular", "best", "top", "latest",
-    "new releases", "hot", "viral", "chartbusters", "hits",
-  ];
-
-  const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-
-  // Source 1: User's top artists (randomize page + search query variants)
-  const topArtists = tasteProfile.artists.slice(0, 10);
-  const artistResults = await Promise.allSettled(
-    topArtists.map((a) => {
-      if (a.artistId && /^\d+$/.test(a.artistId)) {
-        const randomPage = Math.floor(Math.random() * 8); // pages 0-7 for wider variety
-        return fetchArtistSongs(a.artistId, randomPage, 2);
-      }
-      const variant = pickRandom(ARTIST_QUERY_VARIANTS);
-      return searchSongs(`${variant} ${a.artistName}`, 20);
-    }),
-  );
-
-  for (let i = 0; i < artistResults.length; i++) {
-    const res = artistResults[i];
-    if (res.status !== "fulfilled") continue;
-    const songs = Array.isArray(res.value)
-      ? normalizeSongsToCanonical(res.value)
-      : (res.value as Song[]);
-    for (const s of songs) {
-      addCandidate(s);
-    }
-  }
-
-  // Source 2: Co-occurrences for the user's recent songs (randomize which recent songs to use)
-  const recentIds = tasteProfile.recentSongIds || [];
-  if (recentIds.length > 0) {
-    // Shuffle recent IDs so we pick different co-occurrences each time
-    const shuffledRecent = [...recentIds].sort(() => Math.random() - 0.5);
-    const cooccurrences = await SongCooccurrence.find({
-      songIdA: { $in: shuffledRecent.slice(0, 10) },
-    })
-      .sort({ decayedScore: -1 })
-      .limit(30)
-      .lean();
-
-    // Fetch songs concurrently in batches to respect rate limits (bounded concurrency pool of 8)
-    const cooccurIds = cooccurrences.map((co) => co.songIdB);
-    const results: (Song | null)[] = new Array(cooccurIds.length);
-    let idx = 0;
-    const CONCURRENCY_LIMIT = 8;
-
-    async function worker() {
-      while (idx < cooccurIds.length) {
-        const currentIdx = idx++;
-        try {
-          results[currentIdx] = await fetchSongById(cooccurIds[currentIdx]);
-        } catch {
-          results[currentIdx] = null;
+  // Seed Source 1: Top Artists
+  if (tasteProfile && tasteProfile.artists.length > 0) {
+    const topArtists = tasteProfile.artists.slice(0, 4);
+    const artistSeedResults = await Promise.allSettled(
+      topArtists.map((a) => {
+        if (a.artistId && /^\d+$/.test(a.artistId)) {
+          return fetchArtistSongs(a.artistId, 0, 3);
+        }
+        return searchSongs(`${a.artistName} hits`, 5);
+      }),
+    );
+    for (const res of artistSeedResults) {
+      if (res.status === "fulfilled") {
+        const normalized = normalizeSongsToCanonical(res.value);
+        const filtered = filterByLanguages(normalized, allowedLangs);
+        for (const s of filtered) {
+          if (!seedIds.has(s.id)) {
+            seedIds.add(s.id);
+            seeds.push(s);
+            break;
+          }
         }
       }
     }
+  }
 
-    const workers = Array.from(
-      { length: Math.min(CONCURRENCY_LIMIT, cooccurIds.length) },
-      worker
+  // Seed Source 2: Liked Songs
+  if (userId && userId !== "guest") {
+    try {
+      const userDoc = await User.findById(userId).select("likedSongs").lean();
+      if (userDoc?.likedSongs && userDoc.likedSongs.length > 0) {
+        const likedEmbeds = userDoc.likedSongs.slice(0, 10);
+        const shuffledLiked = [...likedEmbeds].sort(() => Math.random() - 0.5);
+        for (const liked of shuffledLiked) {
+          if (seeds.length >= 6) break;
+          if (!seedIds.has(liked.songId)) {
+            seedIds.add(liked.songId);
+            seeds.push({
+              id: liked.songId,
+              name: liked.title,
+              primaryArtists: liked.artist,
+              image: liked.albumArt,
+              album: "",
+              albumId: "",
+              duration: liked.duration,
+              language: "",
+              year: "",
+              streamUrl: null,
+              downloadUrl: liked.downloadUrl || [],
+              playCount: 0,
+              url: "",
+            });
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Seed Source 3: Recent History
+  if (tasteProfile && tasteProfile.recentSongIds && tasteProfile.recentSongIds.length > 0) {
+    const recentIds = tasteProfile.recentSongIds.slice(0, 10);
+    const shuffledRecent = [...recentIds].sort(() => Math.random() - 0.5);
+    for (const rId of shuffledRecent) {
+      if (seeds.length >= 6) break;
+      if (!seedIds.has(rId)) {
+        try {
+          const s = await fetchSongById(rId);
+          if (s) {
+            seedIds.add(s.id);
+            seeds.push(s);
+          }
+        } catch {}
+      }
+    }
+  }
+
+  const multiSeedCandidates: Song[] = [];
+  const candidateSet = new Set<string>();
+
+  if (seeds.length > 0) {
+    const batchResults = await Promise.allSettled(
+      seeds.map((seed) =>
+        generateSeedAnchoredBatch(
+          seed,
+          tasteProfile,
+          Array.from(currentExclude),
+          4,
+          prefs,
+          userId,
+        ),
+      ),
     );
-    await Promise.all(workers);
 
-    for (const song of results) {
-      if (song) addCandidate(song);
+    for (const res of batchResults) {
+      if (res.status === "fulfilled") {
+        const batchFiltered = filterByLanguages(res.value, allowedLangs);
+        for (const song of batchFiltered) {
+          if (!currentExclude.has(song.id) && !candidateSet.has(song.id)) {
+            candidateSet.add(song.id);
+            multiSeedCandidates.push(song);
+          }
+        }
+      }
     }
   }
 
-  // Source 3: Language discovery (randomized query variants)
-  const topLangs = tasteProfile.languages.slice(0, 3);
-  const currentYear = new Date().getFullYear();
-  const langResults = await Promise.allSettled(
-    topLangs.map((l) => {
-      const variant = pickRandom(LANG_QUERY_VARIANTS);
-      const yearVariant = Math.random() > 0.5 ? ` ${currentYear}` : "";
-      return searchSongs(
-        `${variant} ${l.language} songs${yearVariant}`,
-        20,
+  // Cooldown relaxation fallback: If candidates < limit, relax 7-day to 2-day cooldown (never relax language filter)
+  if (multiSeedCandidates.length < limit) {
+    const recentlySurfaced2d = userId ? await getRecentlyRecommendedSongIds(userId, 2) : [];
+    const relaxedExclude = new Set([...excludeIds, ...recentlySurfaced2d]);
+
+    if (tasteProfile && tasteProfile.artists.length > 0) {
+      const topArtists = tasteProfile.artists.slice(0, 5);
+      const extraArtistResults = await Promise.allSettled(
+        topArtists.map((a) => searchSongs(`best of ${a.artistName}`, 15)),
       );
-    }),
-  );
-  for (const res of langResults) {
-    if (res.status !== "fulfilled") continue;
-    const songs = normalizeSongsToCanonical(res.value);
-    for (const s of songs) {
-      addCandidate(s);
+      for (const res of extraArtistResults) {
+        if (res.status === "fulfilled") {
+          const normalized = normalizeSongsToCanonical(res.value);
+          const langFiltered = filterByLanguages(normalized, allowedLangs);
+          for (const s of langFiltered) {
+            if (!relaxedExclude.has(s.id) && !candidateSet.has(s.id)) {
+              candidateSet.add(s.id);
+              multiSeedCandidates.push(s);
+            }
+          }
+        }
+      }
     }
   }
 
-  // Source 4: Genre/mood discovery for extra variety
-  const moodQueries = ["chill vibes", "upbeat energy", "romantic", "party", "soulful", "acoustic", "lo-fi"];
-  const randomMood = pickRandom(moodQueries);
-  const randomLang = topLangs.length > 0 ? pickRandom(topLangs).language : "hindi";
-  try {
-    const moodSongs = await searchSongs(`${randomMood} ${randomLang} songs`, 15);
-    const normalized = normalizeSongsToCanonical(moodSongs);
-    for (const s of normalized) {
-      addCandidate(s);
+  if (multiSeedCandidates.length < limit) {
+    const coldStart = await getColdStartBatch(Array.from(currentExclude), limit * 2, allowedLangs);
+    for (const s of coldStart) {
+      if (!candidateSet.has(s.id)) {
+        candidateSet.add(s.id);
+        multiSeedCandidates.push(s);
+      }
     }
-  } catch {}
-
-  if (candidates.length === 0) {
-    return getColdStartBatch(excludeIds, limit);
   }
 
-  // Shuffle candidates to introduce randomness before ranking
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-  }
-
-  // Rank using rankCandidates (which applies cover penalty + popularity)
-  // Then add random noise to final scores so tied songs shuffle differently each time
-  const ranked = rankCandidates(candidates, tasteProfile, limit * 3);
-  for (const song of ranked) {
-    (song as any)._recScore = ((song as any)._recScore || 0) + Math.floor(Math.random() * 30) - 15;
-  }
-  ranked.sort((a, b) => ((b as any)._recScore ?? 0) - ((a as any)._recScore ?? 0));
+  const ranked = rankCandidates(multiSeedCandidates, tasteProfile, limit * 3);
   const withReasons = attachReason(ranked, tasteProfile);
 
-  // Apply diversity limit of max 2 songs per artist & unique song titles in the final returned batch
   const artistCount = new Map<string, number>();
   const seenNames = new Set<string>();
   const diversified: Song[] = [];
@@ -1128,141 +1100,15 @@ export async function getTasteProfileBatch(
 export async function getLanguageAwareNewReleases(
   tasteProfile: IUserTasteProfile | null,
   limit: number = 20,
+  userPrefs?: { languages?: string[] } | null,
+  userId?: string,
 ): Promise<Song[]> {
-  const currentYear = new Date().getFullYear();
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
-  // Cold start / Guest
-  if (!tasteProfile || tasteProfile.languages.length === 0) {
-    const fallbackLangs = ["hindi", "english", "tamil", "punjabi"];
-    const results = await Promise.allSettled(
-      fallbackLangs.map((l) => searchSongs(`new ${l} songs ${currentYear}`, 15)),
-    );
-    const candidates: Song[] = [];
-    const seen = new Set<string>();
-
-    for (const res of results) {
-      if (res.status !== "fulfilled") continue;
-      const normalized = normalizeSongsToCanonical(res.value);
-      for (const s of normalized) {
-        if (!seen.has(s.id)) {
-          seen.add(s.id);
-          candidates.push(s);
-        }
-      }
-    }
-
-    // Apply light cover penalty (0.5 weight) and popularity
-    const scored = candidates.map((song) => {
-      let score = 0;
-      const title = (song.name || "").toLowerCase();
-      score += popularityScore(song.playCount);
-      score += coverPenalty(title) * 0.5; // light penalty
-      if (!song.streamUrl) score -= 30;
-      return { ...song, _recScore: score };
-    });
-
-    scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
-    return scored.slice(0, limit).map((s) => {
-      const clean = { ...s };
-      delete (clean as any)._recScore;
-      return clean;
-    });
-  }
-
-  // Filter languages present at >= 15% (weight >= 0.15)
-  let eligibleLangs = tasteProfile.languages.filter((l) => l.weight >= 0.15);
-  if (eligibleLangs.length === 0 && tasteProfile.languages.length > 0) {
-    eligibleLangs = [tasteProfile.languages[0]];
-  }
-
-  // Fetch new releases for each language in parallel
-  const fetchResults = await Promise.allSettled(
-    eligibleLangs.map((el) =>
-      searchSongs(`new ${el.language} songs ${currentYear}`, 25),
-    ),
-  );
-
-  const candidatesByLang: Record<string, Song[]> = {};
-  for (let i = 0; i < eligibleLangs.length; i++) {
-    const el = eligibleLangs[i];
-    const res = fetchResults[i];
-    if (res.status !== "fulfilled") continue;
-
-    const normalized = normalizeSongsToCanonical(res.value);
-    // Apply light cover penalty + popularity to sort this language's candidates
-    const scored = normalized.map((song) => {
-      let score = 0;
-      const title = (song.name || "").toLowerCase();
-      score += popularityScore(song.playCount);
-      score += coverPenalty(title) * 0.5; // light penalty
-      if (!song.streamUrl) score -= 30;
-      return { ...song, _recScore: score };
-    });
-
-    scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
-    candidatesByLang[el.language] = scored.map((s) => {
-      const clean = { ...s };
-      delete (clean as any)._recScore;
-      return clean;
-    });
-  }
-
-  // Determine allocations
-  // Give each eligible language a minimum floor of 3 songs, and allocate the rest proportionally
-  const totalEligibleWeight = eligibleLangs.reduce((sum, el) => sum + el.weight, 0);
-  const allocations: Record<string, number> = {};
-  let remainingSlots = limit;
-
-  // First round: give 3 songs minimum floor
-  const floor = Math.min(3, Math.floor(limit / eligibleLangs.length));
-  for (const el of eligibleLangs) {
-    allocations[el.language] = floor;
-    remainingSlots -= floor;
-  }
-
-  // Second round: distribute remaining slots proportionally
-  if (remainingSlots > 0 && totalEligibleWeight > 0) {
-    for (const el of eligibleLangs) {
-      const proportional = Math.round(
-        (el.weight / totalEligibleWeight) * remainingSlots,
-      );
-      allocations[el.language] = (allocations[el.language] || 0) + proportional;
-    }
-  }
-
-  // Collect and merge songs matching allocations
-  const result: Song[] = [];
-  const seen = new Set<string>();
-
-  for (const el of eligibleLangs) {
-    const count = allocations[el.language] || 0;
-    const songs = candidatesByLang[el.language] || [];
-    let added = 0;
-    for (const song of songs) {
-      if (added >= count) break;
-      if (!seen.has(song.id)) {
-        seen.add(song.id);
-        result.push(song);
-        added++;
-      }
-    }
-  }
-
-  // If we ended up with less than the limit, fill up from any of the lists
-  if (result.length < limit) {
-    for (const el of eligibleLangs) {
-      const songs = candidatesByLang[el.language] || [];
-      for (const song of songs) {
-        if (result.length >= limit) break;
-        if (!seen.has(song.id)) {
-          seen.add(song.id);
-          result.push(song);
-        }
-      }
-    }
-  }
-
-  return result;
+  const newReleases = await getIndustryNewReleases(allowedLangs, limit * 2);
+  const langFiltered = filterByLanguages(newReleases, allowedLangs);
+  return langFiltered.slice(0, limit);
 }
 
 const LANGUAGE_PLAYLIST_MAP: Record<string, string[]> = {
@@ -1298,7 +1144,6 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
     }
   };
 
-  // 1. Fetch from the top 2 curated playlists in parallel
   try {
     const playlistsResults = await Promise.allSettled(
       searchTerms.map((term) => searchPlaylists(term, 2))
@@ -1323,11 +1168,8 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
         }
       }
     }
-  } catch (err) {
-    console.warn(`[NewReleases] Failed to fetch playlists for lang: ${lang}`, err);
-  }
+  } catch {}
 
-  // 2. Fetch from active search results for new releases to capture the latest individual tracks in parallel
   const searchQueries = [
     `new ${lang} songs ${currentYear}`,
     `latest ${lang} songs ${currentYear}`,
@@ -1342,9 +1184,7 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
         addSongs(normalizeSongsToCanonical(res.value));
       }
     }
-  } catch (err) {
-    console.error(`[NewReleases] Search queries failed for lang: ${lang}`, err);
-  }
+  } catch {}
 
   return candidates;
 }
@@ -1353,7 +1193,6 @@ function isCompilationReRelease(song: Song): boolean {
   const albumLower = (song.album || "").toLowerCase();
   const nameLower = (song.name || "").toLowerCase();
 
-  // 1. Direct compilation keywords in album name
   const compilationKeywords = [
     "best of", "collection", "hits", "compilation", "romantic songs", 
     "bollywood hits", "top 10", "top 20", "top 30", "top 50", "top 100", 
@@ -1367,7 +1206,6 @@ function isCompilationReRelease(song: Song): boolean {
     if (albumLower.includes(kw)) return true;
   }
 
-  // 2. Movie/Album mismatch heuristic
   const fromMatch = nameLower.match(/\(from\s+["'“&quot;](.+?)["'”&quot;]\)/) || 
                     nameLower.match(/from\s+["'“&quot;](.+?)["'”&quot;]/);
   if (fromMatch && fromMatch[1]) {
@@ -1377,14 +1215,13 @@ function isCompilationReRelease(song: Song): boolean {
     }
   }
 
-  // 3. Mathematical playcount ceiling for new releases (40M plays in < 45 days is impossible on JioSaavn)
   if (song.releaseDate) {
     const rDate = new Date(song.releaseDate);
     const today = new Date();
     const diffTime = today.getTime() - rDate.getTime();
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
     if (diffDays >= 0 && diffDays <= 45 && song.playCount > 40000000) {
-      return true; // compilation re-release
+      return true;
     }
   }
 
@@ -1421,7 +1258,6 @@ export async function getIndustryNewReleases(
     }
   }
 
-  // Batch enrich all candidates with full details (carrying precise release dates)
   let enrichedSongs: Song[] = [];
   try {
     const candidateIds = candidates.map((s) => s.id);
@@ -1436,14 +1272,11 @@ export async function getIndustryNewReleases(
     } else {
       enrichedSongs = candidates;
     }
-  } catch (err) {
-    console.error("[NewReleases] Failed to enrich candidates with precise release dates:", err);
+  } catch {
     enrichedSongs = candidates;
   }
 
-  // Filter out compilation re-releases of older catalog items
   const nonCompilationSongs = enrichedSongs.filter((song) => !isCompilationReRelease(song));
-
   const today = new Date();
 
   const scored = nonCompilationSongs.map((song) => {
@@ -1451,7 +1284,6 @@ export async function getIndustryNewReleases(
     const title = (song.name || "").toLowerCase();
     score += popularityScore(song.playCount);
 
-    // Popular/Mainstream Artist Boost vs Indie Penalty
     const artistStr = (song.primaryArtists || "").toLowerCase();
     let hasTopArtist = false;
     for (const topArt of POPULAR_ARTISTS) {
@@ -1462,21 +1294,18 @@ export async function getIndustryNewReleases(
     }
 
     if (hasTopArtist) {
-      score += 120; // Massive boost for top mainstream artists
+      score += 120;
     } else {
-      // If it doesn't feature a mainstream artist:
       if (song.playCount < 1_500_000) {
-        score -= 150; // Heavily penalize obscure indie/low-playcount releases
+        score -= 150;
       } else if (song.playCount < 5_000_000) {
-        score -= 60;  // Moderate penalty for lesser known mid-tier releases
+        score -= 60;
       }
     }
     
-    // Cover/karaoke penalty
-    score += coverPenalty(title) * 0.5; // light penalty
+    score += coverPenalty(title) * 0.5;
     if (!song.streamUrl) score -= 30;
 
-    // Precise 30-day filter boost/ranking
     let isWithin30Days = false;
     let isWithin90Days = false;
 
@@ -1486,25 +1315,23 @@ export async function getIndustryNewReleases(
         const diffTime = today.getTime() - rDate.getTime();
         const diffDays = diffTime / (1000 * 60 * 60 * 24);
         
-        // We include a tiny negative limit (-1 day) to handle timezones / future releases
         if (diffDays >= -1 && diffDays <= 30) {
           isWithin30Days = true;
-          score += 150; // HUGE boost to place them at the absolute top
+          score += 150;
         } else if (diffDays >= -1 && diffDays <= 90) {
           isWithin90Days = true;
-          score += 60;  // Moderate boost for recent 3-month releases
+          score += 60;
         }
       }
     }
 
-    // Year-based fallback (if releaseDate is missing/invalid)
     const currentYear = today.getFullYear();
     if (song.year === String(currentYear)) {
       score += 20;
     } else if (song.year === String(currentYear - 1)) {
       score += 5;
     } else {
-      score -= 80; // heavily penalize older catalog items
+      score -= 80;
     }
 
     return { 
@@ -1515,35 +1342,28 @@ export async function getIndustryNewReleases(
     };
   });
 
-  // Sort candidates by score
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  // 1. Try to get candidates within the last 30 days
   let finalSongs = scored.filter((s) => s._isWithin30Days);
 
-  // 2. If we don't have enough, expand to last 90 days
   if (finalSongs.length < limit) {
     const extra90 = scored.filter((s) => s._isWithin90Days && !finalSongs.some((f) => f.id === s.id));
     finalSongs = [...finalSongs, ...extra90];
   }
 
-  // 3. If still not enough, expand to current year
   if (finalSongs.length < limit) {
     const currentYearStr = String(today.getFullYear());
     const extraCurrentYear = scored.filter((s) => s.year === currentYearStr && !finalSongs.some((f) => f.id === s.id));
     finalSongs = [...finalSongs, ...extraCurrentYear];
   }
 
-  // 4. If still not enough, fall back to everything else
   if (finalSongs.length < limit) {
     const remaining = scored.filter((s) => !finalSongs.some((f) => f.id === s.id));
     finalSongs = [...finalSongs, ...remaining];
   }
 
-  // Slice to limit
   const selected = finalSongs.slice(0, limit);
 
-  // Return cleaned items
   return selected.map((s) => {
     const clean = { ...s };
     delete (clean as any)._recScore;
@@ -1553,24 +1373,27 @@ export async function getIndustryNewReleases(
   });
 }
 
-// ─── APPLE MUSIC MIX GENERATORS ───────────────────────────────────
-
 export async function generateNewMusicMix(
   tasteProfile: IUserTasteProfile | null,
   excludeIds: string[],
   limit: number = 25,
+  userPrefs?: { languages?: string[] } | null,
+  userId?: string,
 ): Promise<Song[]> {
-  if (!tasteProfile || tasteProfile.languages.length === 0) {
-    return getIndustryNewReleases(["hindi", "english"], limit);
-  }
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
-  const langs = tasteProfile.languages.map((l) => l.language);
-  const newReleases = await getIndustryNewReleases(langs, 100);
+  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  const excludeSet = new Set([...excludeIds, ...recent7d]);
 
-  const excludeSet = new Set(excludeIds);
-  const artistNameSet = new Set(tasteProfile.artists.map((a) => a.artistName.toLowerCase()));
+  const newReleases = await getIndustryNewReleases(allowedLangs, 100);
+  const langFiltered = filterByLanguages(newReleases, allowedLangs);
 
-  const scored = newReleases
+  const artistNameSet = new Set(
+    tasteProfile?.artists?.map((a) => a.artistName.toLowerCase()) || [],
+  );
+
+  const scored = langFiltered
     .filter((song) => !excludeSet.has(song.id))
     .map((song) => {
       let score = 0;
@@ -1581,11 +1404,6 @@ export async function generateNewMusicMix(
           score += 100;
           break;
         }
-      }
-      
-      const langWeightMap = new Map(tasteProfile.languages.map((l) => [l.language, l.weight]));
-      if (song.language && langWeightMap.has(song.language)) {
-        score += Math.round(30 * langWeightMap.get(song.language)!);
       }
       
       score += popularityScore(song.playCount);
@@ -1606,8 +1424,14 @@ export async function generateFavoritesMix(
   tasteProfile: IUserTasteProfile,
   excludeIds: string[],
   limit: number = 25,
+  userPrefs?: { languages?: string[] } | null,
+  userId?: string,
 ): Promise<Song[]> {
-  const excludeSet = new Set(excludeIds);
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
+
+  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  const excludeSet = new Set([...excludeIds, ...recent7d]);
   const candidates: Song[] = [];
 
   const addCandidate = (song: Song) => {
@@ -1645,10 +1469,10 @@ export async function generateFavoritesMix(
     }
   }
 
+  const langFiltered = filterByLanguages(candidates, allowedLangs);
   const artistScoreMap = new Map(tasteProfile.artists.map((a) => [a.artistName.toLowerCase(), a.score]));
-  const langWeightMap = new Map(tasteProfile.languages.map((l) => [l.language, l.weight]));
 
-  const scored = candidates.map((song) => {
+  const scored = langFiltered.map((song) => {
     let score = 0;
     const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
     
@@ -1657,10 +1481,6 @@ export async function generateFavoritesMix(
         score += Math.min(100, artistScoreMap.get(sa)! * 10);
         break;
       }
-    }
-
-    if (song.language && langWeightMap.has(song.language)) {
-      score += Math.round(50 * langWeightMap.get(song.language)!);
     }
 
     score += popularityScore(song.playCount);
@@ -1681,8 +1501,15 @@ export async function generateDiscoveryMix(
   tasteProfile: IUserTasteProfile,
   excludeIds: string[],
   limit: number = 25,
+  userPrefs?: { languages?: string[] } | null,
+  userId?: string,
 ): Promise<Song[]> {
-  const excludeSet = new Set(excludeIds);
+  const prefs = await resolveUserPrefs(userId, userPrefs);
+  const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
+
+  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  const excludeSet = new Set([...excludeIds, ...recent7d]);
+
   const top5Artists = new Set(tasteProfile.artists.slice(0, 5).map((a) => a.artistName.toLowerCase()));
   const secondaryArtists = tasteProfile.artists.slice(5, 15);
   
@@ -1730,25 +1557,29 @@ export async function generateDiscoveryMix(
     }
   }
 
-  if (candidates.length < limit * 1.5) {
-    const secondaryLangs = tasteProfile.languages.slice(1, 3);
+  const langFiltered = filterByLanguages(candidates, allowedLangs);
+
+  if (langFiltered.length < limit * 1.5) {
     const langResults = await Promise.allSettled(
-      secondaryLangs.map((l) => searchSongs(`trending ${l.language} songs`, 20))
+      allowedLangs.map((l) => searchSongs(`trending ${l} songs`, 20))
     );
     for (const res of langResults) {
       if (res.status === "fulfilled") {
         const normalized = normalizeSongsToCanonical(res.value);
-        for (const s of normalized) {
-          addCandidate(s);
+        const filtered = filterByLanguages(normalized, allowedLangs);
+        for (const s of filtered) {
+          if (!excludeSet.has(s.id)) {
+            excludeSet.add(s.id);
+            langFiltered.push(s);
+          }
         }
       }
     }
   }
 
-  const secondaryLangSet = new Set(tasteProfile.languages.slice(1, 3).map((l) => l.language));
   const secondaryArtistSet = new Set(secondaryArtists.map((a) => a.artistName.toLowerCase()));
 
-  const scored = candidates.map((song) => {
+  const scored = langFiltered.map((song) => {
     let score = 0;
     const songArtists = (song.primaryArtists || "").split(",").map((a) => a.trim().toLowerCase());
     
@@ -1757,10 +1588,6 @@ export async function generateDiscoveryMix(
         score += 40;
         break;
       }
-    }
-
-    if (song.language && secondaryLangSet.has(song.language)) {
-      score += 30;
     }
 
     score += popularityScore(song.playCount);
@@ -1776,5 +1603,3 @@ export async function generateDiscoveryMix(
     return clean;
   });
 }
-
-

@@ -813,9 +813,8 @@ export const HomePage = () => {
       list.push(s);
     };
     for (const s of normalizedRecentlyPlayed) addToList(s);
-    for (const s of suggestionsSongs) addToList(s);
     return list.slice(0, 18);
-  }, [user, normalizedRecentlyPlayed, suggestionsSongs]);
+  }, [user, normalizedRecentlyPlayed]);
 
   const guestSections = useMemo(() => {
     if (

@@ -32,11 +32,20 @@ import { useAnnouncements } from "../hooks/useAnnouncements";
 import { useAnnouncementStore } from "../store/announcementStore";
 
 const ALL_LANGUAGES = [
-  "hindi",
   "english",
-  "punjabi",
+  "spanish",
+  "korean",
+  "japanese",
+  "french",
+  "german",
+  "portuguese",
+  "arabic",
+  "italian",
+  "turkish",
+  "hindi",
   "tamil",
   "telugu",
+  "punjabi",
   "bengali",
   "marathi",
   "gujarati",

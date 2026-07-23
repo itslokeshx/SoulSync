@@ -271,15 +271,23 @@ export async function buildDashboard(
       const rawMadeForYou = await getTasteProfileBatch(
         null,
         Array.from(globalExcludeIds),
-        35,
+        45,
+        null,
+        "guest"
       );
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
-        .slice(0, 30);
+        .slice(0, 36);
     } else {
       const [rawNewReleases, rawMadeForYou] = await Promise.all([
         getIndustryNewReleases(langs, 25),
-        getTasteProfileBatch(tasteProfile, Array.from(globalExcludeIds), 35),
+        getTasteProfileBatch(
+          tasteProfile,
+          Array.from(globalExcludeIds),
+          45,
+          userDoc?.preferences,
+          userId
+        ),
       ]);
 
       newReleasesSongs = rawNewReleases
@@ -292,11 +300,18 @@ export async function buildDashboard(
 
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
-        .slice(0, 30);
+        .slice(0, 36);
     }
 
     for (const s of madeForYouSongs) {
       globalExcludeIds.add(s.id);
+    }
+
+    // Record surfaced Made For You songs in RecentlyRecommended collection
+    if (!isGuest && userId && madeForYouSongs.length > 0) {
+      const surfacedIds = madeForYouSongs.map((s) => s.id);
+      const { recordRecentlyRecommended } = await import("./scoringUtils.js");
+      recordRecentlyRecommended(userId, surfacedIds, "made_for_you").catch(() => {});
     }
   } catch (err) {
     console.error("[Dashboard] Recommendations fetches error:", err);

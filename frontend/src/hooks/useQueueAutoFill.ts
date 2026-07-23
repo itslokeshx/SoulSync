@@ -1,10 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import { getNextRecommendations, getRelatedSongs } from "../api/backend";
 
-const PREFETCH_THRESHOLD = 2; // trigger when PREFETCH_THRESHOLD or fewer unplayed songs remain in queue
+const PREFETCH_THRESHOLD = 3; // trigger when 3 or fewer unplayed songs remain in queue
 const PREFETCH_LIMIT = 100;
-const MAX_QUEUE_SIZE = 300;
-const FETCH_COOLDOWN_MS = 5_000; // faster refill for large targets
+const FETCH_COOLDOWN_MS = 5_000;
 const MAX_EMPTY_ROUNDS = 3;
 
 interface UseQueueAutoFillOptions {
@@ -22,7 +21,6 @@ export function useQueueAutoFill({
   enabled = true,
   onAddSongs,
 }: UseQueueAutoFillOptions) {
-  // Use refs so fetchRelated never needs to be recreated
   const queueRef = useRef(queue);
   const onAddSongsRef = useRef(onAddSongs);
   queueRef.current = queue;
@@ -37,30 +35,23 @@ export function useQueueAutoFill({
   const addedIdsRef = useRef<Set<string>>(new Set());
   const lastFetchAtRef = useRef<number>(0);
   const emptyRoundsRef = useRef(0);
-  // Track whether we've already tried recommendations for this song
-  const triedRecsRef = useRef(false);
 
-  // Reset all counters when the song changes
+  // Reset counters when current playing song changes (periodic re-seeding)
   useEffect(() => {
     if (currentSong?.id !== lastSongIdRef.current) {
       lastSongIdRef.current = currentSong?.id ?? null;
       pageRef.current = 1;
-      addedIdsRef.current = new Set();
       emptyRoundsRef.current = 0;
       lastFetchAtRef.current = 0;
       fetchingRef.current = false;
-      triedRecsRef.current = false;
     }
   }, [currentSong?.id]);
 
-  // Stable fetch function — deps are only refs, never changes
   const fetchRelated = useCallback(async () => {
     const songId = lastSongIdRef.current;
     if (!songId) return;
-    // Safeguard: Prevent parallel duplicate fetches when skipping rapidly
     if (fetchingRef.current) return;
 
-    // Critical fail-safe: if the queue is running critically dry, reset exhaustion
     const remaining = queueRef.current.length - queueIndexRef.current - 1;
     if (remaining < 5) {
       emptyRoundsRef.current = 0;
@@ -77,25 +68,21 @@ export function useQueueAutoFill({
       let songs: any[] = [];
       let hasMore = false;
 
-      // First attempt: use the recommendation engine (taste-aware)
-      if (!triedRecsRef.current) {
-        triedRecsRef.current = true;
-        try {
-          const excludeIds = Array.from(
-            new Set([
-              ...queueRef.current.map((s) => s?.id).filter(Boolean),
-              ...Array.from(addedIdsRef.current),
-            ])
-          );
-          const recResult = await getNextRecommendations(songId, excludeIds);
-          songs = recResult.songs || [];
-          hasMore = recResult.hasMore;
-        } catch {
-          // Recommendation endpoint failed — fall through to legacy
-        }
+      // Always re-seed recommendations from the CURRENTLY playing song
+      try {
+        const excludeIds = Array.from(
+          new Set([
+            ...queueRef.current.map((s) => s?.id).filter(Boolean),
+            ...Array.from(addedIdsRef.current),
+          ])
+        );
+        const recResult = await getNextRecommendations(songId, excludeIds);
+        songs = recResult.songs || [];
+        hasMore = recResult.hasMore;
+      } catch {
+        // Fallback to legacy related songs if rec engine fails
       }
 
-      // Fallback: legacy related songs (raw JioSaavn suggestions)
       if (songs.length === 0) {
         const legacyResult = await getRelatedSongs(
           songId,
@@ -118,7 +105,6 @@ export function useQueueAutoFill({
         emptyRoundsRef.current = 0;
         if (hasMore) pageRef.current += 1;
       } else {
-        // No new songs — increment exhaustion counter
         emptyRoundsRef.current += 1;
       }
     } catch {
@@ -126,13 +112,11 @@ export function useQueueAutoFill({
     } finally {
       fetchingRef.current = false;
     }
-  }, []); // stable — no deps needed since we use refs
+  }, []);
 
   useEffect(() => {
     if (!enabled || !currentSong) return;
     const remaining = queue.length - queueIndex - 1;
-    // Trigger background prefetch when remaining unplayed songs drops to or below threshold.
-    // This fetch runs asynchronously and is completely non-blocking to song playback and UI.
     if (remaining <= PREFETCH_THRESHOLD) {
       fetchRelated();
     }

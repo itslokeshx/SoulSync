@@ -8,13 +8,20 @@ import toast from "react-hot-toast";
 
 /* ── Data ──────────────────────────────────────────────────────── */
 const LANGUAGES = [
-  { id: "tamil", label: "Tamil", script: "தமிழ்" },
-  { id: "hindi", label: "Hindi", script: "हिन्दी" },
   { id: "english", label: "English", script: "ABC" },
+  { id: "spanish", label: "Spanish", script: "ESP" },
+  { id: "korean", label: "Korean", script: "한국어" },
+  { id: "japanese", label: "Japanese", script: "日本語" },
+  { id: "french", label: "French", script: "FRA" },
+  { id: "german", label: "German", script: "DEU" },
+  { id: "portuguese", label: "Portuguese", script: "POR" },
+  { id: "arabic", label: "Arabic", script: "العربية" },
+  { id: "hindi", label: "Hindi", script: "हिन्दी" },
+  { id: "tamil", label: "Tamil", script: "தமிழ்" },
   { id: "telugu", label: "Telugu", script: "తెలుగు" },
+  { id: "punjabi", label: "Punjabi", script: "ਪੰਜਾਬੀ" },
   { id: "malayalam", label: "Malayalam", script: "മലയാളം" },
   { id: "kannada", label: "Kannada", script: "ಕನ್ನಡ" },
-  { id: "punjabi", label: "Punjabi", script: "ਪੰਜਾਬੀ" },
   { id: "bengali", label: "Bengali", script: "বাংলা" },
   { id: "marathi", label: "Marathi", script: "मराठी" },
   { id: "gujarati", label: "Gujarati", script: "ગુજરાતી" },

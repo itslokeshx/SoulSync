@@ -51,8 +51,12 @@ router.patch(
         return;
       }
 
-      // Clear cached dashboard so it rebuilds with new language prefs
-      await redisDel(`dashboard:${req.userId}`).catch(() => {});
+      // Clear cached dashboard, taste, and recommendations so it rebuilds with new language prefs immediately
+      await Promise.allSettled([
+        redisDel(`dashboard:${req.userId}`),
+        redisDel(`taste:${req.userId}`),
+        redisDel(`rec:home:${req.userId}`),
+      ]);
 
       res.json({ user });
     } catch (err) {

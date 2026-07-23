@@ -144,18 +144,20 @@ async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<IUserMi
     )) as IUserMixSet;
   }
 
+  const userDoc = await User.findById(userId).select("preferences").lean();
+  const userPrefs = userDoc?.preferences || null;
   const excludeIds: string[] = [];
 
   // 1. Favorites Mix (Comfort listening - high priority)
-  const favorites = await generateFavoritesMix(tasteProfile, excludeIds, 25);
+  const favorites = await generateFavoritesMix(tasteProfile, excludeIds, 25, userPrefs, userId);
   favorites.forEach((s) => excludeIds.push(s.id));
 
   // 2. New Music Mix (Personalized releases)
-  const newMusic = await generateNewMusicMix(tasteProfile, excludeIds, 25);
+  const newMusic = await generateNewMusicMix(tasteProfile, excludeIds, 25, userPrefs, userId);
   newMusic.forEach((s) => excludeIds.push(s.id));
 
   // 3. Discovery Mix (Exploratory picks)
-  const discovery = await generateDiscoveryMix(tasteProfile, excludeIds, 25);
+  const discovery = await generateDiscoveryMix(tasteProfile, excludeIds, 25, userPrefs, userId);
   discovery.forEach((s) => excludeIds.push(s.id));
 
   // 4. Because You Liked Mix (Blended seed recommendation)
@@ -211,7 +213,7 @@ async function buildAndSaveMixSet(userId: string, weekOf: Date): Promise<IUserMi
 
       const seedBatches = await Promise.all(
         sortedSeeds.map((seedData) =>
-          generateSeedAnchoredBatch(seedData.song, tasteProfile, excludeIds, 10).catch(() => [] as Song[])
+          generateSeedAnchoredBatch(seedData.song, tasteProfile, excludeIds, 10, userPrefs, userId).catch(() => [] as Song[])
         )
       );
 

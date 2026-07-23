@@ -4,6 +4,7 @@ import { useMixes } from "./useMixes";
 import { getDashboard, getGuestDashboard, startRadio } from "../api/backend";
 import { normalizeSongs } from "../utils/normalizeSong";
 import { getRecentlyPlayedFromStorage } from "../utils/recentHistory";
+import { filterByPreferredLanguages } from "../utils/languageFilter";
 
 const CACHE_TTL = import.meta.env.DEV ? 0 : 5 * 60_000; // 5 minutes (disabled in dev)
 const REFETCH_COOLDOWN = 2 * 60_000; // 2 minutes
@@ -317,7 +318,8 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     // 5. User's Listening History / Suggestions
     for (const s of normalizedRecentlyPlayed) addSong(s);
 
-    return list;
+    const userLangs = user?.preferences?.languages || [];
+    return filterByPreferredLanguages(list, userLangs);
   })();
 
   return {

@@ -14,6 +14,8 @@ import {
   getTasteProfileBatch,
 } from "../services/recommendationEngine.js";
 import { getSuggestions, normalizeSongsToCanonical } from "../services/jiosaavn.js";
+import { recordRecentlyRecommended } from "../services/scoringUtils.js";
+import { User } from "../models/User.js";
 
 const router = Router();
 
@@ -23,7 +25,17 @@ router.get(
   authMiddleware,
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const songs = await getHomeRecommendations(req.userId!);
+      const user = await User.findById(req.userId).select("preferences").lean();
+      const songs = await getHomeRecommendations(req.userId!, user?.preferences);
+
+      if (req.userId && songs.length > 0) {
+        recordRecentlyRecommended(
+          req.userId,
+          songs.map((s) => s.id),
+          "made_for_you",
+        ).catch(() => {});
+      }
+
       res.json({
         songs,
         total: songs.length,
@@ -37,8 +49,6 @@ router.get(
 );
 
 // GET /api/recommendations/next?currentSongId=...
-// Soft auth: authenticated users get taste-aware recs,
-// guests get popularity-filtered JioSaavn suggestions.
 router.get(
   "/next",
   softAuth,
@@ -54,8 +64,17 @@ router.get(
       const excludeIds = excludeIdsRaw ? excludeIdsRaw.split(",") : [];
 
       if (req.userId) {
-        // Authenticated: full taste-aware recommendations
-        const songs = await getNextRecommendations(currentSongId, req.userId, excludeIds);
+        const user = await User.findById(req.userId).select("preferences").lean();
+        const songs = await getNextRecommendations(currentSongId, req.userId, excludeIds, user?.preferences);
+
+        if (songs.length > 0) {
+          recordRecentlyRecommended(
+            req.userId,
+            songs.map((s) => s.id),
+            "up_next",
+          ).catch(() => {});
+        }
+
         res.json({
           songs,
           total: songs.length,
@@ -63,7 +82,6 @@ router.get(
           source: "personalized",
         });
       } else {
-        // Guest: JioSaavn suggestions with basic normalization (no taste data)
         const songs = await getNextRecommendations(currentSongId, undefined, excludeIds);
         res.json({
           songs,
@@ -74,7 +92,6 @@ router.get(
       }
     } catch (err) {
       console.error("[Recommendations] Next error:", err);
-      // Fallback: raw JioSaavn suggestions
       try {
         const raw = await getSuggestions(req.query.currentSongId as string, 20);
         const songs = normalizeSongsToCanonical(raw);
@@ -96,7 +113,16 @@ router.post(
       const limit = typeof req.body.limit === "number" ? req.body.limit : 20;
 
       const tasteProfile = req.userId ? await getTasteProfile(req.userId) : null;
-      const songs = await getTasteProfileBatch(tasteProfile, excludeIds, limit);
+      const user = req.userId ? await User.findById(req.userId).select("preferences").lean() : null;
+      const songs = await getTasteProfileBatch(tasteProfile, excludeIds, limit, user?.preferences, req.userId);
+
+      if (req.userId && songs.length > 0) {
+        recordRecentlyRecommended(
+          req.userId,
+          songs.map((s) => s.id),
+          "made_for_you",
+        ).catch(() => {});
+      }
 
       res.json({
         songs,
