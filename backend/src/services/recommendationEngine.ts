@@ -117,18 +117,25 @@ export async function buildTasteProfile(
   const artistMap = new Map<string, { name: string; score: number; count: number }>();
 
   for (const h of history) {
-    const key = h.artistId || h.artist || "Unknown";
-    const name = h.artist || "Unknown";
+    const rawArtist = h.artist || "Unknown";
     const ageMs = now - new Date(h.playedAt).getTime();
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
     const decayWeight = Math.pow(0.5, ageDays / W.RECENCY_HALF_LIFE_DAYS);
 
-    const existing = artistMap.get(key);
-    if (existing) {
-      existing.score += decayWeight;
-      existing.count += 1;
-    } else {
-      artistMap.set(key, { name, score: decayWeight, count: 1 });
+    const artistNames = rawArtist
+      .split(/[,/&]+/)
+      .map((a) => a.trim())
+      .filter(Boolean);
+
+    for (const name of artistNames) {
+      const key = name.toLowerCase();
+      const existing = artistMap.get(key);
+      if (existing) {
+        existing.score += decayWeight;
+        existing.count += 1;
+      } else {
+        artistMap.set(key, { name, score: decayWeight, count: 1 });
+      }
     }
   }
 
@@ -674,6 +681,22 @@ export async function generateSeedAnchoredBatch(
         addCandidate(s);
       }
     } catch {}
+  }
+
+  // User Taste Profile top artists blending (YouTube-style personalized radio)
+  if (tasteProfile && tasteProfile.artists && tasteProfile.artists.length > 0) {
+    const userTopArtists = tasteProfile.artists.slice(0, 5);
+    const userArtistResults = await Promise.allSettled(
+      userTopArtists.map((a) => searchSongs(`${a.artistName} hits`, 10))
+    );
+    for (const res of userArtistResults) {
+      if (res.status === "fulfilled") {
+        const normalized = normalizeSongsToCanonical(res.value);
+        for (const s of normalized) {
+          addCandidate(s);
+        }
+      }
+    }
   }
 
   // Hard filter candidates by allowedLangs
