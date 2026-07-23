@@ -29,17 +29,9 @@ The project is currently used by roughly 180 users, with over 8,000 songs stream
 
 Generates playlists from natural-language prompts (e.g. "late night drive under rain") using an open-weight 120B-parameter LLM served via Groq. Supports matching pasted song lists against catalog metadata, and importing playlists from Spotify, YouTube Music, Apple Music, or plain text. Uses a multi-key rotation strategy across Groq API keys for rate-limit resilience, with a 30-minute cache layer.
 
-### Search
-
-A seven-factor ranking engine scores results by play count, title/artist match quality, language preference, and popularity, with covers and instrumental versions demoted below original tracks. Results are cached in Redis with a 10-minute TTL. Returns up to 50 results per query, grouped by songs, artists, and albums.
-
 ### SoulLink — Shared Listening Sessions
 
 Real-time synchronized listening rooms using WebSockets. Playback state (play/pause, seek, queue, track changes) propagates instantly to all connected participants. Rooms use six-character join codes and do not require an account. Includes in-room chat and automatic cleanup of disconnected sessions via heartbeat monitoring.
-
-### Android Application
-
-A native Android build via Capacitor, including offline playback without requiring network access or login, lockscreen media controls, background audio, and a gesture-driven mini-player. Release binaries are resolved dynamically from GitHub Releases.
 
 ### Listening Analytics ("Wrapped")
 
