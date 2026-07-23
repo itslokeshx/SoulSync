@@ -11,8 +11,6 @@ import {
 import { useUIStore } from "../../store/uiStore";
 import { useDownloadStore } from "../../store/downloadStore";
 import { DuoButton } from "../../duo";
-import { SearchTrigger } from "../ui/SearchTrigger";
-
 import { useAnnouncements } from "../../hooks/useAnnouncements";
 
 export const Sidebar = () => {
@@ -67,13 +65,6 @@ export const Sidebar = () => {
             </span>
           </span>
         )}
-      </div>
-
-      {/* Search trigger — at top of nav */}
-      <div className={`flex-shrink-0 ${collapsed ? "px-1.5" : "px-3"} pb-1`}>
-        <SearchTrigger
-          variant={collapsed ? "sidebar-collapsed" : "sidebar"}
-        />
       </div>
 
       {/* Navigation — scrollable if needed */}

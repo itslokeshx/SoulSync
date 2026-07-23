@@ -1,12 +1,12 @@
 {
-    "version": "5.0.0",
-    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_5.0.apk",
+    "version": "5.1.0",
+    "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.1/SoulSync_5.1.apk",
     "force": false,
     "changelog": [
-        "Groq GPT OSS 120B Resilient AI Music Curator",
-        "Pure International Global New Releases & Multi-Language Categorization",
-        "Direct Artist Page Navigation with 50 Top Popular Songs",
-        "Compact Feature Showcase & Authentication Gating",
-        "Sleep Timer Presets & Touch Scroll Improvements"
+        "SoulSync v5.1 - Redesigned Recommendation & Up Next Engine",
+        "Deterministic Taste Profile & Session-Anchored DJ Queue",
+        "Tamil Contemporary Ecosystem & Cross-Genre Taste Clusters",
+        "Strict Single-Album Capping & Zero Language Leakage",
+        "Real Behavioral Telemetry Tracking & Cleaned Production Architecture"
     ]
 }

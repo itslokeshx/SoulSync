@@ -2,7 +2,7 @@ import packageJson from "../../package.json";
 
 export const API = "https://jiosaavn.rajputhemant.dev";
 
-export const APK_DOWNLOAD_URL = "https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_v5.apk";
+export const APK_DOWNLOAD_URL = "https://github.com/itslokeshx/SoulSync/releases/download/v5.1/SoulSync_v5.1.apk";
 
 
 export const FALLBACK_IMG =
