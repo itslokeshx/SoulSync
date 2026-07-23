@@ -11,7 +11,6 @@ import { User } from "../models/User.js";
 import { getNegativeAffinityProfile } from "./negativeAffinity.js";
 import { computeLanguageConfidence, evaluateCandidateEligibility, EligibilityContext } from "./eligibilityFilter.js";
 import { detectActiveEcosystemCluster, getEcosystemArtists } from "./tasteClusters.js";
-import { logRecommendationDiagnostics } from "./recDiagnostics.js";
 
 export interface CandidatePoolResult {
   candidates: Song[];
@@ -59,8 +58,6 @@ export async function generateCandidatePool(
 
     // HARD ELIGIBILITY CHECK: Reject songs failing language, negative affinity, or cluster rules
     const eligibility = evaluateCandidateEligibility(song, eligibilityContext);
-    logRecommendationDiagnostics(song, sourceTag, eligibility, eligibilityContext);
-
     if (!eligibility.eligible) return; // HARD REJECT: Never enter ranking pool!
 
     const existing = candidateMap.get(song.id);
