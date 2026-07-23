@@ -5,6 +5,7 @@ import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import { softAuth, SoftAuthRequest } from "../middleware/softAuth.js";
 import { redisDel } from "../services/redis.js";
 import { maybeRecomputeTaste, recordCooccurrence } from "../services/recommendationEngine.js";
+import { recordRecommendationEvent } from "../services/eventPipeline.js";
 
 const router = Router();
 
@@ -122,6 +123,18 @@ router.post(
         language: typeof language === "string" ? language : "",
         source: cleanSource,
       });
+
+      // Log central event for behavior learning & taste profile weighting
+      recordRecommendationEvent({
+        userId: req.userId,
+        eventType: "song_finished",
+        songId: cleanSongId,
+        artistId: cleanArtistId,
+        artistName: cleanArtist,
+        completionPercent: 100,
+        listeningDurationSeconds: cleanDuration,
+        contextLanguage: typeof language === "string" ? language : "",
+      }).catch(() => {});
 
       // Update total listening time
       if (cleanDuration) {

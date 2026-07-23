@@ -233,9 +233,9 @@ export function resolveLanguageFilter(
  * Detect language of a song using explicit metadata, artist maps, title/album markers, and script inspection.
  */
 export function detectSongLanguage(song: Song): string | null {
-  // 1. Explicit song.language field (if non-empty)
+  // 1. Explicit song.language field (if non-empty and not unknown)
   const explicitLang = (song.language || "").toLowerCase().trim();
-  if (explicitLang) {
+  if (explicitLang && explicitLang !== "unknown" && explicitLang !== "null" && explicitLang !== "undefined") {
     if (explicitLang === "harianvi" || explicitLang === "haryanvi") return "haryanvi";
     if (explicitLang === "odiya" || explicitLang === "odia") return "odia";
     return explicitLang;
