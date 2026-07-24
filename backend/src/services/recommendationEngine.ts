@@ -1166,13 +1166,13 @@ export async function getLanguageAwareNewReleases(
 }
 
 const LANGUAGE_PLAYLIST_MAP: Record<string, string[]> = {
-  hindi: ["latest hindi", "taaza tunes", "new releases hindi"],
-  tamil: ["latest kollywood", "latest tamil", "new releases tamil"],
-  telugu: ["latest tollywood", "latest telugu", "new releases telugu"],
-  punjabi: ["latest punjabi", "new releases punjabi"],
-  english: ["latest english", "new releases english", "fresh latin hits"],
-  kannada: ["latest kannada", "latest sandalwood", "new releases kannada"],
-  malayalam: ["latest malayalam", "new releases malayalam"],
+  hindi: ["latest hindi", "taaza tunes", "new releases hindi", "trending hindi hits", "top bollywood releases"],
+  tamil: ["latest kollywood", "latest tamil", "new releases tamil", "trending tamil hits", "top kollywood releases"],
+  telugu: ["latest tollywood", "latest telugu", "new releases telugu", "trending telugu hits"],
+  punjabi: ["latest punjabi", "new releases punjabi", "trending punjabi hits"],
+  english: ["latest english", "new releases english", "trending english hits", "top english releases", "fresh hollywood hits"],
+  kannada: ["latest kannada", "latest sandalwood", "new releases kannada", "trending kannada hits"],
+  malayalam: ["latest malayalam", "new releases malayalam", "trending malayalam hits"],
   marathi: ["latest marathi", "new releases marathi"],
   bengali: ["latest bengali", "new releases bengali"],
   gujarati: ["latest gujarati", "new releases gujarati"],
@@ -1184,6 +1184,7 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
   const searchTerms = LANGUAGE_PLAYLIST_MAP[lang.toLowerCase()] || [
     `latest ${lang}`,
     `new releases ${lang}`,
+    `trending ${lang} hits`,
   ];
 
   const candidates: Song[] = [];
@@ -1226,7 +1227,8 @@ async function fetchCuratedNewReleases(lang: string): Promise<Song[]> {
 
   const searchQueries = [
     `new ${lang} songs ${currentYear}`,
-    `latest ${lang} songs ${currentYear}`,
+    `latest ${lang} hits ${currentYear}`,
+    `trending ${lang} releases ${currentYear}`,
   ];
 
   try {
@@ -1257,7 +1259,9 @@ function isCompilationReRelease(song: Song): boolean {
     "monsoon", "summer", "winter", "spring"
   ];
   for (const kw of compilationKeywords) {
-    if (albumLower.includes(kw)) return true;
+    if (albumLower.includes(kw) || nameLower.includes(kw)) {
+      return true;
+    }
   }
 
   const fromMatch = nameLower.match(/\(from\s+["'“&quot;](.+?)["'”&quot;]\)/) || 
@@ -1283,8 +1287,8 @@ function isCompilationReRelease(song: Song): boolean {
 }
 
 export async function getIndustryNewReleases(
-  langs: string[],
-  limit: number = 20,
+  langs: string[] = [],
+  limit: number = 30,
 ): Promise<Song[]> {
   const targetLangs = langs.length > 0 ? langs : ["hindi"];
 
@@ -1398,10 +1402,23 @@ export async function getIndustryNewReleases(
 
   scored.sort((a, b) => (b._recScore ?? 0) - (a._recScore ?? 0));
 
-  let finalSongs = scored.filter((s) => s._isWithin30Days);
+  // Diversity Filter: Max 2 songs per album/soundtrack to prevent a single movie/album from dominating
+  const diverseScored: typeof scored = [];
+  const albumMap = new Map<string, number>();
+
+  for (const item of scored) {
+    const albKey = (item.album || item.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const count = albumMap.get(albKey) || 0;
+    if (count < 2) {
+      albumMap.set(albKey, count + 1);
+      diverseScored.push(item);
+    }
+  }
+
+  let finalSongs = diverseScored.filter((s) => s._isWithin30Days);
 
   if (finalSongs.length < limit) {
-    const extra90 = scored.filter((s) => s._isWithin90Days && !finalSongs.some((f) => f.id === s.id));
+    const extra90 = diverseScored.filter((s) => s._isWithin90Days && !finalSongs.some((f) => f.id === s.id));
     finalSongs = [...finalSongs, ...extra90];
   }
 
