@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "41763631282",
+    "project_id": "soulsync-1fbf9",
+    "storage_bucket": "soulsync-1fbf9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:41763631282:android:0c7c455d3176606d6559ab",
+        "android_client_info": {
+          "package_name": "com.soulsync.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPl5W1_lh6rY-0kEcfORyVLRvxCgTNyfc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
