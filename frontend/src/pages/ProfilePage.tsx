@@ -19,6 +19,7 @@ import {
   Bell,
   Smartphone,
   Github,
+  Star,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
@@ -336,11 +337,12 @@ export default function ProfilePage() {
                 href={GITHUB_REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/70 hover:text-white font-bold text-[11px] sm:text-xs transition-all duration-200 active:scale-95"
-                title="View Open Source Code on GitHub"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[#161b22]/90 border border-white/10 text-white/80 hover:text-white hover:bg-[#21262d] hover:border-amber-400/40 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 group"
+                title="Star SoulSync on GitHub!"
               >
-                <Github size={14} strokeWidth={2.5} />
-                <span className="hidden sm:inline">GitHub</span>
+                <Github size={14} strokeWidth={2} className="text-white/80 group-hover:text-white transition-colors" />
+                <Star size={12} className="fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline">Star</span>
               </a>
             </>
           )}
