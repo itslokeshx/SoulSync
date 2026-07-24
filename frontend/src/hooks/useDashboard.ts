@@ -272,9 +272,9 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   for (const s of normalizedLikedSongs) addHomeSong(s);
   for (const s of normalizedPlaylistSongs) addHomeSong(s);
   for (const s of normalizedMadeForYou) addHomeSong(s);
+  for (const s of suggestionsSongs) addHomeSong(s);
 
-  const totalSlotsNeeded = allHomeSongs.length >= 18 ? 18 : 9;
-  const mobileGridSongs = allHomeSongs.slice(0, totalSlotsNeeded);
+  const mobileGridSongs = allHomeSongs.slice(0, 18);
 
   const mobileSavedPages: any[][] = [];
   for (let i = 0; i < mobileGridSongs.length; i += 9) {

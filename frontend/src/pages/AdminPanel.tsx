@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Lock,
   MessageSquare,
@@ -982,9 +983,9 @@ export default function AdminPanel() {
       )}
 
       {/* ─── SCROLLABLE RESPONSIVE REPLY MODAL ───────────────────────────────── */}
-      {replyModalOpen && selectedFeedback && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-2xl bg-[#0c0c0e] border border-white/10 rounded-[28px] p-5 sm:p-6 shadow-2xl space-y-4 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col">
+      {replyModalOpen && selectedFeedback && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-2xl bg-[#0c0c0e] border border-white/10 rounded-[28px] p-5 sm:p-6 shadow-2xl space-y-4 overflow-hidden max-h-[92vh] sm:max-h-[85vh] flex flex-col my-auto">
             
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 shrink-0">
@@ -1096,7 +1097,8 @@ export default function AdminPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       </div>
     </div>

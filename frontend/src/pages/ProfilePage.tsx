@@ -242,10 +242,10 @@ export default function ProfilePage() {
   return (
     <div className="animate-fadeIn max-w-3xl mx-auto pb-12">
       {/* Profile Header Banner */}
-      <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] p-5 sm:p-6 md:p-8 border border-white/[0.06] bg-white/[0.01] backdrop-blur-md flex flex-row items-center justify-between gap-4 sm:gap-6 mb-8">
+      <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] p-5 sm:p-6 md:p-8 border border-white/[0.06] bg-white/[0.01] backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 mb-8">
         <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.01] to-transparent pointer-events-none" />
         
-        <div className="flex flex-row items-center gap-4 sm:gap-6 relative z-10 min-w-0 flex-1">
+        <div className="flex flex-row items-center gap-4 sm:gap-6 relative z-10 min-w-0 flex-1 w-full sm:w-auto pr-12 sm:pr-0">
           <div className="relative flex-shrink-0">
             {user?.photoURL ? (
               <img
@@ -286,81 +286,50 @@ export default function ProfilePage() {
             </div>
 
             <p className="text-white/40 text-[11px] sm:text-xs md:text-sm truncate">{user?.email}</p>
-
-            <div className="flex items-center gap-1.5 mt-1 sm:mt-2 flex-wrap">
-              {(user as any)?.authProvider && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold uppercase tracking-wider border ${
-                    (user as any).authProvider === "google" ||
-                    (user as any).authProvider === "both"
-                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      : "bg-white/[0.03] text-white/30 border-white/[0.05]"
-                  }`}
-                >
-                  {(user as any).authProvider === "google"
-                    ? "🔵 Google"
-                    : (user as any).authProvider === "both"
-                      ? "🔵 Google + Email"
-                      : "📧 Email"}
-                </span>
-              )}
-              {(editing ? editLanguages : user?.preferences?.languages || [])
-                .slice(0, 3)
-                .map((lang) => (
-                  <span
-                    key={lang}
-                    className="px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 text-[8px] sm:text-[9px] font-bold uppercase border border-white/[0.05]"
-                  >
-                    {lang}
-                  </span>
-                ))}
-            </div>
           </div>
         </div>
 
-        {/* Profile Top Right Actions (Download APK, GitHub, Bell) */}
-        <div className="flex items-center gap-2 relative z-10 flex-shrink-0 flex-wrap sm:flex-nowrap justify-end">
-          {!isNative() && (
-            <>
-              <a
-                href={apkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-sp-green/10 border border-sp-green/30 text-sp-green hover:bg-sp-green hover:text-black font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-[0_0_12px_rgba(29,185,84,0.15)] active:scale-95"
-                title="Download SoulSync Android APK"
-              >
-                <Smartphone size={14} strokeWidth={2.5} />
-                <span className="hidden sm:inline">Download APK</span>
-                <span className="sm:hidden">APK</span>
-              </a>
-              <a
-                href={GITHUB_REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[#161b22]/90 border border-white/10 text-white/80 hover:text-white hover:bg-[#21262d] hover:border-amber-400/40 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 group"
-                title="Star SoulSync on GitHub!"
-              >
-                <Github size={14} strokeWidth={2} className="text-white/80 group-hover:text-white transition-colors" />
-                <Star size={12} className="fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span className="hidden sm:inline">Star</span>
-              </a>
-            </>
+        {/* Profile Announcements Action (Bell) - Pinned to Top-Right Corner */}
+        <button
+          onClick={togglePanel}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2.5 sm:p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white transition-all active:scale-95 z-20 group"
+          title="Updates & Announcements"
+        >
+          <Bell size={16} className="text-white group-hover:scale-105 transition-transform" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 z-30 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green shadow-[0_0_8px_#1db954]" />
+            </span>
           )}
+        </button>
 
-          <button
-            onClick={togglePanel}
-            className="p-2.5 sm:p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white transition-all active:scale-95 relative group"
-            title="Updates & Announcements"
-          >
-            <Bell size={16} className="text-white group-hover:scale-105 transition-transform" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 z-20 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sp-green opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-sp-green shadow-[0_0_8px_#1db954]" />
-              </span>
-            )}
-          </button>
-        </div>
+        {/* Profile Header Web Action Buttons (Download APK & GitHub Star) */}
+        {!isNative() && (
+          <div className="flex items-center gap-2.5 relative z-10 w-full sm:w-auto justify-start sm:justify-end pt-3 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+            <a
+              href={apkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-sp-green/10 border border-sp-green/30 text-sp-green hover:bg-sp-green hover:text-black font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-[0_0_12px_rgba(29,185,84,0.15)] active:scale-95 flex-1 sm:flex-none justify-center whitespace-nowrap h-10 shrink-0"
+              title="Download SoulSync Android APK"
+            >
+              <Smartphone size={14} strokeWidth={2.5} className="shrink-0" />
+              <span className="whitespace-nowrap">Download APK</span>
+            </a>
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[#161b22]/90 border border-white/10 text-white/80 hover:text-white hover:bg-[#21262d] hover:border-amber-400/40 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 group flex-1 sm:flex-none justify-center whitespace-nowrap h-10 shrink-0"
+              title="Star SoulSync on GitHub!"
+            >
+              <Github size={14} strokeWidth={2} className="text-white/80 group-hover:text-white transition-colors shrink-0" />
+              <Star size={12} className="fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="whitespace-nowrap">Star Repo</span>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* SoulSync Support Chat Card */}

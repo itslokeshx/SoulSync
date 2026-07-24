@@ -806,15 +806,42 @@ export const HomePage = () => {
   const quickPicks = useMemo(() => {
     if (!user) return [];
     const list: any[] = [];
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+
+    const cleanName = (name: string) =>
+      (name || "").toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]/g, "").trim();
+
     const addToList = (s: any) => {
-      if (!s || !s.id || seen.has(s.id)) return;
-      seen.add(s.id);
+      if (!s || !s.id || seenIds.has(s.id)) return;
+      const cn = cleanName(s.name);
+      if (cn && seenNames.has(cn)) return;
+      seenIds.add(s.id);
+      if (cn) seenNames.add(cn);
       list.push(s);
     };
-    for (const s of normalizedRecentlyPlayed) addToList(s);
+
+    // 1. Recently Played (User's primary history)
+    for (const s of normalizedRecentlyPlayed || []) addToList(s);
+
+    // 2. Fill up to 18 (2 full 3x3 pages) using Made For You recommendations if available
+    if (list.length < 18) {
+      for (const s of madeForYouSongs || []) {
+        addToList(s);
+        if (list.length >= 18) break;
+      }
+    }
+
+    // 3. If still < 18, fill with real suggestion songs (no fake auto-fill)
+    if (list.length < 18) {
+      for (const s of suggestionsSongs || []) {
+        addToList(s);
+        if (list.length >= 18) break;
+      }
+    }
+
     return list.slice(0, 18);
-  }, [user, normalizedRecentlyPlayed]);
+  }, [user, normalizedRecentlyPlayed, madeForYouSongs, suggestionsSongs]);
 
   const guestSections = useMemo(() => {
     if (
