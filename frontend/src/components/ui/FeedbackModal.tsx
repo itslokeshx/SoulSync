@@ -37,11 +37,10 @@ export function FeedbackModal({ isOpen, onClose, onRefreshUnread }: FeedbackModa
         );
         setMessages(sorted);
 
-        // Mark any unread replies as read
-        for (const item of res.history) {
-          if (item.reply && item.replySeen === false) {
-            markFeedbackRead(item._id).catch(() => {});
-          }
+        // Mark any unread replies as read on server
+        const unreadItems = res.history.filter((item) => item.reply && item.replySeen === false);
+        if (unreadItems.length > 0) {
+          await Promise.all(unreadItems.map((item) => markFeedbackRead(item._id).catch(() => {})));
         }
         if (onRefreshUnread) onRefreshUnread();
       }

@@ -103,6 +103,11 @@ export default function ProfilePage() {
       .catch(() => {});
   };
 
+  const handleOpenChat = () => {
+    setHasUnreadReply(false);
+    setIsFeedbackOpen(true);
+  };
+
   // Editable fields
   const [editName, setEditName] = useState(user?.name || "");
   const [editLanguages, setEditLanguages] = useState<string[]>(
@@ -357,41 +362,52 @@ export default function ProfilePage() {
       </div>
 
       {/* SoulSync Support Chat Card */}
-      <div className="mb-8 p-5 rounded-[24px] bg-gradient-to-r from-sp-green/10 via-violet-500/10 to-transparent border border-sp-green/15 relative overflow-hidden group">
-        {hasUnreadReply && (
-          <div className="mb-3 px-3.5 py-2 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-between text-xs text-violet-200 animate-pulse">
-            <span className="flex items-center gap-2 font-bold">
-              💬 SoulSync Support replied to your message.
-            </span>
-            <button
-              onClick={() => setIsFeedbackOpen(true)}
-              className="underline font-black text-white hover:text-sp-green"
-            >
-              Open Chat →
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between gap-4">
+      <div
+        onClick={handleOpenChat}
+        className={`mb-8 p-5 rounded-[24px] border transition-all duration-300 cursor-pointer relative overflow-hidden group ${
+          hasUnreadReply
+            ? "bg-gradient-to-r from-violet-500/15 via-sp-green/10 to-transparent border-violet-500/40 shadow-[0_0_20px_rgba(139,92,246,0.15)]"
+            : "bg-gradient-to-r from-sp-green/10 via-white/[0.02] to-transparent border-sp-green/15 hover:border-sp-green/30"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-4 relative z-10">
           <div className="space-y-1">
-            <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-              <MessageSquare size={16} className="text-sp-green" /> SoulSync Support Chat
+            <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+              <MessageSquare size={16} className={hasUnreadReply ? "text-violet-400" : "text-sp-green"} />
+              SoulSync Support Chat
             </h4>
-            <p className="text-[11px] text-white/50 leading-normal max-w-[240px] sm:max-w-xs">
-              Chat directly with our team to report bugs, request features, or ask questions.
+            <p className="text-[11px] leading-normal max-w-[240px] sm:max-w-xs">
+              {hasUnreadReply ? (
+                <span className="text-violet-300 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                  New reply from SoulSync Support
+                </span>
+              ) : (
+                <span className="text-white/50">
+                  Chat directly with our team to report bugs or request features.
+                </span>
+              )}
             </p>
           </div>
+
           <button
-            onClick={() => setIsFeedbackOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-sp-green text-black font-extrabold text-xs uppercase tracking-wider hover:scale-[1.03] active:scale-100 transition-all duration-200 shadow-lg shadow-sp-green/15 flex items-center gap-2 shrink-0 relative"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenChat();
+            }}
+            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all duration-200 flex items-center gap-2 shrink-0 relative ${
+              hasUnreadReply
+                ? "bg-violet-500 text-white shadow-lg shadow-violet-500/25 hover:bg-violet-400 active:scale-95"
+                : "bg-sp-green text-black hover:scale-[1.03] active:scale-95 shadow-lg shadow-sp-green/15"
+            }`}
           >
             <MessageSquare size={13} />
-            Support Chat
+            {hasUnreadReply ? "View Reply" : "Support Chat"}
             {hasUnreadReply && (
-              <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-ping absolute -top-1 -right-1" />
-            )}
-            {hasUnreadReply && (
-              <span className="w-2.5 h-2.5 rounded-full bg-violet-500 absolute -top-1 -right-1" />
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-300" />
+              </span>
             )}
           </button>
         </div>
