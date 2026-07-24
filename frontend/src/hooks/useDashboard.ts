@@ -294,36 +294,63 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     const cleanName = (name: string) =>
       (name || "").toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]/g, "").trim();
 
+    const userLangs = user?.preferences?.languages || [];
+
     const addSong = (s: any) => {
       if (!s || !s.id || seenIds.has(s.id)) return;
       const cn = cleanName(s.name);
       if (cn && seenNames.has(cn)) return;
+
+      // Check language inline so filtering never reduces the total count below 24
+      if (userLangs.length > 0) {
+        const filtered = filterByPreferredLanguages([s], userLangs);
+        if (filtered.length === 0) return;
+      }
+
       seenIds.add(s.id);
       if (cn) seenNames.add(cn);
       list.push(s);
     };
 
-    // 1. Backend personalized recommendation engine outputs
-    for (const s of normalizedMadeForYou) addSong(s);
+    // 1. Backend personalized recommendation engine outputs (pure, filtered high-affinity recs)
+    for (const s of normalizedMadeForYou) {
+      addSong(s);
+      if (list.length >= 24) break;
+    }
 
-    // 2. Mixes (Weekly Mix Set)
-    if (mixSet?.mixes) {
-      for (const mix of mixSet.mixes) {
-        for (const s of mix.songs || []) addSong(s);
+    // 2. Backfill with user's explicitly liked songs if needed to complete 3 full 8-song rows (24 songs)
+    if (list.length < 24) {
+      for (const s of normalizedLikedSongs) {
+        addSong(s);
+        if (list.length >= 24) break;
       }
     }
 
-    // 3. User's Liked Songs
-    for (const s of normalizedLikedSongs) addSong(s);
+    // 3. Backfill with user's recently played history if still needed for 24 songs
+    if (list.length < 24) {
+      for (const s of normalizedRecentlyPlayed) {
+        addSong(s);
+        if (list.length >= 24) break;
+      }
+    }
 
-    // 4. User's Playlist Songs
-    for (const s of normalizedPlaylistSongs) addSong(s);
+    // 4. Backfill with playlist songs if still needed for 24 songs
+    if (list.length < 24) {
+      for (const s of normalizedPlaylistSongs) {
+        addSong(s);
+        if (list.length >= 24) break;
+      }
+    }
 
-    // 5. User's Listening History / Suggestions
-    for (const s of normalizedRecentlyPlayed) addSong(s);
+    // 5. Backfill with suggestions if still needed for 24 songs
+    if (list.length < 24) {
+      for (const s of suggestionsSongs) {
+        addSong(s);
+        if (list.length >= 24) break;
+      }
+    }
 
-    const userLangs = user?.preferences?.languages || [];
-    return filterByPreferredLanguages(list, userLangs);
+    return list.slice(0, 24);
   })();
 
   return {

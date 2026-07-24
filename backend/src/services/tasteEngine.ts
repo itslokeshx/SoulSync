@@ -16,6 +16,10 @@ export async function invalidateTasteCache(userId: string): Promise<void> {
   if (!userId || userId === "guest") return;
   await redisDel(`taste:${userId}`).catch(() => {});
   await redisDel(`dashboard:${userId}`).catch(() => {});
+  try {
+    const { UserMixSet } = await import("../models/UserMixSet.js");
+    await UserMixSet.deleteMany({ userId: new mongoose.Types.ObjectId(userId) });
+  } catch {}
 }
 
 export async function computeUserTasteProfile(userId: string): Promise<IUserTasteProfile> {
