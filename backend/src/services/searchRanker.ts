@@ -8,6 +8,8 @@ import {
   MAJOR_INDIAN_ARTISTS,
 } from "./scoringUtils.js";
 import { PHONETIC_CORRECTIONS } from "../data/artistDictionary.js";
+import { getTelemetryScoreBoost } from "./telemetryStore.js";
+import { correctTypoEnhanced } from "../data/entityDictionary.js";
 
 export interface RankedSong {
   id: string;
@@ -113,10 +115,6 @@ function computeScore(
   if (!song.streamUrl) score -= 40;
 
   // ── 9. KNOWN ARTIST MATCH (+80 or −150) ──────────────────────
-  // When we know exactly who sings this song (from KNOWN_SONGS map),
-  // massively boost the correct artist and bury everyone else.
-  // This is the fix for wrapper play counts being broken/near-zero:
-  // even without reliable play counts, the right song still wins.
   if (knownArtist) {
     const knownLower = knownArtist.toLowerCase();
     const knownParts = knownLower.split(/\s+/).filter((p) => p.length > 2);
@@ -124,29 +122,50 @@ function computeScore(
       artist.includes(part),
     ).length;
     if (matchCount >= 2)
-      score += 80; // full name match — huge boost
+      score += 80;
     else if (matchCount === 1)
-      score += 40; // partial name match — moderate boost
-    else score -= 150; // wrong artist for a known song — buried
+      score += 40;
+    else score -= 150;
+  }
+
+  // ── 10. RECENCY BOOST & INTENT ALIGNMENT (+35 / −50 pts) ─────
+  const qLower = q.toLowerCase();
+  const isRecentRequested = /\b(new|latest|recent|viral|top|2026|2025|2024)\b/i.test(qLower);
+  if (isRecentRequested && song.year) {
+    const yr = parseInt(song.year, 10);
+    if (yr >= 2024) score += 35;
+    else if (yr >= 2020) score += 15;
+  }
+
+  // Penalty for secondary variations (karaoke, lullaby, workout mix, nightcore, 8d) unless explicitly requested
+  const isVariationRequested = /\b(karaoke|lullaby|workout|fitness|gym|nightcore|8d|remix|lofi|slowed)\b/i.test(qLower);
+  const isSongVariation = /\b(karaoke|lullaby|sleeprhymes|workout version|nightcore|8d|slowed|reverb)\b/i.test(title);
+  if (isSongVariation && !isVariationRequested) {
+    score -= 50;
   }
 
   // ── 11. USER PERSONALIZATION BOOST (0–65 pts) ─────────────────
   if (userContext) {
     if (userContext.likedSongIds && song.id && userContext.likedSongIds.has(song.id)) {
-      score += 25; // Explicitly liked song bonus
+      score += 25;
     }
     if (userContext.favoriteArtists && artist) {
       const songArtists = artist.split(/[,/&]+/).map((a) => a.trim().toLowerCase());
       for (const sa of songArtists) {
         if (sa && userContext.favoriteArtists.has(sa)) {
-          score += 25; // User favorite artist bonus
+          score += 25;
           break;
         }
       }
     }
     if (userContext.preferredLanguages && lang && userContext.preferredLanguages.has(lang)) {
-      score += 15; // User preferred language match bonus
+      score += 15;
     }
+  }
+
+  // ── 12. TELEMETRY / CTR ADAPTIVE SIGNAL (−40 to +50 pts) ─────
+  if (song.id) {
+    score += getTelemetryScoreBoost(q, song.id);
   }
 
   return score;

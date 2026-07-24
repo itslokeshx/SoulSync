@@ -32,6 +32,7 @@ import {
 import { SoftAuthRequest, softAuth } from "../middleware/softAuth.js";
 import { getTasteProfile, getNextRecommendations } from "../services/recommendationEngine.js";
 import { User } from "../models/User.js";
+import { recordSearchClick, recordPlaybackTelemetry } from "../services/telemetryStore.js";
 
 const router = Router();
 
@@ -581,6 +582,45 @@ router.get("/autoplay/:songId", softAuth, async (req: any, res: Response): Promi
   } catch (err) {
     console.error("[Search] Autoplay error:", err);
     res.status(500).json({ error: "Failed to fetch autoplay suggestions", songs: [] });
+  }
+});
+
+// ── POST /click — Log SearchClickEvent ───────────────────────────────────────
+router.post("/click", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
+  try {
+    const { searchQuery, songId, position = 0 } = req.body;
+    if (!searchQuery || !songId) {
+      res.status(400).json({ error: "searchQuery and songId required" });
+      return;
+    }
+    await recordSearchClick(searchQuery, songId, position, req.userId);
+    res.json({ success: true, message: "Search click telemetry recorded" });
+  } catch (err) {
+    console.error("[Search] Click telemetry error:", err);
+    res.status(500).json({ error: "Failed to record click telemetry" });
+  }
+});
+
+// ── POST /telemetry — Log PlaybackEvent ──────────────────────────────────────
+router.post("/telemetry", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
+  try {
+    const { songId, searchQuery, eventType = "finished", completionPercent = 100, durationSeconds = 0 } = req.body;
+    if (!songId) {
+      res.status(400).json({ error: "songId required" });
+      return;
+    }
+    await recordPlaybackTelemetry({
+      songId,
+      searchQuery,
+      eventType,
+      completionPercent,
+      durationSeconds,
+      userId: req.userId,
+    });
+    res.json({ success: true, message: "Playback telemetry recorded" });
+  } catch (err) {
+    console.error("[Search] Playback telemetry error:", err);
+    res.status(500).json({ error: "Failed to record playback telemetry" });
   }
 });
 
