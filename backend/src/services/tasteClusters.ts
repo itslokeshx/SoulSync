@@ -1,6 +1,9 @@
 // ════════════════════════════════════════════════════════════════
 // TASTE CLUSTERS & ARTIST ECOSYSTEMS
-//
+// ════════════════════════════════════════════════════════════════
+
+import { CURATED_ARTIST_MAP } from "./artistGraphService.js";
+
 // Ecosystems define musical neighborhoods — not genres.
 // Songs within an ecosystem feel like a natural continuation.
 // When you play Sai Abhyankkar, Govind Vasantha is the next step.
@@ -361,14 +364,6 @@ export function detectActiveEcosystemCluster(
     }
   }
 
-  // Language-level fallback: pick the first cluster for this language
-  const langLower = lang.toLowerCase();
-  for (const eco of KNOWN_ECOSYSTEMS) {
-    if (eco.primaryLanguage === langLower) {
-      return eco;
-    }
-  }
-
   return null;
 }
 
@@ -405,6 +400,10 @@ export function getEcosystemArtists(artistName: string): Set<string> {
     }
   }
 
+  // Check CURATED_ARTIST_MAP for dynamic graph peers
+  const curated = CURATED_ARTIST_MAP[cleanArtist] || [];
+  curated.forEach((c) => ecosystemSet.add(c));
+
   return ecosystemSet;
 }
 
@@ -418,11 +417,17 @@ export function areArtistsInSameEcosystem(
 ): boolean {
   const a = artistA.trim().toLowerCase();
   const b = artistB.trim().toLowerCase();
-  if (a === b) return true;
+  if (a === b || a.includes(b) || b.includes(a)) return true;
 
   for (const eco of KNOWN_ECOSYSTEMS) {
     const all = [...eco.primaryArtists, ...eco.peerEcosystem];
     if (all.includes(a) && all.includes(b)) return true;
   }
+
+  const curatedA = CURATED_ARTIST_MAP[a] || [];
+  if (curatedA.includes(b)) return true;
+  const curatedB = CURATED_ARTIST_MAP[b] || [];
+  if (curatedB.includes(a)) return true;
+
   return false;
 }

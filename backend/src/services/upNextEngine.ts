@@ -32,6 +32,7 @@ import {
 import { filterByLanguages, detectSongLanguage, coverPenalty, getRecentlyRecommendedSongIds } from "./scoringUtils.js";
 import { getOrCreateSongFeature } from "./songFeatureService.js";
 import { getEcosystemArtists, areArtistsInSameEcosystem } from "./tasteClusters.js";
+import { getRelatedArtists } from "./artistGraphService.js";
 import { getNegativeAffinityProfile } from "./negativeAffinity.js";
 import { SongCooccurrence } from "../models/SongCooccurrence.js";
 import { ListeningHistory } from "../models/ListeningHistory.js";
@@ -168,8 +169,14 @@ function scoreCandidate(
     score -= 80;
   }
 
+  // Unrelated candidate penalty: candidate has zero artist, album, ecosystem, or session relation to seed
+  const hasRelationship = isSameArtist || isSessionArtist || (signals.ecosystemPeer || 0) > 0 || (signals.albumContinuity || 0) > 0 || tier === 0 || tier === 1;
+  if (!hasRelationship && seedPrimaryArtist) {
+    signals.unrelatedPenalty = -120;
+    score -= 120;
+  }
+
   // Tier bonus: lower tier = higher priority source = more trustworthy
-  // Tier 0 (co-occurrence) = 120 bonus, Tier 1 (album) = 100, etc.
   const tierBonus = Math.max(0, (10 - tier) * 12);
   signals.tierBonus = tierBonus;
   score += tierBonus;
@@ -264,8 +271,16 @@ export async function predictNextTracks(
     const artist = (song.primaryArtists || "").split(/[,/&]+/)[0].trim().toLowerCase();
     if (songLang && negativeProfile.negativeLanguages.has(songLang)) return false;
     if (artist && negativeProfile.negativeArtists.has(artist)) return false;
-    // Language gate: if we know the seed language, only allow that language
-    if (allowedLangs.length > 0 && songLang && !allowedLangs.includes(songLang)) return false;
+    
+    // Always allow songs by the same primary artist or album
+    const isSameArtistOrAlbum =
+      (primarySeedArtist && artist && (artist.includes(primarySeedArtist.toLowerCase()) || primarySeedArtist.toLowerCase().includes(artist))) ||
+      (seedAlbum && song.album && song.album.toLowerCase().trim() === seedAlbum.toLowerCase());
+
+    if (!isSameArtistOrAlbum && allowedLangs.length > 0 && songLang) {
+      const match = allowedLangs.some((al) => al.toLowerCase() === songLang || songLang.includes(al.toLowerCase()) || al.toLowerCase().includes(songLang));
+      if (!match) return false;
+    }
     return true;
   };
 
@@ -349,16 +364,18 @@ export async function predictNextTracks(
   // ════════════════════════════════════════════════════════════════
   if (primarySeedArtist) {
     try {
-      const ecoArtists = Array.from(getEcosystemArtists(primarySeedArtist))
-        .filter((a) => a !== primarySeedArtist.toLowerCase());
+      const dynamicRelated = await getRelatedArtists(primarySeedArtist, 8);
+      const staticEco = Array.from(getEcosystemArtists(primarySeedArtist));
+      const ecoArtists = Array.from(new Set([...staticEco, ...dynamicRelated]))
+        .filter((a) => a && a.toLowerCase() !== primarySeedArtist.toLowerCase());
 
       const ecoResults = await Promise.allSettled(
-        ecoArtists.slice(0, 6).map((a) => searchSongs(`${a}`, 15))
+        ecoArtists.slice(0, 8).map((a) => searchSongs(`${a}`, 15))
       );
       for (const res of ecoResults) {
         if (res.status === "fulfilled") addBatch(res.value, 4);
       }
-      console.log(`[UpNext] Tier 4 (ecosystem): ${ecoArtists.slice(0, 6).join(", ")}`);
+      console.log(`[UpNext] Tier 4 (ecosystem + dynamic graph): ${ecoArtists.slice(0, 8).join(", ")}`);
     } catch {}
   }
 

@@ -7,20 +7,30 @@ import mongoose from "mongoose";
 import { UserTasteProfile, IUserTasteProfile, IArtistAffinity, ILanguageDistribution, IGenreAffinity, IMoodAffinity, IEraAffinity } from "../models/UserTasteProfile.js";
 import { ListeningHistory } from "../models/ListeningHistory.js";
 import { RecommendationEvent } from "../models/RecommendationEvent.js";
+import { User } from "../models/User.js";
 import { redisSet, redisGet, redisDel } from "./redis.js";
 
 const HALF_LIFE_DAYS = 14;
+
+export async function invalidateTasteCache(userId: string): Promise<void> {
+  if (!userId || userId === "guest") return;
+  await redisDel(`taste:${userId}`).catch(() => {});
+  await redisDel(`dashboard:${userId}`).catch(() => {});
+}
 
 export async function computeUserTasteProfile(userId: string): Promise<IUserTasteProfile> {
   const userObjId = new mongoose.Types.ObjectId(userId);
   const now = Date.now();
 
-  const [history, events] = await Promise.all([
+  const [history, events, userDoc] = await Promise.all([
     ListeningHistory.find({ userId: userObjId }).sort({ playedAt: -1 }).limit(500).lean(),
     RecommendationEvent.find({ userId: userObjId }).sort({ timestamp: -1 }).limit(1000).lean(),
+    User.findById(userId).select("likedSongs preferences").lean(),
   ]);
 
-  if (history.length === 0 && events.length === 0) {
+  const likedSongs = userDoc?.likedSongs || [];
+
+  if (history.length === 0 && events.length === 0 && likedSongs.length === 0) {
     const emptyProfile = await UserTasteProfile.findOneAndUpdate(
       { userId: userObjId },
       {
@@ -48,7 +58,7 @@ export async function computeUserTasteProfile(userId: string): Promise<IUserTast
     return emptyProfile;
   }
 
-  // 1. Process Artist Affinities with Recency Decay & Multi-Artist Splitting
+  // 1. Process Artist Affinities with Recency Decay, Multi-Artist Splitting & Liked Songs Bonus
   const artistMap = new Map<string, { name: string; score: number; count: number }>();
 
   for (const h of history) {
@@ -66,6 +76,21 @@ export async function computeUserTasteProfile(userId: string): Promise<IUserTast
         existing.count += 1;
       } else {
         artistMap.set(key, { name, score: decayWeight, count: 1 });
+      }
+    }
+  }
+
+  // Factor in explicit positive signals from Liked Songs (+3.0 pts per artist)
+  for (const l of likedSongs) {
+    if (!l.artist) continue;
+    const names = l.artist.split(/[,/&]+/).map((a) => a.trim()).filter(Boolean);
+    for (const name of names) {
+      const key = name.toLowerCase();
+      const existing = artistMap.get(key);
+      if (existing) {
+        existing.score += 3.0;
+      } else {
+        artistMap.set(key, { name, score: 3.0, count: 1 });
       }
     }
   }
@@ -100,7 +125,7 @@ export async function computeUserTasteProfile(userId: string): Promise<IUserTast
     .sort((a, b) => b.score - a.score)
     .slice(0, 50);
 
-  // 2. Process Languages
+  // 2. Process Languages (from history + explicit user preferences)
   const langMap = new Map<string, number>();
   let totalLangCount = 0;
   for (const h of history) {
@@ -108,6 +133,16 @@ export async function computeUserTasteProfile(userId: string): Promise<IUserTast
     if (!lang) continue;
     langMap.set(lang, (langMap.get(lang) || 0) + 1);
     totalLangCount++;
+  }
+
+  // Boost explicitly selected preferred languages
+  const prefLangs = userDoc?.preferences?.languages || [];
+  for (const pl of prefLangs) {
+    const cleanL = pl.toLowerCase().trim();
+    if (cleanL) {
+      langMap.set(cleanL, (langMap.get(cleanL) || 0) + 5);
+      totalLangCount += 5;
+    }
   }
 
   const languages: ILanguageDistribution[] = Array.from(langMap.entries())
@@ -118,7 +153,7 @@ export async function computeUserTasteProfile(userId: string): Promise<IUserTast
     }))
     .sort((a, b) => b.weight - a.weight);
 
-  // 3. Process Behavioral Statistics (Completion, Skip, Replay, Discovery)
+  // 3. Process Behavioral Statistics
   let totalCompleted = 0;
   let totalSkipped = 0;
   let totalReplayed = 0;
@@ -136,13 +171,11 @@ export async function computeUserTasteProfile(userId: string): Promise<IUserTast
   const averageSkipRate = Math.min(100, Math.max(0, Math.round((totalSkipped / eventCount) * 100)));
   const averageReplayRate = Math.min(100, Math.max(0, Math.round((totalReplayed / eventCount) * 100)));
 
-  // Discovery Score: Higher if user listens to many unique artists
   const uniqueArtistCount = artistMap.size;
   const discoveryScore = Math.min(100, Math.max(10, Math.round((uniqueArtistCount / Math.max(1, history.length)) * 100)));
 
-  // Top Summaries
   const topArtist = artists[0]?.artistName || "";
-  const topLanguage = languages[0]?.language || "english";
+  const topLanguage = languages[0]?.language || (prefLangs[0] ? prefLangs[0].toLowerCase() : "english");
 
   const recentSongIds = Array.from(new Set(history.slice(0, 100).map((h) => h.songId)));
 
@@ -178,17 +211,29 @@ export async function getUserTasteProfile(userId: string): Promise<IUserTastePro
 
   try {
     const cached = await redisGet(`taste:${userId}`);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // If cached profile is less than 10 mins old, return it
+      if (parsed && parsed.lastComputedAt && (Date.now() - new Date(parsed.lastComputedAt).getTime() < 10 * 60 * 1000)) {
+        return parsed;
+      }
+    }
   } catch {}
 
   const existing = (await UserTasteProfile.findOne({
     userId: new mongoose.Types.ObjectId(userId),
   }).lean()) as IUserTasteProfile | null;
 
-  if (existing) {
+  const STALE_THRESHOLD_MS = 15 * 60 * 1000; // 15 mins
+  const isStale = !existing ||
+    !existing.lastComputedAt ||
+    (Date.now() - new Date(existing.lastComputedAt).getTime() > STALE_THRESHOLD_MS);
+
+  if (existing && !isStale) {
     await redisSet(`taste:${userId}`, JSON.stringify(existing), 600).catch(() => {});
     return existing;
   }
 
+  // Recompute stale profile or initial profile
   return computeUserTasteProfile(userId);
 }

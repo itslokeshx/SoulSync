@@ -31,8 +31,10 @@ export const CURATED_ARTIST_MAP: Record<string, string[]> = {
   "diljit dosanjh": ["karan aujla", "ap dhillon", "sidhu moose wala", "b praak", "guru randhawa"]
 };
 
+import { searchSongs } from "./jiosaavn.js";
+
 /**
- * Get related artists for a given artist name (Graph lookup -> Curated fallback)
+ * Get related artists for a given artist name (DB Graph -> Curated Map -> Dynamic Metadata Harvester)
  */
 export async function getRelatedArtists(artistName: string, limit: number = 6): Promise<string[]> {
   const cleanName = artistName.trim().toLowerCase();
@@ -46,7 +48,7 @@ export async function getRelatedArtists(artistName: string, limit: number = 6): 
 
   const relatedList: string[] = [];
 
-  // Query DB graph
+  // 1. Query DB graph
   try {
     const DBRelations = await ArtistRelation.find({ artistNameA: cleanName })
       .sort({ similarityScore: -1 })
@@ -59,13 +61,53 @@ export async function getRelatedArtists(artistName: string, limit: number = 6): 
     }
   } catch {}
 
-  // Fallback to curated map
+  // 2. Fallback to curated map
   if (relatedList.length < limit) {
     const curated = CURATED_ARTIST_MAP[cleanName] || [];
     for (const c of curated) {
       if (!relatedList.includes(c)) {
         relatedList.push(c);
       }
+    }
+  }
+
+  // 3. Dynamic Metadata Harvester: Extract real collaborators from artist's top tracks
+  if (relatedList.length < limit) {
+    try {
+      const topTracks = await searchSongs(cleanName, 25);
+      const coArtistCounts = new Map<string, number>();
+
+      for (const track of topTracks) {
+        if (!track || !track.primaryArtists) continue;
+        const artists = track.primaryArtists
+          .split(/[,/&]+/)
+          .map((a: string) => a.trim().toLowerCase())
+          .filter((a: string) => a && a !== cleanName && !cleanName.includes(a) && !a.includes(cleanName));
+
+        for (const ca of artists) {
+          coArtistCounts.set(ca, (coArtistCounts.get(ca) || 0) + 1);
+        }
+      }
+
+      // Sort co-artists by frequency of collaboration
+      const sortedCoArtists = Array.from(coArtistCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([a]) => a);
+
+      for (const ca of sortedCoArtists) {
+        if (!relatedList.includes(ca)) {
+          relatedList.push(ca);
+          // Persist dynamic relation into MongoDB background
+          ArtistRelation.updateOne(
+            { artistNameA: cleanName, artistNameB: ca },
+            { $set: { similarityScore: 80, source: "dynamic_harvester" } },
+            { upsert: true }
+          ).catch(() => {});
+        }
+        if (relatedList.length >= limit) break;
+      }
+    } catch (err) {
+      console.warn(`[ArtistGraph] Dynamic harvester failed for "${cleanName}":`, err);
     }
   }
 

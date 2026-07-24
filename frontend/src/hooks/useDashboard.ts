@@ -6,8 +6,8 @@ import { normalizeSongs } from "../utils/normalizeSong";
 import { getRecentlyPlayedFromStorage } from "../utils/recentHistory";
 import { filterByPreferredLanguages } from "../utils/languageFilter";
 
-const CACHE_TTL = import.meta.env.DEV ? 0 : 5 * 60_000; // 5 minutes (disabled in dev)
-const REFETCH_COOLDOWN = 2 * 60_000; // 2 minutes
+const CACHE_TTL = 30_000; // 30 seconds
+const REFETCH_COOLDOWN = 15_000; // 15 seconds
 
 export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   const { user, isLoading: authLoading } = useAuth();
@@ -24,10 +24,14 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
   useEffect(() => {
     const handleRecentsUpdated = () => {
       setLocalRecents(getRecentlyPlayedFromStorage());
+      try { sessionStorage.clear(); } catch {}
     };
     window.addEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
-    return () =>
+    window.addEventListener("soulsync:taste_updated", handleRecentsUpdated);
+    return () => {
       window.removeEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
+      window.removeEventListener("soulsync:taste_updated", handleRecentsUpdated);
+    };
   }, []);
 
   const fetched = useRef(false);

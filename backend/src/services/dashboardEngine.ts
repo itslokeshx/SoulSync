@@ -356,9 +356,9 @@ export async function buildDashboard(
     generatedAt: Date.now(),
   };
 
-  // Cache response (2 min for auth, 30 min for guest) — skip in dev
+  // Cache response (30s for auth, 30 min for guest) — skip in dev
   if (!isDev) {
-    const ttl = isGuest ? 1800 : 120;
+    const ttl = isGuest ? 1800 : 30;
     await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
   }
 

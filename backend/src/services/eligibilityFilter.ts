@@ -33,30 +33,25 @@ export function computeLanguageConfidence(
       confidenceMap.set(clean, 1.0 / userPrefs.languages.length);
       highConfidenceLangs.add(clean);
     }
-    return { confidenceMap, highConfidenceLangs };
   }
 
-  if (!tasteProfile || !tasteProfile.languages || tasteProfile.languages.length === 0) {
-    highConfidenceLangs.add("english");
-    confidenceMap.set("english", 1.0);
-    return { confidenceMap, highConfidenceLangs };
-  }
-
-  const totalWeight = tasteProfile.languages.reduce((sum, l) => sum + (l.weight || 0), 0);
-
-  for (const langItem of tasteProfile.languages) {
-    const lang = langItem.language.toLowerCase().trim();
-    const conf = totalWeight > 0 ? langItem.weight / totalWeight : 0;
-    confidenceMap.set(lang, conf);
-
-    // Hard threshold: Only languages with >= 5% confidence are allowed
-    if (conf >= 0.05) {
-      highConfidenceLangs.add(lang);
+  if (tasteProfile?.languages && tasteProfile.languages.length > 0) {
+    const totalWeight = tasteProfile.languages.reduce((sum, l) => sum + (l.weight || 0), 0);
+    for (const langItem of tasteProfile.languages) {
+      const lang = langItem.language.toLowerCase().trim();
+      const conf = totalWeight > 0 ? langItem.weight / totalWeight : 0;
+      if (!confidenceMap.has(lang)) {
+        confidenceMap.set(lang, conf);
+      }
+      if (conf >= 0.05) {
+        highConfidenceLangs.add(lang);
+      }
     }
   }
 
+  // Fallback defaults if no language signals established yet (English and Hindi only)
   if (highConfidenceLangs.size === 0) {
-    highConfidenceLangs.add("english");
+    ["english", "hindi"].forEach((l) => highConfidenceLangs.add(l));
   }
 
   return { confidenceMap, highConfidenceLangs };
@@ -64,7 +59,8 @@ export function computeLanguageConfidence(
 
 /**
  * HARD ELIGIBILITY EVALUATOR
- * Rejects candidate songs immediately if they fail language boundaries, negative affinity, or cluster ecosystem
+ * Rejects candidate songs immediately if they fail negative affinity or language boundaries.
+ * User favorite artists, liked seeds, and ecosystem peers override strict language boundaries.
  */
 export function evaluateCandidateEligibility(
   song: Song,
@@ -95,26 +91,21 @@ export function evaluateCandidateEligibility(
     }
   }
 
-  // 3. HARD REJECT: Language Confidence Boundary
-  if (songLang && context.allowedLanguages.size > 0 && !context.allowedLanguages.has(songLang)) {
-    return { eligible: false, reason: `Hard reject: Language "${songLang}" below 5% confidence threshold` };
-  }
-
-  // 4. HARD PASS: User Favorite / History Artist
+  // 3. HARD PASS: User Favorite / History Artist
   for (const sa of songArtists) {
     if (context.userArtists.has(sa)) {
       return { eligible: true, reason: `Pass: User favorite/history artist ("${sa}")` };
     }
   }
 
-  // 5. HARD PASS: Related Ecosystem Artist
+  // 4. HARD PASS: Related Ecosystem Artist
   for (const sa of songArtists) {
     if (context.relatedArtists.has(sa)) {
       return { eligible: true, reason: `Pass: Ecosystem peer artist ("${sa}")` };
     }
   }
 
-  // 6. HARD PASS: Active Cluster Ecosystem Match
+  // 5. HARD PASS: Active Cluster Ecosystem Match
   if (context.activeCluster && primaryArtist) {
     const clusterArtists = new Set([
       ...context.activeCluster.primaryArtists,
@@ -125,10 +116,10 @@ export function evaluateCandidateEligibility(
     }
   }
 
-  // 7. General Language Match Pass (If candidate matches high-confidence language)
-  if (songLang && context.allowedLanguages.has(songLang)) {
-    return { eligible: true, reason: `Pass: Language confidence match ("${songLang}")` };
+  // 6. Language Confidence Boundary (Allow if matching high confidence language or empty song language)
+  if (songLang && context.allowedLanguages.size > 0 && !context.allowedLanguages.has(songLang)) {
+    return { eligible: false, reason: `Hard reject: Language "${songLang}" outside confidence boundary` };
   }
 
-  return { eligible: false, reason: "Hard reject: Outside established user taste ecosystem" };
+  return { eligible: true, reason: "Pass: General taste match" };
 }

@@ -124,6 +124,13 @@ export function scoreCandidateSong(
   score += pen;
   breakdown.coverPenalty = pen;
 
+  // Signal 7: Unrequested Retro Era Penalty (Pre-2005 songs)
+  const songYear = parseInt(song.year || "0", 10);
+  if (songYear > 1900 && songYear < 2005 && !isTopArtist && !sources.includes("liked_songs")) {
+    score -= 70;
+    breakdown.unrequestedRetroPenalty = -70;
+  }
+
   // Stream URL requirement
   if (!song.streamUrl) {
     score -= 40;

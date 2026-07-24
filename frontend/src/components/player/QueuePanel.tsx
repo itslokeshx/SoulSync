@@ -57,7 +57,8 @@ export const QueuePanel = ({
     }
     let cancelled = false;
     setAutoplayLoading(true);
-    getAutoplaySongs(currentSong.id, autoplayFilter)
+    const queueIds = queue.map((s: any) => s.id).filter(Boolean);
+    getAutoplaySongs(currentSong.id, autoplayFilter, queueIds)
       .then((data) => {
         if (cancelled) return;
         const inQueue = new Set(queue.map((s: any) => s.id));

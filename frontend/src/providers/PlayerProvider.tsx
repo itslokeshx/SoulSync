@@ -9,6 +9,7 @@ import { usePlayerStore } from "../store/playerStore";
 import { useQueueStore } from "../store/queueStore";
 import { logHistory, getAutoplaySongs } from "../api/backend";
 import { bestImg, getArtists } from "../lib/helpers";
+import { normalizeSongs } from "../utils/normalizeSong";
 import {
   registerMediaControls,
   updateMediaMetadata,
@@ -371,34 +372,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     initBackgroundAudio();
   }, []);
 
-  // Pre-fetch autoplay suggestions when approaching the end of the queue (before the last 2 songs played)
+  // Pre-fetch autoplay suggestions when approaching the end of the queue (remaining <= 2)
   const lastAutoplayFetchedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!autoplay || !currentSong) return;
     if (currentSong._isOffline || currentSong.id?.startsWith("local_")) return;
 
     const remaining = queue.length - queueIndex - 1;
-    if (remaining <= 1 && queue.length > 0) {
-      const lastSong = queue[queue.length - 1];
-      if (!lastSong || lastSong._isOffline || lastSong.id?.startsWith("local_")) return;
+    if (remaining <= 2 && queue.length > 0) {
+      const targetAnchorSong = queue[queue.length - 1] || currentSong;
+      if (!targetAnchorSong || targetAnchorSong._isOffline || targetAnchorSong.id?.startsWith("local_")) return;
 
-      if (lastAutoplayFetchedRef.current === lastSong.id) return;
-      lastAutoplayFetchedRef.current = lastSong.id;
+      const fetchKey = `${targetAnchorSong.id}_${queue.length}`;
+      if (lastAutoplayFetchedRef.current === fetchKey) return;
+      lastAutoplayFetchedRef.current = fetchKey;
+
+      const queueIds = queue.map((s: any) => s.id).filter(Boolean);
 
       const fetchWithRetry = (retriesLeft = 1) => {
-        getAutoplaySongs(lastSong.id)
+        getAutoplaySongs(targetAnchorSong.id, "similar", queueIds)
           .then((data) => {
             const songs: any[] = data?.songs ?? [];
             if (!songs.length) return;
-            // Filter out duplicates already in the queue
-            const queueIds = new Set(queue.map((s) => s.id));
-            const newSongs = songs.filter((s) => s.id && !queueIds.has(s.id));
-            newSongs.forEach((s) => addLast(s));
+            const normalized = normalizeSongs(songs);
+            const existingIds = new Set(useQueueStore.getState().queue.map((s: any) => s.id));
+            const newSongs = normalized.filter((s: any) => s.id && !existingIds.has(s.id));
+            newSongs.forEach((s: any) => addLast(s));
           })
           .catch((err) => {
             if (retriesLeft > 0) {
-              console.warn("[Player] Autoplay pre-fetch failed, retrying in 2.5s...", err);
-              setTimeout(() => fetchWithRetry(retriesLeft - 1), 2500);
+              console.warn("[Player] Autoplay pre-fetch failed, retrying in 2s...", err);
+              setTimeout(() => fetchWithRetry(retriesLeft - 1), 2000);
             } else {
               console.warn("[Player] Autoplay pre-fetch failed after retry:", err);
             }

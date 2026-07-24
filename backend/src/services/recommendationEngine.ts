@@ -946,7 +946,7 @@ export async function getTasteProfileBatch(
   let playlistSongs: { songId: string; title: string; artist: string; albumArt: string; duration: number; downloadUrl: { quality: string; url: string }[] }[] = [];
 
   // ── Collect data needed for all three buckets in parallel ──────
-  const heardBeforeIds = new Set<string>([...excludeIds, ...recentlySurfaced7d]);
+  const excludeSetForDiscovery = new Set<string>([...excludeIds, ...recentlySurfaced7d]);
 
   if (userId && userId !== "guest") {
     const userObjId = new mongoose.Types.ObjectId(userId);
@@ -956,7 +956,7 @@ export async function getTasteProfileBatch(
       User.findById(userId).select("likedSongs").lean(),
       ListeningHistory.find({ userId: userObjId })
         .sort({ playedAt: -1 })
-        .limit(300)
+        .limit(100)
         .select("songId")
         .lean(),
       Playlist.find({ userId: userObjId })
@@ -971,17 +971,8 @@ export async function getTasteProfileBatch(
         .lean(),
     ]);
 
-    // Populate heardBeforeIds (for discovery exclusion)
     if (userDoc.status === "fulfilled" && userDoc.value?.likedSongs) {
       likedSongs = userDoc.value.likedSongs as typeof likedSongs;
-      for (const l of likedSongs) {
-        if (l.songId) heardBeforeIds.add(l.songId);
-      }
-    }
-    if (historyEntries.status === "fulfilled") {
-      for (const h of historyEntries.value) {
-        if (h.songId) heardBeforeIds.add(h.songId);
-      }
     }
 
     // Build recent-30d set for forgotten favorites
@@ -1004,8 +995,8 @@ export async function getTasteProfileBatch(
   const adaptive = computeAdaptiveWeights(tasteProfile);
 
   // ════════════════════════════════════════════════════════════════
-  // BUCKET 1 — DISCOVERY (70% of limit)
-  // Songs from taste profile the user has never heard.
+  // BUCKET 1 — DISCOVERY & TASTE MATCH (70% of limit)
+  // Songs from top user artists & ecosystem that feel personally tailored.
   // ════════════════════════════════════════════════════════════════
   const discoveryLimit = Math.ceil(limit * 0.70);
 
@@ -1013,7 +1004,7 @@ export async function getTasteProfileBatch(
     tasteProfile,
     sessionState,
     allowedLangs,
-    heardBeforeIds, // blocks liked + history + recently recommended
+    excludeSetForDiscovery,
     userId,
     200,
   );

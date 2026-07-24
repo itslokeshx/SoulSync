@@ -41,6 +41,20 @@ export const AlbumPage = () => {
       .finally(() => setLoading(false));
   }, [albumId]);
 
+  const rawSongs = album?.songs || [];
+
+  const songs = useMemo(() => {
+    if (!rawSongs.length) return [];
+    const list = [...rawSongs];
+    if (sortBy === "time") {
+      return list.sort((a: any, b: any) => (b.duration || 0) - (a.duration || 0));
+    }
+    if (sortBy === "title") {
+      return list.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
+    }
+    return list;
+  }, [rawSongs, sortBy]);
+
   if (loading)
     return (
       <div className="animate-fadeIn space-y-4">
@@ -62,7 +76,6 @@ export const AlbumPage = () => {
   if (!album)
     return <div className="text-sp-sub p-10 text-center">Album not found.</div>;
 
-  const rawSongs = album.songs || [];
   const img = bestImg(album.image) || FALLBACK_IMG;
   const artist = Array.isArray(album.artist_map?.primary_artists)
     ? album.artist_map.primary_artists.map((a: any) => a.name).join(", ")
@@ -73,17 +86,6 @@ export const AlbumPage = () => {
     (acc: number, s: any) => acc + (s.duration || 0),
     0,
   );
-
-  const songs = useMemo(() => {
-    const list = [...rawSongs];
-    if (sortBy === "time") {
-      return list.sort((a: any, b: any) => (b.duration || 0) - (a.duration || 0));
-    }
-    if (sortBy === "title") {
-      return list.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
-    }
-    return list;
-  }, [rawSongs, sortBy]);
 
   return (
     <div className="animate-fadeIn -mt-6 -mx-6">

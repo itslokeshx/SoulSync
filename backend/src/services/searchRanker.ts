@@ -24,12 +24,19 @@ export interface RankedSong {
   _score?: number; // internal only, stripped before response
 }
 
+export interface UserPersonalizationContext {
+  favoriteArtists?: Set<string>;
+  preferredLanguages?: Set<string>;
+  likedSongIds?: Set<string>;
+}
+
 // ── THE MAIN RANKING FUNCTION ──────────────────────────────────
 export function rankSearchResults(
   songs: RankedSong[],
   query: string,
   preferredLang?: string,
   knownArtist?: string | null,
+  userContext?: UserPersonalizationContext,
 ): RankedSong[] {
   if (!songs || songs.length === 0) return [];
 
@@ -38,7 +45,7 @@ export function rankSearchResults(
   // Score every song
   const scored = songs.map((song) => ({
     ...song,
-    _score: computeScore(song, q, preferredLang, knownArtist),
+    _score: computeScore(song, q, preferredLang, knownArtist, userContext),
   }));
 
   // Sort descending by score
@@ -58,6 +65,7 @@ function computeScore(
   query: string,
   preferredLang?: string,
   knownArtist?: string | null,
+  userContext?: UserPersonalizationContext,
 ): number {
   let score = 0;
 
@@ -122,15 +130,23 @@ function computeScore(
     else score -= 150; // wrong artist for a known song — buried
   }
 
-  // ── 10. RECENCY BONUS (0–15 pts) ───────────────────────────
-  const currentYear = new Date().getFullYear();
-  const songYear = parseInt(song.year || "0", 10);
-  if (songYear >= currentYear) {
-    score += 15; // Brand-new release (current year)
-  } else if (songYear >= currentYear - 1) {
-    score += 10; // Recent release (last 1 year)
-  } else if (songYear >= currentYear - 2) {
-    score += 5;
+  // ── 11. USER PERSONALIZATION BOOST (0–65 pts) ─────────────────
+  if (userContext) {
+    if (userContext.likedSongIds && song.id && userContext.likedSongIds.has(song.id)) {
+      score += 25; // Explicitly liked song bonus
+    }
+    if (userContext.favoriteArtists && artist) {
+      const songArtists = artist.split(/[,/&]+/).map((a) => a.trim().toLowerCase());
+      for (const sa of songArtists) {
+        if (sa && userContext.favoriteArtists.has(sa)) {
+          score += 25; // User favorite artist bonus
+          break;
+        }
+      }
+    }
+    if (userContext.preferredLanguages && lang && userContext.preferredLanguages.has(lang)) {
+      score += 15; // User preferred language match bonus
+    }
   }
 
   return score;
@@ -412,8 +428,9 @@ export function rankSongs<T extends RankedSong>(
   query: string,
   preferLang?: string,
   knownArtist?: string,
+  userContext?: UserPersonalizationContext,
 ): T[] {
-  return rankSearchResults(songs, query, preferLang, knownArtist) as T[];
+  return rankSearchResults(songs, query, preferLang, knownArtist, userContext) as T[];
 }
 
 // Deduplicate wrapper (alias with cleaner name)

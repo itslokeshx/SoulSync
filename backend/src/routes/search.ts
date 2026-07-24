@@ -29,12 +29,13 @@ import {
   getKnownSongIds,
   type RankedSong,
 } from "../services/searchRanker.js";
-import { softAuth } from "../middleware/softAuth.js";
-import { getNextRecommendations } from "../services/recommendationEngine.js";
+import { SoftAuthRequest, softAuth } from "../middleware/softAuth.js";
+import { getTasteProfile, getNextRecommendations } from "../services/recommendationEngine.js";
+import { User } from "../models/User.js";
 
 const router = Router();
 
-router.get("/", async (req: any, res: Response): Promise<void> => {
+router.get("/", softAuth, async (req: SoftAuthRequest, res: Response): Promise<void> => {
   const q = String(req.query.q || "").trim();
   const lang = String(req.query.lang || "").toLowerCase();
   const limit = Math.min(Number(req.query.limit || 60), 100);
@@ -44,12 +45,12 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     return;
   }
 
-  const cacheKey = `search:v8:${q.toLowerCase()}:${lang}`;
+  const userId = req.userId;
+  const cacheKey = `search:v8:${q.toLowerCase()}:${lang}:${userId || "guest"}`;
   try {
     const hit = await redisGet(cacheKey);
     if (hit) {
       const cached = JSON.parse(hit);
-      // Re-apply limit so a low-limit prefetch never poisons a high-limit request
       if (Array.isArray(cached.songs) && cached.songs.length > limit) {
         cached.songs = cached.songs.slice(0, limit);
         cached.total = cached.songs.length;
@@ -269,6 +270,24 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
 
     const albums = Array.from(albumMap.values()).slice(0, 50);
 
+    let userContext: any = undefined;
+    if (userId) {
+      try {
+        const [tasteProfile, userDoc] = await Promise.all([
+          getTasteProfile(userId),
+          User.findById(userId).select("likedSongs preferences").lean(),
+        ]);
+        userContext = {
+          favoriteArtists: new Set((tasteProfile?.artists || []).map((a: any) => a.artistName.toLowerCase())),
+          preferredLanguages: new Set([
+            ...(tasteProfile?.languages || []).map((l: any) => l.language.toLowerCase()),
+            ...(userDoc?.preferences?.languages || []).map((l: string) => l.toLowerCase()),
+          ]),
+          likedSongIds: new Set((userDoc?.likedSongs || []).map((s: any) => s.songId).filter(Boolean)),
+        };
+      } catch {}
+    }
+
     const normalized = normalizeSongsToCanonical(rawSongs);
     const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
     const ranked = rankSongs(
@@ -276,6 +295,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       q,
       lang || undefined,
       knownArtist ?? undefined,
+      userContext,
     ) as Song[];
     // Cache the full ranked pool (up to 100) so any future request can get its own limit
     const allSongs = ranked.slice(0, 100);

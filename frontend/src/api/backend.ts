@@ -661,7 +661,16 @@ export async function markWhatsNewVersionSeen(version: string): Promise<{ succes
   return data;
 }
 
-export async function getAutoplaySongs(songId: string, filter = "similar"): Promise<{ songs: any[] }> {
+export async function getAutoplaySongs(songId: string, filter = "similar", excludeIds: string[] = []): Promise<{ songs: any[] }> {
+  try {
+    const { data } = await api.get(`/api/recommendations/next`, {
+      params: { currentSongId: songId, excludeIds: excludeIds.join(","), type: filter },
+      timeout: 12000
+    });
+    if (data && Array.isArray(data.songs) && data.songs.length > 0) {
+      return { songs: data.songs };
+    }
+  } catch {}
   const { data } = await api.get(`/api/search/autoplay/${songId}`, {
     params: { type: filter },
     timeout: 12000

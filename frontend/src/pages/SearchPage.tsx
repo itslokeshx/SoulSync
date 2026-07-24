@@ -75,7 +75,7 @@ function SongRow({
 }: {
   song: any;
   index: number;
-  onPlay: (s: any) => void;
+  onPlay: (s: any, queue?: any[]) => void;
   isCurrent?: boolean;
   isPlaying?: boolean;
   liked?: boolean;
@@ -90,11 +90,11 @@ function SongRow({
     <div
       onClick={() => {
         analytics.track("search_result_click", { item_id: song.id, item_type: "song", title: song.name });
-        onPlay(song);
+        onPlay(song, [song]);
       }}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onPlay(song)}
+      onKeyDown={(e) => e.key === "Enter" && onPlay(song, [song])}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-[0.99] transition-all group text-left cursor-pointer border border-transparent ${
         isCurrent ? "bg-white/[0.06] border-white/10" : ""
       }`}
@@ -743,7 +743,7 @@ export function SearchPage() {
                         index={i}
                         isCurrent={currentSong?.id === song.id}
                         isPlaying={isPlaying}
-                        onPlay={() => onPlay(song, songs)}
+                        onPlay={() => onPlay(song, [song])}
                         liked={!!likedSongs?.[song.id]}
                         onLike={onLike}
                       />
@@ -821,7 +821,7 @@ export function SearchPage() {
                       index={i}
                       isCurrent={currentSong?.id === song.id}
                       isPlaying={isPlaying}
-                      onPlay={() => onPlay(song, songs)}
+                      onPlay={() => onPlay(song, [song])}
                       liked={!!likedSongs?.[song.id]}
                       onLike={onLike}
                     />
