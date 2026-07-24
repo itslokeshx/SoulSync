@@ -106,7 +106,7 @@ export function getRecentSearches(): string[] {
   try {
     return JSON.parse(localStorage.getItem("ss_recent_searches") || "[]").slice(
       0,
-      8,
+      15,
     );
   } catch {
     return [];
@@ -114,26 +114,34 @@ export function getRecentSearches(): string[] {
 }
 
 export function saveRecentSearch(q: string) {
+  const trimmed = q.trim();
+  if (!trimmed) return;
   try {
-    const hist = getRecentSearches().filter((h) => h !== q);
+    const hist = getRecentSearches().filter((h) => h.toLowerCase() !== trimmed.toLowerCase());
     localStorage.setItem(
       "ss_recent_searches",
-      JSON.stringify([q, ...hist].slice(0, 10)),
+      JSON.stringify([trimmed, ...hist].slice(0, 15)),
     );
-  } catch { }
+  } catch {}
 }
 
 export function removeRecentSearch(q: string) {
   try {
     const hist = getRecentSearches().filter((h) => h !== q);
     localStorage.setItem("ss_recent_searches", JSON.stringify(hist));
-  } catch { }
+  } catch {}
+}
+
+export function clearAllRecentSearches() {
+  try {
+    localStorage.removeItem("ss_recent_searches");
+  } catch {}
 }
 
 export function useSearch() {
   const [query, setQuery] = useState("");
-  const [debouncedQuery] = useDebounce(query, 80); // was 120ms
-  const [debouncedSuggestion] = useDebounce(query, 50);
+  const [debouncedQuery] = useDebounce(query, 280);
+  const [debouncedSuggestion] = useDebounce(query, 150);
 
   const [state, setState] = useState<SearchState>("idle");
   const [result, setResult] = useState<SmartSearchResult | null>(null);

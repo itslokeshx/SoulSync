@@ -8,7 +8,10 @@ export function getRecentlyPlayedFromStorage(): any[] {
   try {
     const raw = localStorage.getItem(RECENTLY_PLAYED_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const list: any[] = JSON.parse(raw);
+    return list.filter(
+      (s) => s && !s._isOffline && !s.id?.startsWith("local_")
+    );
   } catch (err) {
     console.error("Failed to parse local recently played:", err);
     return [];
@@ -17,6 +20,8 @@ export function getRecentlyPlayedFromStorage(): any[] {
 
 export function recordRecentlyPlayed(song: any) {
   if (!song || !song.id) return;
+  // Ignore local offline/downloaded songs so Continue Listening across devices contains only online streamable tracks
+  if (song._isOffline || song.id.startsWith("local_")) return;
 
   try {
     const existing = getRecentlyPlayedFromStorage();
@@ -26,6 +31,7 @@ export function recordRecentlyPlayed(song: any) {
       .replace(/[^a-z0-9]/g, "");
 
     const filtered = existing.filter((item: any) => {
+      if (!item || item._isOffline || item.id?.startsWith("local_")) return false;
       if (item.id === song.id) return false;
       const cleanItemName = (item.name || "")
         .toLowerCase()
@@ -48,15 +54,13 @@ export function recordRecentlyPlayed(song: any) {
   }
 
   // Fire-and-forget backend history logging
-  if (!song._isOffline && !song.id?.startsWith("local_")) {
-    logHistory({
-      songId: song.id,
-      title: song.name || "Unknown Track",
-      artist: getArtists(song) || "Unknown Artist",
-      albumArt: bestImg(song.image) || "",
-      duration: Number(song.duration) || 0,
-      source: "app",
-      language: song.language || "",
-    }).catch(() => {});
-  }
+  logHistory({
+    songId: song.id,
+    title: song.name || "Unknown Track",
+    artist: getArtists(song) || "Unknown Artist",
+    albumArt: bestImg(song.image) || "",
+    duration: Number(song.duration) || 0,
+    source: "app",
+    language: song.language || "",
+  }).catch(() => {});
 }

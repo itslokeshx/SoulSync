@@ -59,11 +59,21 @@ export default function DownloadsPage() {
   }
 
   const makeSongs = (list: any[]) =>
-    list.map(d => ({
-      ...d.songData,
-      _isOffline: true,
-      downloadUrl: d.filePath ? [{ quality: "320kbps", url: d.filePath }] : d.songData?.downloadUrl || []
-    }))
+    list.map(d => {
+      const base = d.songData || {};
+      return {
+        id: d.songId || base.id,
+        name: d.title || base.name || "Untitled",
+        title: d.title || base.name || "Untitled",
+        artist: d.artist || base.primaryArtists || "Unknown Artist",
+        primaryArtists: d.artist || base.primaryArtists || "Unknown Artist",
+        image: Array.isArray(base.image) && base.image.length > 0 ? base.image : [{ quality: "500x500", url: d.albumArt || FALLBACK_IMG }],
+        duration: d.duration || base.duration || 0,
+        ...base,
+        _isOffline: true,
+        downloadUrl: d.filePath ? [{ quality: "320kbps", url: d.filePath }] : base.downloadUrl || []
+      };
+    });
 
   const shuffleAndPlay = () => {
     if (!sorted.length) return
@@ -80,13 +90,8 @@ export default function DownloadsPage() {
 
   const playOfflineSong = (dl: any) => {
     const songs = makeSongs(sorted)
-    const target = {
-      ...dl.songData,
-      _isOffline: true,
-      downloadUrl: dl.filePath ? [{ quality: "320kbps", url: dl.filePath }] : dl.songData?.downloadUrl || []
-    }
+    const target = songs.find(s => s.id === dl.songId) || makeSongs([dl])[0]
     playSong(target, songs)
-
   }
 
   const handleMenu = (e: React.MouseEvent, dl: any) => {

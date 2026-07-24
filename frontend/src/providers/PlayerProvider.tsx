@@ -20,6 +20,7 @@ import {
   initBackgroundAudio,
   registerPlayerGetters,
 } from "../capacitor/lifecycle";
+import { Capacitor } from "@capacitor/core";
 import { isNative } from "../utils/platform";
 import { useDuo } from "../duo/useDuo";
 import { useDuoStore } from "../duo/duoStore";
@@ -178,13 +179,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const resolveAndHandle = async () => {
       let targetSrc = "";
       if (currentSong._isOffline || currentSong.id?.startsWith("local_")) {
-        // For downloaded/local songs, try to load the blobl from IndexedDB first
+        // For downloaded/local songs, try to load the blob from IndexedDB first
         const blob = await getOfflineBlob(currentSong.id);
         if (blob) {
           targetSrc = URL.createObjectURL(blob);
         } else {
           // Fallback to the known URL if fetching the blob failed
-          targetSrc = currentSong.downloadUrl?.[0]?.url || "";
+          const rawUrl = currentSong.downloadUrl?.[0]?.url || "";
+          if (rawUrl && (rawUrl.startsWith("file://") || rawUrl.startsWith("content://") || rawUrl.startsWith("/"))) {
+            targetSrc = Capacitor.convertFileSrc(rawUrl);
+          } else {
+            targetSrc = rawUrl;
+          }
         }
       } else {
         // Use getBestAudioUrl to pick the highest quality and decode HTML entities

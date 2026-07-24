@@ -246,12 +246,12 @@ export async function searchSongsHybrid(
         combined.push(s);
       }
     }
-    return combined.slice(0, limit);
+    return normalizeSongsToCanonical(combined).slice(0, limit);
   }
 
   // ── TIER 2: wrapper fallback ────────────────────────────────────────
   if (rawWrapper.length > 0) {
-    return rawWrapper.slice(0, limit);
+    return normalizeSongsToCanonical(rawWrapper).slice(0, limit);
   }
 
   // ── Last resort: enriched wrapper query with knownArtist ────────────
@@ -259,7 +259,8 @@ export async function searchSongsHybrid(
     const enriched = (await fetchSafe(
       `${JIOSAAVN_BASE}/search/songs?query=${encodeURIComponent(`${q} ${knownArtist}`)}&limit=30`,
     )) as any;
-    return (enriched?.data?.results || enriched?.results || []).slice(0, limit);
+    const raws = enriched?.data?.results || enriched?.results || [];
+    return normalizeSongsToCanonical(raws).slice(0, limit);
   }
 
   return [];
@@ -286,7 +287,7 @@ export async function searchSongs(
   }));
 }
 
-export async function searchAlbums(query: string, limit = 15): Promise<any[]> {
+export async function searchAlbums(query: string, limit = 50): Promise<any[]> {
   const data = (await fetchSafe(
     `${JIOSAAVN_BASE}/search/albums?query=${encodeURIComponent(query)}&limit=${limit}`,
   )) as any;
@@ -294,6 +295,14 @@ export async function searchAlbums(query: string, limit = 15): Promise<any[]> {
   return results.map((album: any) => ({
     ...album,
     name: decodeHtmlEntities(album.name || album.title),
+    primaryArtists: decodeHtmlEntities(
+      album.primaryArtists ||
+      album.artist ||
+      (Array.isArray(album.artists?.primary) ? album.artists.primary.map((x: any) => x.name).join(", ") : "") ||
+      album.music ||
+      album.subtitle ||
+      "Various Artists"
+    ),
   }));
 }
 
@@ -533,7 +542,7 @@ export async function searchAll(query: string): Promise<{
       .slice(0, 8)
       .map((a: any) => ({
         id: String(a.id || ""),
-        name: decodeHtmlEntities(a.name || a.title || ""),
+        name: decodeHtmlEntities(a.name || a.title || a.artist || ""),
         image: Array.isArray(a.image)
           ? a.image.find((i: any) => i.quality === "500x500")?.url ||
             a.image[a.image.length - 1]?.url ||
@@ -557,9 +566,15 @@ export async function searchAll(query: string): Promise<{
             ? a.image
             : "/placeholder.png",
         year: String(a.year || ""),
-        // SearchPage AlbumCard reads .primaryArtists; /search endpoint has 'artist' (string)
-        primaryArtists:
-          a.primaryArtists || a.artist || a.artists?.primary?.[0]?.name || "",
+        primaryArtists: decodeHtmlEntities(
+          a.primaryArtists ||
+          a.artist ||
+          (Array.isArray(a.artists?.primary) ? a.artists.primary.map((x: any) => x.name).join(", ") : "") ||
+          a.music ||
+          a.subtitle ||
+          a.description ||
+          "Various Artists"
+        ),
         url: a.url || "",
       }))
       .filter((a: any) => a.id),
@@ -567,10 +582,12 @@ export async function searchAll(query: string): Promise<{
 }
 
 const KNOWN_ARTIST_MAP: Record<string, { name: string; image: string }> = {
+  "456269": { name: "A.R. Rahman", image: "https://c.saavncdn.com/artists/A_R_Rahman_500x500.jpg" },
   "702776": { name: "Arijit Singh", image: "https://c.saavncdn.com/artists/Arijit_Singh_002_20230323062147_500x500.jpg" },
   "3799917": { name: "Taylor Swift", image: "https://c.saavncdn.com/artists/Taylor_Swift_500x500.jpg" },
   "1433699": { name: "The Weeknd", image: "https://c.saavncdn.com/artists/The_Weeknd_500x500.jpg" },
   "596989": { name: "Anirudh Ravichander", image: "https://c.saavncdn.com/artists/Anirudh_Ravichander_500x500.jpg" },
+  "456863": { name: "Anirudh Ravichander", image: "https://c.saavncdn.com/artists/Anirudh_Ravichander_500x500.jpg" },
   "17063328": { name: "Drake", image: "https://c.saavncdn.com/artists/Drake_500x500.jpg" },
   "929381": { name: "Ed Sheeran", image: "https://c.saavncdn.com/artists/Ed_Sheeran_500x500.jpg" },
   "16568113": { name: "Shreya Ghoshal", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_500x500.jpg" },

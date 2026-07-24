@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Play, Shuffle } from "lucide-react";
+import { ChevronLeft, Play, Shuffle, ArrowUpDown } from "lucide-react";
 import { Skeleton } from "../components/ui/Skeleton";
 import { GreenButton } from "../components/ui/GreenButton";
 import { SongRow } from "../components/cards/SongRow";
@@ -23,6 +23,7 @@ export const AlbumPage = () => {
   const [album, setAlbum] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [bgColor, setBgColor] = useState("#1a1a1a");
+  const [sortBy, setSortBy] = useState<"track" | "time" | "title">("time");
 
   useEffect(() => {
     if (!albumId) return;
@@ -61,17 +62,28 @@ export const AlbumPage = () => {
   if (!album)
     return <div className="text-sp-sub p-10 text-center">Album not found.</div>;
 
-  const songs = album.songs || [];
+  const rawSongs = album.songs || [];
   const img = bestImg(album.image) || FALLBACK_IMG;
   const artist = Array.isArray(album.artist_map?.primary_artists)
     ? album.artist_map.primary_artists.map((a: any) => a.name).join(", ")
     : Array.isArray(album.artists?.primary)
       ? album.artists.primary.map((a: any) => a.name).join(", ")
       : album.primaryArtists || album.subtitle || "";
-  const totalDur = songs.reduce(
+  const totalDur = rawSongs.reduce(
     (acc: number, s: any) => acc + (s.duration || 0),
     0,
   );
+
+  const songs = useMemo(() => {
+    const list = [...rawSongs];
+    if (sortBy === "time") {
+      return list.sort((a: any, b: any) => (b.duration || 0) - (a.duration || 0));
+    }
+    if (sortBy === "title") {
+      return list.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
+    }
+    return list;
+  }, [rawSongs, sortBy]);
 
   return (
     <div className="animate-fadeIn -mt-6 -mx-6">
@@ -114,13 +126,37 @@ export const AlbumPage = () => {
         </div>
       </div>
 
-      <div className="px-6 py-5 flex items-center gap-4">
-        <GreenButton onClick={() => songs.length && onPlay(songs[0], songs)}>
-          <Play size={16} className="fill-black" /> Play All
-        </GreenButton>
-        <button className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all duration-200">
-          <Shuffle size={15} />
-        </button>
+      <div className="px-6 py-5 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <GreenButton onClick={() => songs.length && onPlay(songs[0], songs)}>
+            <Play size={16} className="fill-black" /> Play All
+          </GreenButton>
+          <button
+            onClick={() => {
+              if (!songs.length) return;
+              const shuffled = [...songs].sort(() => Math.random() - 0.5);
+              onPlay(shuffled[0], shuffled);
+            }}
+            title="Shuffle play"
+            className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition-all duration-200"
+          >
+            <Shuffle size={15} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+          <ArrowUpDown size={14} className="text-sp-green" />
+          <span className="text-xs font-bold text-white/60">Sort:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer"
+          >
+            <option value="time" className="bg-zinc-900 text-white">Time (Duration)</option>
+            <option value="track" className="bg-zinc-900 text-white">Track Order</option>
+            <option value="title" className="bg-zinc-900 text-white">Title (A-Z)</option>
+          </select>
+        </div>
       </div>
 
       <div className="px-6">

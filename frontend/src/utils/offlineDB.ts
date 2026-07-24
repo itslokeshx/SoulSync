@@ -60,15 +60,9 @@ export async function saveOfflineSong(
   audioBlob: Blob,
 ): Promise<void> {
   const db = await openDB();
-  const native = isNative();
-  const tx = db.transaction(
-    native ? [STORE_SONGS] : [STORE_SONGS, STORE_BLOBS],
-    "readwrite",
-  );
+  const tx = db.transaction([STORE_SONGS, STORE_BLOBS], "readwrite");
   tx.objectStore(STORE_SONGS).put(song);
-  if (!native) {
-    tx.objectStore(STORE_BLOBS).put({ id: song.id, blob: audioBlob });
-  }
+  tx.objectStore(STORE_BLOBS).put({ id: song.id, blob: audioBlob });
   return new Promise((res, rej) => {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);

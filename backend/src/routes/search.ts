@@ -17,6 +17,7 @@ import {
   getTopSearches,
   getArtistDetails,
   getAlbumDetails,
+  decodeHtmlEntities,
   markUserQueryStart,
   markUserQueryEnd,
 } from "../services/jiosaavn.js";
@@ -74,18 +75,20 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
       ? await fetchSongsByIds(pinnedIds)
       : [];
     // Phase 1: all in parallel ─────────────────────────────────────
-    // hybridRes  → direct jiosaavn.com (popularity-ranked, Ed Sheeran, Ranjini etc.)
-    // fallbackRes→ wrapper /search/songs (covers, regional)
-    // allRes     → wrapper /search (artists + albums + top query songs)
-    // artistRes  → wrapper /search/artists (accurate artist IDs for enrichment)
-    const [hybridRes, fallbackRes, allRes, artistRes] =
+    // hybridRes     → direct jiosaavn.com (popularity-ranked)
+    // fallbackRes   → wrapper /search/songs (covers, regional)
+    // allRes        → wrapper /search (artists + albums + top query songs)
+    // artistRes     → wrapper /search/artists (accurate artist IDs)
+    // directAlbumRes→ wrapper /search/albums (50+ discography albums)
+    const [hybridRes, fallbackRes, allRes, artistRes, directAlbumRes] =
       await Promise.allSettled([
         searchSongsHybrid(primaryQuery, 50, knownArtist),
         Promise.allSettled(
           fallbackQueries.slice(0, 2).map((fq) => searchSongs(fq, 30)),
         ),
         searchAll(q),
-        searchArtists(q, 5),
+        searchArtists(q, 8),
+        searchAlbums(q, 50),
       ]);
 
     const rawSongs: any[] = [];
@@ -111,41 +114,160 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     }
     if (allRes.status === "fulfilled") addSongs(allRes.value.songs);
 
-    // Merge artists from /search + /search/artists, dedup by ID
+    // Merge albums from searchAll + searchAlbums
+    const albumMap = new Map<string, any>();
+    const allResAlbums = allRes.status === "fulfilled" ? allRes.value.albums : [];
+    const directAlbums = directAlbumRes.status === "fulfilled" ? directAlbumRes.value : [];
+
+    for (const alb of [...allResAlbums, ...directAlbums]) {
+      const id = String(alb.id || "");
+      if (id && !albumMap.has(id)) {
+        albumMap.set(id, {
+          ...alb,
+          name: decodeHtmlEntities(alb.name || alb.title || ""),
+          primaryArtists: decodeHtmlEntities(alb.primaryArtists || alb.artist || "Various Artists")
+        });
+      }
+    }
+
+    const tempAlbums = Array.from(albumMap.values());
+
+    // Enrich artists from top album & song primary artists first
+    const extractedNames = new Set<string>();
+    for (const alb of tempAlbums.slice(0, 5)) {
+      const names = (alb.primaryArtists || alb.artist || "").split(",");
+      for (const n of names) {
+        const cleanN = n.trim();
+        if (cleanN && cleanN !== "Various Artists" && cleanN !== "Unknown Artist") {
+          extractedNames.add(cleanN);
+        }
+      }
+    }
+    for (const s of rawSongs.slice(0, 5)) {
+      const names = (s.primaryArtists || s.artist || "").split(",");
+      for (const n of names) {
+        const cleanN = n.trim();
+        if (cleanN && cleanN !== "Various Artists" && cleanN !== "Unknown Artist") {
+          extractedNames.add(cleanN);
+        }
+      }
+    }
+
+    // Always fetch official artist cards for extracted soundtrack artists first
+    const verifiedSoundtrackArtists: any[] = [];
+    if (extractedNames.size > 0) {
+      try {
+        const extraArtistRes = await Promise.allSettled(
+          Array.from(extractedNames).slice(0, 4).map((name) => searchArtists(name, 2))
+        );
+        for (const r of extraArtistRes) {
+          if (r.status === "fulfilled" && Array.isArray(r.value) && r.value.length > 0) {
+            const first = r.value[0];
+            if (first && first.id) verifiedSoundtrackArtists.push(first);
+          }
+        }
+      } catch {}
+    }
+
+    // Function to extract canonical base name (e.g. "Anirudh Ravichander" from "Anirudh Ravichander Feat. Dhanush")
+    const getCanonicalArtistName = (name: string): string => {
+      if (!name) return "";
+      return decodeHtmlEntities(name)
+        .replace(/\s*feat\..*$/i, "")
+        .replace(/\s*ft\..*$/i, "")
+        .replace(/\s*featuring.*$/i, "")
+        .replace(/\s*&.*$/i, "")
+        .replace(/\s*x\s+.*$/i, "")
+        .replace(/\s*,.*$/i, "")
+        .trim()
+        .toLowerCase();
+    };
+
     const artistMap = new Map<string, any>();
+    const seenCanonicalArtists = new Set<string>();
+
+    const addArtistIfClean = (a: any, isExtracted = false) => {
+      const id = String(a.id || "");
+      if (!id || artistMap.has(id)) return false;
+
+      const rawName = decodeHtmlEntities(a.name || a.title || "").trim();
+      if (!rawName) return false;
+
+      const canonicalBase = getCanonicalArtistName(rawName);
+      const isFeatVariant = /\b(feat|ft|featuring|&)\b/i.test(rawName);
+
+      // Discard "Feat. X & Y" sub-variant junk cards if the main artist is already present
+      if (isFeatVariant && seenCanonicalArtists.has(canonicalBase)) {
+        return false;
+      }
+
+      // Check query relevance if not explicitly extracted
+      if (!isExtracted) {
+        const qLower = q.toLowerCase().trim();
+        const aNameLower = rawName.toLowerCase();
+        const isExactOrPrefix = aNameLower === qLower || aNameLower.startsWith(qLower) || qLower.startsWith(aNameLower);
+        const isExtractedMatch = extractedNames.has(rawName) || extractedNames.has(canonicalBase);
+
+        if (!isExactOrPrefix && !isExtractedMatch) {
+          return false;
+        }
+      }
+
+      seenCanonicalArtists.add(canonicalBase);
+      artistMap.set(id, { ...a, name: rawName });
+      return true;
+    };
+
+    // Add verified soundtrack primary artists FIRST
+    for (const a of verifiedSoundtrackArtists) {
+      addArtistIfClean(a, true);
+    }
+
     const allResArtists =
       allRes.status === "fulfilled" ? allRes.value.artists : [];
     const directArtists: any[] =
       artistRes.status === "fulfilled" ? artistRes.value : [];
+
     for (const a of [...allResArtists, ...directArtists]) {
-      const id = String(a.id || "");
-      if (id && !artistMap.has(id)) artistMap.set(id, a);
+      addArtistIfClean(a, false);
     }
-    const artists = Array.from(artistMap.values()).slice(0, 8);
 
-    // Phase 2: Artist song enrichment ────────────────────────────
-    // For queries that look like artist searches ("ranjini songs", "arijit singh hits",
-    // "ed sheeran", short names etc.) fetch the artist's popularity-sorted songs
-    // and add them to the pool so the user sees real songs, not just artist chips.
-    const wordCount = q.trim().split(/\s+/).length;
-    const hasArtistTrigger =
-      /songs?|hits?|latest|recent|best|top|tracks?|music/i.test(q);
-    const isArtistQuery = wordCount <= 3 || hasArtistTrigger;
-
-    if (artists.length > 0 && isArtistQuery) {
-      const topArtists = artists.slice(0, 2);
-      const artistSongsRes = await Promise.allSettled(
-        topArtists.map((a) => fetchArtistSongs(String(a.id || ""), 0)),
-      );
-      for (const r of artistSongsRes) {
-        if (r.status === "fulfilled") addSongs(r.value);
+    // Fallback if strict filter yields < 2 artists
+    if (artistMap.size < 2) {
+      for (const a of [...allResArtists, ...directArtists]) {
+        const id = String(a.id || "");
+        if (id && !artistMap.has(id)) {
+          artistMap.set(id, { ...a, name: decodeHtmlEntities(a.name || a.title || "") });
+        }
       }
     }
 
-    const albums =
-      allRes.status === "fulfilled"
-        ? allRes.value.albums
-        : await searchAlbums(q, 5).catch(() => []);
+    const artists = Array.from(artistMap.values()).slice(0, 8);
+
+    // If top artist exists, fetch top artist's dedicated discography albums and merge them!
+    if (artists.length > 0) {
+      try {
+        const topArtistDetails = await getArtistDetails(String(artists[0].id)).catch(() => null);
+        const artistAlbums = topArtistDetails?.albums || topArtistDetails?.top_albums || [];
+        for (const alb of artistAlbums) {
+          const id = String(alb.id || "");
+          if (id && !albumMap.has(id)) {
+            albumMap.set(id, {
+              id,
+              name: decodeHtmlEntities(alb.name || alb.title || ""),
+              image: Array.isArray(alb.image)
+                ? alb.image.find((i: any) => i.quality === "500x500")?.url || alb.image[alb.image.length - 1]?.url || "/placeholder.png"
+                : typeof alb.image === "string" ? alb.image : "/placeholder.png",
+              year: String(alb.year || ""),
+              primaryArtists: decodeHtmlEntities(alb.artist || alb.primaryArtists || artists[0].name || "Various Artists"),
+              url: alb.url || ""
+            });
+          }
+        }
+      } catch {}
+    }
+
+    const albums = Array.from(albumMap.values()).slice(0, 50);
 
     const normalized = normalizeSongsToCanonical(rawSongs);
     const deduped = dedupSongs(normalized as RankedSong[]) as Song[];
@@ -173,6 +295,7 @@ router.get("/", async (req: any, res: Response): Promise<void> => {
     };
 
     // Smart TTL: short queries cached longer (popular), long tail shorter
+    const wordCount = q.trim().split(/\s+/).length;
     const ttl = wordCount <= 2 ? 3600 : wordCount >= 5 ? 180 : 600;
     await redisSet(cacheKey, JSON.stringify(result), ttl).catch(() => {});
     res.json({ ...result, songs, total: songs.length });

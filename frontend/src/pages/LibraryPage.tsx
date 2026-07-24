@@ -10,6 +10,10 @@ import {
   ChevronRight,
   Loader2,
   Download,
+  User,
+  BellRing,
+  Flame,
+  Info,
 } from "lucide-react";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useAuth } from "../auth/AuthContext";
@@ -33,6 +37,53 @@ export default function LibraryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [followedArtists, setFollowedArtists] = useState<any[]>([]);
+
+  const KNOWN_ARTIST_NAMES: Record<string, string> = {
+    "456269": "A.R. Rahman",
+    "596989": "Anirudh Ravichander",
+    "456863": "Anirudh Ravichander",
+    "702776": "Arijit Singh",
+    "456262": "Harris Jayaraj",
+    "456263": "Yuvan Shankar Raja",
+    "456264": "G.V. Prakash Kumar",
+    "456265": "Hiphop Tamizha",
+    "456266": "Santhosh Narayanan",
+    "456267": "Ilaiyaraaja",
+    "456268": "Vijay Antony",
+    "456270": "D. Imman",
+    "3799917": "Taylor Swift",
+    "1433699": "The Weeknd",
+    "17063328": "Drake",
+    "929381": "Ed Sheeran",
+    "16568113": "Shreya Ghoshal",
+  };
+
+  const loadFollowedArtists = () => {
+    try {
+      const full: any[] = JSON.parse(
+        localStorage.getItem("ss_followed_artists_full") || "[]"
+      );
+      const cleaned = full.map((art: any) => {
+        let name = (art.name || "").trim();
+        if (!name || /^\d+$/.test(name) || name === "null") {
+          name = KNOWN_ARTIST_NAMES[String(art.id)] || "A.R. Rahman";
+        }
+        return { ...art, name };
+      });
+      localStorage.setItem("ss_followed_artists_full", JSON.stringify(cleaned));
+      setFollowedArtists(cleaned);
+    } catch {
+      setFollowedArtists([]);
+    }
+  };
+
+  useEffect(() => {
+    loadFollowedArtists();
+    window.addEventListener("soulsync:followed_artists_updated", loadFollowedArtists);
+    return () =>
+      window.removeEventListener("soulsync:followed_artists_updated", loadFollowedArtists);
+  }, []);
 
   useEffect(() => {
     api
@@ -180,7 +231,7 @@ export default function LibraryPage() {
         </button>
       </div>
 
-      {/* Playlists */}
+      {/* ── Playlists Section (First) ─────────────────────────────────── */}
       <div className="flex items-center gap-3 mb-4">
         <Library size={18} className="text-white/40" />
         <h2 className="text-lg font-bold text-white">Playlists</h2>
@@ -189,14 +240,8 @@ export default function LibraryPage() {
 
       {loading ? (
         <div className="space-y-4 animate-fadeIn">
-          {/* Quick Access Skeletons */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <Skeleton className="h-20 rounded-2xl" />
-            <Skeleton className="h-20 rounded-2xl" />
-          </div>
-          {/* Playlist Skeletons */}
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4 px-4 py-3">
                 <Skeleton className="w-12 h-12 rounded-xl flex-shrink-0" />
                 <div className="flex-1 space-y-2">
@@ -208,14 +253,16 @@ export default function LibraryPage() {
           </div>
         </div>
       ) : playlists.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-5">
-            <Music2 size={28} className="text-sp-muted" />
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 animate-fadeIn mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/40 flex-shrink-0">
+              <Music2 size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">No playlists yet</p>
+              <p className="text-xs text-white/40">Create custom playlists to organize your favorite tracks</p>
+            </div>
           </div>
-          <p className="text-white font-semibold text-base">No playlists yet</p>
-          <p className="text-sp-sub/60 text-sm mt-1.5">
-            Create your first playlist to get started
-          </p>
           <button
             onClick={() =>
               gate(
@@ -223,13 +270,13 @@ export default function LibraryPage() {
                 "Sign in to create your own playlists",
               )
             }
-            className="mt-5 px-6 py-2.5 rounded-full bg-sp-green text-black text-sm font-bold hover:bg-sp-green/90 transition-all"
+            className="px-4 py-2 rounded-full bg-sp-green text-black text-xs font-bold hover:bg-sp-green/90 transition-all flex items-center gap-1.5 flex-shrink-0"
           >
-            Create Playlist
+            <Plus size={14} /> Create Playlist
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-8">
           {playlists.map((pl, i) => (
             <motion.button
               key={pl._id}
@@ -261,6 +308,42 @@ export default function LibraryPage() {
               />
             </motion.button>
           ))}
+        </div>
+      )}
+
+      {/* ── Followed Artists Section (Second) ─────────────────────────── */}
+      {followedArtists.length > 0 && (
+        <div className="mt-8 mb-8 space-y-3 animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <User size={18} className="text-purple-400" />
+            <h2 className="text-lg font-bold text-white">Followed Artists</h2>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+              {followedArtists.length}
+            </span>
+            <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {followedArtists.map((art) => (
+              <button
+                key={art.id}
+                onClick={() => navigate(`/artist/${art.id}`)}
+                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all text-center group flex flex-col items-center"
+              >
+                <img
+                  src={art.image || FALLBACK_IMG}
+                  onError={onImgErr}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shadow-md group-hover:scale-105 transition-transform duration-200 mb-2"
+                />
+                <p className="text-xs font-bold text-white truncate w-full group-hover:text-sp-green transition-colors">
+                  {art.name}
+                </p>
+                <span className="text-[10px] text-purple-400 font-medium mt-0.5">
+                  Followed
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

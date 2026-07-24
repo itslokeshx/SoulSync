@@ -1,47 +1,65 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search,
   X,
   TrendingUp,
-  Sparkles,
   Loader2,
-  Music,
-  Disc3,
-  Mic2,
-  ArrowLeft,
+  Play,
+  Pause,
+  SearchX,
+  Heart,
+  MoreVertical,
   Clock,
   Trash2,
-  Play,
-  SearchX,
-  Zap,
-  Moon,
-  Activity,
-  Heart,
-  CloudRain,
-  Flame,
-  Coffee,
-  Radio,
-  Headphones,
-  MoreVertical,
+  Sparkles,
+  ChevronRight,
+  Disc3,
+  User,
+  Music,
 } from "lucide-react";
 import {
   useSearch,
   getRecentSearches,
   saveRecentSearch,
   removeRecentSearch,
+  clearAllRecentSearches,
 } from "../hooks/useSearch";
-import { useSearchStore } from "../store/searchStore";
 import { useUIStore } from "../store/uiStore";
-import { bestImg, getArtists, fmt } from "../lib/helpers";
+import { bestImg, getArtists, fmt, onImgErr } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
+import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
-import { startRadio } from "../api/backend";
-import { normalizeSongs } from "../utils/normalizeSong";
 
+type TabType = "all" | "songs" | "albums" | "artists";
 
-
+const POPULAR_BY_LANG: Record<string, string[]> = {
+  tamil: [
+    "Anirudh Ravichander", "A.R. Rahman", "Sid Sriram", "Yuvan Shankar Raja",
+    "Sai Abhyankkar", "Hukum", "Katchi Sera", "Coolie Soundtrack", "Paal Dabba"
+  ],
+  hindi: [
+    "Arijit Singh", "Pritam", "Shreya Ghoshal", "Jubin Nautiyal",
+    "Atif Aslam", "Kesariya", "Tum Hi Ho", "Badshah"
+  ],
+  telugu: [
+    "Devi Sri Prasad", "S. Thaman", "M.M. Keeravani", "Sid Sriram",
+    "Pushpa 2", "Devara", "Anirudh Ravichander"
+  ],
+  punjabi: [
+    "Diljit Dosanjh", "Karan Aujla", "Sidhu Moose Wala", "AP Dhillon", "B Praak"
+  ],
+  malayalam: [
+    "Sushin Shyam", "Jakes Bejoy", "Illuminati", "Aavesham OST", "Vineeth Sreenivasan"
+  ],
+  kannada: [
+    "Arjun Janya", "V. Harikrishna", "B. Ajaneesh Loknath", "Ravi Basrur"
+  ],
+  english: [
+    "Taylor Swift", "The Weeknd", "Drake", "Ed Sheeran", "Billie Eilish", "Olivia Rodrigo"
+  ]
+};
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -51,53 +69,63 @@ function SongRow({
   onPlay,
   isCurrent,
   isPlaying,
+  liked,
+  onLike,
 }: {
   song: any;
   index: number;
   onPlay: (s: any) => void;
   isCurrent?: boolean;
   isPlaying?: boolean;
+  liked?: boolean;
+  onLike?: (s: any) => void;
 }) {
   const img = bestImg(song.image) || FALLBACK_IMG;
   const artist = getArtists(song);
   const duration = fmt(song.duration);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
+
   return (
     <div
       onClick={() => onPlay(song)}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onPlay(song)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.09] active:bg-white/[0.13] active:scale-[0.99] transition-all group text-left cursor-pointer"
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-[0.99] transition-all group text-left cursor-pointer border border-transparent ${
+        isCurrent ? "bg-white/[0.06] border-white/10" : ""
+      }`}
     >
-      <span className="w-5 text-center text-[12px] text-white/20 group-hover:hidden flex-shrink-0 font-mono select-none">
+      <span className="w-5 text-center text-xs font-medium text-white/30 group-hover:hidden flex-shrink-0 font-mono select-none">
         {isCurrent && isPlaying ? (
-          <span className="text-sp-green text-[10px]">▶</span>
+          <span className="text-sp-green text-xs animate-pulse">▶</span>
         ) : (
           index + 1
         )}
       </span>
       <div className="relative flex-shrink-0 hidden group-hover:block w-5">
-        <Play size={12} className="text-white fill-white" />
+        {isCurrent && isPlaying ? (
+          <Pause size={13} className="text-sp-green fill-sp-green" />
+        ) : (
+          <Play size={13} className="text-white fill-white" />
+        )}
       </div>
+
       <div className="relative flex-shrink-0">
         <img
           src={img}
           alt={song.name}
-          className="w-11 h-11 rounded-lg object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-          }}
+          className="w-11 h-11 rounded-lg object-cover shadow-sm bg-neutral-900"
+          onError={onImgErr}
         />
         {isCurrent && isPlaying && (
-          <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center">
-            <div className="flex gap-0.5 items-end h-4">
+          <div className="absolute inset-0 rounded-lg bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+            <div className="flex gap-0.5 items-end h-3.5">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="w-0.5 bg-sp-green rounded-full animate-pulse"
+                  className="w-0.5 bg-sp-green rounded-full animate-bounce"
                   style={{
-                    height: `${8 + i * 3}px`,
+                    height: `${6 + i * 3}px`,
                     animationDelay: `${i * 0.15}s`,
                   }}
                 />
@@ -106,26 +134,57 @@ function SongRow({
           </div>
         )}
       </div>
+
       <div className="flex-1 min-w-0">
         <p
-          className={`text-[14px] font-medium truncate transition-colors ${isCurrent ? "text-sp-green" : "text-white group-hover:text-sp-green"}`}
+          className={`text-sm font-semibold truncate ${
+            isCurrent ? "text-sp-green" : "text-white group-hover:text-white"
+          }`}
         >
           {song.name}
         </p>
-        <p className="text-white/45 text-[12px] truncate">{artist}</p>
+        <p className="text-xs text-white/50 truncate group-hover:text-white/70 transition-colors mt-0.5">
+          {artist}
+        </p>
       </div>
-      {duration && (
-        <span className="text-white/30 text-[11px] flex-shrink-0">
-          {duration}
+
+      {song.album && (
+        <p className="hidden md:block text-xs text-white/40 truncate max-w-[180px]">
+          {typeof song.album === "string" ? song.album : song.album.name || ""}
+        </p>
+      )}
+
+      {song.playCount > 1000000 && (
+        <span className="hidden lg:inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/5 text-white/40 border border-white/5">
+          {(song.playCount / 1000000).toFixed(1)}M plays
         </span>
       )}
+
+      {onLike && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike(song);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-sp-green transition-all"
+        >
+          <Heart
+            size={15}
+            className={liked ? "fill-sp-green text-sp-green opacity-100" : ""}
+          />
+        </button>
+      )}
+
+      <span className="text-xs text-white/40 font-mono flex-shrink-0">
+        {duration}
+      </span>
+
       <button
         onClick={(e) => {
           e.stopPropagation();
           showContextMenu(e.clientX, e.clientY, song);
         }}
-        className="flex-shrink-0 p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.08] transition-all"
-        aria-label="More options"
+        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all flex-shrink-0"
       >
         <MoreVertical size={15} />
       </button>
@@ -133,633 +192,675 @@ function SongRow({
   );
 }
 
-function TopResultHero({
-  item,
-  onPlay,
+function AlbumCard({
+  album,
+  onClick,
 }: {
-  item: any;
-  onPlay: (s: any) => void;
+  album: any;
+  onClick: (id: string) => void;
 }) {
-  const navigate = useNavigate();
-  const showContextMenu = useUIStore((s) => s.showContextMenu);
-  const isArtist = item.type === "artist" || item.description === "Artist";
-  const isAlbum =
-    item.type === "album" || item.description?.toLowerCase().includes("album");
-  const img = bestImg(item.image) || FALLBACK_IMG;
-  const name = item.name || item.title || "Unknown";
-  const subtitle = isArtist
-    ? "Artist"
-    : isAlbum
-      ? item.description || "Album"
-      : getArtists(item);
-
-  const handleClick = () => {
-    if (isArtist) navigate(`/artist/${item.id}`);
-    else if (isAlbum) navigate(`/album/${item.id}`);
-    else onPlay(item);
-  };
-
-  return (
-    <motion.div
-      whileHover={{ scale: 1.01 }}
-      onClick={handleClick}
-      className="relative group cursor-pointer p-4 sm:p-5 rounded-2xl overflow-hidden h-full min-h-[140px]"
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      {/* Blurred bg */}
-      <div className="absolute inset-0 opacity-15 pointer-events-none">
-        <img
-          src={img}
-          className="w-full h-full object-cover blur-2xl scale-110"
-          alt=""
-        />
-      </div>
-      <div className="relative z-10 flex flex-row sm:flex-col gap-3 items-center sm:items-start">
-        <img
-          src={img}
-          alt={name}
-          className={`w-14 h-14 sm:w-20 sm:h-20 object-cover shadow-2xl flex-shrink-0 ${isArtist ? "rounded-full" : "rounded-xl"}`}
-          style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-          }}
-        />
-        <div className="min-w-0 flex-1 pr-6">
-          <p className="text-base sm:text-2xl font-black text-white tracking-tight leading-tight line-clamp-2">
-            {name}
-          </p>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span className="text-[10px] text-white/40 px-2 py-0.5 rounded-full bg-white/[0.07] font-bold uppercase tracking-wide">
-              Top Result
-            </span>
-            <span className="text-[12px] text-white/50 truncate">
-              {subtitle}
-            </span>
-          </div>
-        </div>
-      </div>
-      {!isArtist && !isAlbum && (
-        <>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              showContextMenu(e.clientX, e.clientY, item);
-            }}
-            className="absolute top-3 right-3 z-20 p-2 rounded-full text-white/30 hover:text-white hover:bg-white/[0.1] transition-all"
-            aria-label="More options"
-          >
-            <MoreVertical size={18} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlay(item);
-            }}
-            className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-sp-green flex items-center justify-center opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-200 shadow-xl z-20"
-            style={{ boxShadow: "0 8px 24px rgba(29,185,84,0.5)" }}
-          >
-            <Play size={18} className="text-black fill-black ml-0.5" />
-          </button>
-        </>
-      )}
-    </motion.div>
-  );
-}
-
-function ArtistCircle({ artist }: { artist: any }) {
-  const navigate = useNavigate();
-  const img = bestImg(artist.image) || FALLBACK_IMG;
-  return (
-    <button
-      onClick={() => artist.id && navigate(`/artist/${artist.id}`)}
-      className="flex flex-col items-center gap-2 w-20 flex-shrink-0 group cursor-pointer"
-    >
-      <div className="relative">
-        <img
-          src={img}
-          alt={artist.name}
-          className="w-16 h-16 rounded-full object-cover border border-white/10 group-hover:border-sp-green/50 group-hover:scale-105 transition-all duration-200"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-          }}
-        />
-        <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-          <Play size={16} className="text-white fill-white ml-0.5" />
-        </div>
-      </div>
-      <div className="text-center">
-        <p className="text-white/70 text-[11px] font-medium truncate w-20 group-hover:text-white transition-colors leading-tight">
-          {artist.name}
-        </p>
-        <p className="text-white/30 text-[10px]">Artist</p>
-      </div>
-    </button>
-  );
-}
-
-function AlbumCard({ album }: { album: any }) {
-  const navigate = useNavigate();
   const img = bestImg(album.image) || FALLBACK_IMG;
+  const artist =
+    album.primaryArtists ||
+    album.artist ||
+    (typeof album.artists === "string" ? album.artists : "");
+
   return (
-    <button
-      onClick={() => album.id && navigate(`/album/${album.id}`)}
-      className="flex flex-col gap-2 w-32 sm:w-36 flex-shrink-0 group cursor-pointer text-left"
+    <div
+      onClick={() => onClick(album.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick(album.id)}
+      className="group relative bg-white/[0.03] hover:bg-white/[0.08] p-3.5 rounded-2xl transition-all duration-200 cursor-pointer border border-white/5 hover:border-white/10 hover:scale-[1.02] flex flex-col"
     >
-      <div className="relative overflow-hidden rounded-xl">
+      <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-neutral-900 shadow-md">
         <img
           src={img}
           alt={album.name}
-          className="w-32 h-32 sm:w-36 sm:h-36 object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-          }}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={onImgErr}
         />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-          <div className="w-10 h-10 rounded-full bg-sp-green flex items-center justify-center shadow-xl">
-            <Play size={16} className="text-black fill-black ml-0.5" />
+        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-sp-green text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform">
+            <Play size={18} className="fill-black ml-0.5" />
           </div>
         </div>
       </div>
-      <div>
-        <p className="text-white/80 text-[12px] font-medium truncate group-hover:text-white transition-colors">
-          {album.name}
-        </p>
-        <p className="text-white/35 text-[11px] truncate">
-          {album.primaryArtists || album.year || "Album"}
-        </p>
+      <h3 className="text-sm font-bold text-white truncate group-hover:text-sp-green transition-colors">
+        {album.name}
+      </h3>
+      <p className="text-xs text-white/50 truncate mt-1">{artist || "Album"}</p>
+      <div className="mt-auto pt-2 flex items-center justify-between text-[11px] text-white/40">
+        <span>{album.year || "Release"}</span>
+        <span className="flex items-center gap-1">
+          <Disc3 size={11} /> Album
+        </span>
       </div>
-    </button>
-  );
-}
-
-function SkeletonRow() {
-  return (
-    <div className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
-      <div className="w-5 h-3 bg-white/[0.04] rounded flex-shrink-0" />
-      <div className="w-11 h-11 rounded-lg bg-white/[0.06] flex-shrink-0" />
-      <div className="flex-1 space-y-2">
-        <div className="h-3.5 bg-white/[0.06] rounded w-3/4" />
-        <div className="h-3 bg-white/[0.04] rounded w-1/2" />
-      </div>
-      <div className="w-8 h-3 bg-white/[0.03] rounded" />
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+function ArtistCard({
+  artist,
+  onClick,
+}: {
+  artist: any;
+  onClick: (id: string) => void;
+}) {
+  const img = bestImg(artist.image) || FALLBACK_IMG;
+  const followers =
+    artist.follower_count || artist.followers
+      ? `${(parseInt(artist.follower_count || artist.followers, 10) / 1000000).toFixed(1)}M followers`
+      : "Artist";
+
+  return (
+    <div
+      onClick={() => onClick(artist.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick(artist.id)}
+      className="group relative bg-white/[0.03] hover:bg-white/[0.08] p-4 rounded-2xl transition-all duration-200 cursor-pointer border border-white/5 hover:border-white/10 hover:scale-[1.02] flex flex-col items-center text-center"
+    >
+      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 bg-neutral-900 shadow-md ring-2 ring-white/10 group-hover:ring-sp-green/50 transition-all">
+        <img
+          src={img}
+          alt={artist.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={onImgErr}
+        />
+        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-sp-green text-black flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+            <User size={18} className="fill-black" />
+          </div>
+        </div>
+      </div>
+      <h3 className="text-sm font-bold text-white truncate max-w-full group-hover:text-sp-green transition-colors">
+        {artist.name}
+      </h3>
+      <p className="text-xs text-white/50 truncate mt-1">{followers}</p>
+      <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-white/70">
+        Artist
+      </span>
+    </div>
+  );
+}
+
+// ─── Main SearchPage ─────────────────────────────────────────────────────────
 
 export function SearchPage() {
   const navigate = useNavigate();
-  const [urlParams, setUrlParams] = useSearchParams();
-  const { playSong, currentSong, isPlaying } = useApp();
-  const { addRecentSearch, clearRecentSearches } = useSearchStore();
-  const [recentSearches, setRecentSearches] = useState<string[]>(() =>
-    getRecentSearches(),
-  );
-  const [inputFocused, setInputFocused] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryParam = searchParams.get("q") || "";
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const {
+    query,
+    setQuery,
+    state,
+    result,
+    suggestions,
+    showSuggestions,
+    setShowSuggestions,
+    reset,
+  } = useSearch();
 
-  const { query, setQuery, state, result, loadMore } = useSearch();
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [songLimit, setSongLimit] = useState(50);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
 
-  // Init from URL and focus
-  useEffect(() => {
-    const urlQ = urlParams.get("q") || "";
-    if (urlQ) setQuery(urlQ);
-    inputRef.current?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") navigate(-1);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [navigate]);
+  const {
+    currentSong,
+    isPlaying,
+    playSong: onPlay,
+    likedSongs,
+    handleLike: onLike,
+  } = useApp();
 
-  const handleChange = useCallback(
-    (v: string) => {
-      setQuery(v);
-      setUrlParams(v.trim() ? { q: v } : {}, { replace: true });
-    },
-    [setQuery, setUrlParams],
-  );
+  const { user } = useAuth();
+  const userLangs = user?.preferences?.languages || [];
 
-  const handleEnter = useCallback(() => {
-    if (query.trim() && state === "results") {
-      saveRecentSearch(query.trim());
-      setRecentSearches(getRecentSearches());
-      addRecentSearch(query.trim());
-    }
-  }, [query, state, addRecentSearch]);
+  const popularSearches = React.useMemo(() => {
+    const list: string[] = [];
+    const seen = new Set<string>();
 
-  // Infinite scroll
-  useEffect(() => {
-    if (!bottomRef.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { threshold: 0.1 },
-    );
-    observer.observe(bottomRef.current);
-    return () => observer.disconnect();
-  }, [loadMore]);
-
-  const handlePlay = useCallback(
-    async (song: any) => {
-      try {
-        const res = await startRadio(song.id);
-        if (res.songs && res.songs.length > 0) {
-          const normalized = normalizeSongs(res.songs);
-          playSong(normalized[0], normalized);
-        } else {
-          playSong(song, [song]);
+    for (const lang of userLangs) {
+      const items = POPULAR_BY_LANG[lang.toLowerCase()] || [];
+      for (const item of items) {
+        if (!seen.has(item)) {
+          seen.add(item);
+          list.push(item);
         }
-      } catch (err) {
-        console.error("Failed to start radio from search:", err);
-        playSong(song, result?.songs || []);
       }
-      if (query.trim()) {
-        saveRecentSearch(query.trim());
-        setRecentSearches(getRecentSearches());
-        addRecentSearch(query.trim());
+    }
+
+    // Default fallback order if list is short
+    const fallbackLangs = ["tamil", "hindi", "english"];
+    for (const lang of fallbackLangs) {
+      const items = POPULAR_BY_LANG[lang] || [];
+      for (const item of items) {
+        if (!seen.has(item)) {
+          seen.add(item);
+          list.push(item);
+        }
       }
-    },
-    [playSong, result, query, addRecentSearch],
-  );
+    }
 
-  const handleChipClick = useCallback(
-    (q: string) => {
-      setQuery(q);
-      setUrlParams({ q }, { replace: true });
-      saveRecentSearch(q);
-      setRecentSearches(getRecentSearches());
-      addRecentSearch(q);
-      inputRef.current?.focus();
-    },
-    [setQuery, setUrlParams, addRecentSearch],
-  );
+    return list.slice(0, 12);
+  }, [userLangs]);
 
-  const handleRemoveRecent = useCallback((q: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    removeRecentSearch(q);
+  // Load recent searches from localStorage
+  const refreshRecentSearches = useCallback(() => {
     setRecentSearches(getRecentSearches());
   }, []);
 
-  const handleClearRecents = useCallback(() => {
-    clearRecentSearches();
-    setRecentSearches([]);
-  }, [clearRecentSearches]);
+  useEffect(() => {
+    refreshRecentSearches();
+  }, [refreshRecentSearches]);
 
-  const clearInput = useCallback(() => {
-    handleChange("");
-    inputRef.current?.focus();
-  }, [handleChange]);
+  // Sync state with URL params
+  useEffect(() => {
+    if (queryParam && queryParam !== query) {
+      setQuery(queryParam);
+    }
+  }, [queryParam, setQuery]);
 
-  const splitAt = result?.topResult ? 4 : 5;
-  const songs = result?.songs ?? [];
-  const firstSectionSongs = songs.slice(0, splitAt);
-  const remainingSongs = songs.slice(splitAt);
-  const hasMoreSongs = songs.length > splitAt;
+  const handleSearchSubmit = (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
+    saveRecentSearch(searchTerm);
+    refreshRecentSearches();
+    setSearchParams({ q: searchTerm });
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+  };
 
-  // ── Render ──────────────────────────────────────────────────────────────
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === "Enter") handleSearchSubmit(query);
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+        const item = suggestions[selectedIndex];
+        setQuery(item.query || item.text);
+        handleSearchSubmit(item.query || item.text);
+      } else {
+        handleSearchSubmit(query);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+    }
+  };
+
+  const handleClear = () => {
+    reset();
+    setSearchParams({});
+    if (searchInputRef.current) searchInputRef.current.focus();
+  };
+
+  const handleRemoveRecent = (e: React.MouseEvent, s: string) => {
+    e.stopPropagation();
+    removeRecentSearch(s);
+    refreshRecentSearches();
+  };
+
+  const handleClearAllRecent = () => {
+    clearAllRecentSearches();
+    refreshRecentSearches();
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [setShowSuggestions]);
+
+  const songs = result?.songs || [];
+  const albums = result?.albums || [];
+  const artists = result?.artists || [];
+
+  const hasSongs = songs.length > 0;
+  const hasAlbums = albums.length > 0;
+  const hasArtists = artists.length > 0;
+  const hasAnyResults = hasSongs || hasAlbums || hasArtists;
+
   return (
-    <div className="h-full flex flex-col bg-[#050505]">
-      {/* ── Search bar ── */}
-      <div
-        className="flex-shrink-0 px-3 md:px-5 pt-3 pb-2.5 border-b border-white/[0.06]"
-        style={{ background: "rgba(5,5,5,0.98)" }}
-      >
-        <div className="flex items-center gap-2 max-w-2xl">
-          {/* Back (mobile) */}
-          <button
-            onClick={() => navigate(-1)}
-            className="md:hidden flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-white/40 hover:text-white hover:bg-white/[0.06] active:scale-90 transition-all"
-            aria-label="Back"
-          >
-            <ArrowLeft size={20} />
-          </button>
-
-          {/* Input pill + suggestions dropdown */}
-          <div className="flex-1 relative">
-            <div
-              className={`flex items-center gap-2.5 h-12 px-4 rounded-2xl border transition-all duration-200 ${inputFocused
-                ? "border-sp-green/50 bg-white/[0.09] shadow-[0_0_24px_rgba(29,185,84,0.07)]"
-                : "border-white/[0.08] bg-white/[0.06] hover:border-white/[0.12]"
-                }`}
+    <div className="min-h-screen pb-32 pt-2 px-4 md:px-8 max-w-7xl mx-auto space-y-6 animate-fadeIn">
+      {/* ── Search Bar & Header ────────────────────────────────────────── */}
+      <div className="relative" ref={searchContainerRef}>
+        <div className="relative flex items-center">
+          <Search
+            size={20}
+            className="absolute left-4 text-white/40 pointer-events-none transition-colors"
+          />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowSuggestions(true);
+              setSelectedIndex(-1);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search songs, albums, artists..."
+            className="w-full bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] text-white placeholder-white/40 text-base font-medium rounded-full pl-12 pr-12 py-3.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-sp-green/60 transition-all duration-200 shadow-inner"
+            aria-label="Search music, albums, and artists"
+          />
+          {state === "loading" ? (
+            <Loader2
+              size={18}
+              className="absolute right-4 text-sp-green animate-spin"
+            />
+          ) : query ? (
+            <button
+              onClick={handleClear}
+              className="absolute right-4 p-1 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-all"
+              aria-label="Clear search query"
             >
-              {state === "loading" ? (
-                <Loader2
-                  size={16}
-                  className="text-sp-green flex-shrink-0 animate-spin"
-                />
-              ) : (
-                <Search
-                  size={16}
-                  className={`flex-shrink-0 transition-colors ${inputFocused ? "text-sp-green" : "text-white/35"}`}
-                />
+              <X size={18} />
+            </button>
+          ) : null}
+        </div>
+
+        {/* ── Suggestions & Recent Searches Dropdown ────────────────── */}
+        <AnimatePresence>
+          {showSuggestions && (query.trim() || recentSearches.length > 0) && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+              className="absolute z-50 left-0 right-0 top-full mt-2 bg-[#161618]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto"
+            >
+              {/* Recent Searches Header */}
+              {!query.trim() && recentSearches.length > 0 && (
+                <div className="p-3">
+                  <div className="flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-white/40 uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={13} /> Recent Searches
+                    </span>
+                    <button
+                      onClick={handleClearAllRecent}
+                      className="hover:text-red-400 text-white/40 transition-colors flex items-center gap-1 text-[11px]"
+                    >
+                      <Trash2 size={12} /> Clear all
+                    </button>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {recentSearches.map((s, i) => (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          setQuery(s);
+                          handleSearchSubmit(s);
+                        }}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors ${
+                          selectedIndex === i ? "bg-white/15 text-white" : ""
+                        }`}
+                      >
+                        <span className="truncate flex items-center gap-2">
+                          <Search size={14} className="text-white/30" />
+                          {s}
+                        </span>
+                        <button
+                          onClick={(e) => handleRemoveRecent(e, s)}
+                          className="text-white/30 hover:text-white/80 p-1 rounded-full hover:bg-white/10"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => handleChange(e.target.value)}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleEnter();
-                }}
-                placeholder="Songs, artists, moods, movies…"
-                className="flex-1 bg-transparent text-white text-[16px] placeholder-white/20 outline-none"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                autoFocus
-              />
-
-              <AnimatePresence>
-                {query && (
-                  <motion.button
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    onClick={clearInput}
-                    className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/[0.1] text-white/40 hover:bg-white/[0.18] hover:text-white transition-all active:scale-90"
-                    aria-label="Clear"
-                  >
-                    <X size={10} />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* Cancel (desktop) */}
-          <button
-            onClick={() => navigate(-1)}
-            className="hidden md:block flex-shrink-0 text-white/45 hover:text-white text-[13px] font-medium px-3 py-1.5 rounded-xl hover:bg-white/[0.05] transition-all"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-
-      {/* ── Scrollable results ── */}
-      <div className="flex-1 overflow-y-auto thin-scrollbar px-3 md:px-5 pb-28">
-        {/* ── IDLE STATE — browse grid ── */}
-        {state === "idle" && (
-          <div className="py-5 space-y-6 max-w-2xl">
-            {/* Recent searches */}
-            {recentSearches.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-white/40 text-[11px] font-bold uppercase tracking-[0.15em] flex items-center gap-2">
-                    <Clock size={12} /> Recent
-                  </h3>
-                  <button
-                    onClick={handleClearRecents}
-                    className="text-white/25 hover:text-white/60 transition-colors p-1 rounded-lg hover:bg-white/[0.04]"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {recentSearches.slice(0, 8).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => handleChipClick(r)}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.07] text-white/65 text-[12px] font-medium hover:bg-white/[0.09] hover:text-white transition-all group"
+              {/* Instant Suggestions */}
+              {query.trim() && suggestions.length > 0 && (
+                <div className="p-2 space-y-0.5">
+                  {suggestions.map((item, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setQuery(item.query || item.text);
+                        handleSearchSubmit(item.query || item.text);
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer text-sm transition-colors ${
+                        selectedIndex === idx
+                          ? "bg-white/15 text-white font-medium"
+                          : "text-white/80 hover:bg-white/10 hover:text-white"
+                      }`}
                     >
-                      <Clock size={11} className="text-white/30" />
-                      {r}
-                      <X
-                         size={10}
-                         className="text-white/0 group-hover:text-white/40 ml-0.5 transition-colors"
-                         onClick={(e) => handleRemoveRecent(r, e)}
-                      />
-                    </button>
+                      {item.type === "artist" ? (
+                        <User size={15} className="text-sp-green" />
+                      ) : item.type === "album" ? (
+                        <Disc3 size={15} className="text-blue-400" />
+                      ) : (
+                        <Search size={15} className="text-white/40" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate font-medium">{item.text}</p>
+                        {item.subtext && (
+                          <p className="text-xs text-white/40 truncate">
+                            {item.subtext}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight size={14} className="text-white/20" />
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── SKELETON — show while any search is loading ── */}
-        {state === "loading" && (
-          <div className="py-4 max-w-2xl">
-            <div className="h-px bg-gradient-to-r from-transparent via-sp-green to-transparent mb-5 rounded-full animate-pulse" />
-            <div className="flex gap-4 p-4 rounded-2xl bg-white/[0.03] mb-5 animate-pulse">
-              <div className="w-20 h-20 rounded-xl bg-white/[0.06] flex-shrink-0" />
-              <div className="flex-1 space-y-3 py-1">
-                <div className="h-3 w-16 bg-white/[0.04] rounded" />
-                <div className="h-5 w-48 bg-white/[0.06] rounded" />
-                <div className="h-3 w-32 bg-white/[0.04] rounded" />
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <SkeletonRow key={i} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── RESULTS ── */}
-        {state === "results" && result && (
-          <div className="py-4 space-y-7 max-w-2xl">
-            {result.parsedIntent?.displayContext && (
-              <div className="flex items-center gap-2 px-1">
-                <Sparkles size={12} className="text-sp-green flex-shrink-0" />
-                <span className="text-[12px] text-white/40 font-medium">
-                  {result.parsedIntent.displayContext}
-                </span>
-              </div>
-            )}
-
-            {/* Desktop 2-col: Top Result + Songs */}
-            <div className="hidden md:grid md:grid-cols-[280px_1fr] gap-5">
-              {result.topResult && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                    Top Result
-                  </h3>
-                  <TopResultHero item={result.topResult} onPlay={handlePlay} />
-                </div>
               )}
-              <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                  Songs
-                </h3>
-                <div className="space-y-0.5">
-                  {firstSectionSongs.map((song, i) => (
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Filter Chips (Shown ONLY during search) ────────────────────── */}
+      {query.trim() !== "" && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar animate-fadeIn">
+          {(["all", "songs", "albums", "artists"] as TabType[]).map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold capitalize transition-all duration-200 flex-shrink-0 ${
+                  isActive
+                    ? "bg-white text-black shadow-md scale-[1.02]"
+                    : "bg-white/10 text-white/70 hover:bg-white/15 hover:text-white"
+                }`}
+              >
+                {tab === "all" ? "All" : tab}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Main Results View ────────────────────────────────────────── */}
+
+      {/* 1. IDLE STATE: Clean Search Landing & Recent Search History */}
+      {state === "idle" && !query && (
+        <div className="space-y-6 pt-2 animate-fadeIn">
+          {recentSearches.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white/80 flex items-center gap-2">
+                  <Clock size={16} className="text-sp-green" /> Recent Searches
+                </h2>
+                <button
+                  onClick={handleClearAllRecent}
+                  className="text-xs font-semibold text-white/40 hover:text-white transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {recentSearches.map((s) => (
+                  <div
+                    key={s}
+                    onClick={() => {
+                      setQuery(s);
+                      handleSearchSubmit(s);
+                    }}
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Clock size={14} className="text-white/40 group-hover:text-sp-green transition-colors flex-shrink-0" />
+                      <span className="text-xs font-medium text-white/90 group-hover:text-white truncate">
+                        {s}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => handleRemoveRecent(e, s)}
+                      title="Remove from history"
+                      className="p-1 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors ml-2 flex-shrink-0"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn space-y-3 text-white/30">
+              <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/40 mb-1">
+                <Search size={32} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-base font-bold text-white/80">Search SoulSync</h2>
+              <p className="text-xs text-white/40 max-w-xs leading-relaxed">
+                Find your favorite songs, artists, soundtracks, and albums.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. NO RESULTS STATE */}
+      {state === "no-results" && (
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 bg-white/[0.02] border border-white/5 rounded-3xl p-8">
+          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-white/40 mb-2">
+            <SearchX size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-white">
+            No results found for &quot;{query}&quot;
+          </h2>
+          <p className="text-xs text-white/50 max-w-sm">
+            Please check your spelling or try searching for a different song,
+            artist, or album name.
+          </p>
+          <div className="pt-2 text-left bg-white/5 p-4 rounded-2xl max-w-xs w-full text-xs text-white/60 space-y-2">
+            <p className="font-semibold text-white">Search Tips:</p>
+            <ul className="list-disc list-inside space-y-1 text-white/50">
+              <li>Try searching by artist (e.g. &quot;Anirudh&quot;)</li>
+              <li>Try searching by album or movie name</li>
+              <li>Simplify query terms</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* 3. HAS RESULTS STATE */}
+      {state === "results" && hasAnyResults && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* ── ALL TAB ───────────────────────────────────────────────── */}
+          {activeTab === "all" && (
+            <div className="space-y-8">
+              {/* Section 1: Songs */}
+              {hasSongs && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                      <Music size={18} className="text-sp-green" /> Songs
+                    </h2>
+                    <button
+                      onClick={() => setActiveTab("songs")}
+                      className="text-xs font-bold text-sp-green hover:underline flex items-center gap-1"
+                    >
+                      Show all <ChevronRight size={14} />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {songs.slice(0, 5).map((song, i) => (
+                      <SongRow
+                        key={song.id}
+                        song={song}
+                        index={i}
+                        isCurrent={currentSong?.id === song.id}
+                        isPlaying={isPlaying}
+                        onPlay={() => onPlay(song, songs)}
+                        liked={!!likedSongs?.[song.id]}
+                        onLike={onLike}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Section 2: Albums */}
+              {hasAlbums && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                      <Disc3 size={18} className="text-blue-400" /> Albums
+                    </h2>
+                    <button
+                      onClick={() => setActiveTab("albums")}
+                      className="text-xs font-bold text-sp-green hover:underline flex items-center gap-1"
+                    >
+                      Show all <ChevronRight size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {albums.slice(0, 5).map((album) => (
+                      <AlbumCard
+                        key={album.id}
+                        album={album}
+                        onClick={(id) => navigate(`/album/${id}`)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Section 3: Artists */}
+              {hasArtists && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                      <User size={18} className="text-purple-400" /> Artists
+                    </h2>
+                    <button
+                      onClick={() => setActiveTab("artists")}
+                      className="text-xs font-bold text-sp-green hover:underline flex items-center gap-1"
+                    >
+                      Show all <ChevronRight size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {artists.slice(0, 5).map((artist) => (
+                      <ArtistCard
+                        key={artist.id}
+                        artist={artist}
+                        onClick={(id) => navigate(`/artist/${id}`)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+
+          {/* ── SONGS TAB ─────────────────────────────────────────────── */}
+          {activeTab === "songs" && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-extrabold text-white">
+                All Song Results
+              </h2>
+              {hasSongs ? (
+                <div className="space-y-1">
+                  {songs.slice(0, songLimit).map((song, i) => (
                     <SongRow
                       key={song.id}
                       song={song}
                       index={i}
-                      onPlay={handlePlay}
                       isCurrent={currentSong?.id === song.id}
                       isPlaying={isPlaying}
+                      onPlay={() => onPlay(song, songs)}
+                      liked={!!likedSongs?.[song.id]}
+                      onLike={onLike}
                     />
                   ))}
+                  {songs.length > songLimit && (
+                    <div className="pt-4 text-center">
+                      <button
+                        onClick={() => setSongLimit((prev) => prev + 50)}
+                        className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all shadow-md"
+                      >
+                        Load More Songs ({songs.length - songLimit} remaining)
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-
-            {/* Mobile: stacked */}
-            <div className="md:hidden flex flex-col gap-3">
-              {result.topResult && (
-                <div>
-                  <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2">
-                    Top Result
-                  </h3>
-                  <TopResultHero item={result.topResult} onPlay={handlePlay} />
-                </div>
+              ) : (
+                <p className="text-xs text-white/50 py-8 text-center">
+                  No song matches found.
+                </p>
               )}
-              <div className="space-y-0.5">
-                {firstSectionSongs.map((song, i) => (
-                  <SongRow
-                    key={song.id}
-                    song={song}
-                    index={i}
-                    onPlay={handlePlay}
-                    isCurrent={currentSong?.id === song.id}
-                    isPlaying={isPlaying}
-                  />
-                ))}
-              </div>
             </div>
+          )}
 
-            {/* Artists */}
-            {result.artists?.length > 0 && (
-              <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                  <Mic2 size={11} /> Artists
-                </h3>
-                <div className="flex gap-5 overflow-x-auto pb-1 thin-scrollbar">
-                  {result.artists.slice(0, 8).map((a: any) => (
-                    <ArtistCircle key={a.id || a.name} artist={a} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Albums */}
-            {result.albums?.length > 0 && (
-              <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                  <Disc3 size={11} /> Albums
-                </h3>
-                <div className="flex gap-3 overflow-x-auto pb-1 thin-scrollbar">
-                  {result.albums.slice(0, 10).map((a: any) => (
-                    <AlbumCard key={a.id || a.name} album={a} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Remaining songs — always visible */}
-            {hasMoreSongs && (
-              <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 flex items-center gap-2">
-                  <Music size={11} /> More Songs
-                  <span className="text-white/20 font-normal normal-case tracking-normal">
-                    {songs.length}
-                  </span>
-                </h3>
-                <div className="space-y-0.5">
-                  {remainingSongs.map((song, i) => (
-                    <SongRow
-                      key={song.id}
-                      song={song}
-                      index={splitAt + i}
-                      onPlay={handlePlay}
-                      isCurrent={currentSong?.id === song.id}
-                      isPlaying={isPlaying}
+          {/* ── ALBUMS TAB ────────────────────────────────────────────── */}
+          {activeTab === "albums" && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-extrabold text-white">
+                All Album Results
+              </h2>
+              {hasAlbums ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {albums.map((album) => (
+                    <AlbumCard
+                      key={album.id}
+                      album={album}
+                      onClick={(id) => navigate(`/album/${id}`)}
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-white/50 py-8 text-center">
+                  No album matches found.
+                </p>
+              )}
+            </div>
+          )}
 
-            {/* Related searches */}
-            {(result.relatedSearches?.length ?? 0) > 0 && (
-              <div>
-                <h3 className="text-white/35 text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5">
-                  Related
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {result.relatedSearches?.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleChipClick(s)}
-                      className="px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.07] text-white/55 text-[12px] hover:bg-white/[0.09] hover:text-white hover:border-white/[0.12] transition-all"
-                    >
-                      {s}
-                    </button>
+          {/* ── ARTISTS TAB ───────────────────────────────────────────── */}
+          {activeTab === "artists" && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-extrabold text-white">
+                All Artist Results
+              </h2>
+              {hasArtists ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {artists.map((artist) => (
+                    <ArtistCard
+                      key={artist.id}
+                      artist={artist}
+                      onClick={(id) => navigate(`/artist/${id}`)}
+                    />
                   ))}
                 </div>
-              </div>
-            )}
-
-            <div ref={bottomRef} className="py-2" />
-          </div>
-        )}
-
-        {/* ── NO RESULTS ── */}
-        {state === "no-results" && (
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-5">
-              <SearchX size={28} className="text-white/20" />
+              ) : (
+                <p className="text-xs text-white/50 py-8 text-center">
+                  No artist matches found.
+                </p>
+              )}
             </div>
-            <p className="text-white font-bold text-lg">
-              No results for "{query}"
-            </p>
-            <p className="text-white/30 text-sm mt-2 mb-7 max-w-xs mx-auto leading-relaxed">
-              Try different keywords or check the spelling
-            </p>
-            <div className="flex flex-wrap justify-center gap-2 max-w-sm mx-auto">
-              {[
-                "Trending 2026",
-                "New releases",
-                "Party hits",
-                "Chill vibes",
-              ].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleChipClick(s.toLowerCase())}
-                  className="px-3 py-1.5 rounded-full text-[12px] font-medium bg-white/[0.05] text-white/50 hover:bg-white/[0.08] hover:text-white border border-white/[0.06] transition-all"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── ERROR ── */}
-        {state === "error" && (
-          <div className="flex flex-col items-center justify-center py-24 text-center px-4">
-            <p className="text-white/40 text-sm">
-              Search failed. Check your connection.
-            </p>
-            <button
-              onClick={() => setQuery(query.trim() + " ")}
-              className="mt-4 text-sp-green text-[13px] hover:text-sp-green/80 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
