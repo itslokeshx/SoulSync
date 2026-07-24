@@ -1,6 +1,8 @@
 {
   "version": "5.1.1",
-  "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.1.1/SoulSync_5.1.1.apk",
+  "apk_url": "https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.apk/download",
+  "exe_url": "https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.exe/download",
+  "deb_url": "https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.deb/download",
   "force": false,
   "changelog": [
     "Redesigned desktop navigation sidebar with ergonomic section layout",

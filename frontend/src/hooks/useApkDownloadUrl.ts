@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import packageJson from "../../package.json";
 
-const FALLBACK_URL = `https://github.com/itslokeshx/SoulSync/releases/download/v5.1.1/SoulSync_5.1.1.apk`;
+const FALLBACK_URL = `https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.apk/download`;
 
 export const useApkDownloadUrl = () => {
   const [url, setUrl] = useState(FALLBACK_URL);
