@@ -69,6 +69,18 @@ interface ScoredCandidate {
   tier: number; // lower tier = higher priority source
 }
 
+function extractRootSongTitle(name: string): string {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace(/\(.*?\)/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/-(.*?)$/g, "")
+    .replace(/\b(reprise|unplugged|acoustic|piano|lullaby|rage|rock|orchestral|soul|comedy|bgm|instrumental|slowed|reverb|remix|cover|lofi|dialogue|theme|version|mix)\b/gi, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
 type SongVibe = "romantic_melody" | "aggressive_fight" | "upbeat_dance" | "sad_melancholy" | "neutral";
 
 function detectSongVibe(song: Song): SongVibe {
@@ -517,24 +529,32 @@ export async function predictNextTracks(
   // ════════════════════════════════════════════════════════════════
   rawCandidates.sort((a, b) => b.score - a.score);
 
-  // ── Human DJ rotation: max 2 songs per artist ────────────────
+  // ── Human DJ rotation: max 2 songs per artist & max 1 per root title ──
   const artistCount = new Map<string, number>();
   const seenTitles = new Set<string>();
+  const seenRootTitles = new Set<string>();
   const finalQueue: QueuedTrack[] = [];
+
+  // Seed song root title is registered first so variations of current song are excluded
+  const seedRootTitle = extractRootSongTitle(seedSong.name || "");
+  if (seedRootTitle) seenRootTitles.add(seedRootTitle);
 
   for (const candidate of rawCandidates) {
     const { song, score, signals, reason } = candidate;
 
-    // Deduplicate by cleaned title
     const cleanTitle = (song.name || "")
       .toLowerCase()
       .replace(/\(.*?\)/g, "")
       .replace(/\[.*?\]/g, "")
       .replace(/[^a-z0-9]/g, "")
       .trim();
-    if (cleanTitle && seenTitles.has(cleanTitle)) continue;
 
-    // Artist rotation cap
+    const rootTitle = extractRootSongTitle(song.name || "");
+
+    if (cleanTitle && seenTitles.has(cleanTitle)) continue;
+    if (rootTitle && seenRootTitles.has(rootTitle)) continue; // STRICT max 1 per root song title!
+
+    // Artist rotation cap (max 2 per primary artist)
     const firstArtist = (song.primaryArtists || "")
       .split(/[,/&]+/)[0]
       .trim()
@@ -544,6 +564,7 @@ export async function predictNextTracks(
 
     artistCount.set(firstArtist, artistSoFar + 1);
     if (cleanTitle) seenTitles.add(cleanTitle);
+    if (rootTitle) seenRootTitles.add(rootTitle);
 
     // Confidence score: signal-based (0–100)
     // Based on real signals, not self-referential scoring
