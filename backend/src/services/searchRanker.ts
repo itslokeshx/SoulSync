@@ -325,6 +325,15 @@ export const KNOWN_SONGS: Record<string, string> = {
   "watermelon sugar": "Harry Styles",
   butter: "BTS",
   dynamite: "BTS",
+  // Movie OSTs
+  "zeus law": "Ludwig Goransson",
+  "zeus's law": "Ludwig Goransson",
+  sirens: "Travis Scott",
+  "when i'm home": "Ludwig Goransson",
+  "katchi sera": "Sai Abhyankkar",
+  illuminati: "Sushin Shyam",
+  hukum: "Anirudh Ravichander",
+  "arabic kuthu": "Anirudh Ravichander",
   // Hindi
   kesariya: "Arijit Singh",
   "tum hi ho": "Arijit Singh",

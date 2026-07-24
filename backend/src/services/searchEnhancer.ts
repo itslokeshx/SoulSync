@@ -72,7 +72,14 @@ const ACTOR_DICT: Record<string, string[]> = {
   fahadh: ["Fahadh Faasil", "Sushin Shyam"],
   "fahadh faasil": ["Fahadh Faasil"],
   mohanlal: ["Mohanlal"],
-  mammootty: ["Mammootty"],
+  nolan: ["Ludwig Goransson", "Hans Zimmer"],
+  "christopher nolan": ["Ludwig Goransson", "Hans Zimmer"],
+  lokesh: ["Anirudh Ravichander"],
+  "lokesh kanagaraj": ["Anirudh Ravichander"],
+  nelson: ["Anirudh Ravichander"],
+  "nelson dilipkumar": ["Anirudh Ravichander"],
+  atlee: ["Anirudh Ravichander", "A.R. Rahman"],
+  "mani ratnam": ["A.R. Rahman"],
 };
 
 // ── Project Code Dictionary ──
@@ -80,6 +87,15 @@ const PROJECT_DICT: Record<
   string,
   { movie?: string; actor?: string; isRecent?: boolean }
 > = {
+  odyssey: { movie: "The Odyssey", isRecent: true },
+  "the odyssey": { movie: "The Odyssey", isRecent: true },
+  "nolan movie": { movie: "The Odyssey", isRecent: true },
+  "nolan new movie": { movie: "The Odyssey", isRecent: true },
+  "christopher nolan": { movie: "The Odyssey", isRecent: true },
+  coolie: { movie: "Coolie", actor: "rajinikanth", isRecent: true },
+  leo: { movie: "Leo", actor: "vijay", isRecent: true },
+  jailer: { movie: "Jailer", actor: "rajinikanth", isRecent: true },
+  "hit 3": { movie: "HIT 3", isRecent: true },
   aa23: { movie: "pushpa 2", actor: "allu arjun", isRecent: true },
   "pushpa 2": { movie: "pushpa 2", actor: "allu arjun", isRecent: true },
   t69: { actor: "vijay", isRecent: true },
