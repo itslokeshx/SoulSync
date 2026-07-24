@@ -1,12 +1,12 @@
 {
-  "version": "5.1.0",
-  "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.1.0/SoulSync_5.1.0.apk",
+  "version": "5.1.1",
+  "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.1.1/SoulSync_5.1.1.apk",
   "force": false,
   "changelog": [
-    "SoulSync v5.1 - Redesigned Recommendation & Up Next Engine",
-    "Deterministic Taste Profile & Session-Anchored DJ Queue",
-    "Tamil Contemporary Ecosystem & Cross-Genre Taste Clusters",
-    "Strict Single-Album Capping & Zero Language Leakage",
-    "Real Behavioral Telemetry Tracking & Cleaned Production Architecture"
+    "SoulSync v5.1.1 - Natural Language Search & Intent Engine",
+    "Entity Relationship Graph Traversal (Directors, Actors, Movies, Soundtracks)",
+    "Damerau-Levenshtein Typo Resilience (odessy, hukm, katci sera, anrudh)",
+    "Adaptive Telemetry Learning (SearchClickEvent & PlaybackEvent Feedback)",
+    "Deterministic Ranking & Multi-Signal Search Quality Enhancement"
   ]
 }

@@ -11,7 +11,7 @@ export class AnalyticsService {
   private static instance: AnalyticsService;
   private isNative: boolean;
   private platformName: string;
-  private appVersion: string = "5.1.0";
+  private appVersion: string = "5.1.1";
   private isInitialized: boolean = false;
 
   private constructor() {
