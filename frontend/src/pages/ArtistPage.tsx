@@ -14,6 +14,7 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 import { Skeleton } from "../components/ui/Skeleton";
 import { GreenButton } from "../components/ui/GreenButton";
@@ -26,6 +27,7 @@ import {
 } from "../api/jiosaavn";
 import { useApp } from "../context/AppContext";
 import { useUIStore } from "../store/uiStore";
+import { useAuth } from "../auth/AuthContext";
 
 const ARTIST_ECOSYSTEMS: Record<string, string[]> = {
   tamil: [
@@ -94,6 +96,7 @@ export const ArtistPage = () => {
   const { id: artistId } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const { user } = useAuth();
   const {
     currentSong,
     isPlaying,
@@ -112,6 +115,21 @@ export const ArtistPage = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [songLimit, setSongLimit] = useState(10);
   const [showFullBio, setShowFullBio] = useState(false);
+
+  // User preferred language set
+  const prefLangs = (() => {
+    let list: string[] = [];
+    if (user?.preferences?.languages && Array.isArray(user.preferences.languages) && user.preferences.languages.length > 0) {
+      list = user.preferences.languages.map((l: string) => l.toLowerCase());
+    } else {
+      try {
+        const raw = localStorage.getItem("ss_pref_langs");
+        if (raw) list = JSON.parse(raw).map((l: string) => l.toLowerCase());
+      } catch {}
+    }
+    if (list.length === 0) list = ["tamil", "english"];
+    return new Set(list);
+  })();
 
   // Check localStorage for follow state
   useEffect(() => {
@@ -165,6 +183,41 @@ export const ArtistPage = () => {
     } catch {}
   };
 
+  const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
+  const [artistPage, setArtistPage] = useState(0);
+  const [hasMoreSongs, setHasMoreSongs] = useState(true);
+
+  const handleLoadMoreSongs = async () => {
+    if (loadingMoreSongs) return;
+
+    if (songLimit < songs.length) {
+      setSongLimit((prev) => prev + 25);
+      return;
+    }
+
+    if (!hasMoreSongs || !artistId) return;
+    setLoadingMoreSongs(true);
+    try {
+      const nextPage = artistPage + 1;
+      const newSongs = await fetchArtistSongs(artistId, nextPage);
+      if (newSongs && newSongs.length > 0) {
+        setSongs((prev) => {
+          const existingIds = new Set(prev.map((s) => String(s.id)));
+          const filtered = newSongs.filter((s: any) => s.id && !existingIds.has(String(s.id)));
+          return [...prev, ...filtered];
+        });
+        setArtistPage(nextPage);
+        setSongLimit((prev) => prev + 25);
+      } else {
+        setHasMoreSongs(false);
+      }
+    } catch {
+      setHasMoreSongs(false);
+    } finally {
+      setLoadingMoreSongs(false);
+    }
+  };
+
   const loadArtistData = useCallback(async () => {
     if (!artistId) return;
     setLoading(true);
@@ -172,6 +225,8 @@ export const ArtistPage = () => {
     setSongs([]);
     setAlbums([]);
     setSimilarArtists([]);
+    setArtistPage(0);
+    setHasMoreSongs(true);
 
     try {
       const [artistData, songList] = await Promise.all([
@@ -181,12 +236,22 @@ export const ArtistPage = () => {
 
       const mainArtist: any = artistData || {};
 
-      // Extract & sort top 60 songs by popularity & release year
+      // Extract & sort top songs by popularity & release year
       const rawSongs = songList?.length
         ? songList
         : mainArtist?.top_songs || mainArtist?.songs || [];
 
       const sortedSongs = [...rawSongs].sort((a: any, b: any) => {
+        const langA = (a.language || "").toLowerCase();
+        const langB = (b.language || "").toLowerCase();
+
+        const isPrefA = prefLangs.has(langA) ? 1 : 0;
+        const isPrefB = prefLangs.has(langB) ? 1 : 0;
+
+        if (isPrefA !== isPrefB) {
+          return isPrefB - isPrefA; // Preferred language songs FIRST
+        }
+
         const pA = a.playCount || a.play_count || 0;
         const pB = b.playCount || b.play_count || 0;
         if (pB !== pA) return pB - pA;
@@ -209,8 +274,7 @@ export const ArtistPage = () => {
 
       mainArtist.name = resolvedName;
       setArtist(mainArtist);
-
-      setSongs(sortedSongs.slice(0, 60));
+      setSongs(sortedSongs);
 
       // Extract albums (newest year first)
       const rawAlbums = mainArtist?.albums || mainArtist?.top_albums || [];
@@ -543,13 +607,22 @@ export const ArtistPage = () => {
             })}
           </div>
 
-          {songs.length > songLimit && (
-            <div className="pt-2 text-center">
+          {(songLimit < songs.length || hasMoreSongs) && (
+            <div className="pt-3 text-center">
               <button
-                onClick={() => setSongLimit((prev) => Math.min(prev + 20, 60))}
-                className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all"
+                onClick={handleLoadMoreSongs}
+                disabled={loadingMoreSongs}
+                className="px-8 py-3 rounded-full bg-sp-green/10 hover:bg-sp-green/20 text-sp-green border border-sp-green/30 text-xs font-extrabold transition-all duration-200 active:scale-95 flex items-center gap-2 mx-auto shadow-md"
               >
-                Show More Popular Songs ({songs.length - songLimit} remaining)
+                {loadingMoreSongs ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Fetching more tracks...
+                  </>
+                ) : (
+                  <>
+                    Load More Songs ({songs.length > songLimit ? `${songs.length - songLimit} ready` : "Fetch more discography"})
+                  </>
+                )}
               </button>
             </div>
           )}
