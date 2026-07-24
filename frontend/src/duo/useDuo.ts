@@ -10,6 +10,7 @@ import {
 import { useDuoStore, getPersistedSession } from "./duoStore";
 import { getNativeToken } from "../api/backend";
 import { isNative } from "../utils/platform";
+import { analytics } from "../services/analytics";
 
 const BACKEND_URL = (
   import.meta.env.VITE_DUO_BACKEND ||
@@ -293,6 +294,7 @@ export function useDuo({
   const endSession = useCallback(() => {
     if (!store.getState().active) return;
     getSocket().emit("duo:end-session");
+    analytics.track("soullink_leave", { room_code: store.getState().roomCode || "" });
     store.getState().endSession();
     disconnectSocket();
     hasConnectedOnceRef.current = false;

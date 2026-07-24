@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Copy, Check } from "lucide-react";
 import { useDuoStore } from "./duoStore";
+import { analytics } from "../services/analytics";
 
 interface DuoModalProps {
   onCreate: (name: string) => Promise<string | null>;
@@ -31,7 +32,10 @@ export function DuoModal({ onCreate, onJoin }: DuoModalProps) {
     setLoading(true);
     const roomCode = await onCreate(name.trim());
     setLoading(false);
-    if (roomCode) setCreatedCode(roomCode);
+    if (roomCode) {
+      setCreatedCode(roomCode);
+      analytics.track("soullink_create", { room_code: roomCode });
+    }
   };
 
   const handleJoin = async () => {
@@ -40,6 +44,7 @@ export function DuoModal({ onCreate, onJoin }: DuoModalProps) {
     const ok = await onJoin(code.trim(), name.trim());
     setLoading(false);
     if (ok) {
+      analytics.track("soullink_join", { room_code: code.trim() });
       setModalOpen(false);
       setName("");
       setCode("");

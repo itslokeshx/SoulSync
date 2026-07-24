@@ -31,6 +31,7 @@ import { bestImg, getArtists, fmt, onImgErr } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
+import { analytics } from "../services/analytics";
 
 type TabType = "all" | "songs" | "albums" | "artists";
 
@@ -87,7 +88,10 @@ function SongRow({
 
   return (
     <div
-      onClick={() => onPlay(song)}
+      onClick={() => {
+        analytics.track("search_result_click", { item_id: song.id, item_type: "song", title: song.name });
+        onPlay(song);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onPlay(song)}
@@ -207,7 +211,10 @@ function AlbumCard({
 
   return (
     <div
-      onClick={() => onClick(album.id)}
+      onClick={() => {
+        analytics.track("search_result_click", { item_id: album.id, item_type: "album", title: album.name });
+        onClick(album.id);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick(album.id)}
@@ -255,7 +262,10 @@ function ArtistCard({
 
   return (
     <div
-      onClick={() => onClick(artist.id)}
+      onClick={() => {
+        analytics.track("search_result_click", { item_id: artist.id, item_type: "artist", title: artist.name });
+        onClick(artist.id);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick(artist.id)}
@@ -386,6 +396,10 @@ export function SearchPage() {
     setSearchParams({ q: searchTerm });
     setShowSuggestions(false);
     setSelectedIndex(-1);
+    analytics.track("search", {
+      query: searchTerm,
+      result_count: (result?.songs?.length || 0) + (result?.albums?.length || 0) + (result?.artists?.length || 0),
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

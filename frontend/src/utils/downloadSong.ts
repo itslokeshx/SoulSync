@@ -8,12 +8,18 @@ import { isNative } from "./platform";
 import { saveAudioToDevice } from "../capacitor/filesystem";
 import { impactFeedback, notificationFeedback } from "../capacitor/haptics";
 import toast from "react-hot-toast";
+import { analytics } from "../services/analytics";
 
 export async function downloadSong(
   song: Song,
   saveOffline = true,
   playlistName?: string,
 ): Promise<void> {
+  analytics.track("download_song", {
+    song_id: song.id,
+    song_title: song.name,
+    artist: getArtists(song),
+  });
   // Check if already in library
   if (saveOffline) {
     const saved = await isOfflineSaved(song.id);

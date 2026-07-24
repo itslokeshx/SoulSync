@@ -35,6 +35,7 @@ import { FeedbackModal } from "../components/ui/FeedbackModal";
 import { FeedbackHistoryModal } from "../components/ui/FeedbackHistoryModal";
 import { useAnnouncements } from "../hooks/useAnnouncements";
 import { useAnnouncementStore } from "../store/announcementStore";
+import { analytics } from "../services/analytics";
 
 const ALL_LANGUAGES = [
   "english",
@@ -188,6 +189,11 @@ export default function ProfilePage() {
       });
       updateUser(updated);
       setEditing(false);
+      analytics.track("profile_edit", {
+        name_changed: editName.trim() !== (user?.name || ""),
+        languages: editLanguages,
+        moods: editMoods,
+      });
       // Clear dashboard caches so home page refreshes with new language prefs
       for (let i = sessionStorage.length - 1; i >= 0; i--) {
         const key = sessionStorage.key(i);

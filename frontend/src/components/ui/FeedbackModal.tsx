@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { submitFeedback, getUserFeedbackHistory, markFeedbackRead } from "../../api/backend";
 import { getPlatform } from "../../utils/platform";
 import { Feedback } from "../../types/feedback";
+import { analytics } from "../../services/analytics";
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -53,6 +54,7 @@ export function FeedbackModal({ isOpen, onClose, onRefreshUnread }: FeedbackModa
 
   useEffect(() => {
     if (isOpen) {
+      analytics.track("support_chat_open");
       fetchChatHistory();
     }
   }, [isOpen]);

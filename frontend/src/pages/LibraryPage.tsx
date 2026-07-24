@@ -23,6 +23,7 @@ import { useUIStore } from "../store/uiStore";
 import * as api from "../api/backend";
 import { Playlist } from "../types/playlist";
 import { bestImg, onImgErr, fmt } from "../lib/helpers";
+import { analytics } from "../services/analytics";
 import { FALLBACK_IMG } from "../lib/constants";
 import toast from "react-hot-toast";
 
@@ -98,6 +99,7 @@ export default function LibraryPage() {
     setCreating(true);
     try {
       const playlist = await api.createPlaylist({ name: newName.trim() });
+      analytics.track("playlist_create", { name: playlist.name, count: 0 });
       setPlaylists((prev) => [playlist, ...prev]);
       setNewName("");
       setShowCreate(false);

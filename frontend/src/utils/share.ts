@@ -1,6 +1,7 @@
 import toast from "react-hot-toast";
 import { getArtists, bestImg } from "../lib/helpers";
 import { isNative } from "./platform";
+import { analytics } from "../services/analytics";
 
 /**
  * Returns the correct base URL for share links.
@@ -36,6 +37,12 @@ export async function shareSong(song: any) {
     const title = song.name || "Unknown";
     const artist = getArtists(song) || "";
     const url = generateSongUrl(song);
+
+    analytics.track("share_song", {
+        song_id: song.id || song.songId,
+        song_title: title,
+        artist,
+    });
 
     await doShare({ title: `${title} - ${artist}`, text: url, url });
 }

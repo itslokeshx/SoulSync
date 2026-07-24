@@ -17,6 +17,7 @@ import { bestImg, getArtists, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
 import * as api from "../../api/backend";
 import toast from "react-hot-toast";
+import { analytics } from "../../services/analytics";
 
 const BACKEND_URL = (
   import.meta.env.VITE_BACKEND_URL ||
@@ -225,6 +226,11 @@ export function AIPlaylistModal() {
           name: playlistName,
           isAIGenerated: true,
           songs,
+        });
+        analytics.track("ai_playlist_generate", {
+          name: playlist.name,
+          count: songs.length,
+          playlist_id: playlist._id,
         });
         toast.success(`✨ "${playlist.name}" saved!`);
         closeAIPlaylist();

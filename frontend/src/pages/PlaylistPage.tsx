@@ -24,6 +24,7 @@ import { onImgErr, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import { downloadPlaylist } from "../utils/downloadSong";
 import { sharePlaylist } from "../utils/share";
+import { analytics } from "../services/analytics";
 import { Download, Share2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { useUIStore } from "../store/uiStore";
@@ -124,6 +125,7 @@ export default function PlaylistPage() {
       setConfirmOpen(false);
       try {
         await api.deletePlaylist(id);
+        analytics.track("playlist_delete", { playlist_id: id, name: playlist?.name || "" });
         toast.success("Playlist deleted");
         navigate("/library", { replace: true });
       } catch {

@@ -22,6 +22,7 @@ import {
 } from "../capacitor/lifecycle";
 import { Capacitor } from "@capacitor/core";
 import { isNative } from "../utils/platform";
+import { analytics } from "../services/analytics";
 import { useDuo } from "../duo/useDuo";
 import { useDuoStore } from "../duo/duoStore";
 import { getOfflineBlob } from "../utils/offlineDB";
@@ -333,18 +334,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       onPause: pause,
       onNext: () => {
         const n = next(repeatMode);
-        if (n) playSong(n);
+        if (n) {
+          analytics.track("song_skip", { direction: "next", from_song_id: currentSong?.id, to_song_id: n.id });
+          playSong(n);
+        }
       },
       onPrev: () => {
         const p = prev();
-        if (p) playSong(p);
+        if (p) {
+          analytics.track("song_skip", { direction: "prev", from_song_id: currentSong?.id, to_song_id: p.id });
+          playSong(p);
+        }
       },
       onSeek: (v) => {
         if (audioRef.current) audioRef.current.currentTime = v;
         seekTo(v);
       },
     });
-  }, [resume, pause, next, prev, repeatMode, playSong, seekTo]);
+  }, [resume, pause, next, prev, repeatMode, playSong, seekTo, currentSong?.id]);
 
   useEffect(() => {
     if (currentSong) {
@@ -450,6 +457,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handleEnded = () => {
+    if (currentSong) {
+      analytics.track("song_complete", {
+        song_id: currentSong.id,
+        song_title: currentSong.name,
+        artist: getArtists(currentSong),
+      });
+    }
+
     const {
       sleepTimerActive: timerActive,
       sleepTimerEndOnTrack: endTrack,
@@ -512,22 +527,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const handlePause = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    // Skip entirely during src transitions — browser fires a spurious pause
-    // when the src attribute changes. Processing it would falsely set isPlaying=false
-    // and consume the isRemoteActionRef meant for the real play event.
     if (srcJustChangedRef.current) return;
-    // Only update state if the pause was intentional (not buffering/seeking)
     if (!audio.seeking && !audio.ended) {
       setIsPlaying(false);
+      if (currentSong) {
+        analytics.track("song_pause", {
+          song_id: currentSong.id,
+          song_title: currentSong.name,
+          current_time: currentTime,
+        });
+      }
     }
   };
 
   const handlePlay = () => {
     setIsPlaying(true);
+    if (currentSong) {
+      analytics.track("song_play", {
+        song_id: currentSong.id,
+        song_title: currentSong.name,
+        artist: getArtists(currentSong),
+        duration: currentSong.duration,
+      });
+    }
   };
 
   const handleError = () => {
     console.error("[AudioEngine] Playback error for:", currentSong?.name);
+    analytics.logError(`Playback error for ${currentSong?.name || "Unknown"}`, false, {
+      song_id: currentSong?.id,
+    });
     setIsPlaying(false);
     // Auto-skip on error after 2s delay
     setTimeout(() => {

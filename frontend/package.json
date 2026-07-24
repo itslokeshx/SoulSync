@@ -25,6 +25,7 @@
     "electron:build": "cp .env.electron .env.production.local && tsc -b && vite build && npx electron-builder --linux deb --win nsis && rm -f .env.production.local"
   },
   "dependencies": {
+    "@capacitor-community/firebase-analytics": "^8.0.0",
     "@capacitor/android": "^8.1.0",
     "@capacitor/app": "^8.0.1",
     "@capacitor/browser": "^8.0.1",
@@ -44,6 +45,7 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "firebase": "^12.16.0",
     "framer-motion": "^12.34.5",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.474.0",

@@ -22,6 +22,7 @@ import SongSharePage from "./pages/SongSharePage";
 import AdminPanel from "./pages/AdminPanel";
 
 import { PlayerProvider } from "./providers/PlayerProvider";
+import { AnalyticsTracker } from "./components/analytics/AnalyticsTracker";
 
 export default function App() {
   useEffect(() => {
@@ -63,7 +64,9 @@ function AppRouter() {
   const { user } = useAuth();
 
   return (
-    <Routes>
+    <>
+      <AnalyticsTracker />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/panel-m8u3p9" element={<AdminPanel />} />
@@ -109,5 +112,6 @@ function AppRouter() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+  </>
   );
 }

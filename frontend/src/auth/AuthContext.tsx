@@ -9,6 +9,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { User } from "../types/user";
 import * as api from "../api/backend";
 import { loadNativeToken } from "../api/backend";
+import { analytics } from "../services/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -46,6 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await loadNativeToken();
         const u = await api.getMe();
         setUser(u);
+        if (u) {
+          analytics.setUserId(u._id);
+          analytics.setUserProperty("login_type", u.googleId ? "google" : "email");
+        }
       } catch {
         setUser(null);
       } finally {
@@ -59,6 +64,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { user: loggedInUser, isNewUser } =
       await api.loginWithGoogle(googleCredential);
     setUser(loggedInUser);
+    analytics.setUserId(loggedInUser._id);
+    analytics.setUserProperty("login_type", "google");
+    analytics.track(isNewUser ? "signup" : "login", { method: "google", user_id: loggedInUser._id });
     return { isNewUser };
   }, []);
 
@@ -67,6 +75,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = await api.loginWithCredentials({ identifier, password });
       if (data.token) await api.saveNativeToken(data.token);
       setUser(data.user);
+      analytics.setUserId(data.user._id);
+      analytics.setUserProperty("login_type", "email");
+      analytics.track("login", { method: "credentials", user_id: data.user._id });
       return { isNewUser: data.isNewUser ?? !data.user.onboardingComplete };
     },
     [],
@@ -75,9 +86,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginAfterRegister = useCallback(async (user: User, token?: string) => {
     if (token) await api.saveNativeToken(token);
     setUser(user);
+    analytics.setUserId(user._id);
+    analytics.setUserProperty("login_type", "email");
+    analytics.track("signup", { method: "credentials", user_id: user._id });
   }, []);
 
   const logout = useCallback(async () => {
+    analytics.track("logout");
+    analytics.setUserId(null);
+    analytics.setUserProperty("login_type", "none");
     await api.logout();
     setUser(null);
     // Clear dashboard cache and liked songs so fresh data loads on next login

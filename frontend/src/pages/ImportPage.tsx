@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import * as api from "../api/backend";
 import { getArtists, bestImg } from "../lib/helpers";
+import { analytics } from "../services/analytics";
 
 const PLATFORMS = [
   {
@@ -158,6 +159,11 @@ export default function ImportPage() {
           isAIGenerated: true,
           songs,
           tags: ["imported", preview.detectedPlatform],
+        });
+        analytics.track("playlist_import", {
+          source: preview.detectedPlatform,
+          count: songs.length,
+          playlist_id: playlist._id,
         });
         setMatchResult({ ...res, savedPlaylistId: playlist._id });
       } else {

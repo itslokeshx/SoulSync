@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import * as api from "../api/backend";
+import { analytics } from "../services/analytics";
 
 
 export const useLikedSongs = (
@@ -67,6 +68,7 @@ export const useLikedSongs = (
       const next = { ...prev };
       if (next[song.id]) {
         delete next[song.id];
+        analytics.track("unfavorite_song", { song_id: song.id, song_title: song.name });
       } else {
         next[song.id] = {
           id: song.id,
@@ -81,6 +83,11 @@ export const useLikedSongs = (
           language: song.language || "",
           playCount: song.playCount || 0,
         };
+        analytics.track("favorite_song", {
+          song_id: song.id,
+          song_title: song.name,
+          artist: song.primaryArtists || "",
+        });
       }
       localStorage.setItem("ss_liked", JSON.stringify(next));
       return next;
