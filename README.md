@@ -1,6 +1,6 @@
 # SoulSync
 
-Free, open-source music streaming platform with AI-generated playlists, real-time shared listening sessions, offline playback, and native Android support.
+Free, open-source music streaming platform with natural language search, AI-generated playlists, real-time shared listening rooms, listening analytics, and native Android support.
 
 [![Stars](https://img.shields.io/github/stars/itslokeshx/SoulSync)](https://github.com/itslokeshx/SoulSync/stargazers)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/itslokeshx/SoulSync/blob/main/LICENSE)
@@ -12,174 +12,189 @@ Free, open-source music streaming platform with AI-generated playlists, real-tim
 
 ## Overview
 
-SoulSync is a full-stack music streaming application built as an ad-free, subscription-free alternative to commercial platforms. It provides AI-assisted playlist generation, synchronized group listening, offline downloads, and listening analytics, all built on an open-source stack.
+SoulSync is a full-stack music streaming platform engineered as an ad-free, subscription-free alternative to commercial streaming services. It combines an intelligent intent-aware search engine, automated recommendation pipelines, LLM-powered playlist generation, real-time synchronized listening rooms, and detailed user listening analytics.
 
-The project is currently used by roughly 180 users, with over 8,000 songs streamed to date.
+The application serves both web clients and native Android devices via Capacitor, providing continuous audio streaming, offline playback management, and cross-platform synchronization.
 
-## Downloads
+---
 
-| Platform | Link                                                                                               | Requirement  |
-| -------- | -------------------------------------------------------------------------------------------------- | ------------ |
-| Web      | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app)                                     | None         |
-| Android  | [SoulSync v5.0 APK](https://github.com/itslokeshx/SoulSync/releases/download/v5.0/SoulSync_v5.apk) | Android 7.0+ |
+## Downloads & Access
 
-## Features
+| Platform | URL / Artifact | Requirement |
+| :--- | :--- | :--- |
+| Web Application | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | Modern Browser |
+| Android Client | [SoulSync v5.1 APK](https://github.com/itslokeshx/SoulSync/releases) | Android 7.0+ (API 24+) |
 
-### AI Playlist Generation
+---
 
-Generates playlists from natural-language prompts (e.g. "late night drive under rain") using an open-weight 120B-parameter LLM served via Groq. Supports matching pasted song lists against catalog metadata, and importing playlists from Spotify, YouTube Music, Apple Music, or plain text. Uses a multi-key rotation strategy across Groq API keys for rate-limit resilience, with a 30-minute cache layer.
+## Core Capabilities
 
-### SoulLink — Shared Listening Sessions
+### 1. Intent-Aware Natural Language Search
+SoulSync includes a specialized search engine optimized for human search behavior rather than strict keyword matching:
+- **Entity Relationship Graph**: Traverses relationships across Directors, Actors, Movies, Soundtracks, and Artists (e.g., *Christopher Nolan* $\rightarrow$ *The Odyssey*, *Oppenheimer*, *Interstellar*; *Rajinikanth* $\rightarrow$ *Coolie*, *Jailer*, *Vettaiyan*).
+- **Natural Language Parsing**: Infers user intent for queries such as `"songs from nolan movie"`, `"latest anirudh"`, `"that pushpa song"`, `"new tamil hit"`, `"best gym songs"`, and `"movie bgm"`.
+- **Typo Resilience**: Uses Damerau-Levenshtein edit distance and phonetic mapping to resolve misspellings (*"odessy"*, *"hukm"*, *"katci sera"*, *"anrudh"*, *"tailor swift"*) without degrading exact title matches.
+- **Adaptive Telemetry Signals**: Ranks search candidate pools dynamically based on click-through rates (CTR), completion rates, like rates, and early skip penalties.
 
-Real-time synchronized listening rooms using WebSockets. Playback state (play/pause, seek, queue, track changes) propagates instantly to all connected participants. Rooms use six-character join codes and do not require an account. Includes in-room chat and automatic cleanup of disconnected sessions via heartbeat monitoring.
+### 2. AI Playlist Generation & Importer
+- **Prompt-to-Playlist**: Uses open-weight LLMs served via Groq Cloud SDK to generate themed playlists from natural language prompts.
+- **Multi-Key Failover**: Features automatic rotation across multiple Groq API keys for rate-limit resilience.
+- **Multi-Platform Import**: Parses and imports playlists from Spotify, Apple Music, YouTube Music, or raw text lists, matching catalog metadata in parallel.
 
-### Listening Analytics ("Wrapped")
+### 3. SoulLink — Real-Time Shared Listening Rooms
+- **Synchronized Playback**: Enables real-time listening sessions over WebSockets using Socket.io. Playback state, track changes, seek offsets, and queue updates propagate instantly across connected clients.
+- **Session Control**: Rooms operate via 6-character room codes with heartbeat monitoring, automatic disconnect cleanup, and in-room text chat.
 
-A visual summary of listening activity — total minutes, play counts, and top tracks — computed live from stored history, presented as a shareable, story-style deck.
+### 4. Taste Profile & Personalization Engine
+- **Behavior Weighting**: Computes implicit user taste vectors from listening history, track completions, replays, likes, and skips.
+- **Dynamic Recommendations**: Generates personalized home feeds and automated up-next queues while filtering negative affinity items and enforcing artist diversity.
 
-### Sleep Timer
+### 5. Listening Analytics ("SoulSync Wrapped")
+- Computes comprehensive user stats including top tracks, top artists, primary languages, and total listening duration, presented in an interactive story-deck layout.
 
-Configurable playback timer with preset durations (5–60 minutes), custom minute entry, and an "end of track" mode that stops playback at the end of the current song.
-
-### Feedback
-
-In-app feedback submission with a history view and read-status tracking for staff replies.
+---
 
 ## Architecture
 
-SoulSync consists of a React frontend (web and Android, via Capacitor), an Express/Socket.io backend, and three managed data services: MongoDB Atlas for persistent storage, Upstash Redis for caching, and Groq Cloud for LLM inference.
+SoulSync follows a decoupled client-server architecture consisting of a React frontend (Web + Capacitor Android bridge), an Express/Socket.io Node.js backend, and managed cloud infrastructure services.
 
 ```
-┌────────────────────┐     ┌────────────────────┐
-│    Web Frontend     │     │   Android (APK)     │
-│  React + Zustand    │     │  React + Capacitor   │
-└──────────┬───────────┘     └──────────┬───────────┘
-           │        REST API + WebSocket (Socket.io)     │
-           └──────────────────────┬──────────────────────┘
-                                   │
-                     ┌─────────────▼─────────────┐
-                     │   Backend (Express 4 +    │
-                     │      Socket.io 4)          │
-                     │                             │
-                     │  Routes: auth, search,     │
-                     │  dashboard, playlist, ai,   │
-                     │  import, share, session,    │
-                     │  user, feedback             │
-                     │                             │
-                     │  Services: JioSaavn client,│
-                     │  search ranker, Groq        │
-                     │  integration, intent        │
-                     │  parser, Redis cache        │
-                     └──────┬──────┬──────┬────────┘
-                            │      │      │
-                 ┌──────────▼┐ ┌───▼────┐ ┌▼─────────┐
-                 │ MongoDB   │ │ Redis  │ │ Groq API │
-                 │ Atlas     │ │(Upstash│ │(LLM infer│
-                 │           │ │)       │ │ ence)    │
-                 └───────────┘ └────────┘ └──────────┘
+┌──────────────────────────┐         ┌──────────────────────────┐
+│      Web Frontend        │         │      Android APK         │
+│  React 18 + TypeScript   │         │  Capacitor Native Bridge │
+└────────────┬─────────────┘         └────────────┬─────────────┘
+             │                                    │
+             └───────────────┬────────────────────┘
+                             │ REST API + Socket.io WebSockets
+                             ▼
+              ┌──────────────────────────────┐
+              │    Backend Engine (Node.js)  │
+              │  Express 4 + Socket.io 4     │
+              │                              │
+              │  - Intent & Search Ranker    │
+              │  - Taste & Rec Pipeline      │
+              │  - Telemetry Learning Store  │
+              │  - Duo Session Manager       │
+              └──────┬────────┬────────┬─────┘
+                     │        │        │
+           ┌─────────▼┐   ┌───▼────┐  ┌▼──────────┐
+           │ MongoDB  │   │ Upstash│  │ Groq Cloud│
+           │ Atlas    │   │ Redis  │  │ LLM API   │
+           └──────────┘   └────────┘  └───────────┘
 ```
 
-**Key backend routes:**
+### Key API Endpoint Summary
 
-| Route                               | Purpose                               |
-| ----------------------------------- | ------------------------------------- |
-| `/api/auth/google`                  | Google OAuth 2.0 login                |
-| `/api/search`                       | Ranked search                         |
-| `/api/dashboard`                    | Personalized/guest dashboard sections |
-| `/api/playlist/*`                   | Playlist CRUD                         |
-| `/api/ai/generate`, `/api/ai/match` | AI playlist generation and matching   |
-| `/api/import/detect`                | External playlist import              |
-| `/api/share/*`                      | Public share links                    |
-| `/api/session/*`                    | SoulLink room creation and join       |
-| `/api/user/*`                       | Profile, preferences, and stats       |
-| `/api/feedback`                     | Feedback and support                  |
+| Module | Route Prefix | Primary Operations |
+| :--- | :--- | :--- |
+| **Authentication** | `/api/auth` | Google OAuth 2.0, JWT authentication, cookie management |
+| **Search Engine** | `/api/search` | Intent-parsed search, auto-suggestions, click & playback telemetry |
+| **Recommendations**| `/api/recommendations` | Home feed recommendations, up-next autoplay, feed pagination |
+| **AI Generator** | `/api/ai` | Prompt-to-playlist generation, natural language track matching |
+| **Importer** | `/api/import` | Spotify, Apple Music, YT Music playlist parsing |
+| **Playlists** | `/api/playlist` | Playlist CRUD, track reordering, public link sharing |
+| **SoulLink** | `/api/session` | Duo session creation, joining, and status polling |
+| **User Analytics** | `/api/user` | History logging, liked songs, Wrapped stats, taste preferences |
+| **Dashboard** | `/api/dashboard` | Aggregated home feed data for guest and authenticated sessions |
 
-**Key Socket.io events:** `duo:join`, `duo:sync-song-change`, `duo:sync-play`, `duo:sync-seek`, `duo:message`, `duo:end-session`, `heartbeat`.
+---
 
-## Tech Stack
+## Technology Stack
 
-| Layer    | Technologies                                                      |
-| -------- | ----------------------------------------------------------------- |
-| Frontend | React 18.3, TypeScript 5.7, Vite 6.1, Tailwind CSS 3.4, Zustand 5 |
-| Mobile   | Capacitor 8.1, Android API 24+                                    |
-| Backend  | Node.js 18+, Express 4.21, Socket.io 4.8, TypeScript 5.7          |
-| Database | MongoDB 8.9 (Mongoose), Upstash Redis                             |
-| AI       | GPT OSS 120B LLM via Groq Cloud SDK, 5-key failover rotation      |
-| Auth     | Google OAuth 2.0, JWT (RS256), httpOnly secure cookies            |
-| Hosting  | Vercel (frontend), Render (backend), MongoDB Atlas (database)     |
+| Layer | System Components |
+| :--- | :--- |
+| **Frontend** | React 18.3, TypeScript 5.7, Vite 6.4, Tailwind CSS 3.4, Zustand 5, Framer Motion, Lucide Icons |
+| **Mobile** | Capacitor 8.1, Android API 24+ |
+| **Backend** | Node.js 18+, Express 4.21, Socket.io 4.8, TypeScript 5.7 |
+| **Database** | MongoDB 8.9 (Mongoose ORM), Upstash Redis |
+| **AI / Machine Learning** | Groq Cloud SDK (OSS 120B LLM), Multi-Key Failover Engine |
+| **Authentication** | Google OAuth 2.0, JWT (RS256/HS256), HttpOnly Cookies |
+| **Deployment** | Vercel (Frontend), Render (Backend), MongoDB Atlas (Database) |
 
-## Project Structure
+---
+
+## Repository Structure
 
 ```
 SoulSync/
 ├── backend/
+│   ├── scripts/            # Benchmark and diagnostic utilities
 │   └── src/
-│       ├── middleware/     # auth, rate limiting
-│       ├── models/         # Mongoose schemas
-│       ├── routes/         # API route handlers
-│       ├── services/       # business logic, integrations
-│       └── socket/         # real-time event handlers
+│       ├── data/           # Entity dictionaries and relationship graphs
+│       ├── middleware/     # Authentication and rate limiting
+│       ├── models/         # Mongoose schemas (Users, Events, Telemetry)
+│       ├── routes/         # REST API route handlers
+│       ├── services/       # Search engine, recommendation, and AI services
+│       └── socket/         # Real-time WebSocket handlers
 │
 └── frontend/
     └── src/
-        ├── api/            # backend and JioSaavn clients
-        ├── capacitor/      # native Android bridge modules
-        ├── components/     # UI components by domain
-        ├── hooks/          # shared React hooks
-        ├── store/          # Zustand state stores
-        └── pages/          # top-level route pages
+        ├── api/            # HTTP and service clients
+        ├── capacitor/      # Native mobile bridge hooks
+        ├── components/     # UI components grouped by domain
+        ├── hooks/          # Shared custom React hooks
+        ├── pages/          # Primary application page views
+        ├── store/          # Zustand application state stores
+        └── styles/         # Global CSS and tailwind configurations
 ```
 
-## Getting Started
+---
+
+## Development Setup
 
 ### Prerequisites
 
-- Node.js ≥ 18
-- npm ≥ 9
-- A MongoDB Atlas instance (free tier is sufficient)
-- A Google Cloud OAuth 2.0 client ID
-- A Groq API key (for AI features)
+- Node.js ≥ 18.0.0
+- npm ≥ 9.0.0
+- MongoDB Atlas database instance
+- Upstash Redis instance (or local Redis)
+- Groq Cloud API Key(s)
 
-### Local Setup
+### Installation & Execution
 
-```bash
-git clone https://github.com/itslokeshx/SoulSync.git
-cd SoulSync
-
-npm run install:all
-
-cp frontend/.env.example frontend/.env
-cp backend/.env.example backend/.env
-
-npm run dev:backend   # Express on port 4000
-npm run dev:frontend  # Vite on http://localhost:5173
-```
-
-## Contributing
-
-Contributions are welcome, including bug reports, feature proposals, UI improvements, and documentation fixes.
-
-1. Fork the repository and clone your fork.
-2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Install dependencies: `npm run install:all`
-4. Make changes and verify types:
+1. Clone the repository:
    ```bash
-   cd backend && npx tsc --noEmit
-   cd frontend && npx tsc --noEmit
+   git clone https://github.com/itslokeshx/SoulSync.git
+   cd SoulSync
    ```
-5. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
 
-   | Prefix      | Meaning                               |
-   | ----------- | ------------------------------------- |
-   | `feat:`     | New feature                           |
-   | `fix:`      | Bug fix                               |
-   | `docs:`     | Documentation                         |
-   | `style:`    | Formatting, no logic change           |
-   | `refactor:` | Restructuring without behavior change |
-   | `perf:`     | Performance improvement               |
-   | `chore:`    | Build/dependency maintenance          |
+2. Install dependencies across all packages:
+   ```bash
+   npm run install:all
+   ```
 
-6. Push your branch and open a pull request.
+3. Configure environment variables:
+   ```bash
+   cp frontend/.env.example frontend/.env
+   cp backend/.env.example backend/.env
+   ```
+
+4. Launch the local development servers:
+   ```bash
+   # Terminal 1: Backend API (Express on http://localhost:4000)
+   npm run dev:backend
+
+   # Terminal 2: Web Client (Vite on http://localhost:5173)
+   npm run dev:frontend
+   ```
+
+5. Verify TypeScript types:
+   ```bash
+   cd backend && npm run typecheck
+   cd ../frontend && npm run build
+   ```
+
+---
+
+## Contribution Workflow
+
+1. Fork the repository and create a feature branch (`git checkout -b feat/feature-name`).
+2. Implement your changes following project conventions.
+3. Ensure type safety across both packages (`npm run typecheck` in backend, `npm run build` in frontend).
+4. Commit using Conventional Commits guidelines (`feat:`, `fix:`, `docs:`, `perf:`, `refactor:`).
+5. Push to your branch and open a Pull Request.
+
+---
 
 ## License
 
