@@ -17,6 +17,8 @@ import {
   ShieldAlert,
   Megaphone,
   Bell,
+  Smartphone,
+  Github,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
@@ -24,6 +26,8 @@ import * as api from "../api/backend";
 import { UserStats } from "../types/user";
 import { onImgErr } from "../lib/helpers";
 import { isNative } from "../utils/platform";
+import { useApkDownloadUrl } from "../hooks/useApkDownloadUrl";
+import { GITHUB_REPO_URL } from "../lib/constants";
 import toast from "react-hot-toast";
 import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
 import { FeedbackModal } from "../components/ui/FeedbackModal";
@@ -77,6 +81,7 @@ export default function ProfilePage() {
   const { user, logout, updateUser, isAuthenticated } = useAuth();
   const { likedSongs } = useApp();
   const navigate = useNavigate();
+  const apkUrl = useApkDownloadUrl();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
@@ -307,8 +312,34 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Profile Announcements Action (Bell) */}
-        <div className="flex gap-2 relative z-10 flex-shrink-0">
+        {/* Profile Top Right Actions (Download APK, GitHub, Bell) */}
+        <div className="flex items-center gap-2 relative z-10 flex-shrink-0 flex-wrap sm:flex-nowrap justify-end">
+          {!isNative() && (
+            <>
+              <a
+                href={apkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-sp-green/10 border border-sp-green/30 text-sp-green hover:bg-sp-green hover:text-black font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-[0_0_12px_rgba(29,185,84,0.15)] active:scale-95"
+                title="Download SoulSync Android APK"
+              >
+                <Smartphone size={14} strokeWidth={2.5} />
+                <span className="hidden sm:inline">Download APK</span>
+                <span className="sm:hidden">APK</span>
+              </a>
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-white/70 hover:text-white font-bold text-[11px] sm:text-xs transition-all duration-200 active:scale-95"
+                title="View Open Source Code on GitHub"
+              >
+                <Github size={14} strokeWidth={2.5} />
+                <span className="hidden sm:inline">GitHub</span>
+              </a>
+            </>
+          )}
+
           <button
             onClick={togglePanel}
             className="p-2.5 sm:p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 text-white transition-all active:scale-95 relative group"
