@@ -3,10 +3,11 @@
   "apk_url": "https://github.com/itslokeshx/SoulSync/releases/download/v5.1.1/SoulSync_5.1.1.apk",
   "force": false,
   "changelog": [
-    "SoulSync v5.1.1 - Natural Language Search & Intent Engine",
-    "Entity Relationship Graph Traversal (Directors, Actors, Movies, Soundtracks)",
-    "Damerau-Levenshtein Typo Resilience (odessy, hukm, katci sera, anrudh)",
-    "Adaptive Telemetry Learning (SearchClickEvent & PlaybackEvent Feedback)",
-    "Deterministic Ranking & Multi-Signal Search Quality Enhancement"
+    "Redesigned desktop navigation sidebar with ergonomic section layout",
+    "Upgraded personalized recommendation & session-anchored Up Next engine",
+    "Natural Language Search with Entity Relationship Graph (Directors, Actors, Movies, Composers)",
+    "Damerau-Levenshtein Typo Resilience Engine & Adaptive Telemetry Learning",
+    "Enhanced Profile Page dashboard & SoulSync Wrapped Deck performance",
+    "Resolved Local Song Import metadata parsing and catalog matching bug"
   ]
 }
