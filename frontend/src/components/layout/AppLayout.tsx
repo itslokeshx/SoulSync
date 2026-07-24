@@ -237,14 +237,18 @@ export function AppLayout() {
                 </button>
               </div>
 
-              <div className="flex-1 relative max-w-xl">
+              <div
+                className="flex-1 relative max-w-xl cursor-text"
+                onClick={() => navigate("/search")}
+              >
                 <Search
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
                 />
                 <input
                   type="text"
                   value={liveQuery}
+                  onClick={() => navigate("/search")}
                   onChange={(e) => {
                     setLiveQuery(e.target.value);
                     navigate(
@@ -255,7 +259,7 @@ export function AppLayout() {
                   }}
                   onFocus={() => navigate("/search")}
                   placeholder="Search songs, artists, albums..."
-                  className="w-full bg-white/5 border border-white/5 hover:bg-white/10 focus:bg-white/10 focus:border-white/20 rounded-full pl-10 pr-4 py-2 text-sm transition-all outline-none"
+                  className="w-full bg-white/5 border border-white/5 hover:bg-white/10 focus:bg-white/10 focus:border-white/20 rounded-full pl-10 pr-4 py-2 text-sm transition-all outline-none cursor-pointer"
                 />
               </div>
             </header>

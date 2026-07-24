@@ -367,6 +367,18 @@ export function SearchPage() {
     }
   }, [queryParam, setQuery]);
 
+  // Auto-focus search input smoothly on mount or navigation
+  useEffect(() => {
+    const focusInput = () => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    };
+    focusInput();
+    const timer = setTimeout(focusInput, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleSearchSubmit = (searchTerm: string) => {
     if (!searchTerm.trim()) return;
     saveRecentSearch(searchTerm);
@@ -447,7 +459,14 @@ export function SearchPage() {
     <div className="min-h-screen pb-32 pt-2 px-4 md:px-8 max-w-7xl mx-auto space-y-6 animate-fadeIn">
       {/* ── Search Bar & Header ────────────────────────────────────────── */}
       <div className="relative" ref={searchContainerRef}>
-        <div className="relative flex items-center">
+        <div
+          className="relative flex items-center cursor-text"
+          onClick={() => {
+            if (searchInputRef.current) {
+              searchInputRef.current.focus();
+            }
+          }}
+        >
           <Search
             size={20}
             className="absolute left-4 text-white/40 pointer-events-none transition-colors"
