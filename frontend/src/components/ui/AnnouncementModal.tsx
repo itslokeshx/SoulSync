@@ -4,6 +4,7 @@ import { X, ShieldAlert, Sparkles, Megaphone } from "lucide-react";
 import { useAnnouncements } from "../../hooks/useAnnouncements";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { openUpdateLink } from "../UpdatePopup";
 
 export function AnnouncementModal() {
   const { isModalOpen, activeModalAnnouncement, closeModal, markSeen, markWhatsNewSeen } = useAnnouncements();
@@ -41,9 +42,13 @@ export function AnnouncementModal() {
     }
     const route = activeModalAnnouncement.ctaRoute;
     if (route) {
-      setTimeout(() => {
-        navigate(route);
-      }, 50);
+      if (route.startsWith("http://") || route.startsWith("https://")) {
+        openUpdateLink(route);
+      } else {
+        setTimeout(() => {
+          navigate(route);
+        }, 50);
+      }
     }
   };
 
@@ -166,13 +171,13 @@ export function AnnouncementModal() {
                 >
                   Close
                 </button>
-                {activeModalAnnouncement.ctaText && (
+                {(activeModalAnnouncement.ctaText || activeModalAnnouncement.ctaRoute) && (
                   <button
                     onClick={handleCTA}
                     className="flex-1 py-2.5 rounded-full bg-sp-green text-black font-extrabold text-[13px] hover:scale-[1.03] active:scale-95 transition-all duration-200 text-center"
                     style={{ boxShadow: "0 4px 20px rgba(29,185,84,0.25)" }}
                   >
-                    {activeModalAnnouncement.ctaText}
+                    {activeModalAnnouncement.ctaText || (activeModalAnnouncement.type === "whats_new" ? "Update Now" : "Open Link")}
                   </button>
                 )}
               </div>

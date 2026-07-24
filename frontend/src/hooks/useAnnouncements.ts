@@ -85,17 +85,22 @@ export function useAnnouncements() {
     setLastSeenVersion(localSeenVersion);
     setSeenIds(localSeenIds);
 
-    // 1. Eligible Whats New (allow popup if version matches, user is on older version, in dev/web "1.0.0" fallback, and not seen by ID or version)
-    const eligibleWhatsNew = activeList.find(
+    const isNativeApp = isNative();
+
+    // 1. Eligible Whats New / Release Announcement
+    // Rules:
+    // - Release update popups ONLY trigger on APK native app (isNativeApp === true)
+    // - Must have a version specified
+    // - User's current APK version MUST be strictly lower than the announcement version (compareVersions(currentVersion, a.version) === true)
+    // - MUST NOT have been seen by ID or version already
+    const eligibleWhatsNew = isNativeApp ? activeList.find(
       (a) =>
         a.type === "whats_new" &&
+        a.version &&
         !localSeenIds.includes(a._id) &&
-        (!a.version || !localSeenVersion || compareVersions(localSeenVersion, a.version)) &&
-        (a.version === currentVersion ||
-          currentVersion === "1.0.0" ||
-          !a.version ||
-          compareVersions(currentVersion, a.version))
-    );
+        (!localSeenVersion || compareVersions(localSeenVersion, a.version)) &&
+        compareVersions(currentVersion, a.version)
+    ) : null;
 
     // 2. Eligible Ad-hoc (Feature, General, Maintenance)
     const eligibleAdHoc = activeList.find(

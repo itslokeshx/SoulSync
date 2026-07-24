@@ -19,8 +19,11 @@ export const getLatestVersion = async () => {
 };
 
 export const compareVersions = (v1: string, v2: string) => {
-    const a = v1.split(".").map(Number);
-    const b = v2.split(".").map(Number);
+    if (!v1 || !v2) return false;
+    const clean1 = String(v1).replace(/^v/i, "").trim();
+    const clean2 = String(v2).replace(/^v/i, "").trim();
+    const a = clean1.split(".").map((n) => parseInt(n, 10) || 0);
+    const b = clean2.split(".").map((n) => parseInt(n, 10) || 0);
 
     for (let i = 0; i < Math.max(a.length, b.length); i++) {
         const diff = (a[i] || 0) - (b[i] || 0);
