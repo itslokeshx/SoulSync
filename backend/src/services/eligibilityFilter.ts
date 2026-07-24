@@ -91,21 +91,26 @@ export function evaluateCandidateEligibility(
     }
   }
 
-  // 3. HARD PASS: User Favorite / History Artist
+  // 3. HARD REJECT: Language Outside Allowed Boundary
+  if (songLang && context.allowedLanguages.size > 0 && !context.allowedLanguages.has(songLang)) {
+    return { eligible: false, reason: `Hard reject: Language "${songLang}" outside confidence boundary` };
+  }
+
+  // 4. HARD PASS: User Favorite / History Artist
   for (const sa of songArtists) {
     if (context.userArtists.has(sa)) {
       return { eligible: true, reason: `Pass: User favorite/history artist ("${sa}")` };
     }
   }
 
-  // 4. HARD PASS: Related Ecosystem Artist
+  // 5. HARD PASS: Related Ecosystem Artist
   for (const sa of songArtists) {
     if (context.relatedArtists.has(sa)) {
       return { eligible: true, reason: `Pass: Ecosystem peer artist ("${sa}")` };
     }
   }
 
-  // 5. HARD PASS: Active Cluster Ecosystem Match
+  // 6. HARD PASS: Active Cluster Ecosystem Match
   if (context.activeCluster && primaryArtist) {
     const clusterArtists = new Set([
       ...context.activeCluster.primaryArtists,
@@ -114,11 +119,6 @@ export function evaluateCandidateEligibility(
     if (clusterArtists.has(primaryArtist)) {
       return { eligible: true, reason: `Pass: Active cluster match ("${context.activeCluster.clusterName}")` };
     }
-  }
-
-  // 6. Language Confidence Boundary (Allow if matching high confidence language or empty song language)
-  if (songLang && context.allowedLanguages.size > 0 && !context.allowedLanguages.has(songLang)) {
-    return { eligible: false, reason: `Hard reject: Language "${songLang}" outside confidence boundary` };
   }
 
   return { eligible: true, reason: "Pass: General taste match" };

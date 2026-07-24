@@ -221,10 +221,10 @@ export function resolveLanguageFilter(
     }
   }
 
-  // Tier 3: True cold-start global fallback
-  console.log("[LANG] using: global fallback (hindi, english, tamil, punjabi, telugu)");
+  // Tier 3: True cold-start global fallback (English and Hindi)
+  console.log("[LANG] using: global fallback (english, hindi)");
   return {
-    languages: ["hindi", "english", "tamil", "punjabi", "telugu"],
+    languages: ["english", "hindi"],
     source: "global_fallback",
   };
 }

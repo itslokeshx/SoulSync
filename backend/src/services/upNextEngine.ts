@@ -69,6 +69,27 @@ interface ScoredCandidate {
   tier: number; // lower tier = higher priority source
 }
 
+type SongVibe = "romantic_melody" | "aggressive_fight" | "upbeat_dance" | "sad_melancholy" | "neutral";
+
+function detectSongVibe(song: Song): SongVibe {
+  if (!song) return "neutral";
+  const combined = `${song.name || ""} ${song.album || ""}`.toLowerCase();
+
+  const isAggressive = /\b(fight|rage|mass|action|theme|rock|trap|blood|roar|badass|monster|villain|battle|blast|destroy|war|anthem|rage rock|hard rock|metal)\b/i.test(combined);
+  if (isAggressive) return "aggressive_fight";
+
+  const isRomantic = /\b(love|kadhal|kadhaley|romance|romantic|reprise|unplugged|acoustic|piano|lullaby|soft|feel|dil|pyaar|ishq|sufi|soul|tum|pennangush|mazhai|kannu|kannukulla|vizhi|prema|priya|melody)\b/i.test(combined);
+  if (isRomantic) return "romantic_melody";
+
+  const isUpbeat = /\b(dance|party|disco|club|groove|banger|mutton|kuthu|gabru|bhangra|fiesta)\b/i.test(combined);
+  if (isUpbeat) return "upbeat_dance";
+
+  const isSad = /\b(sad|lonely|tear|breakup|alone|pain|cry|dard|judaai|separation|pirivom)\b/i.test(combined);
+  if (isSad) return "sad_melancholy";
+
+  return "neutral";
+}
+
 function scoreCandidate(
   song: Song,
   seedSong: Song,
@@ -96,6 +117,21 @@ function scoreCandidate(
     .filter(Boolean);
   const songLang = detectSongLanguage(song) || (song.language || "").toLowerCase().trim();
   const songTitle = (song.name || "").toLowerCase();
+
+  // Vibe Continuity & Clash Penalty
+  const seedVibe = detectSongVibe(seedSong);
+  const songVibe = detectSongVibe(song);
+
+  if (seedVibe === "romantic_melody" && songVibe === "aggressive_fight") {
+    signals.vibeClash = -220;
+    score -= 220;
+  } else if (seedVibe === "aggressive_fight" && songVibe === "romantic_melody") {
+    signals.vibeClash = -180;
+    score -= 180;
+  } else if (seedVibe !== "neutral" && seedVibe === songVibe) {
+    signals.vibeMatch = 120;
+    score += 120;
+  }
 
   // Signal: Same album as current song (strongest continuity signal)
   if (seedAlbum && songAlbum && seedAlbum === songAlbum) {
@@ -169,11 +205,17 @@ function scoreCandidate(
     score -= 80;
   }
 
-  // Unrelated candidate penalty: candidate has zero artist, album, ecosystem, or session relation to seed
-  const hasRelationship = isSameArtist || isSessionArtist || (signals.ecosystemPeer || 0) > 0 || (signals.albumContinuity || 0) > 0 || tier === 0 || tier === 1;
+  // Unrelated candidate penalty: apply only to background history fallback tiers (Tiers 6+) with zero seed/artist relationship
+  const hasRelationship =
+    isSameArtist ||
+    isSessionArtist ||
+    (signals.ecosystemPeer || 0) > 0 ||
+    (signals.albumContinuity || 0) > 0 ||
+    tier <= 5;
+
   if (!hasRelationship && seedPrimaryArtist) {
-    signals.unrelatedPenalty = -120;
-    score -= 120;
+    signals.unrelatedPenalty = -40;
+    score -= 40;
   }
 
   // Tier bonus: lower tier = higher priority source = more trustworthy
@@ -250,13 +292,11 @@ export async function predictNextTracks(
     ? await updateSessionWithSong(sessionId, seedSong, userId)
     : await getActiveSessionContext(undefined, userId, currentSongId);
 
-  // ── Exclusion set: current + queue + recent history + 7d rec cooldown ──
-  const rec7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  // ── Exclusion set: current song + active queue + immediate recent history ──
   const excludeSet = new Set<string>([
     currentSongId,
     ...queueSongIds,
     ...recentHistorySongIds,
-    ...rec7d,
   ]);
 
   // ── Negative affinity (skip-heavy artists and languages) ──────
@@ -272,13 +312,11 @@ export async function predictNextTracks(
     if (songLang && negativeProfile.negativeLanguages.has(songLang)) return false;
     if (artist && negativeProfile.negativeArtists.has(artist)) return false;
     
-    // Always allow songs by the same primary artist or album
-    const isSameArtistOrAlbum =
-      (primarySeedArtist && artist && (artist.includes(primarySeedArtist.toLowerCase()) || primarySeedArtist.toLowerCase().includes(artist))) ||
-      (seedAlbum && song.album && song.album.toLowerCase().trim() === seedAlbum.toLowerCase());
-
-    if (!isSameArtistOrAlbum && allowedLangs.length > 0 && songLang) {
-      const match = allowedLangs.some((al) => al.toLowerCase() === songLang || songLang.includes(al.toLowerCase()) || al.toLowerCase().includes(songLang));
+    // Strictly enforce preferred language boundary for Up Next
+    if (allowedLangs.length > 0 && songLang) {
+      const match = allowedLangs.some(
+        (al) => al.toLowerCase() === songLang || songLang.includes(al.toLowerCase()) || al.toLowerCase().includes(songLang)
+      );
       if (!match) return false;
     }
     return true;

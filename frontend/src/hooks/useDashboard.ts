@@ -46,15 +46,17 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
-      // Check session cache
+      // Check session cache for guest users only (auth users get fresh recs on every refresh)
       try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Date.now() - parsed.generatedAt < CACHE_TTL) {
-            setDashboard(parsed);
-            setLoading(false);
-            return;
+        if (!userId) {
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - parsed.generatedAt < CACHE_TTL) {
+              setDashboard(parsed);
+              setLoading(false);
+              return;
+            }
           }
         }
       } catch {}

@@ -1139,7 +1139,17 @@ export async function getTasteProfileBatch(
     finalOutput.push(song);
   }
 
-  return filterByLanguages(finalOutput, allowedLangs);
+  const langFiltered = filterByLanguages(finalOutput, allowedLangs);
+
+  // Dynamic Taste Rotation: Rotate candidates on every request so refreshes are always fresh
+  if (langFiltered.length > limit) {
+    const topTier = langFiltered.slice(0, Math.min(6, Math.floor(limit / 3)));
+    const restPool = langFiltered.slice(topTier.length);
+    const rotatedRest = [...restPool].sort(() => Math.random() - 0.5);
+    return [...topTier, ...rotatedRest].slice(0, limit);
+  }
+
+  return langFiltered.slice(0, limit);
 }
 
 export async function getLanguageAwareNewReleases(

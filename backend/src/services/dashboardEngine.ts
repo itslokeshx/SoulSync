@@ -356,10 +356,9 @@ export async function buildDashboard(
     generatedAt: Date.now(),
   };
 
-  // Cache response (30s for auth, 30 min for guest) — skip in dev
-  if (!isDev) {
-    const ttl = isGuest ? 1800 : 30;
-    await redisSet(cacheKey, JSON.stringify(response), ttl).catch(() => {});
+  // Cache response for guests only (30 min); auth user requests generate fresh personalized recs on every refresh
+  if (!isDev && isGuest) {
+    await redisSet(cacheKey, JSON.stringify(response), 1800).catch(() => {});
   }
 
   return response;
