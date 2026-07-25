@@ -306,15 +306,55 @@ export async function searchAlbums(query: string, limit = 50): Promise<any[]> {
   }));
 }
 
+export function rankArtists(query: string, artists: any[]): any[] {
+  if (!Array.isArray(artists) || artists.length <= 1) return artists || [];
+  const qLower = (query || "").trim().toLowerCase();
+  if (!qLower) return artists;
+
+  const scoreArtist = (a: any): number => {
+    const rawName = decodeHtmlEntities(a.name || a.title || "").trim();
+    const nameLower = rawName.toLowerCase();
+    let score = 0;
+
+    const isCombined =
+      /[|/&,]|\b(feat|ft|featuring)\b/i.test(rawName) ||
+      /\s+x\s+/i.test(rawName);
+
+    const firstSegment = rawName
+      .split(/[|/&,]|\s+(?:feat|ft|featuring|x)\s+/i)[0]
+      .trim()
+      .toLowerCase();
+
+    if (nameLower === qLower) {
+      score += 100;
+    } else if (firstSegment === qLower) {
+      score += 70;
+    } else if (nameLower.startsWith(qLower)) {
+      score += 40;
+    } else if (nameLower.includes(qLower)) {
+      score += 20;
+    }
+
+    if (isCombined) {
+      score -= 80;
+    }
+
+    return score;
+  };
+
+  return [...artists].sort((a, b) => scoreArtist(b) - scoreArtist(a));
+}
+
 export async function searchArtists(query: string, limit = 10): Promise<any[]> {
   const data = (await fetchSafe(
     `${JIOSAAVN_BASE}/search/artists?query=${encodeURIComponent(query)}&limit=${limit}`,
   )) as any;
   const results = data?.data?.results || data?.results || [];
-  return results.map((artist: any) => ({
+  const mapped = results.map((artist: any) => ({
     ...artist,
     name: decodeHtmlEntities(artist.name || artist.title),
   }));
+  return rankArtists(query, mapped);
 }
 
 export async function searchPlaylists(query: string, limit = 10): Promise<any[]> {

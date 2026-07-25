@@ -9,6 +9,7 @@ import { saveAudioToDevice } from "../capacitor/filesystem";
 import { impactFeedback, notificationFeedback } from "../capacitor/haptics";
 import toast from "react-hot-toast";
 import { analytics } from "../services/analytics";
+import { embedAudioMetadata } from "./audioMetadata";
 
 export async function downloadSong(
   song: Song,
@@ -88,33 +89,44 @@ export async function downloadSong(
     let receivedBytes = 0;
     const chunks: BlobPart[] = [];
 
+    let rawBytes: Uint8Array;
     if (reader && contentLength > 0) {
-      // Read stream chunk-by-chunk for real progress
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         chunks.push(value);
         receivedBytes += value.length;
-
         const progress = Math.round((receivedBytes / contentLength) * 100);
         store.updateProgress(song.id, progress);
-
-        // Haptic milestones at 25%, 50%, 75%
         if (progress === 25 || progress === 50 || progress === 75) {
           impactFeedback("light");
         }
       }
+      const combined = new Uint8Array(receivedBytes);
+      let offset = 0;
+      for (const chunk of chunks) {
+        const arr = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk as ArrayBuffer);
+        combined.set(arr, offset);
+        offset += arr.length;
+      }
+      rawBytes = combined;
     } else {
-      // Fallback: no Content-Length or no readable stream
       const blob = await response.blob();
-      chunks.push(new Uint8Array(await blob.arrayBuffer()));
-      receivedBytes = blob.size;
+      rawBytes = new Uint8Array(await blob.arrayBuffer());
       store.updateProgress(song.id, 100);
     }
 
-    // Combine chunks into a single Blob
-    const blob = new Blob(chunks, { type: "audio/mp4" });
+    const albumName = typeof song.album === "string" ? song.album : (song.album?.name || "");
+    const coverUrl = bestImg(song.image) || (song as any).albumArt || "";
+
+    const taggedBytes = await embedAudioMetadata(rawBytes, {
+      title,
+      artist,
+      album: albumName,
+      albumArtUrl: coverUrl,
+    });
+
+    const blob = new Blob([taggedBytes.buffer as ArrayBuffer], { type: "audio/mp4" });
     store.updateProgress(song.id, 100);
 
     // Save to IndexedDB + optionally native filesystem

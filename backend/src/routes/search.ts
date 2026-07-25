@@ -9,6 +9,7 @@ import {
   searchAll,
   searchAlbums,
   searchArtists,
+  rankArtists,
   fetchArtistSongs,
   fetchAlbumSongs,
   fetchSongById,
@@ -244,7 +245,8 @@ router.get("/", softAuth, async (req: SoftAuthRequest, res: Response): Promise<v
       }
     }
 
-    const artists = Array.from(artistMap.values()).slice(0, 8);
+    const rankedArtistsList = rankArtists(q, Array.from(artistMap.values()));
+    const artists = rankedArtistsList.slice(0, 8);
 
     // If top artist exists, fetch top artist's dedicated discography albums and merge them!
     if (artists.length > 0) {

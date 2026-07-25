@@ -412,10 +412,28 @@ export const ArtistPage = () => {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-sp-green text-black uppercase tracking-wider shadow-md">
                 <CheckCircle2 size={13} className="fill-black text-sp-green" /> Verified Artist
               </span>
+              <button
+                onClick={toggleFollow}
+                className={`px-4 py-1 rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all border ${
+                  isFollowing
+                    ? "bg-sp-green/20 text-sp-green border-sp-green/40 hover:bg-sp-green/30"
+                    : "bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/40"
+                }`}
+              >
+                {isFollowing ? (
+                  <>
+                    <UserCheck size={14} /> Following
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={14} /> Follow
+                  </>
+                )}
+              </button>
             </div>
 
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight leading-none">

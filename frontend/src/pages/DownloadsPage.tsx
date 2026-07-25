@@ -12,6 +12,7 @@ import { FALLBACK_IMG } from '../lib/constants'
 import { useDownloadStore } from '../store/downloadStore'
 import { saveOfflineSong, removeOfflineSong } from '../utils/offlineDB'
 import { deleteAudioFromDevice, saveAudioToDevice } from '../capacitor/filesystem'
+import { readAudioMetadata } from '../utils/audioMetadata'
 
 type FilterKey = 'playlists' | 'songs'
 
@@ -122,13 +123,22 @@ export default function DownloadsPage() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      // Basic generic name extraction
-      const fullName = file.name.replace(/\.[^/.]+$/, "") // Remove ext
+      const fullName = file.name.replace(/\.[^/.]+$/, "")
       let title = fullName
       let artist = "Unknown Artist"
-      if (fullName.includes("-")) {
+      let albumArt = FALLBACK_IMG
+
+      try {
+        const fileBuffer = new Uint8Array(await file.arrayBuffer())
+        const parsed = readAudioMetadata(fileBuffer)
+        if (parsed.title && parsed.title.trim()) title = parsed.title.trim()
+        if (parsed.artist && parsed.artist.trim()) artist = parsed.artist.trim()
+        if (parsed.albumArtUrl) albumArt = parsed.albumArtUrl
+      } catch {}
+
+      if (title === fullName && fullName.includes("-")) {
         const parts = fullName.split("-").map(p => p.trim())
-        artist = parts[0]
+        if (!artist || artist === "Unknown Artist") artist = parts[0]
         title = parts.slice(1).join(" - ")
       }
 
@@ -136,21 +146,19 @@ export default function DownloadsPage() {
 
       let finalFilePath = ""
       try {
-        // Copy the imported file to the native public storage folder
         finalFilePath = await saveAudioToDevice(songId, file, file.name)
       } catch (err) {
         console.warn("Failed to write imported audio to device:", err)
       }
 
-      // Save metadata into IndexedDB
       await saveOfflineSong({
         id: songId,
         name: title,
         artist: artist,
-        albumArt: FALLBACK_IMG,
+        albumArt: albumArt,
         duration: 0,
         downloadUrl: finalFilePath ? [{ quality: "320kbps", url: finalFilePath }] : [],
-        image: [],
+        image: [{ quality: "500x500", url: albumArt }],
         savedAt: Date.now()
       }, file).catch(console.error)
 
@@ -158,7 +166,7 @@ export default function DownloadsPage() {
         songId,
         title,
         artist,
-        albumArt: FALLBACK_IMG,
+        albumArt: albumArt,
         duration: 0,
         filePath: finalFilePath,
         downloadedAt: Date.now(),
@@ -169,14 +177,13 @@ export default function DownloadsPage() {
           targetCount: 1,
           isAIGenerated: false,
           primaryArtists: artist,
-          image: [{ quality: "500x500", url: FALLBACK_IMG }],
+          image: [{ quality: "500x500", url: albumArt }],
           downloadUrl: finalFilePath ? [{ quality: "320kbps", url: finalFilePath }] : []
         }
       }
       useOfflineStore.getState().addDownloadedSong(meta)
     }
 
-    // reset input
     if (fileRef.current) fileRef.current.value = ''
   }
 
