@@ -19,6 +19,8 @@ interface RoomData {
   };
   createdAt: number;
   lastActivity: number;
+  lastSongChangeAt?: number;
+  lastSongChangeSongId?: string;
 }
 
 const rooms = new Map<string, RoomData>();
@@ -326,26 +328,39 @@ export function setupRoomHandlers(io: Server, socket: Socket): void {
     const code = findSocketRoom(socket.id);
     if (!code) return;
     const room = rooms.get(code);
-    if (room) {
-      if (room.currentSong) {
-        room.songHistory.push(room.currentSong);
-      }
-      room.currentSong = song;
-      room.stats.songsPlayed++;
-      room.lastActivity = Date.now();
+    if (!room || !song || !song.id) return;
+
+    const now = Date.now();
+    const LOCK_WINDOW_MS = 3000;
+
+    if (room.lastSongChangeAt && now - room.lastSongChangeAt < LOCK_WINDOW_MS) {
+      debugLog(
+        `[Duo] 🛑 Ignored duplicate sync-song-change for room ${code} (locked, last change ${now - room.lastSongChangeAt}ms ago)`,
+      );
+      return;
     }
+
+    if (room.currentSong) {
+      room.songHistory.push(room.currentSong);
+    }
+    room.currentSong = song;
+    room.lastSongChangeAt = now;
+    room.lastSongChangeSongId = String(song.id);
+    room.stats.songsPlayed++;
+    room.lastActivity = now;
+
     debugLog(
-      `[Duo] 🎵 sync-song-change → room ${code} | "${song?.name || "??"}" | queue=${queue?.length || 0}`,
+      `[Duo] 🎵 sync-song-change accepted → room ${code} | "${song?.name || "??"}" | queue=${queue?.length || 0}`,
     );
-    socket
-      .to(code)
-      .emit("duo:receive-song-change", { song, queue, queueIndex });
+
+    io.to(code).emit("duo:receive-song-change", { song, queue, queueIndex });
 
     try {
-      if (room) {
-        const historyEntry = room.songHistory.length > 0 ? room.songHistory[room.songHistory.length - 1] : null;
-        await DuoSessionService.changeSong(code, song, historyEntry);
-      }
+      const historyEntry =
+        room.songHistory.length > 0
+          ? room.songHistory[room.songHistory.length - 1]
+          : null;
+      await DuoSessionService.changeSong(code, song, historyEntry);
     } catch (err) {
       console.error("[Duo] DB error on sync-song-change:", err);
     }
