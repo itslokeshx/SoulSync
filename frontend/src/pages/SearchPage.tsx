@@ -633,61 +633,16 @@ export function SearchPage() {
 
       {/* ── Main Results View ────────────────────────────────────────── */}
 
-      {/* 1. IDLE STATE: Clean Search Landing & Recent Search History */}
+      {/* 1. IDLE STATE: Clean Search Landing */}
       {state === "idle" && !query && (
-        <div className="space-y-6 pt-2 animate-fadeIn">
-          {recentSearches.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-white/80 flex items-center gap-2">
-                  <Clock size={16} className="text-sp-green" /> Recent Searches
-                </h2>
-                <button
-                  onClick={handleClearAllRecent}
-                  className="text-xs font-semibold text-white/40 hover:text-white transition-colors"
-                >
-                  Clear all
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {recentSearches.map((s) => (
-                  <div
-                    key={s}
-                    onClick={() => {
-                      setQuery(s);
-                      handleSearchSubmit(s);
-                    }}
-                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Clock size={14} className="text-white/40 group-hover:text-sp-green transition-colors flex-shrink-0" />
-                      <span className="text-xs font-medium text-white/90 group-hover:text-white truncate">
-                        {s}
-                      </span>
-                    </div>
-                    <button
-                      onClick={(e) => handleRemoveRecent(e, s)}
-                      title="Remove from history"
-                      className="p-1 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors ml-2 flex-shrink-0"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn space-y-3 text-white/30">
-              <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/40 mb-1">
-                <Search size={32} strokeWidth={1.5} />
-              </div>
-              <h2 className="text-base font-bold text-white/80">Search SoulSync</h2>
-              <p className="text-xs text-white/40 max-w-xs leading-relaxed">
-                Find your favorite songs, artists, soundtracks, and albums.
-              </p>
-            </div>
-          )}
+        <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn space-y-3 text-white/30">
+          <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/40 mb-1">
+            <Search size={32} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-base font-bold text-white/80">Search SoulSync</h2>
+          <p className="text-xs text-white/40 max-w-xs leading-relaxed">
+            Find your favorite songs, artists, soundtracks, and albums.
+          </p>
         </div>
       )}
 
