@@ -260,6 +260,86 @@ router.post(
 );
 
 // PATCH /api/user/liked/reorder — Reorder liked songs manually
+
+router.get(
+  "/followed-artists",
+  softAuth,
+  async (req: SoftAuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.userId) {
+        res.json({ followedArtists: [] });
+        return;
+      }
+      const user = await User.findById(req.userId);
+      res.json({ followedArtists: user?.followedArtists || [] });
+    } catch (err) {
+      console.error("[User] Get followed artists error:", err);
+      res.status(500).json({ error: "Failed to fetch followed artists" });
+    }
+  },
+);
+
+router.post(
+  "/followed-artists",
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { artist } = req.body;
+      if (!artist || !artist.id) {
+        res.status(400).json({ error: "Artist data with id required" });
+        return;
+      }
+
+      const user = await User.findById(req.userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const strId = String(artist.id);
+      const exists = user.followedArtists.some((a) => String(a.id) === strId);
+      if (!exists) {
+        user.followedArtists.unshift({
+          id: strId,
+          name: String(artist.name || "Artist"),
+          image: String(artist.image || ""),
+          followerCount: String(artist.followerCount || artist.follower_count || artist.followers || ""),
+          followedAt: new Date(),
+        });
+        await user.save();
+      }
+
+      res.json({ success: true, followedArtists: user.followedArtists });
+    } catch (err) {
+      console.error("[User] Follow artist error:", err);
+      res.status(500).json({ error: "Failed to follow artist" });
+    }
+  },
+);
+
+router.delete(
+  "/followed-artists/:artistId",
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { artistId } = req.params;
+      const user = await User.findById(req.userId);
+      if (!user) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const strId = String(artistId);
+      user.followedArtists = user.followedArtists.filter((a) => String(a.id) !== strId);
+      await user.save();
+
+      res.json({ success: true, followedArtists: user.followedArtists });
+    } catch (err) {
+      console.error("[User] Unfollow artist error:", err);
+      res.status(500).json({ error: "Failed to unfollow artist" });
+    }
+  },
+);
 router.patch(
   "/liked/reorder",
   authMiddleware,

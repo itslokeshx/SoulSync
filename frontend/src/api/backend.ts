@@ -296,6 +296,28 @@ export async function reorderLikedSongs(songIds: string[]): Promise<void> {
   await api.patch("/api/user/liked/reorder", { songIds });
 }
 
+export async function getFollowedArtists(): Promise<any[]> {
+  try {
+    const { data } = await api.get("/api/user/followed-artists");
+    return data.followedArtists || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function followArtist(artist: {
+  id: string;
+  name: string;
+  image?: string;
+  followerCount?: string;
+}): Promise<void> {
+  await api.post("/api/user/followed-artists", { artist }).catch(() => {});
+}
+
+export async function unfollowArtist(artistId: string): Promise<void> {
+  await api.delete(`/api/user/followed-artists/${artistId}`).catch(() => {});
+}
+
 export async function getUserStats(): Promise<UserStats> {
   const { data } = await api.get("/api/user/stats");
   return data;

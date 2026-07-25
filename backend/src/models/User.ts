@@ -22,10 +22,27 @@ export const SongEmbedSchema = new Schema<ISongEmbed>(
   { _id: false },
 );
 
+export interface IFollowedArtistEmbed {
+  id: string;
+  name: string;
+  image?: string;
+  followerCount?: string;
+  followedAt?: Date;
+}
+
+export const FollowedArtistEmbedSchema = new Schema<IFollowedArtistEmbed>(
+  {
+    id: String,
+    name: String,
+    image: String,
+    followerCount: String,
+    followedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 export interface IUser extends Document {
-  // Google OAuth
   googleId?: string;
-  // Email/password
   email: string;
   username?: string;
   passwordHash?: string;
@@ -34,7 +51,6 @@ export interface IUser extends Document {
   emailVerificationToken?: string;
   passwordResetToken?: string;
   passwordResetExpiry?: Date;
-  // Profile
   name: string;
   photoURL?: string;
   preferences: {
@@ -43,6 +59,7 @@ export interface IUser extends Document {
     moods: string[];
   };
   likedSongs: ISongEmbed[];
+  followedArtists: IFollowedArtistEmbed[];
   totalListeningTime: number;
   onboardingComplete: boolean;
   seenAnnouncements: {
@@ -91,6 +108,7 @@ const UserSchema = new Schema<IUser>(
       moods: { type: [String], default: [] },
     },
     likedSongs: { type: [SongEmbedSchema], default: [] },
+    followedArtists: { type: [FollowedArtistEmbedSchema], default: [] },
     totalListeningTime: { type: Number, default: 0 },
     onboardingComplete: { type: Boolean, default: false },
     seenAnnouncements: {

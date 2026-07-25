@@ -28,6 +28,7 @@ import {
 import { useApp } from "../context/AppContext";
 import { useUIStore } from "../store/uiStore";
 import { useAuth } from "../auth/AuthContext";
+import * as backendApi from "../api/backend";
 
 const ARTIST_ECOSYSTEMS: Record<string, string[]> = {
   tamil: [
@@ -140,6 +141,16 @@ export const ArtistPage = () => {
       );
       setIsFollowing(followed.map(String).includes(String(artistId)));
     } catch {}
+
+    backendApi.getFollowedArtists().then((list) => {
+      if (Array.isArray(list) && list.length > 0) {
+        const ids = list.map((a) => String(a.id));
+        localStorage.setItem("ss_followed_artists", JSON.stringify(ids));
+        localStorage.setItem("ss_followed_artists_full", JSON.stringify(list));
+        setIsFollowing(ids.includes(String(artistId)));
+        window.dispatchEvent(new Event("soulsync:followed_artists_updated"));
+      }
+    }).catch(() => {});
   }, [artistId]);
 
   const toggleFollow = () => {
@@ -160,6 +171,7 @@ export const ArtistPage = () => {
       if (isFollowing) {
         updatedIds = followedIds.filter((id) => String(id) !== strId);
         updatedFull = followedFull.filter((a) => String(a.id) !== strId);
+        backendApi.unfollowArtist(strId).catch(() => {});
       } else {
         updatedIds = [...followedIds.filter((id) => String(id) !== strId), strId];
         const cleanName =
@@ -175,6 +187,7 @@ export const ArtistPage = () => {
           follower_count: artist.follower_count || artist.followers || "1000000",
         };
         updatedFull = [artistObj, ...followedFull.filter((a) => String(a.id) !== strId)];
+        backendApi.followArtist(artistObj).catch(() => {});
       }
 
       localStorage.setItem("ss_followed_artists", JSON.stringify(updatedIds));

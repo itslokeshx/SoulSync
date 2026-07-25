@@ -72,11 +72,25 @@ export default function LibraryPage() {
         }
         return { ...art, name };
       });
-      localStorage.setItem("ss_followed_artists_full", JSON.stringify(cleaned));
       setFollowedArtists(cleaned);
     } catch {
       setFollowedArtists([]);
     }
+
+    api.getFollowedArtists().then((list) => {
+      if (Array.isArray(list) && list.length > 0) {
+        const cleaned = list.map((art: any) => {
+          let name = (art.name || "").trim();
+          if (!name || /^\d+$/.test(name) || name === "null") {
+            name = KNOWN_ARTIST_NAMES[String(art.id)] || "A.R. Rahman";
+          }
+          return { ...art, name };
+        });
+        localStorage.setItem("ss_followed_artists_full", JSON.stringify(cleaned));
+        localStorage.setItem("ss_followed_artists", JSON.stringify(cleaned.map((a: any) => String(a.id))));
+        setFollowedArtists(cleaned);
+      }
+    }).catch(() => {});
   };
 
   useEffect(() => {
