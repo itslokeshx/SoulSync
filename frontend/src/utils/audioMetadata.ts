@@ -374,11 +374,16 @@ export function readAudioMetadata(buf: Uint8Array): { title?: string; artist?: s
                 result.album = new TextDecoder().decode(payload);
               } else if (itemTag === "covr") {
                 const mime = typeInd === 14 ? "image/png" : "image/jpeg";
-                let binary = "";
-                for (let i = 0; i < payload.length; i++) {
-                  binary += String.fromCharCode(payload[i]);
+                if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+                  const blob = new Blob([payload.buffer as ArrayBuffer], { type: mime });
+                  result.albumArtUrl = URL.createObjectURL(blob);
+                } else {
+                  let binary = "";
+                  for (let i = 0; i < payload.length; i++) {
+                    binary += String.fromCharCode(payload[i]);
+                  }
+                  result.albumArtUrl = `data:${mime};base64,${btoa(binary)}`;
                 }
-                result.albumArtUrl = `data:${mime};base64,${btoa(binary)}`;
               }
             }
             dataPtr += dataSize;
@@ -413,11 +418,16 @@ export function readAudioMetadata(buf: Uint8Array): { title?: string; artist?: s
           const imgStart = mimeEnd + 3;
           if (imgStart < payload.length) {
             const imgData = payload.subarray(imgStart);
-            let binary = "";
-            for (let i = 0; i < imgData.length; i++) {
-              binary += String.fromCharCode(imgData[i]);
+            if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+              const blob = new Blob([imgData.buffer as ArrayBuffer], { type: mime });
+              result.albumArtUrl = URL.createObjectURL(blob);
+            } else {
+              let binary = "";
+              for (let i = 0; i < imgData.length; i++) {
+                binary += String.fromCharCode(imgData[i]);
+              }
+              result.albumArtUrl = `data:${mime};base64,${btoa(binary)}`;
             }
-            result.albumArtUrl = `data:${mime};base64,${btoa(binary)}`;
           }
         }
         ptr += 10 + frameSize;

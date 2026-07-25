@@ -252,7 +252,7 @@ export default function DownloadsPage() {
       <input
         type="file"
         multiple
-        accept="audio/*"
+        accept="audio/*,.m4a,.mp3,.aac,.flac,.wav,.mp4"
         ref={fileRef}
         className="hidden"
         onChange={handleImportLocal}

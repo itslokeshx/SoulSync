@@ -67,12 +67,29 @@ export const useOfflineStore = create<OfflineState & OfflineActions>()(
       exitOfflineMode: () => set({ isOfflineMode: false }),
 
       addDownloadedSong: (song) =>
-        set((s) => ({
-          downloads: [
-            ...s.downloads.filter((d) => d.songId !== song.songId),
-            song,
-          ],
-        })),
+        set((s) => {
+          const safeSong = {
+            ...song,
+            albumArt: (song.albumArt || "").startsWith("data:image") && song.albumArt.length > 500 ? "" : song.albumArt,
+            songData: song.songData
+              ? {
+                  ...song.songData,
+                  image: Array.isArray(song.songData.image)
+                    ? song.songData.image.map((img: any) => ({
+                        ...img,
+                        url: (img.url || "").startsWith("data:image") && img.url.length > 500 ? "" : img.url,
+                      }))
+                    : song.songData.image,
+                }
+              : song.songData,
+          };
+          return {
+            downloads: [
+              ...s.downloads.filter((d) => d.songId !== song.songId),
+              safeSong,
+            ],
+          };
+        }),
 
       deleteDownload: (songId) =>
         set((s) => ({

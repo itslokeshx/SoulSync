@@ -138,7 +138,7 @@ export const ArtistPage = () => {
       const followed = JSON.parse(
         localStorage.getItem("ss_followed_artists") || "[]",
       );
-      setIsFollowing(followed.includes(artistId));
+      setIsFollowing(followed.map(String).includes(String(artistId)));
     } catch {}
   }, [artistId]);
 
@@ -155,11 +155,13 @@ export const ArtistPage = () => {
       let updatedIds: string[];
       let updatedFull: any[];
 
+      const strId = String(artistId);
+
       if (isFollowing) {
-        updatedIds = followedIds.filter((id) => id !== artistId);
-        updatedFull = followedFull.filter((a) => a.id !== artistId);
+        updatedIds = followedIds.filter((id) => String(id) !== strId);
+        updatedFull = followedFull.filter((a) => String(a.id) !== strId);
       } else {
-        updatedIds = [...followedIds, artistId];
+        updatedIds = [...followedIds.filter((id) => String(id) !== strId), strId];
         const cleanName =
           artist.name && !/^\d+$/.test(String(artist.name).trim())
             ? artist.name
@@ -167,12 +169,12 @@ export const ArtistPage = () => {
               ? "A.R. Rahman"
               : "Artist";
         const artistObj = {
-          id: artistId,
+          id: strId,
           name: cleanName,
           image: bestImg(artist.image) || FALLBACK_IMG,
           follower_count: artist.follower_count || artist.followers || "1000000",
         };
-        updatedFull = [artistObj, ...followedFull.filter((a) => a.id !== artistId)];
+        updatedFull = [artistObj, ...followedFull.filter((a) => String(a.id) !== strId)];
       }
 
       localStorage.setItem("ss_followed_artists", JSON.stringify(updatedIds));
