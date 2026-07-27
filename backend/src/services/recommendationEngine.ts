@@ -41,6 +41,7 @@ import { getActiveSessionContext } from "./sessionEngine.js";
 import { predictNextTracks } from "./upNextEngine.js";
 import { computeUserTasteProfile, getUserTasteProfile } from "./tasteEngine.js";
 import { computeAdaptiveWeights } from "./adaptiveWeights.js";
+import { getAdaptiveBucketRatios } from "./bucketEngagementService.js";
 
 // ════════════════════════════════════════════════════════════════
 // TUNABLE WEIGHTS — adjust these to shape recommendation quality
@@ -993,12 +994,9 @@ export async function getTasteProfileBatch(
   }
 
   const adaptive = computeAdaptiveWeights(tasteProfile);
+  const bucketRatios = await getAdaptiveBucketRatios(userId);
 
-  // ════════════════════════════════════════════════════════════════
-  // BUCKET 1 — DISCOVERY & TASTE MATCH (70% of limit)
-  // Songs from top user artists & ecosystem that feel personally tailored.
-  // ════════════════════════════════════════════════════════════════
-  const discoveryLimit = Math.ceil(limit * 0.70);
+  const discoveryLimit = Math.max(1, Math.round(limit * bucketRatios.discoveryRatio));
 
   const { candidates, candidateSourcesMap } = await generateCandidatePool(
     tasteProfile,
@@ -1034,7 +1032,7 @@ export async function getTasteProfileBatch(
   // BUCKET 2 — FORGOTTEN FAVORITES (20% of limit)
   // Liked songs not played in the last 30 days.
   // ════════════════════════════════════════════════════════════════
-  const forgottenLimit = Math.ceil(limit * 0.20);
+  const forgottenLimit = Math.max(1, Math.round(limit * bucketRatios.forgottenRatio));
   const forgottenFavorites: Song[] = [];
 
   if (likedSongs.length > 0) {
