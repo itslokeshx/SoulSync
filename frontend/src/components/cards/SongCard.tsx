@@ -72,7 +72,7 @@ export const SongCard = ({
           >
             <Heart
               size={12}
-              className={isLiked ? "text-sp-green fill-sp-green" : "text-white"}
+              className={isLiked ? "text-red-500 fill-red-500" : "text-white"}
             />
           </button>
           <button
@@ -117,7 +117,7 @@ export const SongCard = ({
         <ArtistLinks song={song} />
       </p>
       {song.reason && (
-        <p className="text-[9px] text-sp-green/60 truncate mt-0.5 italic">
+        <p className="text-[9px] text-white/40 font-medium truncate mt-0.5">
           {song.reason}
         </p>
       )}

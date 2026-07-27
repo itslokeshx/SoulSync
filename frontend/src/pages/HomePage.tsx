@@ -158,7 +158,7 @@ const SongCardInline = ({
           >
             <Heart
               size={12}
-              className={isLiked ? "text-sp-green fill-sp-green" : "text-white"}
+              className={isLiked ? "text-red-500 fill-red-500" : "text-white"}
             />
           </button>
           <button
@@ -651,9 +651,12 @@ const QuickPicksList = ({
                           e.stopPropagation();
                           showContextMenu(e.clientX, e.clientY, s);
                         }}
-                        className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white rounded-full p-1 border border-white/10 active:scale-90 transition-transform"
+                        className="absolute -top-1 -right-1 w-10 h-10 flex items-center justify-center text-white/80 active:text-white active:scale-95 transition-transform z-20"
+                        aria-label="Options"
                       >
-                        <MoreHorizontal size={10} />
+                        <span className="w-6.5 h-6.5 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center border border-white/15 shadow-md">
+                          <MoreHorizontal size={12} />
+                        </span>
                       </button>
                       <p
                         className={`text-[10px] font-bold truncate leading-snug text-center ${
@@ -662,7 +665,8 @@ const QuickPicksList = ({
                       >
                         {s.name}
                       </p>
-                      <p className="text-[8px] text-white/50 truncate text-center mt-0.5">
+                      <p className="text-[8px] text-white/50 truncate text-center mt-0.5 flex items-center justify-center gap-1">
+                        {s.duration > 0 && <span className="text-white/40 tabular-nums">{fmt(s.duration)} •</span>}
                         <ArtistLinks song={s} />
                       </p>
                     </div>
