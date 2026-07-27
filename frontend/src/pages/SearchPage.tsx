@@ -29,6 +29,7 @@ import {
 import { useUIStore } from "../store/uiStore";
 import { bestImg, getArtists, fmt, onImgErr } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
+import { ArtistLinks } from "../components/ui/ArtistLinks";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
 import { analytics } from "../services/analytics";
@@ -148,7 +149,7 @@ function SongRow({
           {song.name}
         </p>
         <p className="text-xs text-white/50 truncate group-hover:text-white/70 transition-colors mt-0.5">
-          {artist}
+          <ArtistLinks song={song} />
         </p>
       </div>
 

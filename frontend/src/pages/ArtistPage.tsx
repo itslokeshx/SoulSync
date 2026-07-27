@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "../components/ui/Skeleton";
 import { GreenButton } from "../components/ui/GreenButton";
+import { ArtistLinks } from "../components/ui/ArtistLinks";
 import { bestImg, getArtists, onImgErr, extractColor, fmt } from "../lib/helpers";
 import { FALLBACK_IMG } from "../lib/constants";
 import {
@@ -599,7 +600,7 @@ export const ArtistPage = () => {
                       {s.name}
                     </p>
                     <p className="text-xs text-white/50 truncate mt-0.5">
-                      {artistName}
+                      <ArtistLinks song={s} />
                     </p>
                   </div>
 

@@ -74,37 +74,66 @@ export interface ArtistItem {
 export const getArtistsList = (song: any): ArtistItem[] => {
   if (!song) return [];
 
-  if (Array.isArray(song.artists) && song.artists.length > 0) {
-    return song.artists.map((a: any) => ({
-      name: a.name || "",
-      id: a.id || a.browseId || ""
-    })).filter((a: any) => a.name);
-  }
-
-  if (Array.isArray(song.artist_map?.primary_artists) && song.artist_map.primary_artists.length > 0) {
-    return song.artist_map.primary_artists.map((a: any) => ({
-      name: a.name || "",
-      id: a.id || a.browseId || ""
-    })).filter((a: any) => a.name);
-  }
-
-  if (Array.isArray(song.artists?.primary) && song.artists.primary.length > 0) {
-    return song.artists.primary.map((a: any) => ({
-      name: a.name || "",
-      id: a.id || a.browseId || ""
-    })).filter((a: any) => a.name);
-  }
-
-  const primary = song.primaryArtists || song.primary_artists || song.music || song.subtitle || "";
-  if (primary && primary !== "—") {
-    const parts = String(primary).split(/[,&]|\band\b|\bx\b/i);
-    return parts
-      .map((name: string) => ({
-        name: name.trim(),
-        id: ""
+  // 1. song.artists object with primary / featured arrays
+  const primaryArr = Array.isArray(song.artists?.primary) ? song.artists.primary : [];
+  const featuredArr = Array.isArray(song.artists?.featured) ? song.artists.featured : [];
+  if (primaryArr.length > 0 || featuredArr.length > 0) {
+    const combined = [...primaryArr, ...featuredArr];
+    return combined
+      .map((a: any) => ({
+        name: decodeHtml(typeof a === "string" ? a : a.name || ""),
+        id: typeof a === "string" ? "" : String(a.id || a.browseId || a.artistId || "")
       }))
       .filter((a: ArtistItem) => a.name.length > 0);
   }
+
+  // 2. song.artist_map?.primary_artists
+  if (Array.isArray(song.artist_map?.primary_artists) && song.artist_map.primary_artists.length > 0) {
+    return song.artist_map.primary_artists
+      .map((a: any) => ({
+        name: decodeHtml(a.name || ""),
+        id: String(a.id || a.browseId || a.artistId || "")
+      }))
+      .filter((a: ArtistItem) => a.name.length > 0);
+  }
+
+  // 3. song.artists array
+  if (Array.isArray(song.artists) && song.artists.length > 0) {
+    return song.artists
+      .map((a: any) => ({
+        name: decodeHtml(typeof a === "string" ? a : a.name || ""),
+        id: typeof a === "string" ? "" : String(a.id || a.browseId || a.artistId || "")
+      }))
+      .filter((a: ArtistItem) => a.name.length > 0);
+  }
+
+  // 4. String fallback (primaryArtists, primary_artists, singers, artist, music, subtitle)
+  const primary =
+    song.primaryArtists ||
+    song.primary_artists ||
+    song.singers ||
+    song.artist ||
+    song.music ||
+    song.subtitle ||
+    "";
+
+  if (primary && primary !== "—") {
+    let ids: string[] = [];
+    if (typeof song.primaryArtistsId === "string") {
+      ids = song.primaryArtistsId.split(",").map((s: string) => s.trim());
+    } else if (typeof song.primary_artists_id === "string") {
+      ids = song.primary_artists_id.split(",").map((s: string) => s.trim());
+    }
+
+    const parts = String(primary).split(/,\s*|\s+&\s+|\s+and\s+|\s+x\s+|\s*\/\s*/i);
+    return parts
+      .map((name: string, idx: number) => ({
+        name: decodeHtml(name.trim()),
+        id: ids[idx] || ""
+      }))
+      .filter((a: ArtistItem) => a.name.length > 0);
+  }
+
   return [];
 };
 

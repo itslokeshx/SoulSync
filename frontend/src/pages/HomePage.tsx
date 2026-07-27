@@ -519,7 +519,9 @@ const HeroFeatured = ({
           <h3 className="text-white text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight truncate">
             {song.name}
           </h3>
-          <p className="text-white/70 text-sm mt-1 truncate">{artist}</p>
+          <p className="text-white/70 text-sm mt-1 truncate">
+            <ArtistLinks song={song} />
+          </p>
           <div className="flex items-center gap-2 mt-4">
             <button
               onClick={(e) => {
@@ -660,7 +662,7 @@ const QuickPicksList = ({
                         {s.name}
                       </p>
                       <p className="text-[8px] text-white/50 truncate text-center mt-0.5">
-                        {getArtists(s)}
+                        <ArtistLinks song={s} />
                       </p>
                     </div>
                   </div>

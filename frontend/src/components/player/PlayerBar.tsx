@@ -163,7 +163,7 @@ export const PlayerBar = ({
                 <p className="text-[13px] font-semibold text-white truncate cursor-pointer hover:underline leading-tight">
                   {currentSong.name}
                 </p>
-                <p className="text-[11px] text-white/35 truncate mt-0.5">
+                <p className="text-[11px] text-white/35 truncate mt-0.5" onClick={(e) => e.stopPropagation()}>
                   <ArtistLinks song={currentSong} />
                 </p>
               </div>
