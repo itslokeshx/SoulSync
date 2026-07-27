@@ -1025,19 +1025,6 @@ export const HomePage = () => {
                   />
                 </div>
               )}
-              {newReleasesList.length > 16 && (
-                <div className="-mt-8">
-                  <HSectionInline
-                    title=""
-                    hideHeader={true}
-                    songs={newReleasesList.slice(16, 24)}
-                    currentSong={currentSong}
-                    isPlaying={isPlaying}
-                    onPlay={handleHomeSongClick}
-                    cardSize="md"
-                  />
-                </div>
-              )}
             </div>
           )}
         </>
