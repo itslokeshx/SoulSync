@@ -21,6 +21,8 @@ import announcementRoutes from "./routes/announcements.js";
 import radioRoutes from "./routes/radio.js";
 import feedbackRoutes from "./routes/feedback.js";
 import adminRoutes from "./routes/admin.js";
+import dailyMixRoutes from "./routes/dailyMix.js";
+import losslessRoutes from "./routes/lossless.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { enhancedSearch } from "./services/searchEnhancer.js";
 
@@ -110,6 +112,8 @@ app.use("/api/announcements", announcementRoutes);
 app.use("/api/radio", radioRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/daily-mix", dailyMixRoutes);
+app.use("/api/lossless", losslessRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {

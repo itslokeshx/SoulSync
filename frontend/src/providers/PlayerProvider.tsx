@@ -195,9 +195,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
       } else {
-        // Use getBestAudioUrl to pick the highest quality and decode HTML entities
-        const url = getBestAudioUrl(currentSong.downloadUrl);
-        targetSrc = url || "";
+        const audioSourceSetting = localStorage.getItem("ss_audio_source") || "default";
+        if (audioSourceSetting === "lossless" && currentSong.name) {
+          try {
+            const BACKEND = (import.meta.env.VITE_BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
+            const title = currentSong.name || "";
+            const artist = getArtists(currentSong);
+            const resp = await fetch(`${BACKEND}/api/lossless/stream?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`, { credentials: "include" });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data?.streamUrl) {
+                targetSrc = data.streamUrl;
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (!targetSrc) {
+          const url = getBestAudioUrl(currentSong.downloadUrl);
+          targetSrc = url || "";
+        }
 
         // Fallback: if no URL available (expired or missing), re-fetch from API
         if (

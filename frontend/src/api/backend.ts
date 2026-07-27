@@ -710,3 +710,14 @@ export async function updateCookies(cookies: string): Promise<any> {
   return data;
 }
 
+export async function getDailyMix(date?: string): Promise<{ success: boolean; dateStr: string; songs: any[]; isCached: boolean }> {
+  const { data } = await api.get("/api/daily-mix", { params: { date } });
+  return data;
+}
+
+export async function getLosslessStream(title: string, artist: string): Promise<{ success: boolean; streamUrl: string | null; quality: string | null }> {
+  const { data } = await api.get("/api/lossless/stream", { params: { title, artist } });
+  return data;
+}
+
+

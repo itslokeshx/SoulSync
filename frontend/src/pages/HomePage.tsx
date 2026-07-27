@@ -52,6 +52,7 @@ import { useUIStore } from "../store/uiStore";
 import { useAuthGate } from "../hooks/useAuthGate";
 import { ArtistLinks } from "../components/ui/ArtistLinks";
 import { EqBars } from "../components/ui/EqBars";
+import { DailyMix } from "../components/dashboard/DailyMix";
 
 /* =====================================================================
    EQ BARS
@@ -951,6 +952,12 @@ export const HomePage = () => {
               />
             </div>
           )}
+
+          <DailyMix
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPlay={handleHomeSongClick}
+          />
 
           {/* ── 2. MADE FOR YOU ── */}
           {madeForYouSongs && madeForYouSongs.length > 0 && (
