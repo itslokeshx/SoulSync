@@ -517,94 +517,49 @@ export function SearchPage() {
           ) : null}
         </div>
 
-        {/* ── Suggestions & Recent Searches Dropdown ────────────────── */}
+        {/* ── Dynamic Instant Suggestions Overlay (ONLY when typing) ────────────────── */}
         <AnimatePresence>
-          {showSuggestions && (query.trim() || recentSearches.length > 0) && (
+          {showSuggestions && query.trim().length > 0 && suggestions.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
-              className="absolute z-50 left-0 right-0 top-full mt-2 bg-[#161618]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.98, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: -4 }}
+              transition={{ type: "spring", stiffness: 450, damping: 32 }}
+              className="absolute z-[100] left-0 right-0 top-full mt-2 bg-black/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] overflow-hidden max-h-[60vh] md:max-h-[420px] overflow-y-auto overscroll-contain"
             >
-              {/* Recent Searches Header */}
-              {!query.trim() && recentSearches.length > 0 && (
-                <div className="p-3">
-                  <div className="flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-white/40 uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5">
-                      <Clock size={13} /> Recent Searches
-                    </span>
-                    <button
-                      onClick={handleClearAllRecent}
-                      className="hover:text-red-400 text-white/40 transition-colors flex items-center gap-1 text-[11px]"
-                    >
-                      <Trash2 size={12} /> Clear all
-                    </button>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {recentSearches.map((s, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          setQuery(s);
-                          handleSearchSubmit(s);
-                        }}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors ${
-                          selectedIndex === i ? "bg-white/15 text-white" : ""
-                        }`}
-                      >
-                        <span className="truncate flex items-center gap-2">
-                          <Search size={14} className="text-white/30" />
-                          {s}
-                        </span>
-                        <button
-                          onClick={(e) => handleRemoveRecent(e, s)}
-                          className="text-white/30 hover:text-white/80 p-1 rounded-full hover:bg-white/10"
-                        >
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Instant Suggestions */}
-              {query.trim() && suggestions.length > 0 && (
-                <div className="p-2 space-y-0.5">
-                  {suggestions.map((item, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        setQuery(item.query || item.text);
-                        handleSearchSubmit(item.query || item.text);
-                      }}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer text-sm transition-colors ${
-                        selectedIndex === idx
-                          ? "bg-white/15 text-white font-medium"
-                          : "text-white/80 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      {item.type === "artist" ? (
-                        <User size={15} className="text-sp-green" />
-                      ) : item.type === "album" ? (
-                        <Disc3 size={15} className="text-blue-400" />
-                      ) : (
-                        <Search size={15} className="text-white/40" />
+              <div className="p-2 space-y-0.5">
+                {suggestions.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setQuery(item.query || item.text);
+                      handleSearchSubmit(item.query || item.text);
+                    }}
+                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl cursor-pointer text-sm transition-all duration-150 active:scale-[0.99] ${
+                      selectedIndex === idx
+                        ? "bg-white/15 text-white font-medium"
+                        : "text-white/80 hover:bg-white/10 active:bg-white/15 hover:text-white"
+                    }`}
+                  >
+                    {item.type === "artist" ? (
+                      <User size={16} className="text-sp-green flex-shrink-0" />
+                    ) : item.type === "album" ? (
+                      <Disc3 size={16} className="text-blue-400 flex-shrink-0" />
+                    ) : (
+                      <Search size={16} className="text-white/40 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium">{item.text}</p>
+                      {item.subtext && (
+                        <p className="text-xs text-white/40 truncate">
+                          {item.subtext}
+                        </p>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{item.text}</p>
-                        {item.subtext && (
-                          <p className="text-xs text-white/40 truncate">
-                            {item.subtext}
-                          </p>
-                        )}
-                      </div>
-                      <ChevronRight size={14} className="text-white/20" />
                     </div>
-                  ))}
-                </div>
-              )}
+                    <ChevronRight size={14} className="text-white/20 flex-shrink-0" />
+                  </div>
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -634,16 +589,60 @@ export function SearchPage() {
 
       {/* ── Main Results View ────────────────────────────────────────── */}
 
-      {/* 1. IDLE STATE: Clean Search Landing */}
-      {state === "idle" && !query && (
-        <div className="flex flex-col items-center justify-center py-24 text-center animate-fadeIn space-y-3 text-white/30">
-          <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/40 mb-1">
-            <Search size={32} strokeWidth={1.5} />
-          </div>
-          <h2 className="text-base font-bold text-white/80">Search SoulSync</h2>
-          <p className="text-xs text-white/40 max-w-xs leading-relaxed">
-            Find your favorite songs, artists, soundtracks, and albums.
-          </p>
+      {/* 1. IDLE / STATIC LANDING STATE (Recent Searches & Trending) */}
+      {state === "idle" && !query.trim() && (
+        <div className="space-y-8 animate-fadeIn pt-2">
+          {recentSearches.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Clock size={16} className="text-white/60" />
+                  Recent Searches
+                </h3>
+                <button
+                  onClick={handleClearAllRecent}
+                  className="text-xs font-semibold text-white/40 hover:text-red-400 transition-colors flex items-center gap-1"
+                >
+                  <Trash2 size={12} />
+                  Clear all
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {recentSearches.map((s, i) => (
+                  <div
+                    key={i}
+                    onClick={() => {
+                      setQuery(s);
+                      handleSearchSubmit(s);
+                    }}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.16] border border-white/10 text-white text-xs font-medium cursor-pointer transition-all active:scale-95 group shadow-sm"
+                  >
+                    <Search size={12} className="text-white/40 group-hover:text-white transition-colors" />
+                    <span>{s}</span>
+                    <button
+                      onClick={(e) => handleRemoveRecent(e, s)}
+                      className="text-white/30 hover:text-white p-0.5 rounded-full hover:bg-white/20 transition-colors -mr-1"
+                      aria-label="Remove search"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {recentSearches.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center space-y-3 text-white/30">
+              <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/40 mb-1">
+                <Search size={32} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-base font-bold text-white/80">Search SoulSync</h2>
+              <p className="text-xs text-white/40 max-w-xs leading-relaxed">
+                Find your favorite songs, artists, soundtracks, and albums.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
