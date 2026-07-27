@@ -32,6 +32,24 @@ function getCleanTitle(name: string): string {
     .trim();
 }
 
+function isOfficialRelease(song: any): boolean {
+  const name = (song.name || song.title || "").toLowerCase();
+  const album = (song.album || song.albumName || "").toLowerCase();
+  const combined = `${name} ${album}`;
+
+  const nonOfficialKeywords = [
+    "cover", "remix", "recreate", "recreated", "re-created", "remake", "lofi",
+    "lo-fi", "slowed", "reverb", "tribute", "instrumental", "acoustic", "unplugged",
+    "reprised", "female version", "male version", "dance mix", "dj mix", "rework",
+    "fan made", "fanmix", "bootleg", "piano cover", "guitar cover", "karaoke"
+  ];
+
+  for (const kw of nonOfficialKeywords) {
+    if (combined.includes(kw)) return false;
+  }
+  return true;
+}
+
 export async function getDailyMix(
   userId: string,
   forcedDateStr?: string
@@ -39,10 +57,11 @@ export async function getDailyMix(
   const targetDateStr = forcedDateStr || new Date().toISOString().split("T")[0];
 
   if (!userId || userId === "guest" || !mongoose.Types.ObjectId.isValid(userId)) {
-    const coldSongs = await getColdStartBatch([], 18, ["english", "hindi"]);
+    const coldSongs = await getColdStartBatch([], 25, ["english", "hindi"]);
+    const cleanColdSongs = coldSongs.filter(isOfficialRelease).slice(0, 18);
     return {
       dateStr: targetDateStr,
-      songs: coldSongs,
+      songs: cleanColdSongs,
       isCached: false,
     };
   }
@@ -54,11 +73,14 @@ export async function getDailyMix(
   });
 
   if (existingCache && Array.isArray(existingCache.songs) && existingCache.songs.length > 0) {
-    return {
-      dateStr: targetDateStr,
-      songs: existingCache.songs,
-      isCached: true,
-    };
+    const cleanCachedSongs = existingCache.songs.filter(isOfficialRelease);
+    if (cleanCachedSongs.length >= 10) {
+      return {
+        dateStr: targetDateStr,
+        songs: cleanCachedSongs,
+        isCached: true,
+      };
+    }
   }
 
   const userDoc = await User.findById(userObjId).lean();
@@ -94,11 +116,12 @@ export async function getDailyMix(
 
   for (const song of combinedCandidatePool) {
     if (!song || !song.id || seenIds.has(song.id)) continue;
+    if (!isOfficialRelease(song)) continue;
 
-    const cleanTitle = getCleanTitle(song.name);
+    const cleanTitle = getCleanTitle((song as any).name || (song as any).title);
     if (cleanTitle && seenTitles.has(cleanTitle)) continue;
 
-    const artist = (song.primaryArtists || "").split(",")[0].trim().toLowerCase();
+    const artist = ((song as any).primaryArtists || (song as any).artist || "").split(",")[0].trim().toLowerCase();
     const currentArtistCount = artistCounts.get(artist) || 0;
     if (currentArtistCount >= 2) continue;
 
@@ -111,10 +134,11 @@ export async function getDailyMix(
   }
 
   if (finalSongs.length < 12) {
-    const cold = await getColdStartBatch(Array.from(seenIds), 20 - finalSongs.length, allowedLangs);
+    const cold = await getColdStartBatch(Array.from(seenIds), 30 - finalSongs.length, allowedLangs);
     const filteredCold = filterByLanguages(cold, allowedLangs);
     for (const song of filteredCold) {
-      const cleanTitle = getCleanTitle(song.name);
+      if (!isOfficialRelease(song)) continue;
+      const cleanTitle = getCleanTitle((song as any).name || (song as any).title);
       if (!seenIds.has(song.id) && (!cleanTitle || !seenTitles.has(cleanTitle))) {
         seenIds.add(song.id);
         if (cleanTitle) seenTitles.add(cleanTitle);
