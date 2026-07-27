@@ -108,14 +108,15 @@ export const getArtistsList = (song: any): ArtistItem[] => {
   }
 
   // 4. String fallback (primaryArtists, primary_artists, singers, artist, music, subtitle)
-  const primary =
+  const primary = decodeHtml(
     song.primaryArtists ||
     song.primary_artists ||
     song.singers ||
     song.artist ||
     song.music ||
     song.subtitle ||
-    "";
+    ""
+  );
 
   if (primary && primary !== "—") {
     let ids: string[] = [];
@@ -128,7 +129,7 @@ export const getArtistsList = (song: any): ArtistItem[] => {
     const parts = String(primary).split(/,\s*|\s+&\s+|\s+and\s+|\s+x\s+|\s*\/\s*/i);
     return parts
       .map((name: string, idx: number) => ({
-        name: decodeHtml(name.trim()),
+        name: name.trim(),
         id: ids[idx] || ""
       }))
       .filter((a: ArtistItem) => a.name.length > 0);
