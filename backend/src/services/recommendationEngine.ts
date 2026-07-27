@@ -1287,6 +1287,24 @@ function isCompilationReRelease(song: Song): boolean {
   return false;
 }
 
+function isOfficialRelease(song: Song): boolean {
+  const name = (song.name || "").toLowerCase();
+  const album = (song.album || "").toLowerCase();
+  const combined = `${name} ${album}`;
+
+  const nonOfficialKeywords = [
+    "cover", "remix", "recreate", "recreated", "re-created", "remake", "lofi", 
+    "lo-fi", "slowed", "reverb", "tribute", "instrumental", "acoustic", "unplugged", 
+    "reprised", "female version", "male version", "dance mix", "dj mix", "rework", 
+    "fan made", "fanmix", "bootleg", "piano cover", "guitar cover", "karaoke"
+  ];
+
+  for (const kw of nonOfficialKeywords) {
+    if (combined.includes(kw)) return false;
+  }
+  return true;
+}
+
 export async function getIndustryNewReleases(
   langs: string[] = [],
   limit: number = 30,
@@ -1336,9 +1354,11 @@ export async function getIndustryNewReleases(
   }
 
   const nonCompilationSongs = enrichedSongs.filter((song) => !isCompilationReRelease(song));
+  const officialSongs = nonCompilationSongs.filter((song) => isOfficialRelease(song));
+  const targetPool = officialSongs.length >= 10 ? officialSongs : nonCompilationSongs;
   const today = new Date();
 
-  const scored = nonCompilationSongs.map((song) => {
+  const scored = targetPool.map((song) => {
     let score = 0;
     const title = (song.name || "").toLowerCase();
     score += popularityScore(song.playCount);
