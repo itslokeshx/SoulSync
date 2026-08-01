@@ -18,8 +18,7 @@ import {
   Megaphone,
   Bell,
   Smartphone,
-  Github,
-  Star,
+  Info,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useApp } from "../context/AppContext";
@@ -28,7 +27,6 @@ import { UserStats } from "../types/user";
 import { onImgErr } from "../lib/helpers";
 import { isNative } from "../utils/platform";
 import { useApkDownloadUrl } from "../hooks/useApkDownloadUrl";
-import { GITHUB_REPO_URL } from "../lib/constants";
 import toast from "react-hot-toast";
 import SoulSyncWrapped from "../components/profile/SoulSyncWrapped";
 import { FeedbackModal } from "../components/ui/FeedbackModal";
@@ -324,17 +322,14 @@ export default function ProfilePage() {
               <Smartphone size={14} strokeWidth={2.5} className="shrink-0" />
               <span className="whitespace-nowrap">Download APK</span>
             </a>
-            <a
-              href={GITHUB_REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[#161b22]/90 border border-white/10 text-white/80 hover:text-white hover:bg-[#21262d] hover:border-amber-400/40 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 group flex-1 sm:flex-none justify-center whitespace-nowrap h-10 shrink-0"
-              title="Star SoulSync on GitHub!"
+            <button
+              onClick={() => navigate("/about")}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/15 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md active:scale-95 flex-1 sm:flex-none justify-center whitespace-nowrap h-10 shrink-0"
+              title="About SoulSync"
             >
-              <Github size={14} strokeWidth={2} className="text-white/80 group-hover:text-white transition-colors shrink-0" />
-              <Star size={12} className="fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
-              <span className="whitespace-nowrap">Star Repo</span>
-            </a>
+              <Info size={14} strokeWidth={2} className="shrink-0" />
+              <span className="whitespace-nowrap">About</span>
+            </button>
           </div>
         )}
       </div>

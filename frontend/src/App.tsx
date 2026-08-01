@@ -23,6 +23,7 @@ import AdminPanel from "./pages/AdminPanel";
 
 import { PlayerProvider } from "./providers/PlayerProvider";
 import { AnalyticsTracker } from "./components/analytics/AnalyticsTracker";
+import AboutPage from "./pages/AboutPage";
 
 export default function App() {
   useEffect(() => {
@@ -109,6 +110,7 @@ function AppRouter() {
         />
 
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="about" element={<AboutPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { bestImg, getArtists, fmt, onImgErr } from "../../lib/helpers";
 import { FALLBACK_IMG } from "../../lib/constants";
-import { ArtistLinks } from "../ui/ArtistLinks";
 
 interface PlayerBarProps {
   currentSong: any;
@@ -163,8 +162,8 @@ export const PlayerBar = ({
                 <p className="text-[13px] font-semibold text-white truncate cursor-pointer hover:underline leading-tight">
                   {currentSong.name}
                 </p>
-                <p className="text-[11px] text-white/35 truncate mt-0.5" onClick={(e) => e.stopPropagation()}>
-                  <ArtistLinks song={currentSong} />
+                <p className="text-[11px] text-white/35 truncate mt-0.5">
+                  {getArtists(currentSong)}
                 </p>
               </div>
               <button
