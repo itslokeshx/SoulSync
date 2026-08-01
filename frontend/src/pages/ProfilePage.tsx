@@ -309,9 +309,9 @@ export default function ProfilePage() {
           )}
         </button>
 
-        {/* Profile Header Web Action Buttons (Download APK & GitHub Star) */}
-        {!isNative() && (
-          <div className="flex items-center gap-2.5 relative z-10 w-full sm:w-auto justify-start sm:justify-end pt-3 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+        {/* Profile Header Action Buttons */}
+        <div className="flex items-center gap-2.5 relative z-10 w-full sm:w-auto justify-start sm:justify-end pt-3 sm:pt-0 border-t sm:border-t-0 border-white/[0.06]">
+          {!isNative() && (
             <a
               href={apkUrl}
               target="_blank"
@@ -322,16 +322,16 @@ export default function ProfilePage() {
               <Smartphone size={14} strokeWidth={2.5} className="shrink-0" />
               <span className="whitespace-nowrap">Download APK</span>
             </a>
-            <button
-              onClick={() => navigate("/about")}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/15 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md active:scale-95 flex-1 sm:flex-none justify-center whitespace-nowrap h-10 shrink-0"
-              title="About SoulSync"
-            >
-              <Info size={14} strokeWidth={2} className="shrink-0" />
-              <span className="whitespace-nowrap">About</span>
-            </button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={() => navigate("/about")}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/15 font-extrabold text-[11px] sm:text-xs transition-all duration-200 shadow-md active:scale-95 flex-1 sm:flex-none justify-center whitespace-nowrap h-10 shrink-0"
+            title="About SoulSync"
+          >
+            <Info size={14} strokeWidth={2} className="shrink-0" />
+            <span className="whitespace-nowrap">About</span>
+          </button>
+        </div>
       </div>
 
       {/* SoulSync Support Chat Card */}
