@@ -90,7 +90,7 @@ export default function ProfilePage() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [hasUnreadReply, setHasUnreadReply] = useState(false);
-  const [audioSource, setAudioSource] = useState<"default" | "lossless">(() => (localStorage.getItem("ss_audio_source") as any) || "default");
+
 
   const checkUnreadReplies = () => {
     if (!user) return;
@@ -605,52 +605,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-sm font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Settings size={15} className="text-sp-green" />
-          Audio Source Settings
-        </h2>
-        <div className="p-5 rounded-[24px] bg-white/[0.01] border border-white/[0.04] flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-white">Playback Audio Quality Source</p>
-            <p className="text-xs text-white/40 mt-0.5">
-              {audioSource === "lossless"
-                ? "Alternate High-Quality Mirror (Tidal-style high bitrate stream)"
-                : "Standard Quality Stream (Fast load time)"}
-            </p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => {
-                setAudioSource("default");
-                localStorage.setItem("ss_audio_source", "default");
-                toast("Audio source set to Default");
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                audioSource === "default"
-                  ? "bg-sp-green/20 text-sp-green border-sp-green/30"
-                  : "bg-white/[0.03] text-white/40 border-white/[0.06] hover:text-white"
-              }`}
-            >
-              Default
-            </button>
-            <button
-              onClick={() => {
-                setAudioSource("lossless");
-                localStorage.setItem("ss_audio_source", "lossless");
-                toast.success("Audio source set to Lossless Mirror");
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                audioSource === "lossless"
-                  ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                  : "bg-white/[0.03] text-white/40 border-white/[0.06] hover:text-white"
-              }`}
-            >
-              Lossless
-            </button>
-          </div>
-        </div>
-      </div>
+
 
       {/* Logout Button */}
       <button
