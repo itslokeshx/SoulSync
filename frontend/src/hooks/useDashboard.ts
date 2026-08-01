@@ -21,19 +21,6 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     getRecentlyPlayedFromStorage()
   );
 
-  useEffect(() => {
-    const handleRecentsUpdated = () => {
-      setLocalRecents(getRecentlyPlayedFromStorage());
-      try { sessionStorage.clear(); } catch {}
-    };
-    window.addEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
-    window.addEventListener("soulsync:taste_updated", handleRecentsUpdated);
-    return () => {
-      window.removeEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
-      window.removeEventListener("soulsync:taste_updated", handleRecentsUpdated);
-    };
-  }, []);
-
   const fetched = useRef(false);
   const fetchingRef = useRef(false);
   const lastFetchedAt = useRef(0);
@@ -85,6 +72,23 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
       fetchingRef.current = false;
     }
   }, [userId, cacheKey]);
+
+  useEffect(() => {
+    const handleRecentsUpdated = () => {
+      setLocalRecents(getRecentlyPlayedFromStorage());
+      try { sessionStorage.clear(); } catch {}
+      if (userId) {
+        fetched.current = false;
+        fetchDashboard();
+      }
+    };
+    window.addEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
+    window.addEventListener("soulsync:taste_updated", handleRecentsUpdated);
+    return () => {
+      window.removeEventListener("soulsync:recently_played_updated", handleRecentsUpdated);
+      window.removeEventListener("soulsync:taste_updated", handleRecentsUpdated);
+    };
+  }, [userId, fetchDashboard]);
 
   useEffect(() => {
     fetched.current = false;
@@ -173,11 +177,10 @@ export function useDashboard(onPlay: (song: any, queue?: any[]) => void) {
     };
   })();
 
-  // Data processing / transformations
-  const rawRecentlyPlayed = [
-    ...localRecents,
-    ...(dashboard?.recentlyPlayed || []),
-  ];
+  // Data processing / transformations — 100% DB/Cloud driven for authenticated users
+  const rawRecentlyPlayed = user
+    ? (dashboard?.recentlyPlayed || [])
+    : localRecents;
   const normalizedRecentlyPlayed = normalizeSongs(rawRecentlyPlayed);
   const normalizedNewReleases = normalizeSongs(dashboard?.newReleases?.songs || []);
   const normalizedLikedSongs = normalizeSongs(dashboard?.likedSongs || []);

@@ -939,15 +939,15 @@ export async function getTasteProfileBatch(
   const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
   const sessionState = await getActiveSessionContext(undefined, userId);
-  const recentlySurfaced7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
+  const recentlySurfaced1d = userId ? await getRecentlyRecommendedSongIds(userId, 1) : [];
 
-  // Build the recent-played set (last 30 days) for "forgotten favorites" logic
-  const recentlyPlayedIds = new Set<string>(recentlySurfaced7d);
+  // Build the recent-played set for "forgotten favorites" logic
+  const recentlyPlayedIds = new Set<string>(recentlySurfaced1d);
   let likedSongs: { songId: string; title: string; artist: string; albumArt: string; duration: number; downloadUrl: { quality: string; url: string }[] }[] = [];
   let playlistSongs: { songId: string; title: string; artist: string; albumArt: string; duration: number; downloadUrl: { quality: string; url: string }[] }[] = [];
 
   // ── Collect data needed for all three buckets in parallel ──────
-  const excludeSetForDiscovery = new Set<string>([...excludeIds, ...recentlySurfaced7d]);
+  const excludeSetForDiscovery = new Set<string>([...excludeIds, ...recentlySurfaced1d]);
 
   if (userId && userId !== "guest") {
     const userObjId = new mongoose.Types.ObjectId(userId);
@@ -1473,8 +1473,8 @@ export async function generateNewMusicMix(
   const prefs = await resolveUserPrefs(userId, userPrefs);
   const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
-  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
-  const excludeSet = new Set([...excludeIds, ...recent7d]);
+  const recent1d = userId ? await getRecentlyRecommendedSongIds(userId, 1) : [];
+  const excludeSet = new Set([...excludeIds, ...recent1d]);
 
   const newReleases = await getIndustryNewReleases(allowedLangs, 100);
   const langFiltered = filterByLanguages(newReleases, allowedLangs);
@@ -1520,8 +1520,8 @@ export async function generateFavoritesMix(
   const prefs = await resolveUserPrefs(userId, userPrefs);
   const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
-  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
-  const excludeSet = new Set([...excludeIds, ...recent7d]);
+  const recent1d = userId ? await getRecentlyRecommendedSongIds(userId, 1) : [];
+  const excludeSet = new Set([...excludeIds, ...recent1d]);
   const candidates: Song[] = [];
 
   const addCandidate = (song: Song) => {
@@ -1597,8 +1597,8 @@ export async function generateDiscoveryMix(
   const prefs = await resolveUserPrefs(userId, userPrefs);
   const { languages: allowedLangs } = resolveLanguageFilter(prefs, tasteProfile);
 
-  const recent7d = userId ? await getRecentlyRecommendedSongIds(userId, 7) : [];
-  const excludeSet = new Set([...excludeIds, ...recent7d]);
+  const recent1d = userId ? await getRecentlyRecommendedSongIds(userId, 1) : [];
+  const excludeSet = new Set([...excludeIds, ...recent1d]);
 
   const top5Artists = new Set(tasteProfile.artists.slice(0, 5).map((a) => a.artistName.toLowerCase()));
   const secondaryArtists = tasteProfile.artists.slice(5, 15);

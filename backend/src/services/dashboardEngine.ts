@@ -301,6 +301,15 @@ export async function buildDashboard(
       madeForYouSongs = rawMadeForYou
         .filter((s) => !globalExcludeIds.has(s.id))
         .slice(0, 36);
+
+      if (madeForYouSongs.length < 24) {
+        for (const s of rawMadeForYou) {
+          if (!madeForYouSongs.some((m) => m.id === s.id)) {
+            madeForYouSongs.push(s);
+            if (madeForYouSongs.length >= 36) break;
+          }
+        }
+      }
     }
 
     for (const s of madeForYouSongs) {

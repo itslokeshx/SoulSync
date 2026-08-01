@@ -10,6 +10,7 @@ import { User } from "../types/user";
 import * as api from "../api/backend";
 import { loadNativeToken } from "../api/backend";
 import { analytics } from "../services/analytics";
+import { clearLocalRecentlyPlayed } from "../utils/recentHistory";
 
 interface AuthContextType {
   user: User | null;
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (key.startsWith("ss_dashboard_")) sessionStorage.removeItem(key);
       }
       localStorage.removeItem("ss_liked");
+      clearLocalRecentlyPlayed();
     } catch {}
   }, []);
 

@@ -4,6 +4,15 @@ import { getArtists, bestImg } from "../lib/helpers";
 const RECENTLY_PLAYED_KEY = "ss_recently_played";
 const MAX_RECENT_ITEMS = 30;
 
+export function clearLocalRecentlyPlayed() {
+  try {
+    localStorage.removeItem(RECENTLY_PLAYED_KEY);
+    window.dispatchEvent(new CustomEvent("soulsync:recently_played_updated", { detail: { updated: [] } }));
+  } catch (err) {
+    console.error("Failed to clear local recently played:", err);
+  }
+}
+
 export function getRecentlyPlayedFromStorage(): any[] {
   try {
     const raw = localStorage.getItem(RECENTLY_PLAYED_KEY);
