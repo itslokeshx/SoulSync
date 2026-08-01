@@ -23,9 +23,9 @@ import {
   Smartphone,
   Globe,
   Twitter,
+  Linkedin,
   AlertCircle,
   HelpCircle,
-  PackageCheck,
 } from "lucide-react";
 import { GITHUB_REPO_URL, APK_DOWNLOAD_URL } from "../lib/constants";
 
@@ -169,30 +169,16 @@ export default function AboutPage() {
       </button>
 
       <div
-        className="relative rounded-3xl overflow-hidden mb-4 p-6 sm:p-8"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(29,185,84,0.14) 0%, rgba(16,185,129,0.06) 50%, rgba(255,255,255,0.015) 100%)",
-          border: "1px solid rgba(29,185,84,0.18)",
-        }}
+        className="rounded-2xl border border-white/[0.06] mb-3 p-5 sm:p-6"
+        style={{ background: "rgba(255,255,255,0.022)" }}
       >
-        <div
-          className="absolute -top-12 -right-12 w-52 h-52 rounded-full pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(29,185,84,0.12) 0%, transparent 70%)",
-          }}
-        />
-        <div className="relative z-10 flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0"
-              style={{ boxShadow: "0 0 24px rgba(29,185,84,0.25)" }}
-            >
-              <Music2 size={22} className="text-black" strokeWidth={2.5} />
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-sp-green/10 border border-sp-green/20 flex items-center justify-center flex-shrink-0">
+              <Music2 size={20} className="text-sp-green" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
                 About SoulSync
               </h1>
               <p className="text-white/35 text-xs mt-0.5">
@@ -200,34 +186,19 @@ export default function AboutPage() {
               </p>
             </div>
           </div>
-          <span
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-shrink-0 mt-1"
-            style={{
-              background: "rgba(29,185,84,0.1)",
-              border: "1px solid rgba(29,185,84,0.2)",
-            }}
-          >
-            <PackageCheck size={11} className="text-sp-green" />
-            <span className="text-[10px] font-black text-sp-green tracking-wider">
-              v5.1.1
-            </span>
+          <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[11px] font-semibold text-white/50 flex-shrink-0 mt-0.5">
+            v5.1.1
           </span>
         </div>
 
-        <p className="relative z-10 text-[13px] text-white/50 leading-relaxed mb-4">
+        <p className="text-[13px] text-white/50 leading-relaxed mb-4">
           SoulSync is a free music streaming app — no subscriptions, no ads, no
           paywalls. Stream songs, build playlists, discover new music, and
           listen with friends. It's a personal project, not a company.
         </p>
 
-        <div
-          className="relative z-10 rounded-xl px-4 py-3 mb-4 flex items-start gap-3"
-          style={{
-            background: "rgba(245,158,11,0.06)",
-            border: "1px solid rgba(245,158,11,0.15)",
-          }}
-        >
-          <AlertCircle size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
+        <div className="rounded-xl px-4 py-3 mb-4 flex items-start gap-3 bg-amber-500/[0.05] border border-amber-500/15">
+          <AlertCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-[12px] text-white/40 leading-relaxed">
             SoulSync runs on free infrastructure, so occasional slowness or a
             brief downtime is possible — especially on first load after a quiet
@@ -235,15 +206,9 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <div
-          className="relative z-10 rounded-2xl p-4 sm:p-5"
-          style={{
-            background: "rgba(0,0,0,0.25)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2.5">
-            <UserCircle size={13} className="text-sp-green" />
+        <div className="rounded-xl p-4 bg-white/[0.02] border border-white/[0.05]">
+          <div className="flex items-center gap-2 mb-2">
+            <UserCircle size={14} className="text-sp-green" />
             <span className="text-[10px] font-black text-sp-green uppercase tracking-widest">
               Developer & Contact
             </span>
@@ -261,12 +226,7 @@ export default function AboutPage() {
             <a
               href="mailto:itslokeshx@gmail.com"
               id="about-contact-email"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 active:scale-95"
-              style={{
-                background: "rgba(29,185,84,0.12)",
-                border: "1px solid rgba(29,185,84,0.28)",
-                color: "#1db954",
-              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-bold bg-sp-green/10 border border-sp-green/25 text-sp-green hover:bg-sp-green/20 transition-all duration-200 active:scale-95"
             >
               <Mail size={13} />
               itslokeshx@gmail.com
@@ -276,19 +236,24 @@ export default function AboutPage() {
               target="_blank"
               rel="noopener noreferrer"
               id="about-twitter-link"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 active:scale-95"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.55)",
-              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-bold bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all duration-200 active:scale-95"
             >
               <Twitter size={13} />
               @itslokeshx
             </a>
+            <a
+              href="https://www.linkedin.com/in/itslokeshx/"
+              target="_blank"
+              rel="noopener noreferrer"
+              id="about-linkedin-link"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-bold bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all duration-200 active:scale-95"
+            >
+              <Linkedin size={13} />
+              LinkedIn
+            </a>
           </div>
           <p className="text-[11px] text-white/20 mt-2.5">
-            Follow the build on X for updates and behind-the-scenes.
+            Connect on LinkedIn or follow the build on X for updates.
           </p>
         </div>
       </div>
