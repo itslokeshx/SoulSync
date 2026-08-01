@@ -89,8 +89,9 @@ export function AnnouncementModal() {
           icon: ShieldAlert,
         };
       case "feature":
+      case "feature_spotlight":
         return {
-          label: "New Feature",
+          label: "Feature Spotlight",
           style: "bg-blue-500/10 text-blue-400",
           icon: Sparkles,
         };

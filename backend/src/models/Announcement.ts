@@ -5,7 +5,7 @@
 
 import mongoose, { Schema, Document } from "mongoose";
 
-export type AnnouncementType = "whats_new" | "feature" | "general" | "maintenance";
+export type AnnouncementType = "whats_new" | "feature" | "feature_spotlight" | "general" | "maintenance";
 
 export interface IAnnouncement extends Document {
   type: AnnouncementType;
@@ -25,7 +25,7 @@ const AnnouncementSchema = new Schema<IAnnouncement>(
   {
     type: {
       type: String,
-      enum: ["whats_new", "feature", "general", "maintenance"],
+      enum: ["whats_new", "feature", "feature_spotlight", "general", "maintenance"],
       required: true,
     },
     title: { type: String, required: true, trim: true },

@@ -1,4 +1,4 @@
-export type AnnouncementType = "whats_new" | "feature" | "general" | "maintenance";
+export type AnnouncementType = "whats_new" | "feature" | "feature_spotlight" | "general" | "maintenance";
 
 export interface Announcement {
   _id: string;

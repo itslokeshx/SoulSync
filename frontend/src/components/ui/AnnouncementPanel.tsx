@@ -24,6 +24,7 @@ export function AnnouncementPanel() {
       case "maintenance":
         return <ShieldAlert size={13} className="text-red-400" />;
       case "feature":
+      case "feature_spotlight":
         return <Sparkles size={13} className="text-blue-400" />;
       default:
         return <Megaphone size={13} className="text-white/60" />;
@@ -37,7 +38,8 @@ export function AnnouncementPanel() {
       case "maintenance":
         return "Maintenance";
       case "feature":
-        return "New Feature";
+      case "feature_spotlight":
+        return "Feature Spotlight";
       default:
         return "Notice";
     }
