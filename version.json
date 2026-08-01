@@ -1,15 +1,8 @@
 {
-  "version": "5.1.1",
-  "apk_url": "https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.apk/download",
-  "exe_url": "https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.exe/download",
-  "deb_url": "https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.deb/download",
-  "force": false,
-  "changelog": [
-    "Redesigned desktop navigation sidebar with ergonomic section layout",
-    "Upgraded personalized recommendation & session-anchored Up Next engine",
-    "Natural Language Search with Entity Relationship Graph (Directors, Actors, Movies, Composers)",
-    "Damerau-Levenshtein Typo Resilience Engine & Adaptive Telemetry Learning",
-    "Enhanced Profile Page dashboard & SoulSync Wrapped Deck performance",
-    "Resolved Local Song Import metadata parsing and catalog matching bug"
-  ]
+  "version": "5.1.2",
+  "apk_url": "https://sourceforge.net/projects/soulsync/files/v5.1.2/SoulSync_5.1.2.apk/download",
+  "exe_url": "https://sourceforge.net/projects/soulsync/files/v5.1.2/SoulSync_5.1.2.exe/download",
+  "deb_url": "https://sourceforge.net/projects/soulsync/files/v5.1.2/SoulSync_5.1.2.deb/download",
+  "mandatory": false,
+  "changelog": "• 100% Cloud-Driven Dashboard: History & Continue Listening now sync seamlessly across all devices.\n• Recommendation Engine: Made For You and Daily Mix yield rich 24+ song personalized feeds.\n• Redesigned About Page: Topic-wise layout, FAQ accordions, and developer social links.\n• Admin Panel: Feature Spotlight announcement support & stability fixes."
 }

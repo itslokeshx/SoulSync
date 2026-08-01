@@ -23,9 +23,9 @@ The application serves both web clients and native Android devices via Capacitor
 | Platform | Download Link | Requirement |
 | :--- | :--- | :--- |
 | **Web Application** | [soul-sync-beta.vercel.app](https://soul-sync-beta.vercel.app) | Modern Browser |
-| **Android Client** | [SoulSync_5.1.1.apk](https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.apk/download) | Android 7.0+ (API 24+) |
-| **Windows Desktop** | [SoulSync_5.1.1.exe](https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.exe/download) | Windows 10/11 (64-bit) |
-| **Linux (Debian/Ubuntu)** | [SoulSync_5.1.1.deb](https://sourceforge.net/projects/soulsync/files/v5.1.1/SoulSync_5.1.1.deb/download) | Debian / Ubuntu (x86_64) |
+| **Android Client** | [SoulSync_5.1.2.apk](https://sourceforge.net/projects/soulsync/files/v5.1.2/SoulSync_5.1.2.apk/download) | Android 7.0+ (API 24+) |
+| **Windows Desktop** | [SoulSync_5.1.2.exe](https://sourceforge.net/projects/soulsync/files/v5.1.2/SoulSync_5.1.2.exe/download) | Windows 10/11 (64-bit) |
+| **Linux (Debian/Ubuntu)** | [SoulSync_5.1.2.deb](https://sourceforge.net/projects/soulsync/files/v5.1.2/SoulSync_5.1.2.deb/download) | Debian / Ubuntu (x86_64) |
 
 ---
 

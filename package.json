@@ -1,7 +1,7 @@
 {
   "name": "soulsync",
   "private": true,
-  "version": "5.1.1",
+  "version": "5.1.2",
   "scripts": {
     "dev": "concurrently -n \"frontend,backend\" -c \"cyan,emerald\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm --prefix frontend run dev",

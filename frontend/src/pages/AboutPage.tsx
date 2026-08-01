@@ -187,7 +187,7 @@ export default function AboutPage() {
             </div>
           </div>
           <span className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[11px] font-semibold text-white/50 flex-shrink-0 mt-0.5">
-            v5.1.1
+            v5.1.2
           </span>
         </div>
 
@@ -299,7 +299,7 @@ export default function AboutPage() {
               </div>
               <div>
                 <p className="text-[13px] font-bold text-white leading-none">Android APK</p>
-                <p className="text-[11px] text-white/30 mt-0.5">Android 7.0+ · v5.1.1</p>
+                <p className="text-[11px] text-white/30 mt-0.5">Android 7.0+ · v5.1.2</p>
               </div>
             </a>
           </div>
