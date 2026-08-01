@@ -20,8 +20,14 @@ import {
   UserCircle,
   ListMusic,
   Star,
+  Smartphone,
+  Globe,
+  Twitter,
+  AlertCircle,
+  HelpCircle,
+  PackageCheck,
 } from "lucide-react";
-import { GITHUB_REPO_URL } from "../lib/constants";
+import { GITHUB_REPO_URL, APK_DOWNLOAD_URL } from "../lib/constants";
 
 const FEATURES = [
   {
@@ -105,6 +111,21 @@ const PRIVACY_ITEMS = [
   },
 ];
 
+const FAQ_ITEMS = [
+  {
+    q: "Why is the app slow on first load?",
+    a: "SoulSync runs on free-tier infrastructure that spins down when idle. The first request after a quiet period can take 20–40 seconds while the server wakes up — subsequent loads are fast. Thanks for your patience.",
+  },
+  {
+    q: "Why do some songs fail to play?",
+    a: "Occasionally a stream URL expires before playback starts, especially on slower connections. Tapping the song again usually fixes it. If it keeps happening, try refreshing the page.",
+  },
+  {
+    q: "Why do some search results look off?",
+    a: "The catalog is very large and search is fuzzy by design. Sometimes less common songs or older tracks surface results that aren't an exact match. Keep your search shorter and more specific for best results.",
+  },
+];
+
 function Accordion({
   q,
   a,
@@ -162,28 +183,57 @@ export default function AboutPage() {
               "radial-gradient(circle, rgba(29,185,84,0.12) 0%, transparent 70%)",
           }}
         />
-        <div className="relative z-10 flex items-center gap-4 mb-5">
-          <div
-            className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0"
-            style={{ boxShadow: "0 0 24px rgba(29,185,84,0.25)" }}
+        <div className="relative z-10 flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sp-green via-emerald-400 to-teal-300 flex items-center justify-center flex-shrink-0"
+              style={{ boxShadow: "0 0 24px rgba(29,185,84,0.25)" }}
+            >
+              <Music2 size={22} className="text-black" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                About SoulSync
+              </h1>
+              <p className="text-white/35 text-xs mt-0.5">
+                Built by one person, for everyone
+              </p>
+            </div>
+          </div>
+          <span
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-shrink-0 mt-1"
+            style={{
+              background: "rgba(29,185,84,0.1)",
+              border: "1px solid rgba(29,185,84,0.2)",
+            }}
           >
-            <Music2 size={22} className="text-black" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              About SoulSync
-            </h1>
-            <p className="text-white/35 text-xs mt-0.5">
-              Built by one person, for everyone
-            </p>
-          </div>
+            <PackageCheck size={11} className="text-sp-green" />
+            <span className="text-[10px] font-black text-sp-green tracking-wider">
+              v5.1.1
+            </span>
+          </span>
         </div>
 
-        <p className="relative z-10 text-[13px] text-white/50 leading-relaxed mb-5">
+        <p className="relative z-10 text-[13px] text-white/50 leading-relaxed mb-4">
           SoulSync is a free music streaming app — no subscriptions, no ads, no
           paywalls. Stream songs, build playlists, discover new music, and
           listen with friends. It's a personal project, not a company.
         </p>
+
+        <div
+          className="relative z-10 rounded-xl px-4 py-3 mb-4 flex items-start gap-3"
+          style={{
+            background: "rgba(245,158,11,0.06)",
+            border: "1px solid rgba(245,158,11,0.15)",
+          }}
+        >
+          <AlertCircle size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-[12px] text-white/40 leading-relaxed">
+            SoulSync runs on free infrastructure, so occasional slowness or a
+            brief downtime is possible — especially on first load after a quiet
+            period. Thanks for your patience.
+          </p>
+        </div>
 
         <div
           className="relative z-10 rounded-2xl p-4 sm:p-5"
@@ -207,23 +257,89 @@ export default function AboutPage() {
           <p className="text-white/35 text-xs mb-3 leading-relaxed">
             Bug, feature idea, or just want to say hi? I read every message.
           </p>
-          <a
-            href="mailto:itslokeshx@gmail.com"
-            id="about-contact-email"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 active:scale-95"
-            style={{
-              background: "rgba(29,185,84,0.12)",
-              border: "1px solid rgba(29,185,84,0.28)",
-              color: "#1db954",
-            }}
-          >
-            <Mail size={13} />
-            itslokeshx@gmail.com
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="mailto:itslokeshx@gmail.com"
+              id="about-contact-email"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 active:scale-95"
+              style={{
+                background: "rgba(29,185,84,0.12)",
+                border: "1px solid rgba(29,185,84,0.28)",
+                color: "#1db954",
+              }}
+            >
+              <Mail size={13} />
+              itslokeshx@gmail.com
+            </a>
+            <a
+              href="https://x.com/itslokeshx"
+              target="_blank"
+              rel="noopener noreferrer"
+              id="about-twitter-link"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 active:scale-95"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.55)",
+              }}
+            >
+              <Twitter size={13} />
+              @itslokeshx
+            </a>
+          </div>
+          <p className="text-[11px] text-white/20 mt-2.5">
+            Follow the build on X for updates and behind-the-scenes.
+          </p>
         </div>
       </div>
 
       <div className="space-y-3">
+        <div
+          className="rounded-2xl border border-white/[0.06] px-5 py-4"
+          style={{ background: "rgba(255,255,255,0.022)" }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Globe size={13} className="text-sp-green" />
+            <h2 className="text-[11px] font-black text-white uppercase tracking-widest">
+              Available On
+            </h2>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <a
+              href="https://soul-sync-beta.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              id="about-web-link"
+              className="flex items-center gap-3 flex-1 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/[0.04] active:scale-[0.98]"
+              style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-sp-green/10 flex items-center justify-center flex-shrink-0">
+                <Globe size={13} className="text-sp-green" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-white leading-none">Web App</p>
+                <p className="text-[11px] text-white/30 mt-0.5">Any browser</p>
+              </div>
+            </a>
+            <a
+              href={APK_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              id="about-apk-link"
+              className="flex items-center gap-3 flex-1 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/[0.04] active:scale-[0.98]"
+              style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-sp-green/10 flex items-center justify-center flex-shrink-0">
+                <Smartphone size={13} className="text-sp-green" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-white leading-none">Android APK</p>
+                <p className="text-[11px] text-white/30 mt-0.5">Android 7.0+ · v5.1.1</p>
+              </div>
+            </a>
+          </div>
+        </div>
+
         <div
           className="rounded-2xl border border-white/[0.06] overflow-hidden"
           style={{ background: "rgba(255,255,255,0.022)" }}
@@ -281,6 +397,26 @@ export default function AboutPage() {
         </div>
 
         <div
+          className="rounded-2xl border border-white/[0.06] px-5 pt-5 pb-2"
+          style={{ background: "rgba(255,255,255,0.022)" }}
+        >
+          <div className="flex items-center gap-2 mb-1 pb-3 border-b border-white/[0.04]">
+            <HelpCircle size={13} className="text-sp-green" />
+            <h2 className="text-[11px] font-black text-white uppercase tracking-widest">
+              Common Questions
+            </h2>
+          </div>
+          {FAQ_ITEMS.map((item, i) => (
+            <Accordion
+              key={item.q}
+              q={item.q}
+              a={item.a}
+              isLast={i === FAQ_ITEMS.length - 1}
+            />
+          ))}
+        </div>
+
+        <div
           className="rounded-2xl border border-white/[0.06] px-5 py-5"
           style={{ background: "rgba(255,255,255,0.022)" }}
         >
@@ -312,7 +448,10 @@ export default function AboutPage() {
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
-              <Github size={15} className="text-white/50 group-hover:text-white transition-colors" />
+              <Github
+                size={15}
+                className="text-white/50 group-hover:text-white transition-colors"
+              />
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-bold text-white/70 group-hover:text-white transition-colors leading-snug">
@@ -323,7 +462,8 @@ export default function AboutPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl flex-shrink-0 transition-all duration-200 group-hover:scale-105"
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl flex-shrink-0 transition-all duration-200 group-hover:scale-105"
             style={{
               background: "rgba(245,158,11,0.12)",
               border: "1px solid rgba(245,158,11,0.25)",
@@ -333,8 +473,6 @@ export default function AboutPage() {
             <span className="text-[11px] font-bold text-amber-400">Star</span>
           </div>
         </a>
-
-
       </div>
     </div>
   );
