@@ -8,32 +8,12 @@ import {
   registerDuoCallback,
 } from "./socket";
 import { useDuoStore, getPersistedSession } from "./duoStore";
-import { getNativeToken } from "../api/backend";
-import { isNative } from "../utils/platform";
+import {
+  createSession as apiCreateSession,
+  joinSession as apiJoinSession,
+  clearNativeToken,
+} from "../api/backend";
 import { analytics } from "../services/analytics";
-
-const BACKEND_URL = (
-  import.meta.env.VITE_DUO_BACKEND ||
-  import.meta.env.VITE_BACKEND_URL ||
-  "http://localhost:4000"
-).replace(/\/$/, "");
-
-/** Fetch helper that includes auth for both web (cookies) and native (Bearer token) */
-function duoFetch(path: string, body: Record<string, unknown>) {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (isNative()) {
-    const token = getNativeToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-  }
-  return fetch(`${BACKEND_URL}${path}`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-}
 
 interface UseDuoOpts {
   playSongRef: React.MutableRefObject<
@@ -68,16 +48,24 @@ export function useDuo({
 }: UseDuoOpts) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasConnectedOnceRef = useRef(false);
+  const isCreatingRef = useRef(false);
+  const isJoiningRef = useRef(false);
   const store = useDuoStore;
 
   // ═══ CREATE SESSION ════════════════════════════════════════════════
   const createSession = useCallback(
     async (hostName: string): Promise<string | null> => {
+      // Guard against concurrent or duplicate creation requests
+      if (isCreatingRef.current) {
+        console.warn("[Duo] Session creation already in progress, ignoring duplicate call");
+        return null;
+      }
+      isCreatingRef.current = true;
+
       try {
-        const res = await duoFetch("/api/session/create", { hostName });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-          addToast(data.error || "Failed to create session", "error");
+        const data = await apiCreateSession(hostName);
+        if (!data || !data.code) {
+          addToast("Failed to create session: Invalid server response", "error");
           return null;
         }
 
@@ -147,10 +135,21 @@ export function useDuo({
         }, 3000);
 
         return data.code;
-      } catch (err) {
-        console.error("[Duo] Create error:", err);
-        addToast("Failed to create SoulLink session", "error");
+      } catch (err: any) {
+        console.error("[Duo] Create error:", err?.response?.status || err?.message || err);
+        if (err?.response?.status === 401) {
+          await clearNativeToken();
+          addToast("Session expired. Please try logging out and logging back in!", "error", 6000);
+        } else if (err?.response?.status === 403) {
+          addToast("You don't have permission to create a session.", "error");
+        } else if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+          addToast("Request timed out. Please check your connection and try again.", "error");
+        } else {
+          addToast(err?.response?.data?.error || "Failed to create SoulLink session", "error");
+        }
         return null;
+      } finally {
+        isCreatingRef.current = false;
       }
     },
     [addToast, currentSongRef, queueRef],
@@ -159,14 +158,17 @@ export function useDuo({
   // ═══ JOIN SESSION ══════════════════════════════════════════════════
   const joinSession = useCallback(
     async (code: string, guestName: string): Promise<boolean> => {
+      // Guard against concurrent or duplicate join requests
+      if (isJoiningRef.current) {
+        console.warn("[Duo] Session join already in progress, ignoring duplicate call");
+        return false;
+      }
+      isJoiningRef.current = true;
+
       try {
-        const res = await duoFetch("/api/session/join", {
-          code,
-          guestName,
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-          addToast(data.error || "Failed to join session", "error");
+        const data = await apiJoinSession(code, guestName);
+        if (!data || !data.session) {
+          addToast("Failed to join session: Invalid server response", "error");
           return false;
         }
 
@@ -206,10 +208,23 @@ export function useDuo({
 
         addToast("Joined SoulLink session! 🎧", "success");
         return true;
-      } catch (err) {
-        console.error("[Duo] Join error:", err);
-        addToast("Failed to join SoulLink session", "error");
+      } catch (err: any) {
+        console.error("[Duo] Join error:", err?.response?.status || err?.message || err);
+        if (err?.response?.status === 401) {
+          await clearNativeToken();
+          addToast("Session expired. Please try logging out and logging back in!", "error", 6000);
+        } else if (err?.response?.status === 404) {
+          addToast("Session not found. Check the code and try again.", "error");
+        } else if (err?.response?.status === 409) {
+          addToast("This session already has a partner.", "error");
+        } else if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+          addToast("Request timed out. Please check your connection and try again.", "error");
+        } else {
+          addToast(err?.response?.data?.error || "Failed to join SoulLink session", "error");
+        }
         return false;
+      } finally {
+        isJoiningRef.current = false;
       }
     },
     [addToast],

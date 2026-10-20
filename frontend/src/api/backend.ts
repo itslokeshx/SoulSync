@@ -513,7 +513,7 @@ export async function createSession(
 export async function joinSession(
   code: string,
   guestName: string,
-): Promise<unknown> {
+): Promise<{ session: any }> {
   const { data } = await api.post("/api/session/join", { code, guestName });
   return data;
 }

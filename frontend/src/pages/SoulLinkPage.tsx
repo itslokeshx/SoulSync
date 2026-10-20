@@ -713,9 +713,11 @@ export default function SoulLinkPage() {
 
                   <button
                     onClick={async () => {
-                      if (name.trim()) {
-                        setLoading(true);
-                        await duo.createSession(name);
+                      if (loading || !name.trim()) return;
+                      setLoading(true);
+                      try {
+                        await duo.createSession(name.trim());
+                      } finally {
                         setLoading(false);
                       }
                     }}
@@ -788,9 +790,11 @@ export default function SoulLinkPage() {
 
                   <button
                     onClick={async () => {
-                      if (name.trim() && joinCode.length >= 4) {
-                        setLoading(true);
-                        await duo.joinSession(joinCode, name);
+                      if (loading || !name.trim() || joinCode.length < 4) return;
+                      setLoading(true);
+                      try {
+                        await duo.joinSession(joinCode.trim(), name.trim());
+                      } finally {
                         setLoading(false);
                       }
                     }}

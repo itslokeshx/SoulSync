@@ -28,27 +28,33 @@ export function DuoModal({ onCreate, onJoin }: DuoModalProps) {
   if (!modalOpen) return null;
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || loading) return;
     setLoading(true);
-    const roomCode = await onCreate(name.trim());
-    setLoading(false);
-    if (roomCode) {
-      setCreatedCode(roomCode);
-      analytics.track("soullink_create", { room_code: roomCode });
+    try {
+      const roomCode = await onCreate(name.trim());
+      if (roomCode) {
+        setCreatedCode(roomCode);
+        analytics.track("soullink_create", { room_code: roomCode });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleJoin = async () => {
-    if (!name.trim() || !code.trim()) return;
+    if (!name.trim() || !code.trim() || loading) return;
     setLoading(true);
-    const ok = await onJoin(code.trim(), name.trim());
-    setLoading(false);
-    if (ok) {
-      analytics.track("soullink_join", { room_code: code.trim() });
-      setModalOpen(false);
-      setName("");
-      setCode("");
-      setCreatedCode(null);
+    try {
+      const ok = await onJoin(code.trim(), name.trim());
+      if (ok) {
+        analytics.track("soullink_join", { room_code: code.trim() });
+        setModalOpen(false);
+        setName("");
+        setCode("");
+        setCreatedCode(null);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
