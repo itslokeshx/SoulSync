@@ -346,7 +346,7 @@ export const NowPlayingView = ({
                 {currentSong.name}
               </p>
               <p className="text-white/50 mt-0.5 sm:mt-1 text-xs sm:text-sm">
-                <ArtistLinks song={currentSong} onArtistClick={onClose} />
+                <ArtistLinks song={currentSong} />
               </p>
             </div>
             <div className="flex items-center gap-1 ml-2 flex-shrink-0">
@@ -632,7 +632,7 @@ export const NowPlayingView = ({
                                 {s.name}
                               </p>
                               <p className="text-[10px] text-white/25 truncate">
-                                <ArtistLinks song={s} onArtistClick={onClose} />
+                                <ArtistLinks song={s} />
                               </p>
                             </div>
                             <span className="text-[10px] text-white/15 tabular-nums flex-shrink-0">
@@ -658,7 +658,7 @@ export const NowPlayingView = ({
                           {currentSong.name}
                         </p>
                         <p className="text-[10px] text-white/30 truncate">
-                          <ArtistLinks song={currentSong} onArtistClick={onClose} />
+                          <ArtistLinks song={currentSong} />
                         </p>
                       </div>
                       <EqBars />
@@ -716,7 +716,7 @@ export const NowPlayingView = ({
                                 {s.name}
                               </p>
                               <p className="text-[11px] text-white/30 truncate">
-                                <ArtistLinks song={s} onArtistClick={onClose} />
+                                <ArtistLinks song={s} />
                               </p>
                             </div>
                           </button>

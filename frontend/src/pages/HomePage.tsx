@@ -1068,14 +1068,9 @@ export const HomePage = () => {
               {TOP_ARTISTS.map((artist) => (
                 <div
                   key={artist.name}
-                  onClick={() =>
-                    artist.id
-                      ? navigate(`/artist/${artist.id}`)
-                      : navigate(`/search?q=${encodeURIComponent(artist.name)}`)
-                  }
-                  className="flex-shrink-0 w-32 p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-transparent hover:border-white/[0.06] transition-all cursor-pointer text-center group"
+                  className="flex-shrink-0 w-32 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.04] text-center"
                 >
-                  <div className="w-24 h-24 mx-auto rounded-full overflow-hidden mb-2.5 shadow-lg group-hover:scale-105 transition-transform border border-white/10">
+                  <div className="w-24 h-24 mx-auto rounded-full overflow-hidden mb-2.5 shadow-lg border border-white/10">
                     <img
                       src={artist.image}
                       alt={artist.name}
@@ -1083,7 +1078,7 @@ export const HomePage = () => {
                       loading="lazy"
                     />
                   </div>
-                  <p className="text-xs font-bold text-white truncate group-hover:text-sp-green transition-colors">
+                  <p className="text-xs font-bold text-white truncate">
                     {artist.name}
                   </p>
                   <p className="text-[10px] text-white/40 truncate mt-0.5">

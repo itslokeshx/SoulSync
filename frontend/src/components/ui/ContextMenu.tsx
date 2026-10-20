@@ -7,7 +7,6 @@ import {
   Heart,
   HeartOff,
   Download,
-  User,
   Disc3,
   FolderPlus,
   ChevronRight,
@@ -154,25 +153,9 @@ export function ContextMenu() {
         hideContextMenu();
       },
     },
-    { divider: true },
-    ...(song.artists?.primary?.[0]?.id ||
-      song.artist_map?.primary_artists?.[0]?.id
-      ? [
-        {
-          icon: User,
-          label: "View Artist",
-          action: () => {
-            const artistId =
-              song.artists?.primary?.[0]?.id ||
-              song.artist_map?.primary_artists?.[0]?.id;
-            if (artistId) navigate(`/artist/${artistId}`);
-            hideContextMenu();
-          },
-        },
-      ]
-      : []),
     ...(song.album?.id
       ? [
+        { divider: true },
         {
           icon: Disc3,
           label: "View Album",
