@@ -341,23 +341,22 @@ export default function LibraryPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {followedArtists.map((art) => (
-              <button
+              <div
                 key={art.id}
-                onClick={() => navigate(`/artist/${art.id}`)}
-                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all text-center group flex flex-col items-center"
+                className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-center flex flex-col items-center"
               >
                 <img
                   src={art.image || FALLBACK_IMG}
                   onError={onImgErr}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shadow-md group-hover:scale-105 transition-transform duration-200 mb-2"
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shadow-md mb-2"
                 />
-                <p className="text-xs font-bold text-white truncate w-full group-hover:text-sp-green transition-colors">
+                <p className="text-xs font-bold text-white truncate w-full">
                   {art.name}
                 </p>
                 <span className="text-[10px] text-purple-400 font-medium mt-0.5">
                   Followed
                 </span>
-              </button>
+              </div>
             ))}
           </div>
         </div>

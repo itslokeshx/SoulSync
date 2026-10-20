@@ -23,6 +23,10 @@ export function setNativeToken(token: string | null) {
 }
 
 export function getNativeToken(): string | null {
+  if (!_nativeToken && typeof window !== "undefined") {
+    const webToken = localStorage.getItem("auth_token_web");
+    if (webToken) _nativeToken = webToken;
+  }
   return _nativeToken;
 }
 
@@ -96,11 +100,14 @@ api.interceptors.request.use((config) => {
     } else {
       config.headers.Authorization = `Bearer ${_adminToken}`;
     }
-  } else if (_nativeToken) {
-    if (config.headers && typeof config.headers.set === 'function') {
-      config.headers.set("Authorization", `Bearer ${_nativeToken}`);
-    } else {
-      config.headers.Authorization = `Bearer ${_nativeToken}`;
+  } else {
+    const token = getNativeToken();
+    if (token) {
+      if (config.headers && typeof config.headers.set === 'function') {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
   }
   return config;
@@ -142,11 +149,11 @@ api.interceptors.response.use(
 let _wakeUpDone = false;
 async function ensureBackendAwake() {
   if (_wakeUpDone) return;
+  _wakeUpDone = true;
   try {
     await api.get("/health", { timeout: 45000 });
-    _wakeUpDone = true;
   } catch {
-    // Backend might be sleeping, give it time
+    // Backend might be sleeping or health check blocked by client extension — continue
   }
 }
 

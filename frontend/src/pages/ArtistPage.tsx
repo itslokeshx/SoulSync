@@ -721,29 +721,17 @@ export const ArtistPage = () => {
                 return (
                   <div
                     key={sim.id}
-                    onClick={() => {
-                      navigate(`/artist/${sim.id}`);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        navigate(`/artist/${sim.id}`);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }
-                    }}
-                    className="group relative bg-white/[0.03] hover:bg-white/[0.08] p-4 rounded-2xl transition-all duration-200 cursor-pointer border border-white/5 hover:border-white/10 hover:scale-[1.02] flex flex-col items-center text-center"
+                    className="relative bg-white/[0.03] p-4 rounded-2xl border border-white/5 flex flex-col items-center text-center"
                   >
-                    <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden mb-3 bg-neutral-900 shadow-md ring-2 ring-white/10 group-hover:ring-sp-green/50 transition-all">
+                    <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden mb-3 bg-neutral-900 shadow-md ring-2 ring-white/10">
                       <img
                         src={simImg}
                         alt={sim.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover"
                         onError={onImgErr}
                       />
                     </div>
-                    <h3 className="text-xs font-bold text-white truncate max-w-full group-hover:text-sp-green transition-colors">
+                    <h3 className="text-xs font-bold text-white truncate max-w-full">
                       {sim.name}
                     </h3>
                     <span className="mt-1.5 text-[10px] font-semibold text-white/50">
