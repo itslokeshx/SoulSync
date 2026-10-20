@@ -250,10 +250,9 @@ function AlbumCard({
 
 function ArtistCard({
   artist,
-  onClick,
 }: {
   artist: any;
-  onClick: (id: string) => void;
+  onClick?: (id: string) => void;
 }) {
   const img = bestImg(artist.image) || FALLBACK_IMG;
   const followers =
@@ -263,29 +262,17 @@ function ArtistCard({
 
   return (
     <div
-      onClick={() => {
-        analytics.track("search_result_click", { item_id: artist.id, item_type: "artist", title: artist.name });
-        onClick(artist.id);
-      }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick(artist.id)}
-      className="group relative bg-white/[0.03] hover:bg-white/[0.08] p-4 rounded-2xl transition-all duration-200 cursor-pointer border border-white/5 hover:border-white/10 hover:scale-[1.02] flex flex-col items-center text-center"
+      className="relative bg-white/[0.03] p-4 rounded-2xl border border-white/5 flex flex-col items-center text-center"
     >
-      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 bg-neutral-900 shadow-md ring-2 ring-white/10 group-hover:ring-sp-green/50 transition-all">
+      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 bg-neutral-900 shadow-md ring-2 ring-white/10">
         <img
           src={img}
           alt={artist.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover"
           onError={onImgErr}
         />
-        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full bg-sp-green text-black flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
-            <User size={18} className="fill-black" />
-          </div>
-        </div>
       </div>
-      <h3 className="text-sm font-bold text-white truncate max-w-full group-hover:text-sp-green transition-colors">
+      <h3 className="text-sm font-bold text-white truncate max-w-full">
         {artist.name}
       </h3>
       <p className="text-xs text-white/50 truncate mt-1">{followers}</p>
@@ -752,7 +739,6 @@ export function SearchPage() {
                       <ArtistCard
                         key={artist.id}
                         artist={artist}
-                        onClick={(id) => navigate(`/artist/${id}`)}
                       />
                     ))}
                   </div>
@@ -836,7 +822,6 @@ export function SearchPage() {
                     <ArtistCard
                       key={artist.id}
                       artist={artist}
-                      onClick={(id) => navigate(`/artist/${id}`)}
                     />
                   ))}
                 </div>
